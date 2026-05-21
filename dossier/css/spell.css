@@ -96,20 +96,21 @@ filter: drop-shadow(0 0 5px rgba(235, 237, 255, 0.30));}
         filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
     }
 }
+/* aura selon la nature */
 .projectile-parent.physicalDamage{
-  filter: drop-shadow(0 0 5px rgba(236, 0, 0));
+  filter: drop-shadow(0 0 10px rgba(236, 0, 0, .85));
 }
 
 .projectile-parent.rawDamage{
-  filter: drop-shadow(0 0 5px rgba(255, 212, 0));
+  filter: drop-shadow(0 0 10px rgba(255, 212, 0, .85));
 }
 
 .projectile-parent.magicalDamage{
-  filter: drop-shadow(0 0 5px rgba(162, 0, 255));
+  filter: drop-shadow(0 0 10px rgba(162, 0, 255, .85));
 }
 
 .projectile-parent.hybridalDamage{
-  filter: drop-shadow(0 0 5px rgba(214, 0, 195));
+  filter: drop-shadow(0 0 10px rgba(214, 0, 174, .85));
 }
 
 .cast.boulassefeu {

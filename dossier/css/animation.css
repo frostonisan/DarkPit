@@ -143,15 +143,13 @@
 
 @keyframes BattleTextDrop {
     0% {
-        opacity: 1;font-size: 2em; 
+        opacity: 1;
         transform: translateY(0px) scale(1); /* Tombe du haut avec une taille plus grande */
        transform-origin: center; /* Centrer la transformation */
     }
     
     20% {
         transform: translateY(0px) scale(2); /* Léger rebond vers le bas */
-        opacity: 0;
-       font-size: 1.5em;
      
     }
  }
@@ -239,15 +237,14 @@
 @keyframes floatUp {
     0% {
         opacity: 1; opacity: 1;
-		 position:relative;line-height: 18px; 
-      transform-origin: center;font-size:1em;
-
-     
+		/* position:relative;line-height: 18px; */
+      transform-origin: center;
+		
    }5% {
 
-		 font-size:2.5em;
+		 font-size:2em;
      }
-     30% {font-size:1.5em;
+     30% {
        opacity: 1;}
      100% {
         opacity: 0;
@@ -255,6 +252,7 @@
         transform: translateY(-30px); /* L'élément monte de 30 pixels avant de disparaître */
     }
 }
+
 @keyframes floatUpLeft {
      0% {
 	font-size: 1.1em;

@@ -3,10 +3,10 @@
   <defs>
     <style>
       .cls-1 {
-        opacity: .53;
+        fill: #ccba7e;
       }
 
-      .cls-1, .cls-2 {
+      .cls-2 {
         fill: #ffe89d;
       }
     </style>
