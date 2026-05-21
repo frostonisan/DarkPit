@@ -1,0 +1,192 @@
+.undead{clip-path: none; }
+.animation-sprite.dead{top:0px;}
+.sprite-container.B{transform:scaleX(-1)}
+.animation-sprite{position:absolute;}
+.animation-sprite.dead, .iddle.dead {top:0px}
+@keyframes bougeote {
+  0% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(2px, -2px);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  30% {
+    transform: translate(1px, -1px);
+  }
+  40% {
+    transform: translate(-1px, 1px);
+  }
+  50% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes sautille {
+  0% {
+    transform: translateY(0px);
+  }
+    10% {
+    transform: translateY(2px);
+  }
+    20% {
+    transform: translateY(0px);
+  }
+    35% {
+    transform: translateY(5px);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  
+ 45% {
+    transform: translateY(2px);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.dead{animation: none !important;width: inherit;
+  position: relative;
+  top: 0px;
+}
+
+.mouche-asticoteuse:not(.codex-scan-image, .shop-item-icon){
+height: 120px;
+ top: 0px;
+ }
+.iddle.mouche-asticoteuse{animation: bougeote 1.2s linear infinite;} 
+
+.porc-bas-fond:not(.codex-scan-image, .shop-item-icon){
+height: 115px;
+ top: 2px;
+}
+.iddle.porc-bas-fond {animation: bougeote 3s linear infinite;} 
+
+.alpha-poulet:not(.codex-scan-image, .shop-item-icon){
+height: 150px;
+ top: -30px;
+ } 
+.iddle.alpha-poulet {animation: bougeote 2.2s linear infinite;} 
+ 
+.grouille-doigt:not(.codex-scan-image, .shop-item-icon){height: 125px;
+  top: -15px;} 
+.iddle.grouille-doigt {animation: bougeote 1.8s linear infinite;} 
+.aura-container.grouille-doigt .aura-fx.life-sup{top: -5%;transform: scale(200%)}
+.drag-box .aura-container.grouille-doigt .aura-fx.life-sup{top: -2%;transform: scale(120%)}
+.domingo-lacte:not(.codex-scan-image, .shop-item-icon){
+height: 170px;
+  top: -60px;}
+.iddle.domingo-lacte {animation: bougeote 0.8s linear infinite;} 
+
+.diarrheux-immortel:not(.codex-scan-image, .shop-item-icon){height: 190px;
+  top: -65px;
+ }
+.iddle.diarrheux-immortel {animation: bougeote 2s linear infinite;} 
+ 
+.versa-soufle:not(.codex-scan-image, .shop-item-icon){
+height: 136px;
+  animation: bougeote 1s linear infinite;
+  top: -10px;
+}
+.iddle.versa-soufle {animation: bougeote 8s linear infinite;} 
+ 
+.lezard-louzeux:not(.codex-scan-image, .shop-item-icon){
+height: 176px;
+   top: -50px;
+}
+.iddle.lezard-louzeux {animation: bougeote 7s linear infinite;} 
+
+.sangogne-viperine:not(.codex-scan-image, .shop-item-icon){height: 220px;
+   top: -105px;
+}
+.iddle.sangogne-viperine {animation: bougeote 1.17s linear infinite;} 
+
+.jeune-salamandron:not(.codex-scan-image, .shop-item-icon){height: 140px;
+  top: -20px;}
+.iddle.jeune-salamandron {animation: bougeote 1.8s linear infinite;} 
+.aura-container.jeune-salamandron .aura-fx.life-sup{left: 30%;top:2%;}
+.escargot-coulissant:not(.codex-scan-image, .shop-item-icon){
+height: 140px;
+  top: -20px;
+  width: 220px;}
+.iddle.escargot-coulissant {animation: bougeote 1.5s linear infinite;} 
+ 
+.poisson-macabe:not(.codex-scan-image, .shop-item-icon){
+height: 100px;
+ top: 17px;}
+.iddle.poisson-macabe {animation: bougeote 8s linear infinite;} 
+ 
+.cloporte-commun:not(.codex-scan-image, .shop-item-icon){
+height: 70px;
+  top: 45px;
+}
+.iddle.cloporte-commun {animation: bougeote 1.8s linear infinite;} 
+ 
+.vers-basique:not(.codex-scan-image, .shop-item-icon){height: 100px;
+  top: 13px;}
+.iddle.vers-basique {animation: bougeote 3s linear infinite;} 
+ 
+.fireling:not(.codex-scan-image, .shop-item-icon){height: 145px;
+  top: -25px;filter: drop-shadow(0px 0 15px #F9AE6D6E);}
+.iddle.fireling {animation: bougeote 0.9s linear infinite;} 
+ 
+.torche-noire:not(.codex-scan-image, .shop-item-icon){height: 305px;
+  top: -155px;}
+.iddle.torche-noire {animation: bougeote 0.5s linear infinite;} 
+ .drag-box .aura-container.torche-noire .aura-fx.life-sup{top: 55%;}
+ 
+.pleureuse-transcandee:not(.codex-scan-image, .shop-item-icon){height: 170px;
+  top: -45px;}
+.iddle.pleureuse-transcandee {animation: bougeote 4s linear infinite;} 
+ 
+.precheur-eteint:not(.codex-scan-image, .shop-item-icon){height: 220px;
+  top: -95px;}
+.iddle.precheur-eteint {animation: bougeote 5.7s linear infinite;} 
+  
+  .baliseur-soin:not(.codex-scan-image, .shop-item-icon){
+height: 115px;
+ top: -13px;
+}
+.iddle.baliseur-soin {animation: bougeote 3s linear infinite;} 
+
+.lance-jarret:not(.codex-scan-image, .shop-item-icon){height: 260px;
+  top: -140px;}
+.iddle.lance-jarret {animation: sautille 3s linear infinite;} 
+
+.iddle.seller {animation: sautille 3s linear infinite;} 
+ 
+.profanateur-engoulmort:not(.codex-scan-image, .shop-item-icon){height: 290px;
+  top: -170px;
+  filter: drop-shadow(0px 0 15px #300000C7);} 
+.iddle.profanateur-engoulmort {animation: bougeote 0.8s linear infinite;} 
+  
+.amas-profane:not(.codex-scan-image, .shop-item-icon){  height: 160px;
+  top: -50px;}
+.iddle.amas-profane {animation: bougeote 5.7s linear infinite;} 
+  
+.aberration-profanee:not(.codex-scan-image, .shop-item-icon) {
+  height: 180px;
+top:-70px;filter: drop-shadow(0px 0 15px #300000C7);}
+.iddle.aberration-profanee {animation: bougeote 2s linear infinite;} 
+
+.foudre-fange:not(.codex-scan-image, .shop-item-icon) {
+height: 390px;
+  top: -265px;
+}
+.iddle.foudre-fange {animation: bougeote 8s linear infinite;} 
+
+
+
+.goinfre-vase:not(.codex-scan-image, .shop-item-icon){height: 305px;
+   top: -185px;}
+.iddle.goinfre-vase {animation: bougeote 4.8s linear infinite;} 

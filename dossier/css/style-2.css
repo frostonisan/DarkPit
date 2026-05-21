@@ -1,0 +1,174 @@
+.class-name {
+  font-family: 'Garamond', serif;
+  font-size: 22px;
+  color: #2d1d1d;
+  margin-top: 20px;
+  text-align: center;
+}
+.lvl-2 {
+  color: orange; /* exemple */
+  font-weight: bold;
+}
+.lvl-3 {
+  color: red;
+  font-weight: bold;
+}
+.mutation {
+  color: violet;
+  font-weight: bold;
+}
+.cycles{position: relative;
+  width: 100%;
+  display: flex;}
+.cycle{display: flex;
+  width: 50%;}
+.cycle.one{
+  width: 50%;color: gray;}
+.class-description {
+  font-family: 'Georgia', serif;
+  font-size: 15px;
+  color: #3a2a2a;
+  line-height: 1.5em;
+  margin: 10px 40px;
+  text-align: justify;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 10px;
+  border-left: 3px solid #5c2d2d;
+} .attribute-container {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-family: Arial, sans-serif;
+        }
+        .label {
+            width: 100px;
+            font-weight: bold;
+        }
+        .button {
+            width: 24px;
+            height: 24px;
+            font-size: 16px;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+        .value {
+            width: 90px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            background: #eee;
+            border: 1px solid #aaa;
+            padding: 2px 0;
+            border-radius: 4px;
+        }
+        .total {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .stat-percentage {
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            padding: 8px;
+            font-weight: bold;
+            margin: 15px;
+            width: 170px;
+            text-align: center;
+            border-radius: 6px;
+        }
+        .force {
+            color: #b30000;
+            border-color: #b30000;
+            background: #ffe5e5;
+        }
+        .agilite {
+            color: #b38600;
+            border-color: #b38600;
+            background: #fff9e5;
+        }
+        .intelligence {
+            color: #660099;
+            border-color: #660099;
+            background: #f3e5ff;
+        }
+        .percentagesContainer {
+            display: flex;
+        }
+		 .stats-block {
+            border: 1px solid #aaa;
+            background: #f4f4f4;
+            padding: 10px;
+            margin: 15px 0;
+            width: 250px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            border-radius: 6px;
+			margin: 2%;
+        }
+		.statbloks{
+  display: flex;
+}
+        .stats-block h3 {
+            margin-top: 0;
+        }
+        .stat-line {
+            margin: 3px 0;
+        }
+		
+		
+		#cycle-analysis:empty,
+.analyse-classe.hidden {
+  display: none;
+}
+#cycle-chart-wrapper{margin: 5%;}
+.analyse-classe{margin: 2%;}
+.analyse-shemat-stat{display:flex;}
+.class-analyser.right{right:0;}
+.class-analyser.left{left:0;}
+.class-analyser{width: 50%;
+  position: relative;}
+ .hidden { display: none; }
+    .compare-container { display: flex; gap: 2rem; }
+    .class-analyser { flex: 1; }
+    .cycle-legend { margin-top: 1rem; }
+    .cycle-legend div { display: flex; align-items: center; margin: 4px 0; }
+    .cycle-legend span { width: 12px; height: 12px; display: inline-block; margin-right: 8px; }
+.analyse-shemat-stat{display:flex;}
+.canvas-size{width: 300px;
+  height: 360px;
+  margin: 5%;}
+  /* Pile des soul */
+.soul-stack {
+  position: absolute;
+  right: 20%;
+  top: 20px;
+  width: 250px;
+  height: 250px;
+  filter: hue-rotate(0deg); /* mis à jour en JS */
+  pointer-events: none;
+}
+
+.soul-stack .layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.soul-stack img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  will-change: transform, filter;
+}
+
+/* Rotations à vitesses différentes (3 couches animées, pas la 00) */
+@keyframes spin360 { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.spin-slow   { animation: spin360 36s linear infinite; }
+.spin-medium { animation: spin360 24s linear infinite; }
+.spin-fast   { animation: spin360 14s linear infinite; }
+
+/* Optionnel : une légère profondeur visuelle */
+.soul-stack .layer.top    { transform: scale(1.02); }
+.soul-stack .layer.base   { transform: scale(0.98); }

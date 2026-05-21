@@ -1,0 +1,434 @@
+/* Écran de fin global commun */
+.overlay-end-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    z-index: 9999;
+    text-align: center;
+    gap: 2rem;
+    padding: 2rem;
+}
+
+/* Victoire */
+.overlay-victory {
+    background-color: white;
+    color: black;
+}
+
+/* Défaite */
+.overlay-defeat {
+    background-color: black;
+    color: white;
+}
+
+/* Bouton de fin */
+.end-button {
+    padding: 1rem 2rem;
+    font-size: 1.2rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: white;
+    color: black;
+    transition: background-color 0.3s ease;
+}
+
+.end-button:hover {
+    background-color: #ddd;
+}
+
+.quit-level-button {
+    position: absolute;
+    top: 20px;
+    right: 500px;
+    padding: 10px 18px;
+    background-color: #822;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 9999;
+    transition: background-color 0.2s ease;
+}
+.quit-level-button:hover {
+    background-color: #a33;
+}
+
+/* .hex { */
+  /* position: absolute; */
+  /* width: var(--w);/* Largeur de l'hexagone */ 
+  /* height: var(--h); /* Hauteur de l'hexagone */ 
+  /* background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="var(--w);" height="var(--h);" viewBox="0 0 var(--w) var(--h)"><polygon points="65,0 130,37.5 130,112.5 65,150 0,112.5 0,37.5" stroke="white" stroke-width="2" fill="none"/></svg>'); */
+  /* clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); /* Forme hexagonale */ 
+	/* cursor:pointer; */
+/* } */
+
+/* .background{background-repeat: round; */
+  /* background-image: url("../../media/decors/decors-prison.jpg"); */
+  /* height: 100%; */
+  /* position: fixed; */
+  /* width: 100%; */
+  /* top: 0; */
+  /* z-index: -10;);} */
+  .admin-open-btn{
+position: fixed;
+  right: 310px;
+  bottom: 16px;
+  z-index: 999999;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(186, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+.admin-entity-list{
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px;
+}
+.admin-entity-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: grab;
+  user-select: none;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.admin-entity-row:active{
+  cursor: grabbing;
+}
+#admin-side-tabs button { opacity: 0.6; }
+#admin-side-tabs button.active { opacity: 1; outline: 2px solid #fff; }
+#admin-entity-form{position:absolute;bottom: 12px;
+  right: 15%;}
+  .admin-entity-row{display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: grab;
+  border: 1px solid rgba(255,255,255,0.12);
+  user-select: none;}
+ .admin-entity-row:hover {  background-color: #9292923d;}
+	.admin-entity-list{display: flex;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,0.2);
+  flex-direction: column;}
+  .GameOverMessage .IngameAlert{background: linear-gradient(to right, transparent, black 20%, #740000 80%, transparent);}
+    .IngameAlert.runaway-msg{background: linear-gradient(to right, transparent, #001013 20%, #00745ede 80%, transparent);
+  height: 4vh;
+  font-size: 20px;}
+  .levelname.IngameAlert{top: 50px;
+  padding: 7px;
+  background: linear-gradient(to right, transparent, #000000a6 20%, #000000c4 80%, transparent);
+  color: white;
+  font-size: 14px;
+  z-index: 5;
+  position: absolute;
+  overflow: hidden;
+  display: block ruby;}
+.IngameAlert {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 30px;
+  background: linear-gradient(to right, transparent, black 20%, black 80%, transparent); /* Fond noir avec dégradé */
+  color: white;
+  font-size: 17px;
+  z-index: 1000;
+  position: absolute;
+  overflow: hidden;
+}
+
+.IngameAlert::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #ff9b00, transparent); /* Bordure haut */
+  pointer-events: none;
+}
+
+.IngameAlert::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, transparent, #ff9b00, transparent); /* Bordure bas */
+  pointer-events: none;
+}
+
+.IngameAlert p {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 10px;
+}
+
+
+  .board, .foreground, .hud-ingame, .drag-box, #hexGrid{
+  transition: transform 1.3s ease;}
+.hex.SideA .socle {background-color: #bbe2ff30;}    
+.hex.SideB .socle {background-color: #6900004d;}       
+:root {
+  /* Variables existantes pour dimensions */
+  --screen-h: 1080px;
+  --screen-w: 1920px;
+  --r: 2; /* Ration x Hexagones */
+  --ow: 65px; /* Width de base */
+  --oh: 75px; /* Height de base */
+  --w: calc(var(--ow) * var(--r)); /* Width final */
+  --h: calc(var(--oh) * var(--r)); /* Height final */
+  --s: 15; /* Espace entre hexa */
+  /* Nouvelles variables pour le style du SVG */
+  --stroke-color: white; /* Couleur du contour */
+  --stroke-width: 2px; /* Épaisseur du contour */
+  --fill-color: none; /* Remplissage */
+}
+/* .board-global{position: relative; */
+  /* width: 100%; */
+  /* height: 100%; */
+  /* top: 20%;} */
+.board {
+height: 1080px;
+  width: 1920px;
+  transform-origin: center;
+  position: absolute;
+}
+
+.hex .socle {
+    transition: opacity 0.5s ease-in-out;
+    opacity: 0;
+}
+.hex.consommable-summoned .socle {
+    opacity: 1;
+}
+
+.hex.occupied .socle {
+    opacity: 1;
+}
+
+
+.hex-details{bottom: 30px;
+  position: absolute;text-align: center;}
+.hex-number{color: burlywood;}
+.hexagone-socle{transform-style: preserve-3d;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+.board-global{position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+justify-content: center;}
+.hexa-persective{transform: rotateX(-50deg);
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+.hexagone{transform-style: preserve-3d;height: var(--h);width: var(--w);display: flex;justify-content: center;}
+.foreground{width: 100%;height: 20%;position: absolute;bottom: -10px;z-index:999; pointer-events:none;}
+.foreground-img{width: 100%;
+  position: relative;}
+.foreground-color{position: relative;
+  background-color: black;
+  width: 100%;
+  height: 150%;
+  margin-top: -20px;}
+
+.socle{
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  margin: auto;
+  display: flex;
+  justify-content: center;clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);}
+.socle.neutre{background-image: url('/media/assets/board/hex.svg');
+ }
+.socle.tank{background-image: url('/media/assets/board/hex-tank.svg');
+ }
+.socle.fantassin{background-image: url('/media/assets/board/hex-fantassin.svg');
+ }
+.socle.mage{background-image: url('/media/assets/board/hex-mage.svg');
+ }
+ .hex.hovered .socle.neutre{
+   background-color: #ffffff3b; 
+   }
+    .hex.hovered .socle.tank{
+  background-color: #0800ff54;
+   }
+    .hex.hovered .socle.fantassin{
+   background-color: #00FF283B; 
+   }
+    .hex.hovered .socle.mage{
+   background-color: #FF00003B; 
+   }
+   .hex.hovered .image-role-hex-info {
+  opacity: 1;
+}
+ .image-role-hex-info {  
+ opacity:0;
+   transition: opacity 1.5s ease-in-out;
+  position: absolute;
+  bottom: 35px;
+  position: absolute;
+  text-align: center;
+  width: 80px;
+  height: 80px;
+ background-repeat: no-repeat;animation: Pulsation 4s ease-in-out infinite;}
+.socle.neutre > .image-role-hex-info {
+ background-image: url("../../media/assets/ui/picto-gueux.svg");
+}
+.socle.tank > .image-role-hex-info {
+background-image: url("../../media/assets/ui/picto-tank.svg");
+}
+.socle.fantassin > .image-role-hex-info {
+background-image: url("../../media/assets/ui/picto-fantassin.svg");
+}
+.socle.mage > .image-role-hex-info {
+ background-image: url("../../media/assets/ui/picto-mage.svg");
+}
+#hexGrid {
+  transform: perspective(2000px) rotateX(50deg);
+  transform-style: preserve-3d;
+  z-index:1;
+  /* width: 100%; */
+  /* height: 100%; */
+}
+
+.entite-box{transform-style: preserve-3d;
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  /* display: flex; */
+  justify-content: center;
+  z-index: 99999999999999999;
+}
+/* .drag-limit{position: absolute; */
+  /* top: -30px; */
+  /* left: -80px;} */
+.drag-box{transform: rotateX(-50deg);
+  display: flex;
+  justify-content: center;
+transform-origin: center 100px;
+}
+.hex {
+  position: absolute;
+  width: var(--w); /* Utilise la largeur calculée */
+  height: var(--h); /* Utilise la hauteur calculée */
+  transform-style: preserve-3d;
+  /* background-color: #31dfdf38;  */
+
+}
+.socle-design:hover {
+  background-color: #ffffff59;
+
+}
+
+.mouche_acticoco{animation: bougeote 1.2s linear infinite;
+    height: 157px;
+	position: relative;
+	bottom: 20px;
+	
+}
+
+.background{
+  width: 200%;
+  position: absolute;
+  background-repeat: repeat-x;
+  height: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-position: center;
+  background-size: 50%;top: -175px;
+}
+
+.hex-role-detail{font-size: 0.8em;
+  display: block ruby;
+text-align: center;}
+
+.ground{
+  top: 35px;
+  z-index: -10;
+  margin: -50px;
+  background-repeat: inherit;
+  left: 50%;
+}
+.ground, .ground-fx.swampFog, .ground-fx.swampFog2{
+position: absolute;
+  height: 5000px;
+  width: 5000px;
+background-position: center;
+  transform: translateX(-50%);}
+
+.ground-fx.swampFog{
+  opacity: 0.5;
+  background-repeat: repeat;
+  animation: brouillard 700s linear infinite;pointer-events:none;left:100%;top: -130px;
+}
+
+.ground-fx.swampFog2{  
+  opacity: 0.4;
+  background-repeat: repeat;
+  top: -90px;
+  animation: brouillard 800s linear infinite;pointer-events:none;left:100%;}
+  
+    @keyframes brouillard {
+             0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: -100% -100%;
+    }
+        }
+.ground-fx-container * {
+  mask-image: linear-gradient(rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 1) 50px);
+  -webkit-mask-image: linear-gradient(rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 1) 50px); /* Compatibilité Webkit */
+}		
+		
+.foreground-img.desert{
+  top: -60%;}
+.foreground-img.marecage{  
+top: -180%;}
+
+.ground.glacier{background-size: 800px;}
+.background.glacier{top: -23%;
+  background-size: 32%;}
+  
+.meteo-fx{z-index: 99999999999999;
+  top: -35px;
+  position: absolute;
+  pointer-events: none;} 
+.ground-fx{z-index: 99999999999999;
+ position: absolute;
+  pointer-events: none;background-position: center;
+  transform: translateX(-50%);} 
+.meteo.sunray{
+  top: -50px;
+}

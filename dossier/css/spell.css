@@ -1,0 +1,169 @@
+.effect-vfx.dodge{height: 100px; transform: translate(-30%, 25%);opacity:0.85}
+.effect-vfx.death-blood{height: 90px; transform: translate(-50%, 20%); filter: drop-shadow(0px 0 3px #5c0000);}
+.blood-impact{transform: translate(-5%, 50%);}
+.effect-vfx.heal{height: 150px;transform: translate(-50%, -10%);filter: drop-shadow(0px 0 8px #1CF4FFDB);}
+.effect-vfx.broken-spell{width: 120px;
+  height: 120px;
+  margin-top: -40%;
+  filter: drop-shadow(0px 0px 8px #a200ff);}
+.effect-vfx.extraLife, .effect-vfx.fadedLife, .effect-vfx.eternalLife{height: 90px;filter: drop-shadow(0px 0 8px #fff);top:-25px;}
+.effect-vfx.eternalLife{filter: drop-shadow(0px 0 4px #000000);}
+.effect-vfx.transcendence{height: 80px;filter: drop-shadow(0px 0 8px #fff);top:-20px;}
+.effect-vfx.poison{height: 22px;filter: drop-shadow(0px 0 8px #00FF10DB);}
+.effect-vfx.burn{height: 28px;filter:drop-shadow(0px 0 8px #FF2400);}
+.effect-vfx{margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, 50%);}
+.effect-jarret{height: 70px;
+  margin-left: 10px;
+  animation: Consommablepulse 1s infinite ease-in-out, grow 0.4s ease-in-out;
+  margin-top: 30px;}
+  .recoveryGif{
+  position: absolute;
+  height: 40px;
+  width: 30px;
+  top: 43px;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.3s ease-in-out;
+  left: 69%;}
+.cast-preparation-container.boulassefeu{animation:scaleCastEffect 0.5s ease-out;}
+@keyframes scaleCastEffect {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    53% { transform: scale(1); }
+}
+.cast-animation-container{top: -10px;
+  position: absolute;
+  left: -15px;
+	z-index: 9999999999;}
+.cast{	width : 150px;
+	height : 150px;
+}
+.cast.morsure-goulue{	width : 150px;
+	height : 150px;
+}
+.cast.bluespell{
+	 animation: rotateGlow 3s linear infinite;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 50px #fff,      /* inner white */
+    inset 20px 0 80px #f0f,   /* inner left magenta short */
+    inset -20px 0 80px #0ff,  /* inner right cyan short */
+    inset 20px 0 300px #f0f,  /* inner left magenta broad */
+    inset -20px 0 300px #0ff, /* inner right cyan broad */
+    0 0 50px #fff,            /* outer white */
+    -10px 0 80px #f0f,        /* outer left magenta */
+    10px 0 80px #0ff;         /* outer right cyan */
+}
+.armorImpactGif { transform: translateY(60%); }
+.effect-vfx.astrality{width: 45px;
+filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));}
+.blood-impact.fx-3{transform: translate(-65px,40px);}
+.blood-impact{opacity: 1;
+  position: absolute;
+  inset: 0px;
+  margin: auto;
+  pointer-events: none;
+  z-index: 5;
+  display: block;
+  transform: translate(50%, 96%);
+  height: 65px;
+  width: 65px;
+}
+.effect-vfx.resilience{width: 65px;
+  top: 5px;
+  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.30));}
+.effect-vfx.bloodfuryexec{width: 95px;
+  top: -100px;
+  }
+.effect-vfx.ambidextry{z-index: 20;
+  height: 91px;
+  width: 117px;
+  top: 25px;
+filter: drop-shadow(0 0 5px rgba(235, 237, 255, 0.30));}
+.effect-vfx.lifesteal{
+  height: 80px;
+  width: 80px;
+  top: 100%;  filter: hue-rotate(160deg) saturate(2) brightness(1.2) drop-shadow(0px 0 8px #e41614);}
+@keyframes rotateGlow {
+    0% {
+        transform: rotate(0deg);
+        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+    }
+    50% {
+        filter: drop-shadow(0 0 15px rgba(255, 255, 255, 1));
+    }
+    100% {
+        transform: rotate(360deg);
+        filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8));
+    }
+}
+.projectile-parent.physicalDamage{
+  filter: drop-shadow(0 0 5px rgba(236, 0, 0));
+}
+
+.projectile-parent.rawDamage{
+  filter: drop-shadow(0 0 5px rgba(255, 212, 0));
+}
+
+.projectile-parent.magicalDamage{
+  filter: drop-shadow(0 0 5px rgba(162, 0, 255));
+}
+
+.projectile-parent.hybridalDamage{
+  filter: drop-shadow(0 0 5px rgba(214, 0, 195));
+}
+
+.cast.boulassefeu {
+    animation: rotateGlow 3s linear infinite, pulsateFlame 1.5s ease-in-out infinite alternate;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 140, 0, 0.9), rgba(255, 69, 0, 0.7), rgba(255, 0, 0, 0.5));
+   
+
+    /* Effet de flamme intense */
+    box-shadow:
+        inset 0 0 50px #ff0,      /* inner yellow */
+        inset 20px 0 80px #f90,   /* inner left orange short */
+        inset -20px 0 80px #f30,  /* inner right red short */
+        inset 20px 0 300px #f90,  /* inner left orange broad */
+        inset -20px 0 300px #f30, /* inner right red broad */
+        0 0 50px #ff0,            /* outer yellow */
+        -10px 0 80px #f90,        /* outer left orange */
+        10px 0 80px #f30;         /* outer right red */
+}
+
+/* Animation de rotation */
+@keyframes rotateGlow {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Animation d’ondulation et de pulsation des flammes */
+@keyframes pulsateFlame {
+    0% { box-shadow: 
+        inset 0 0 60px #ff0,
+        inset 20px 0 100px #f90,
+        inset -20px 0 100px #f30,
+        inset 20px 0 320px #f90,
+        inset -20px 0 320px #f30,
+        0 0 60px #ff0,
+        -10px 0 100px #f90,
+        10px 0 100px #f30;
+    }
+    100% { box-shadow: 
+        inset 0 0 40px #ff0,
+        inset 20px 0 60px #f90,
+        inset -20px 0 60px #f30,
+        inset 20px 0 280px #f90,
+        inset -20px 0 280px #f30,
+        0 0 40px #ff0,
+        -10px 0 60px #f90,
+        10px 0 60px #f30;
+    }
+}
+
+.effect-vfx.indestructibility{width: 55px;
+  top: -30px;
+   filter: drop-shadow(0 0 5px rgba(255, 246, 243, 0.40));}
+  
+  .effect-vfx.esoterism{position: absolute;
+  width: 60px;
+ filter: drop-shadow(0 0 10px rgba(255, 184, 227, 0.8));}

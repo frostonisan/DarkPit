@@ -1,0 +1,33 @@
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('/media/typo/EBGaramond-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body, html {
+    margin: 0;
+    height: 100%;
+       background-image: url("../../media/decors/decors-prison.jpg");
+	     font-family: 'EB Garamond', sans-serif;
+		 color:white;
+		 background-repeat: round;
+}
+
+.content{margin:10%;}
+
+.projectile-graphisme{position:absolute;width: 10px;
+  height: 10px; border-radius: 50%;}
+#sbire-projectile{
+   background-color: red;
+ }
+
+#lord-projectile{
+box-shadow: 0 0 7px 4px #8B00FF;
+background-color: black;
+}
+
+.projo{width: 10px;
+  height: 10px; border-radius: 50%;}
+
+  
