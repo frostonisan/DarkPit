@@ -7,6 +7,19 @@ import { entitesNestUp, entites } from './entites.js';
 import { toggleScanEntityListener } from './ui.js';
 import { updateRoleInDOM, updateGlobalRoleSbire, TraitementRolesSbires, observeRoleChanges, determineClasse, positionnerEntites } from './load-entity.js';
 
+function getCurrentStageId() {
+    const currentStageId = window.currentStageId
+        || localStorage.getItem('currentStageId')
+        || localStorage.getItem('currentLevel');
+
+    if (currentStageId) {
+        window.currentStageId = currentStageId;
+        return String(currentStageId);
+    }
+
+    return null;
+}
+
 function assignEntityLevel(power) {
     const powerLevelRanges = [
         { minPower: 1, maxPower: 5, minLevel: 1, maxLevel: 10 },
@@ -53,7 +66,7 @@ export function selectRandomEntitiesForSideB(entitesNestUp, totalPoints, moyenne
     let lords = entitesWithIds.filter(entite => entite.type === 'lord');
     let otherEntities = entitesWithIds.filter(entite => entite.type === 'sbire');
 
-    const currentStageId = window.currentStageId;
+    const currentStageId = getCurrentStageId();
     if (!currentStageId) {
         console.error("currentStageId est indéfini.");
         return [];
@@ -150,7 +163,7 @@ export function selectRandomEntitiesForSideB(entitesNestUp, totalPoints, moyenne
 }
 
 export function selectScriptedEntitiesForSideB(entitesNestUp) {
-    const currentStageId = window.currentStageId;
+    const currentStageId = getCurrentStageId();
     if (!currentStageId) {
         console.error("currentStageId est indéfini.");
         return [];
@@ -197,7 +210,7 @@ export function selectScriptedEntitiesForSideB(entitesNestUp) {
     stage.scripted_entites.sbires.forEach(sbire => createEntityFromSerial(sbire.serial, sbire.level.current, 'sbire'));
     stage.scripted_entites.lords.forEach(lord => createEntityFromSerial(lord.serial, lord.level.current, 'lord'));
 
-const armyBId = `ArmyB_${window.currentStageId}`; // L'ID exact du niveau en cours
+const armyBId = `ArmyB_${currentStageId}`; // L'ID exact du niveau en cours
 
 // Stocke DIRECTEMENT en tableau pour éviter tout autre problème
 armyBData[armyBId] = selectedEntitiesB;
@@ -399,9 +412,9 @@ if (extralifeElement && newEntite.stats.extraLife.max === 0) {
 }
 
 export function selectAdminEntitiesForSideB(entitesNestUp) {
-    const currentStageId = window.currentStageId;
+    const currentStageId = getCurrentStageId();
     if (!currentStageId) {
-        console.error("currentStageId est indéfini.");
+        console.debug("Aucun currentStageId disponible pour le panneau admin.");
         return { A: [], B: [] };
     }
 
@@ -409,7 +422,7 @@ export function selectAdminEntitiesForSideB(entitesNestUp) {
     const stage = gameStageData.stages.find(s => String(s.id) === String(currentStageId));
 
     if (!stage || stage.level_type !== 'admin') {
-        console.error("Aucune donnée de stage admin trouvée.");
+        console.debug("Aucune donnée de stage admin trouvée.");
         return { A: [], B: [] };
     }
 
