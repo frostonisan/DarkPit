@@ -48,4 +48,22 @@ Depuis la racine du projet :
 powershell -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
-Le script verifie la syntaxe des fichiers JavaScript et les references HTML/CSS les plus simples.
+Le script verifie la syntaxe des fichiers JavaScript, les imports, et les references HTML/CSS/assets statiques les plus simples.
+
+## Logs de debug
+
+Par defaut, `console.log`, `console.info` et `console.debug` sont coupes en production. `console.warn` et `console.error` restent visibles.
+
+Pour activer les logs de debug dans le navigateur :
+
+```js
+DarkPitLogs.enable()
+```
+
+Pour les couper a nouveau :
+
+```js
+DarkPitLogs.disable()
+```
+
+On peut aussi charger le site avec `?debugLogs=1` ou `?debugLogs=0`.

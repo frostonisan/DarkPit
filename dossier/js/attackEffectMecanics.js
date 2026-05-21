@@ -440,7 +440,7 @@ export function rez(target) {
     const spriteImg = document.createElement('img');
     spriteImg.id = `sprite_${target.id}`;
     spriteImg.className = 'hb';
-    spriteImg.src = target.originalSprite || target.sprite || "/media/sprites/default.png";
+    spriteImg.src = target.originalSprite || target.sprite || "/media/assets/ui/picto-default.svg";
     spriteImg.alt = target.name;
     container.appendChild(spriteImg);
 
@@ -454,7 +454,7 @@ export function rez(target) {
     }
 
     const rezVFX = document.createElement('img');
-    rezVFX.src = '../../media/assets/effects/rez.gif';
+    rezVFX.src = '../../media/assets/effects/life.gif';
     rezVFX.className = 'effect-vfx extraLife';
     rezVFX.alt = `${target.name} est ressuscité !`;
     effectsContainer.appendChild(rezVFX);

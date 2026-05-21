@@ -55,7 +55,7 @@ export function generateDecor(gameContainer, board, hexGrid) {
     const foreGroundImage = document.createElement('img');
     foreGroundImage.className = `foreground-img ${matchingBiome.classe}`;  // Corriger la classe CSS dynamique
     // Utiliser la valeur de matchingBiome.foreground
-    foreGroundImage.src = matchingBiome.foreground || 'media/decors/prison/Bas.png';
+    foreGroundImage.src = matchingBiome.foreground || 'media/decors/prison/foreground.png';
     foreGround.appendChild(foreGroundImage);
 
     const foreGroundColor = document.createElement('div');

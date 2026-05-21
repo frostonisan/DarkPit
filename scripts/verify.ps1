@@ -31,6 +31,12 @@ Get-ChildItem -Path (Join-Path $siteRoot "js") -Filter "*.js" -File | ForEach-Ob
     & $node --check $_.FullName | Out-Null
 }
 
+Write-Host "Verification imports et assets statiques..."
+& $node (Join-Path $PSScriptRoot "verify-assets.mjs") $siteRoot
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 Write-Host "Verification references HTML..."
 $missing = New-Object System.Collections.Generic.List[string]
 $linkedCss = New-Object System.Collections.Generic.List[string]

@@ -1864,10 +1864,10 @@ export function updateCurrentAttackDisplay(entite) {
     const attack = attackDetails.find(a => a.attackId === entite.currentAttackId);
 
     if (attack) {
-        img.src = attack.attackAsset || '/media/assets/ui/attack-placeholder.png';
+        img.src = attack.attackAsset || '/media/assets/ui/picto-default.svg';
         img.alt = attack.displayName || 'Attaque en cours';
     } else {
-        img.src = '/media/assets/ui/attack-placeholder.png';
+        img.src = '/media/assets/ui/picto-default.svg';
         img.alt = 'Attaque inconnue';
     }
 }

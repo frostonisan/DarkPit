@@ -2895,7 +2895,7 @@ requestAnimationFrame(() => {
 
    
     const spriteImg = document.createElement('img');
-    spriteImg.src = entite.sprite || '/media/assets/misc/default-entity.png';
+    spriteImg.src = entite.sprite || '/media/assets/ui/picto-entity.svg';
     spriteImg.alt = entite.name;
     spriteImg.classList.add('codex-entity-sprite');
     spriteImgContainer.appendChild(spriteImg);
