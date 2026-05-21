@@ -436,7 +436,7 @@ export function applyLevelStatusClasses() {
 
 
 
-window.onload = function () {
+window.addEventListener('load', () => {
 	determineAndGenerateButtons();
 	initializeTooltips();
     initializeButtonClicks();
@@ -449,4 +449,4 @@ window.onload = function () {
     if (displayElement) {
         displayElement.textContent = `ID de la partie : ${gameId}`;
     }
-};
+});

@@ -2878,7 +2878,7 @@ position: relative;
    .picto-stat.alteration {background-image: url('../media/assets/ui/picto-alteration.svg');}
   .picto-stat.speed {background-image: url('../media/assets/ui/picto-speed.svg');}
   .picto-stat.eternalLife {background-image: url('../media/assets/ui/picto-eternallife.svg');background-size: 25px;}
-.picto-stat.extraLife {background-image: url('../media/assets/ui/picto-extralife.svg');background-size: 25px;}
+.picto-stat.extraLife {background-image: url('../media/assets/ui/picto-Extralife.svg');background-size: 25px;}
 .picto-stat.fadedLife {background-image: url('../media/assets/ui/picto-fadedlife.svg');background-size: 25px;filter: drop-shadow(0 0 5px rgba(255,255,255,0.50))}
 .picto-stat.dodge {background-image: url('../media/assets/ui/picto-dodge.svg');background-size: 23px;}
 .picto-stat.precision {background-image: url('../media/assets/ui/picto-precision.svg');background-size: 22px;}
@@ -4139,7 +4139,7 @@ animation: heartsoul 1.25s ease-in-out infinite, eternalLifePulse 1.25s ease-in-
   filter: drop-shadow(0 0 8px #727272) drop-shadow(0 0 2px #d7d7d7);animation: vibrasoul 4s ease-in-out infinite;}
 .eternal-life-status.inactive{color:grey;}
 .ex-picto--wait{background-image: url("../../media/assets/ui/picto-inactive-extralife.svg");opacity: 0.5;}
-.ex-picto--ready{background-image: url("../../media/assets/ui/picto-extralife.svg");transform-origin: center;
+.ex-picto--ready{background-image: url("../../media/assets/ui/picto-Extralife.svg");transform-origin: center;
   animation: extra-life 3.2s ease-in-out infinite alternate;
   will-change: transform;
   backface-visibility: hidden;

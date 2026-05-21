@@ -25,7 +25,7 @@ function preloadImages(images, callback) {
     });
 }
 
-window.onload = function() {
+window.addEventListener('load', () => {
     const imagesToPreload = [
         '/media/assets/loading/loader-01.jpg',
 		'/media/assets/misc/chest-closed.png',
@@ -36,10 +36,12 @@ window.onload = function() {
         console.log("Toutes les images sont préchargées");
         // Vous pouvez maintenant exécuter d'autres scripts ou initialiser votre jeu ici.
     });
-};
+});
 
 function scaleGameContainer() {
     const container = document.getElementById('game-windows');
+    if (!container) return;
+
     const containerWidth = 1536;
     const containerHeight = 676;
     const windowWidth = window.innerWidth;
