@@ -170,6 +170,26 @@ width: 40px;
   z-index: 9;
   left: 35px;
   transform: rotate(-8deg);}
+
+  .dialogue-lore-image {
+  scale: 1;
+  rotate: -8deg;
+  transform-origin: bottom center;
+
+  /* Retour quand la souris sort */
+  transition:
+    scale 2s ease-out,
+    rotate 1s ease-out;
+}
+
+.dialogue-lore-image:hover {
+  scale: 2;
+cursor: zoom-in;
+  transition:
+    scale 15s ease-in-out;
+  animation: straighten 15s ease-in-out forwards;
+}
+
 .xp-arrow.is-hidden, .confirm-button.is-hidden{pointer-events:none;}
 
 #game-container{

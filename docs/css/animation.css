@@ -53,6 +53,20 @@
   }
 }
 
+@keyframes straighten {
+  0% {
+    rotate: -8deg;
+  }
+
+ 20% {
+    rotate: 8deg;
+  }
+
+  100% {
+    rotate: 8deg;
+  }
+}
+
 @keyframes rotationchest {
   0% {
    transform: rotate(0deg); /* Position au sol */

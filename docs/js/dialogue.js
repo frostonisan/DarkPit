@@ -463,6 +463,7 @@ export function dialogue(text = '') {
 
   const dialogueWindow = ensureDirectDiv(gameWindows, 'dialogue-window');
   const dialogueContainer = ensureDirectDiv(dialogueWindow, 'dialogue-container');
+
   bindDialogueSkip(dialogueContainer);
 
   // Supprime le texte brut laissé directement dans le conteneur par l’ancienne version.
@@ -473,18 +474,30 @@ export function dialogue(text = '') {
   const dialogueHeader = ensureDirectDiv(dialogueContainer, 'dialogue-header');
   const dialogueBody = ensureDirectDiv(dialogueContainer, 'dialogue-body');
   const dialogueFooter = ensureDirectDiv(dialogueContainer, 'dialogue-footer');
+
   const dialoguePrevious = ensureDirectDiv(dialogueFooter, 'dialogue-previous');
   const previousLabel = ensureDirectDiv(dialoguePrevious, 'label');
+
   if (!previousLabel.textContent.trim()) {
     previousLabel.textContent = 'Précédent';
   }
-  const dialoguePreviousIcon = ensureDirectDiv(dialoguePrevious, 'dialogue-previous-icon');
+
+  const dialoguePreviousIcon = ensureDirectDiv(
+    dialoguePrevious,
+    'dialogue-previous-icon'
+  );
+
   const dialogueContinue = ensureDirectDiv(dialogueFooter, 'dialogue-continue');
   const continueLabel = ensureDirectDiv(dialogueContinue, 'label');
+
   if (!continueLabel.textContent.trim()) {
     continueLabel.textContent = 'Continuer';
   }
-  const dialogueContinueIcon = ensureDirectDiv(dialogueContinue, 'dialogue-continue-icon');
+
+  const dialogueContinueIcon = ensureDirectDiv(
+    dialogueContinue,
+    'dialogue-continue-icon'
+  );
 
   const dialogueLeft = ensureDirectDiv(dialogueBody, 'dialogue-left');
   const dialogueCenter = ensureDirectDiv(dialogueBody, 'dialogue-center');
@@ -496,13 +509,23 @@ export function dialogue(text = '') {
 
   const dialogueText = ensureDialogueText(dialogueContainer, centerBody);
   const loreText = ensureLoreText(dialogueText);
+
   void typeDialogueText(loreText, text);
 
-  const dialogueMisc = ensureDirectDiv(dialogueWindow, 'dialogue-misc');
   const dialogueUi = ensureDirectDiv(dialogueWindow, 'dialogue-ui');
+
   const dialogueArches = DIALOGUE_ARCH_POSITIONS.map((position) => (
-    ensureDialogueArch(gameWindows, dialogueWindow, dialogueMisc, position)
+    ensureDialogueArch(
+      gameWindows,
+      dialogueWindow,
+      dialogueContainer,
+      position
+    )
   ));
+
+  // Toujours dernier enfant direct de .dialogue-container
+  const dialogueMisc = ensureDirectDiv(dialogueContainer, 'dialogue-misc');
+  dialogueContainer.appendChild(dialogueMisc);
 
   return {
     dialogueWindow,
@@ -529,7 +552,6 @@ export function dialogue(text = '') {
     dialogueArches
   };
 }
-
 function clearDiv(element) {
   if (element) element.replaceChildren();
 }
