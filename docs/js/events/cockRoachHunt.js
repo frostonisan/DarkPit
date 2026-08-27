@@ -430,20 +430,19 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-damage`]: actionScreen({
       id: `${EVENT_ID}-c2-success-damage`,
       cinematic: 'soft',
-      actions: ['spawnAndWoundCockroachKing'],
-      next: `${EVENT_ID}-c2-success-d2`
-    }),
-
-    [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-success-d2`,
-      cinematic: 'hard',
       actions: [Object.freeze({
         action: 'shakeScreenEvent',
         args: Object.freeze({
           effect: 'damage',
           times: 1
         })
-      })],
+      }), 'spawnAndWoundCockroachKing'],
+      next: `${EVENT_ID}-c2-success-d2`
+    }),
+
+    [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
+      id: `${EVENT_ID}-c2-success-d2`,
+      cinematic: 'hard',
       text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
       next: `${EVENT_ID}-c2-success-result`
     }),

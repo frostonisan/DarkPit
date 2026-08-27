@@ -1037,26 +1037,71 @@ export async function shakeScreenEvent({
   const requestedEffect = String(mode || animation || type || effect || 'damage')
     .trim()
     .toLowerCase();
-  const outcome = requestedEffect === 'zoomin'
-    ? 'success'
-    : requestedEffect === 'zoomout'
-      ? 'middle'
-      : 'fail';
   const repeatCount = Math.max(1, Math.min(10, Math.floor(Number(x ?? times) || 1)));
-  const delay = outcome === 'middle'
+  const gameWindows = document.getElementById('game-windows');
+  const screenFX = gameWindows?.querySelector(':scope > .event-cinematic .cinematic-screen-fx')
+    || document.querySelector('.event-cinematic .cinematic-screen-fx');
+  screenFX?.classList.remove('is-visible', 'success', 'middle', 'fail');
+  screenFX?.setAttribute('aria-hidden', 'true');
+  const delay = requestedEffect === 'zoomout'
     ? 4100
-    : outcome === 'success'
+    : requestedEffect === 'zoomin'
       ? 1950
       : CINEMATIC_SCREEN_FX_SHAKE_DURATION;
+  const currentTransform = () => {
+    if (!gameWindows) return 'scale(1)';
+    const value = getComputedStyle(gameWindows).transform;
+    return !value || value === 'none' ? 'scale(1)' : value;
+  };
+  const playZoom = (frames, duration) => {
+    if (!gameWindows || typeof gameWindows.animate !== 'function') return null;
+    gameWindows.style.transformOrigin = 'center center';
+    const animationInstance = gameWindows.animate(frames, {
+      duration,
+      easing: 'cubic-bezier(.17,.72,.22,1)',
+      fill: 'none'
+    });
+    return animationInstance;
+  };
 
   for (let index = 0; index < repeatCount; index += 1) {
-    cinematicScreenFX(outcome);
+    if (requestedEffect === 'zoomin') {
+      playZoom([
+        { transform: currentTransform(), transformOrigin: 'center center', offset: 0 },
+        { transform: 'scale(1.050)', transformOrigin: 'center center', offset: .23 },
+        { transform: 'scale(1.010)', transformOrigin: 'center center', offset: .46 },
+        { transform: 'scale(1.032)', transformOrigin: 'center center', offset: .67 },
+        { transform: 'scale(1.006)', transformOrigin: 'center center', offset: .84 },
+        { transform: 'scale(1)', transformOrigin: 'center center', offset: 1 }
+      ], 1950);
+    } else if (requestedEffect === 'zoomout') {
+      playZoom([
+        { transform: currentTransform(), transformOrigin: 'center center', offset: 0 },
+        { transform: 'scale(1.010)', transformOrigin: 'center center', offset: .16 },
+        { transform: 'scale(1.022)', transformOrigin: 'center center', offset: .36 },
+        { transform: 'scale(1.033)', transformOrigin: 'center center', offset: .54 },
+        { transform: 'scale(1.036)', transformOrigin: 'center center', offset: .64 },
+        { transform: 'scale(1.030)', transformOrigin: 'center center', offset: .76 },
+        { transform: 'scale(1.016)', transformOrigin: 'center center', offset: .89 },
+        { transform: 'scale(1)', transformOrigin: 'center center', offset: 1 }
+      ], 4100);
+    } else if (gameWindows) {
+      clearTimeout(shakeScreenEvent._shakeTimer);
+      gameWindows.classList.remove('event-screen-shake-fail');
+      gameWindows.style.animationDelay = '0s';
+      void gameWindows.offsetWidth;
+      gameWindows.classList.add('event-screen-shake-fail');
+      shakeScreenEvent._shakeTimer = setTimeout(() => {
+        gameWindows.classList.remove('event-screen-shake-fail');
+        gameWindows.style.removeProperty('animation-delay');
+        shakeScreenEvent._shakeTimer = null;
+      }, CINEMATIC_SCREEN_FX_SHAKE_DURATION);
+    }
     if (index < repeatCount - 1) await waitEventMilliseconds(delay);
   }
 
   return {
     effect: requestedEffect,
-    outcome,
     times: repeatCount
   };
 }
@@ -3354,7 +3399,7 @@ export async function forceBattle(options = {}) {
     interfaceAfterBattle,
     eventResults: [eventResult('battleStarted', {
       eventKey: options?.eventKey || null
-    }, '<div class="event-result-item-text">Le combat se lance</div>', [
+    }, '<div class="event-result-item-text">Le combat commence !</div>', [
       'event-result-battle-started',
       'battle'
     ])]
@@ -6552,7 +6597,8 @@ function renderEventHistoryAt(eventDefinition, storedState, requestedIndex, anim
       ...renderedNode,
       text: materialResultHtml({
         preMessage: node.text || '',
-        results: resultScreen
+        results: resultScreen,
+        startsCombat: eventResultScreenStartsCombat(eventDefinition, node)
       })
     };
   }
@@ -7033,6 +7079,27 @@ function collectActionResults(actionOutput, actionName, executionId) {
   return [];
 }
 
+function actionDefinitionIncludesAction(actionDefinition, actionName) {
+  if (typeof actionDefinition === 'string') return actionDefinition === actionName;
+  if (typeof actionDefinition === 'function') return actionDefinition.name === actionName;
+  if (!actionDefinition || typeof actionDefinition !== 'object') return false;
+  if (actionDefinition.action === actionName) return true;
+  if (actionDefinition.action !== 'sequence') return false;
+  const actionSequence = actionDefinition.args?.sequence;
+  return Array.isArray(actionSequence)
+    && actionSequence.some((entry) => actionDefinitionIncludesAction(entry, actionName));
+}
+
+function eventResultScreenStartsCombat(eventDefinition, node) {
+  if (!node?.next) return false;
+  const nextNode = eventDefinition?.nodes?.[node.next];
+  if (nextNode?.type !== 'action' || !Array.isArray(nextNode.actions)) return false;
+  return nextNode.actions.some((actionDefinition) => (
+    actionDefinitionIncludesAction(actionDefinition, 'forceBattle')
+    || actionDefinitionIncludesAction(actionDefinition, 'forceCombat')
+  ));
+}
+
 function storedEventResultIdentity(result) {
   const data = result?.data && typeof result.data === 'object'
     ? result.data
@@ -7095,6 +7162,7 @@ function materialResultHtml(screen) {
   const preMessages = [];
   const regularResults = [];
   const battleResults = [];
+  let hasBattleStartResult = false;
 
   if (screen.preMessage) {
     preMessages.push(normalizeMaterialResultHtml(screen.preMessage));
@@ -7106,6 +7174,7 @@ function materialResultHtml(screen) {
 
     const html = normalizeMaterialResultHtml(result?.html
       || `<pre>${escapeEventHtml(JSON.stringify(result?.data ?? result, null, 2))}</pre>`);
+    if (result?.type === 'battleStarted') hasBattleStartResult = true;
     if (result?.type === 'entitySpawned') {
       entitySpawnMessages.push(html);
       continue;
@@ -7121,6 +7190,12 @@ function materialResultHtml(screen) {
     const section = `<div class="event-result-item${fallbackClass}${resultClasses ? ` ${resultClasses}` : ''}">${html}</div>`;
     if (result?.type === 'battleStarted') battleResults.push(section);
     else regularResults.push(section);
+  }
+
+  if (screen.startsCombat === true && !hasBattleStartResult) {
+    battleResults.push(
+      '<div class="event-result-item event-result-battle-started battle"><div class="event-result-item-text">Le combat commence !</div></div>'
+    );
   }
 
   // Les apparitions d’entité ouvrent toujours le résultat matériel.
