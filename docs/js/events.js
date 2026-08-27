@@ -1,7 +1,7 @@
 import { entites, entitesNestUp, RemoveEntite } from './entites.js';
 import { createEntityIngame } from './createEntity.js';
 import { removeBattleElementFromDOM } from './createBattleElements.js';
-import { closeOpenLootInterfaces, destroyChest as destroyChestLoot, restoreVacatedHexSocleOpacity } from './loot.js';
+import { closeOpenLootInterfaces, destroyChest as destroyChestLoot, disperseLootSourceGlitter, restoreVacatedHexSocleOpacity } from './loot.js';
 import { battleLogs } from './battleLogs.js';
 import { startGame } from './gameState.js';
 import { getCurrentLevel, getOrCreateStageChest, getStageChests, getVisibleHexes, loadFromLocalStorage, loadPlayerInfo, loadQuestState, saveCurrentGameData, saveToLocalStorage, updateQuestState } from './GameStorage.js';
@@ -6021,7 +6021,13 @@ export async function destroyCorpse(options = {}) {
       return {
         entity,
         side,
-        markerRecord
+        markerRecord,
+        corpseSource,
+        hasUncollectedLoot: ['entities', 'stuff', 'consommables'].some((category) => (
+          (corpseSource?.loot?.[category] || []).some((entry) => (
+            entry?.collected !== true && entry?.lost !== true
+          ))
+        ))
       };
     })
     .filter(Boolean);
@@ -6032,16 +6038,17 @@ export async function destroyCorpse(options = {}) {
    * logique des autres.
    */
   await Promise.allSettled(
-    preparedTargets.map(({ entity, markerRecord }) => (
-      destroyCorpseAnimation({
+    preparedTargets.map(({ entity, markerRecord, corpseSource, hasUncollectedLoot }) => {
+      if (hasUncollectedLoot) disperseLootSourceGlitter(corpseSource);
+      return destroyCorpseAnimation({
         entity,
         markerRecord,
         ...(normalizedOptions.animationOptions
           && typeof normalizedOptions.animationOptions === 'object'
           ? normalizedOptions.animationOptions
           : {})
-      })
-    ))
+      });
+    })
   );
 
   const destroyedRecords = [];

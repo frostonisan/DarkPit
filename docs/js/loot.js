@@ -1,6 +1,6 @@
 import { hexCoordonne } from "./board.js";
 // modularized-loot/loot/chest-source.js
-import { glitterLoot } from "./meteo.js";
+import { disperseLootGlitter, glitterLoot } from "./meteo.js";
 import { createBattleElementInDOM, isHexOccupied, removeBattleElementFromDOM } from "./createBattleElements.js";
 import { createAllItems } from "./itemManager.js";
 import { getEntityLoot as getEntityLoot2 } from "./GameStorage.js";
@@ -251,6 +251,13 @@ function sourceHasRemainingLoot(source) {
   if (isChestSource(source) && source.durabilityState === "destroyed") return false;
   return categories.some(
     (category) => (source?.loot?.[category] || []).some((entry) => entry?.collected !== true)
+  );
+}
+function sourceHasUncollectedLoot(source) {
+  return categories.some(
+    (category) => (source?.loot?.[category] || []).some((entry) => (
+      entry?.collected !== true && entry?.lost !== true
+    ))
   );
 }
 function inspectLootSource(sourceId, lootInstanceId) {
@@ -911,6 +918,7 @@ function displayLootRewards(source, mosaic, description, controls) {
       if (selectedId === lootInstanceId) selectReward(null);
       const isEntity = result.category === "entities";
       description.textContent = isEntity ? `${entry.reward.name || "Une entit\xE9"} a rejoint ton arm\xE9e.` : `${entry.reward.displayName || entry.reward.itemName || entry.reward.name || "Un objet"} a \xE9t\xE9 ajout\xE9 \xE0 ton inventaire.`;
+      if (result.source.statut === "looted") disperseLootSourceGlitter(result.source, { force: true });
       controls.onUpdated?.(result.source);
       if (result.source.statut === "looted") controls.onLooted?.(result.source);
       updateState();
@@ -1321,6 +1329,7 @@ function destroySingleChest(sourceOrId, {
   document.querySelectorAll(
     `.chest-container[data-chest-id="${CSS.escape(sourceId)}"]`
   ).forEach((container) => {
+    if (lostLootCount > 0) disperseLootGlitter(container);
     container.dataset.opening = "false";
     const visual = container.querySelector(":scope > .chest-animation > .chest-sprite")
       || container.querySelector(":scope > .chest-animation");
@@ -2159,7 +2168,7 @@ function installChestEvents() {
 }
 
 // modularized-loot/loot/corpse-source.js
-import { glitterLoot as glitterLoot2 } from "./meteo.js";
+import { disperseLootGlitter as disperseLootGlitter2, glitterLoot as glitterLoot2 } from "./meteo.js";
 var interactionInstalled2 = false;
 var restoreObserver = null;
 var corpseRenderScheduled = false;
@@ -2263,6 +2272,30 @@ function playCorpseLootClickImpact(source, entityBox) {
 function removeGlitter(entityBox) {
   entityBox?.querySelectorAll(".glitter-loot-container").forEach((glitter) => glitter.remove());
   entityBox?.querySelectorAll(".corpse-lootable").forEach((host) => host.remove());
+}
+export function disperseLootSourceGlitter(sourceOrId, { force = false } = {}) {
+  const source = typeof sourceOrId === "string"
+    ? resolveLootSource(sourceOrId)
+    : sourceOrId;
+  if (!source || (!force && !sourceHasUncollectedLoot(source))) return false;
+
+  if (isChestSource(source)) {
+    const container = document.querySelector(
+      `.chest-container[data-chest-id="${CSS.escape(String(source.id))}"]`
+    );
+    if (!container) return false;
+    disperseLootGlitter(container);
+    return true;
+  }
+
+  if (isCorpseSource(source)) {
+    const entityBox = findCorpseEntityBox(source);
+    if (!entityBox) return false;
+    disperseLootGlitter2(entityBox);
+    return true;
+  }
+
+  return false;
 }
 function ensureCorpseGlitter(source, entityBox) {
   const host = glitterHost(entityBox, source);

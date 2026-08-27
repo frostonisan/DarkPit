@@ -426,6 +426,26 @@
     opacity: 0;
   }
 }
+
+@keyframes glitterLootDisperse {
+  0% {
+    opacity: 1;
+    transform:
+      translate3d(0, 0, 0)
+      rotate(0deg)
+      scale(1);
+  }
+  70% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform:
+      translate3d(var(--burst-x), var(--burst-y), 0)
+      rotate(var(--burst-rotation))
+      scale(0.45);
+  }
+}
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
