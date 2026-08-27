@@ -13,7 +13,7 @@ export const victoryEvent = Object.freeze({
     [`${EVENT_ID}-trigger`]: Object.freeze({
       id: `${EVENT_ID}-trigger`,
       type: 'action',
-      action: Object.freeze({
+      actions: Object.freeze([Object.freeze({
         action: 'eventVictory',
         args: Object.freeze({
           stageOutcome: true,
@@ -24,7 +24,7 @@ export const victoryEvent = Object.freeze({
           skipGameOver: false,
           skipEndGame: false
         })
-      }),
+      })]),
       presentation: 'silent',
       endEvent: 'finished'
     })

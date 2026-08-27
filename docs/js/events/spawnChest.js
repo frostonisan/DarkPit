@@ -12,14 +12,14 @@ export const spawnChestEvent = Object.freeze({
     [`${EVENT_ID}-spawn`]: Object.freeze({
       id: `${EVENT_ID}-spawn`,
       type: 'action',
-      action: Object.freeze({
+      actions: Object.freeze([Object.freeze({
         action: 'spawnChest',
         args: Object.freeze({
           spawnMode: 'drop',
           random: true,
           forceNew: true
         })
-      }),
+      })]),
       presentation: Object.freeze({
         title: 'Coffre créé',
         preMessage: 'Un coffre aléatoire tombe dans le niveau.',

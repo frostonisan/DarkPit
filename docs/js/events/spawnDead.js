@@ -28,7 +28,7 @@ export const spawnDeadEvent = Object.freeze({
     [`${EVENT_ID}-spawn`]: Object.freeze({
       id: `${EVENT_ID}-spawn`,
       type: 'action',
-      action: Object.freeze({
+      actions: Object.freeze([Object.freeze({
         action: 'sequence',
         args: Object.freeze({
           sequence: Object.freeze([
@@ -36,7 +36,7 @@ export const spawnDeadEvent = Object.freeze({
             createSpawnDeadAction('B')
           ])
         })
-      }),
+      })]),
       presentation: Object.freeze({
         title: 'Cadavres créés',
         preMessage: 'Deux porcs des bas-fonds morts sont déposés dans le niveau : un Side A et un Side B.',
