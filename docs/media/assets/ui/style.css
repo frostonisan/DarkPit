@@ -2408,7 +2408,7 @@ width: 95%;}
   margin-right: 5px;
   transform: translateY(5px);
   margin-top: -5px;cursor:pointer;}
-  .picto-stat.strenght {background-image: url('./picto-strenght.svg');
+  .picto-stat.strenght {background-image: url('./picto-strength.svg');
   width: 52px;
   height: 52px;}
     .picto-stat.agility {background-image: url('./picto-agility.svg');

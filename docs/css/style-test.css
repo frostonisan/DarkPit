@@ -8,7 +8,7 @@
 body, html {
     margin: 0;
     height: 100%;
-       background-image: url("../media/decors/decors-prison.jpg");
+       background-image: url("../media/decors/prison/background.jpg");
 	     font-family: 'EB Garamond', sans-serif;
 		 color:white;
 		 background-repeat: round;
@@ -30,4 +30,4 @@ background-color: black;
 .projo{width: 10px;
   height: 10px; border-radius: 50%;}
 
-  
+
