@@ -610,8 +610,8 @@ export function glitterLoot(selector, maxGlitters = 15) {
 
 export function disperseLootGlitter(target, {
   maxGlitters = 12,
-  durationMin = 650,
-  durationMax = 1050
+  durationMin = 2000,
+  durationMax = 2600
 } = {}) {
   const random = (min, max) => Math.random() * (max - min) + min;
   const elements = typeof target === 'string'

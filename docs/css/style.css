@@ -73,10 +73,19 @@ background: rgba(15, 18, 20, 0.8);
   margin-bottom: auto;
   margin-left: 15%;}
 .dialogue-body {
+  position: relative;
+  z-index: 2;
   display: flex;
   width: 95%;
   height: 62%;
   margin: auto;overflow-y: auto;
+}
+
+.dialogue-misc {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .dialogue-left,

@@ -512,20 +512,20 @@ export function dialogue(text = '') {
 
   void typeDialogueText(loreText, text);
 
+  // Toujours dernier enfant direct de .dialogue-container
+  const dialogueMisc = ensureDirectDiv(dialogueContainer, 'dialogue-misc');
+  dialogueContainer.appendChild(dialogueMisc);
+
   const dialogueUi = ensureDirectDiv(dialogueWindow, 'dialogue-ui');
 
   const dialogueArches = DIALOGUE_ARCH_POSITIONS.map((position) => (
     ensureDialogueArch(
       gameWindows,
       dialogueWindow,
-      dialogueContainer,
+      dialogueMisc,
       position
     )
   ));
-
-  // Toujours dernier enfant direct de .dialogue-container
-  const dialogueMisc = ensureDirectDiv(dialogueContainer, 'dialogue-misc');
-  dialogueContainer.appendChild(dialogueMisc);
 
   return {
     dialogueWindow,
