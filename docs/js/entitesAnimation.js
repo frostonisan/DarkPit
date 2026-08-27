@@ -881,12 +881,12 @@ export function damageImpact(targetId, options = {}) {
 
   if (!finalSrc && randomBloodImpact) {
     const idx = Math.floor(Math.random() * 4) + 1;
-    finalSrc = `/media/assets/effects/blood-impact-${idx}.gif`;
+    finalSrc = `./media/assets/effects/blood-impact-${idx}.gif`;
     finalClassName = `blood-impact fx-${idx}`;
   }
 
   if (!finalSrc) {
-    finalSrc = `/media/assets/effects/${effectName}.gif`;
+    finalSrc = `./media/assets/effects/${effectName}.gif`;
     finalClassName = finalClassName || effectName;
   }
 
@@ -1930,7 +1930,7 @@ export function animateRecuperation(entity, attack) {
     let stopped = false;
 
     const recoveryGif = document.createElement("img");
-    recoveryGif.src = `/media/assets/effects/recovery.gif?t=${Date.now()}`;
+    recoveryGif.src = `./media/assets/effects/recovery.gif?t=${Date.now()}`;
     recoveryGif.style.opacity = "0";
     recoveryGif.className = "recoveryGif";
     effectsContainer.appendChild(recoveryGif);
@@ -3491,7 +3491,7 @@ export function RunawayAnimation(entite) {
         effectsContainer.appendChild(recoveryGif);
     }
 
-    recoveryGif.src = `/media/assets/effects/recovery.gif?t=${Date.now()}`;
+    recoveryGif.src = `./media/assets/effects/recovery.gif?t=${Date.now()}`;
 
     sprite.classList.add("runaway-animate");
 }
