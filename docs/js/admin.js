@@ -2,14 +2,9 @@ import { loadFromLocalStorage, saveToLocalStorage, armyAConfig, loadCurrentGameD
 import { assignUniqueIDToEntities, entites } from './entites.js';
 import { createEntityIngame } from './createEntity.js';
 import { eventList } from './eventList.js?catalog=20260823i';
-import { spawnDeadEvent } from './events/spawnDead.js?catalog=20260823i';
-import { spawnChestEvent } from './events/spawnChest.js?catalog=20260823i';
-import { victoryEvent } from './events/victory.js?catalog=20260823i';
-import { defeatEvent } from './events/defeat.js?catalog=20260823i';
 
 const ADMIN_EVENT_LIST = Object.freeze(
-    [eventList, [spawnDeadEvent, spawnChestEvent, victoryEvent, defeatEvent]]
-        .flat()
+    eventList
         .filter((eventDefinition, index, definitions) => (
             eventDefinition?.key
             && definitions.findIndex(candidate => candidate?.key === eventDefinition.key) === index

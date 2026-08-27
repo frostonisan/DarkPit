@@ -6,10 +6,6 @@ import { battleLogs } from './battleLogs.js';
 import { startGame } from './gameState.js';
 import { getCurrentLevel, getOrCreateStageChest, getStageChests, getVisibleHexes, loadFromLocalStorage, loadPlayerInfo, loadQuestState, saveCurrentGameData, saveToLocalStorage, updateQuestState } from './GameStorage.js';
 import { eventList, getEventDefinition as getListedEventDefinition } from './eventList.js';
-import { spawnDeadEvent } from './events/spawnDead.js';
-import { spawnChestEvent } from './events/spawnChest.js';
-import { victoryEvent } from './events/victory.js';
-import { defeatEvent } from './events/defeat.js';
 import { closeDialogue as closeDialogueWindowRaw, renderDialogueScreen } from './dialogue.js';
 import { LifeandDeath } from './entityAttributs.js';
 import { PopUpDamages } from './dom.js';
@@ -53,8 +49,7 @@ function getRuntimeEventDefinitions() {
   return [...runtimeEventDefinitions.values()];
 }
 
-[...eventList, spawnDeadEvent, spawnChestEvent, victoryEvent, defeatEvent]
-  .forEach(registerEventDefinition);
+eventList.forEach(registerEventDefinition);
 
 let eventsInitialized = false;
 let activeLevelId = null;
