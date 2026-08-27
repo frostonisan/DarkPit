@@ -3305,7 +3305,13 @@ export async function forceBattle(options = {}) {
     logResult,
     startResult,
     interfaceBeforeBattle,
-    interfaceAfterBattle
+    interfaceAfterBattle,
+    eventResults: [eventResult('battleStarted', {
+      eventKey: options?.eventKey || null
+    }, '<div class="event-result-item-text">Le combat se lance</div>', [
+      'event-result-battle-started',
+      'battle'
+    ])]
   };
 }
 
@@ -4469,8 +4475,8 @@ export async function eventEntitydamages(options = {}) {
       ? ` Son <span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> encaisse ${armorDamage} dégâts.<br>`
       : '<br>';
     const hpSentence = hpDamage > 0
-      ? `${safeName} perd ${hpDamage} HP. `
-      : `${safeName} ne perd aucun HP. `;
+      ? `${safeName} perd ${hpDamage} HP.<br>`
+      : `${safeName} ne perd aucun HP.<br>`;
     const survivalSentence = resurrection
       ? `${safeName} utilise une ${eventStatHtml(resurrection.type, resurrection.label)} pour échapper à la mort.<br>`
       : alive
@@ -6940,21 +6946,34 @@ function shouldDisplayMaterialEventResult(result) {
   return true;
 }
 
+function normalizeMaterialResultHtml(html) {
+  return String(html ?? '')
+    .replace(/\s+style=""/gi, '')
+    .replace(/<br\s*\/?>\s*(?:<br\s*\/?>\s*)+/gi, '<br>');
+}
 
 function materialResultHtml(screen) {
   const sections = [];
+  const entitySpawnMessages = [];
+  const preMessages = [];
+  const regularResults = [];
+  const battleResults = [];
 
-  // Un texte manuel éventuel introduit le relevé objectif.
   if (screen.preMessage) {
-    sections.push(`<div class="event-result-pre-message">${screen.preMessage}</div>`);
+    preMessages.push(normalizeMaterialResultHtml(screen.preMessage));
   }
 
   // Les résultats proviennent exclusivement des actions réellement exécutées.
   for (const result of screen.results || []) {
     if (!shouldDisplayMaterialEventResult(result)) continue;
 
-    const html = result?.html
-      || `<pre>${escapeEventHtml(JSON.stringify(result?.data ?? result, null, 2))}</pre>`;
+    const html = normalizeMaterialResultHtml(result?.html
+      || `<pre>${escapeEventHtml(JSON.stringify(result?.data ?? result, null, 2))}</pre>`);
+    if (result?.type === 'entitySpawned') {
+      entitySpawnMessages.push(html);
+      continue;
+    }
+
     const resultClasses = Array.isArray(result?.classes)
       ? result.classes.map((className) => escapeEventHtml(className)).join(' ')
       : '';
@@ -6962,12 +6981,20 @@ function materialResultHtml(screen) {
       ? ''
       : ` event-result-${escapeEventHtml(result?.type || 'data')}`;
 
-    sections.push(
-      `<div class="event-result-item${fallbackClass}${resultClasses ? ` ${resultClasses}` : ''}">${html}</div>`
-    );
+    const section = `<div class="event-result-item${fallbackClass}${resultClasses ? ` ${resultClasses}` : ''}">${html}</div>`;
+    if (result?.type === 'battleStarted') battleResults.push(section);
+    else regularResults.push(section);
   }
 
-  return sections.join('<br><br>');
+  // Les apparitions d’entité ouvrent toujours le résultat matériel.
+  const openingMessages = [...entitySpawnMessages, ...preMessages];
+  if (openingMessages.length > 0) {
+    sections.push(`<div class="event-result-pre-message">${openingMessages.join('<br>')}</div>`);
+  }
+
+  sections.push(...regularResults, ...battleResults);
+
+  return sections.join('');
 }
 
 function actionNodeDefinitions(node) {

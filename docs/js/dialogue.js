@@ -833,11 +833,12 @@ export function renderDialogueScreen(node, {
   if (node.title) {
     const title = document.createElement('div');
     title.className = 'dialogue-title';
+    const resultTone = node.outcome || node.choiceResult;
     if (
       node.type === 'result'
-      && ['success', 'middle', 'fail'].includes(node.choiceResult)
+      && ['success', 'middle', 'fail'].includes(resultTone)
     ) {
-      title.classList.add('choice-result', node.choiceResult);
+      title.classList.add('choice-result', resultTone);
     }
     title.textContent = String(node.title);
     view.dialogueHeader.appendChild(title);

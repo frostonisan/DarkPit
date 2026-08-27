@@ -138,7 +138,7 @@ function cockroachKingSpawnResult(king) {
         serial: COCKROACH_KING_SERIAL,
         side: 'B'
       },
-      html: 'Le Roi des Blattes apparaît dans le niveau.',
+      html: 'Le Souverain des Blattes est apparu.',
       classes: ['event-result-entity-spawned', 'spawn']
     }]
   };
