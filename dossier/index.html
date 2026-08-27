@@ -1,181 +1,25 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Éclipse – Corona crépitante</title>
-  <style>
-    :root{
-      --bg:#05060a;
-    }
-    html,body{height:100%;margin:0;background:var(--bg);}
-    canvas{display:block;width:100vw;height:100vh;}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="css/board.css">
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+	<link rel="stylesheet" type="text/css" href="css/animation.css">
+    <link rel="stylesheet" type="text/css" href="css/monstre.css">
+	<link rel="stylesheet" type="text/css" href="css/battle-infos.css">
+	  <link rel="stylesheet" type="text/css" href="css/spell.css">
+    <link rel="stylesheet" type="text/css" href="css/monstre-hitbox.css">
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="icon" type="image/png" href="media/assets/ui/favicon.png">
+	 <script type="module" src="/js/GameInit.js"></script>
+	 <script type="module" src="/js/admin.js"></script>
+	  <script type="module" src="/js/newgame.js"></script>
+    <title>Dark pit</title>
 </head>
 <body>
-  <canvas id="eclipse"></canvas>
-  <button id="export">Exporter PNGs (5s)</button>
-<script>
- const canvas = document.getElementById('eclipse'); 
- 
-  const duration = 2000;   // durée de capture en ms
-  const fps = 5;          // images par seconde
-  const interval = 1000/fps;
-  
-  function exportFrames(){
-    let frames = [];
-    let start = performance.now();
-    let last = 0;
-    function capture(now){
-      let elapsed = now - start;
-      if(elapsed - last >= interval){
-        last = elapsed;
-        let dataURL = canvas.toDataURL("image/png");
-        frames.push(dataURL);
 
-        // Téléchargement immédiat (si tu veux récupérer chaque frame)
-        let a = document.createElement("a");
-        a.href = dataURL;
-        a.download = `frame_${String(frames.length).padStart(3,"0")}.png`;
-        a.click();
-      }
-      if(elapsed < duration){
-        requestAnimationFrame(capture);
-      }else{
-        console.log(`Capture terminée : ${frames.length} frames exportées`);
-      }
-    }
-    requestAnimationFrame(capture);
-  }
-
-  document.getElementById("export").addEventListener("click", exportFrames);
-</script>
-
-  <script>
-  (()=>{
-    const canvas = document.getElementById('eclipse');
-    const ctx = canvas.getContext('2d');
-    let W,H, DPR;
-
-    function resize(){
-      DPR = Math.min(2, window.devicePixelRatio || 1);
-      W = Math.floor(innerWidth * DPR);
-      H = Math.floor(innerHeight * DPR);
-      canvas.width = W; canvas.height = H;
-      canvas.style.width = innerWidth + 'px';
-      canvas.style.height = innerHeight + 'px';
-    }
-    window.addEventListener('resize', resize, {passive:true});
-    resize();
-
-    const TAU = Math.PI*2;
-    function hash(n){
-      return (Math.sin(n*127.1)*43758.5453123)%1;
-    }
-    function noise1(x){
-      const i = Math.floor(x);
-      const f = x - i;
-      const a = hash(i);
-      const b = hash(i+1);
-      const u = f*f*(3-2*f);
-      return a*(1-u) + b*u;
-    }
-
-     const params = {
-      rays: 5000,          // nombre total de rayons de la couronne (densité visuelle)
-      coreRadius: 0.20,   // taille relative du disque central noir (0.20 = 20% du plus petit côté de l’écran)
-      corona: 0.82,       // longueur moyenne des rayons (fraction de l’écran)
-      flickerSpeed: 0.35, // vitesse d’ondulation/crépitement des rayons
-      hue1: 45,           // teinte principale chaude (jaune-orangé) à l’intérieur des rayons
-      hue2: 30,           // teinte secondaire plus rougeâtre vers l’extérieur
-    };
-
-    const rays = Array.from({length: params.rays}, (_,i)=>{
-      const a = (i/params.rays)*TAU + noise1(i*0.73)*0.008;
-      const seed = hash(i*19.19)*1000;
-      const base = 0.8 + noise1(i*0.11)*0.6;
-      const width = 0.002 + noise1(i*0.41)*0.005;
-      return {a, seed, base, width};
-    });
-
-    let t0 = performance.now();
-
-    function draw(now){
-      const t = (now - t0)/1000;
-      ctx.clearRect(0,0,W,H);
-      ctx.save();
-      ctx.translate(W/2, H/2);
-      const Rmin = Math.min(W,H)*0.5;
-      const core = Rmin * params.coreRadius;
-
-      const haloGrad = ctx.createRadialGradient(0,0,core*0.9, 0,0, Rmin*0.85);
-      haloGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      haloGrad.addColorStop(0.02, `hsla(${params.hue1},100%,70%,0.06)`);
-      haloGrad.addColorStop(0.18, `hsla(${params.hue1},100%,60%,0.035)`);
-      haloGrad.addColorStop(0.55, `hsla(${params.hue2},100%,45%,0.018)`);
-      haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = haloGrad;
-      ctx.beginPath();
-      ctx.arc(0,0,Rmin,0,TAU);
-      ctx.fill();
-
-      ctx.globalCompositeOperation = 'lighter';
-      for(const r of rays){
-        const ang = r.a;
-        const breathe = 0.65 + 0.35*noise1(r.seed + t*params.flickerSpeed + Math.cos(ang*3.0));
-        const len = (params.corona * (r.base*breathe)) * Rmin;
-
-        const inner = core * (1.02 + noise1(r.seed+ang*3.1)*0.01);
-        const outer = inner + len;
-
-        const g = ctx.createLinearGradient(Math.cos(ang)*inner, Math.sin(ang)*inner,
-                                           Math.cos(ang)*outer, Math.sin(ang)*outer);
-        g.addColorStop(0,   `hsla(${params.hue1},100%,85%,0.22)`);
-        g.addColorStop(0.6, `hsla(${params.hue1},100%,70%,0.14)`);
-        g.addColorStop(1,   `hsla(${params.hue2},100%,55%,0.05)`);
-        ctx.fillStyle = g;
-
-        const w = r.width * (1.0 + noise1(r.seed+ t*3.0)*0.6);
-        ctx.beginPath();
-        const a0 = ang - w; const a1 = ang + w;
-        ctx.moveTo(Math.cos(a0)*inner, Math.sin(a0)*inner);
-        ctx.lineTo(Math.cos(ang)*outer, Math.sin(ang)*outer);
-        ctx.lineTo(Math.cos(a1)*inner, Math.sin(a1)*inner);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      ctx.globalCompositeOperation = 'screen';
-      const ring = ctx.createRadialGradient(0,0, core*0.96, 0,0, core*1.18);
-      ring.addColorStop(0, 'rgba(0,0,0,0)');
-      ring.addColorStop(0.35, `hsla(${params.hue1},100%,65%,0.35)`);
-      ring.addColorStop(0.75, `hsla(${params.hue2},100%,50%,0.18)`);
-      ring.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = ring;
-      ctx.beginPath();
-      ctx.arc(0,0, core*1.25, 0, TAU);
-      ctx.fill();
-
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(0,0, core, 0, TAU);
-      ctx.fill();
-
-      const rim = ctx.createRadialGradient(0,0, core*0.98, 0,0, core*1.05);
-      rim.addColorStop(0, 'rgba(0,0,0,0)');
-      rim.addColorStop(1, 'rgba(0,0,0,0.9)');
-      ctx.fillStyle = rim;
-      ctx.beginPath();
-      ctx.arc(0,0, core*1.08, 0, TAU);
-      ctx.fill();
-
-      ctx.restore();
-      requestAnimationFrame(draw);
-    }
-
-    requestAnimationFrame(draw);
-  })();
-  </script>
 </body>
 </html>
+
+
