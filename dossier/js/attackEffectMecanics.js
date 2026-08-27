@@ -3,101 +3,298 @@ import { summons } from './summons.js';
 import { dotNameElement, updateTimerDisplay, updateKillsCounter, updateTotalDamageCounter, PopUpDamages, updateTotalHealCounter, updateScore, deductScore } from './dom.js'
 import { attackEffects } from './attackEffects.js';
 import { applyDamage } from './entityAttributs.js';
-import {updateHealthBar } from './UpgradeEntity.js';
+import { updateHealthBar } from './UpgradeEntity.js';
 import { saveEntityHPToStorage } from './entityUpdatesStorage.js';
 
-export function EffectMessage(target, customText = "MISS") {
-    let potentialContainers = document.querySelectorAll(`[id^="PopDow_${target.id}"]`);
+export function EffectMessage(target, customText = "MISS", messageType = "normal") {
+    const potentialContainers = document.querySelectorAll(`[id^="PopDow_${target.id}"]`);
     let foundContainer = null;
-    for (let container of potentialContainers) {
+
+    for (const container of potentialContainers) {
         foundContainer = container;
         break;
     }
 
-    if (foundContainer) {
-        let messageDiv = document.createElement("div");
-        messageDiv.className = "BattleText";
-        messageDiv.id = `message_${target.id}`;
-        messageDiv.classList.add("absolute");
+    if (!foundContainer) {
+        console.error(`🚨 Aucun conteneur PopUp trouvé pour target.id: ${target.id}.`);
+        return;
+    }
 
-        // 🔹 Gestion des différents types de message
-        switch (customText) {
-            case "MISS":
-                messageDiv.classList.add("miss");
-                messageDiv.textContent = customText;
-                break;
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "BattleText";
+    messageDiv.id = `message_${target.id}`;
+    messageDiv.classList.add("absolute");
 
-            case "Esquive !":
-                messageDiv.classList.add("dodge");
-                {
-                    let dodgeText = document.createElement("p");
-                    dodgeText.textContent = customText;
-                    messageDiv.appendChild(dodgeText);
-                }
-                break;
+    switch (customText) {
+        case "MISS":
+            messageDiv.classList.add("miss");
+            messageDiv.textContent = customText;
+            break;
 
-            case "Éxecution !":
-                messageDiv.classList.add("bloodFury");
-                {
-                    let execText = document.createElement("p");
-                    execText.textContent = customText;
-                    messageDiv.appendChild(execText);
-                }
-                break;
+        case "Raté !":
+            messageDiv.classList.add("miss");
 
-            case "Indestructible !":
-                messageDiv.classList.add("indestructibility");
-                messageDiv.textContent = customText;
-                break;
+            {
+                const missLine = document.createElement("div");
+                missLine.className = "effect-message-line miss";
 
-            case "Ambidextrie !":
-                messageDiv.classList.add("ambidextry");
-                messageDiv.textContent = customText;
-                break;
+                const missIcon = document.createElement("div");
+                missIcon.className = "picto-stat miss-shot";
 
-            case "Ésotérisme !":
-                messageDiv.classList.add("esoterism");
-                messageDiv.textContent = customText;
-                break;
+                const missText = document.createElement("span");
+                missText.textContent = customText;
 
-            case "Astralité !":
-                messageDiv.classList.add("astrality");
-                messageDiv.textContent = customText;
-                break;
-case "Raté !":
-    messageDiv.classList.add("miss");
+                missLine.appendChild(missIcon);
+                missLine.appendChild(missText);
+                messageDiv.appendChild(missLine);
+            }
+            break;
+
+case "Esquive !":
+    messageDiv.classList.add("dodge");
+
     {
-        const missIcon = document.createElement("div");
-        missIcon.className = "picto-statut miss-shot";
+        const dodgeLine = document.createElement("div");
+        dodgeLine.className = "effect-message-line dodge";
 
-        const missText = document.createElement("p");
-        missText.textContent = customText;
+        const dodgeIcon = document.createElement("div");
+        dodgeIcon.className = "picto-stat dodge";
 
-        messageDiv.appendChild(missIcon);
-        messageDiv.appendChild(missText);
+        const dodgeText = document.createElement("span");
+        dodgeText.textContent = customText;
+
+        dodgeLine.appendChild(dodgeIcon);
+        dodgeLine.appendChild(dodgeText);
+        messageDiv.appendChild(dodgeLine);
     }
     break;
-            default:
-                // 🟢 Gestion automatique des messages de soin
-                if (/^\+\d+\s*HP$/i.test(customText)) {
-                    messageDiv.classList.add("heal");
-                    messageDiv.textContent = customText;
-                } else {
-                    messageDiv.classList.add("generic");
-                    messageDiv.textContent = customText;
-                }
-                break;
-        }
+        case "Éxecution !":
+            messageDiv.classList.add("bloodFury");
 
-        foundContainer.appendChild(messageDiv);
+            {
+                const execText = document.createElement("p");
+                execText.textContent = customText;
+                messageDiv.appendChild(execText);
+            }
+            break;
 
-        // 🕒 Suppression automatique après 1 seconde
-        setTimeout(() => {
-            messageDiv.remove();
-        }, 1000);
-    } else {
-        console.error(`🚨 Aucun conteneur PopUp trouvé pour target.id: ${target.id}.`);
+        case "Indestructible !":
+            messageDiv.classList.add("indestructibility");
+            messageDiv.textContent = customText;
+            break;
+
+        case "Ambidextrie !":
+            messageDiv.classList.add("ambidextry");
+            messageDiv.textContent = customText;
+            break;
+
+        case "Ésotérisme !":
+            messageDiv.classList.add("esoterism");
+            messageDiv.textContent = customText;
+            break;
+
+        case "Astralité !":
+            messageDiv.classList.add("astrality");
+            messageDiv.textContent = customText;
+            break;
+
+        case "Transe mystique !":
+            messageDiv.classList.add("mysticism");
+
+            {
+                const mysticismLine = document.createElement("div");
+                mysticismLine.className = "effect-message-line mysticism";
+
+                const mysticismIcon = document.createElement("div");
+                mysticismIcon.className = "picto-stat mysticism";
+
+                const mysticismText = document.createElement("span");
+                mysticismText.textContent = customText;
+
+                mysticismLine.appendChild(mysticismIcon);
+                mysticismLine.appendChild(mysticismText);
+                messageDiv.appendChild(mysticismLine);
+            }
+            break;
+case "Fragilité !":
+    messageDiv.classList.add("fragility");
+
+    {
+        const fragilityLine = document.createElement("div");
+        fragilityLine.className = "effect-message-line fragility";
+
+        const fragilityIcon = document.createElement("div");
+        fragilityIcon.className = "picto-stat fragility";
+
+        const fragilityText = document.createElement("span");
+        fragilityText.textContent = customText;
+
+        fragilityLine.appendChild(fragilityIcon);
+        fragilityLine.appendChild(fragilityText);
+        messageDiv.appendChild(fragilityLine);
     }
+    break;
+	case "Perseption équilibrée !":
+    messageDiv.classList.add("balance-view");
+
+    {
+        const balanceLine = document.createElement("div");
+        balanceLine.className = "effect-message-line balance-view";
+
+        const balanceIcon = document.createElement("div");
+        balanceIcon.className = "picto-stat balance-view";
+
+        const balanceText = document.createElement("span");
+        balanceText.className = "effect-txt balance-view";
+        balanceText.textContent = customText;
+
+        balanceLine.appendChild(balanceIcon);
+        balanceLine.appendChild(balanceText);
+        messageDiv.appendChild(balanceLine);
+    }
+    break;
+        case "Déplacement !":
+            messageDiv.classList.add("move");
+
+            {
+                const moveLine = document.createElement("div");
+                moveLine.className = "effect-message-line move";
+
+                const moveIcon = document.createElement("div");
+                moveIcon.className = "picto-stat move";
+
+                const moveText = document.createElement("span");
+                moveText.textContent = customText;
+
+                moveLine.appendChild(moveIcon);
+                moveLine.appendChild(moveText);
+                messageDiv.appendChild(moveLine);
+            }
+            break;
+
+   case "Déplacement impossible !":
+            messageDiv.classList.add("nomove");
+
+            {
+                const noMoveLine = document.createElement("div");
+                noMoveLine.className = "effect-message-line nomove";
+
+                const noMoveIcon = document.createElement("div");
+                noMoveIcon.className = "picto-stat nomove";
+
+                const noMoveText = document.createElement("span");
+                noMoveText.textContent = customText;
+				noMoveText.className = "effect-txt";
+
+                noMoveLine.appendChild(noMoveIcon);
+                noMoveLine.appendChild(noMoveText);
+                messageDiv.appendChild(noMoveLine);
+            }
+            break;
+	case "Marathon !":
+            messageDiv.classList.add("marathon");
+
+            {
+                const marathonLine = document.createElement("div");
+                marathonLine.className = "effect-message-line marathon";
+
+                const marathonIcon = document.createElement("div");
+                marathonIcon.className = "picto-stat marathon";
+
+                const marathonText = document.createElement("span");
+                marathonText.textContent = customText;
+
+                marathonLine.appendChild(marathonIcon);
+                marathonLine.appendChild(marathonText);
+                messageDiv.appendChild(marathonLine);
+            }
+            break;
+	case "OVERKILL !":
+    messageDiv.classList.add("overkill");
+
+    {
+        const overkillLine = document.createElement("div");
+        overkillLine.className = "effect-message-line overkill";
+
+        const overkillIcon = document.createElement("div");
+        overkillIcon.className = "picto-stat overkill";
+
+        overkillLine.appendChild(overkillIcon);
+        messageDiv.appendChild(overkillLine);
+    }
+
+    break;
+case messageType === "execution-critical" ? customText : null:
+    messageDiv.classList.add("execution-critical");
+
+    {
+        const execCritLine = document.createElement("div");
+        execCritLine.className = "effect-message-line execution-critical";
+
+        const execCritIcon = document.createElement("div");
+        execCritIcon.className = "picto-stat execution-critical big-exec-critical";
+
+        const execCritText = document.createElement("span");
+        execCritText.className = "effect-txt execution-critical-text";
+
+        const damageMatch = String(customText).match(/(\d+)/);
+        const damageValue = damageMatch ? damageMatch[1] : "0";
+
+        const execCritDamage = document.createElement("span");
+        execCritDamage.className = "critical-exec-dmg";
+        execCritDamage.textContent = ` ${damageValue} !!!`;
+
+        execCritText.appendChild(execCritDamage);
+
+        execCritLine.appendChild(execCritIcon);
+        execCritLine.appendChild(execCritDamage);
+        messageDiv.appendChild(execCritLine);
+    }
+
+    break;
+case messageType === "blood-glutony" ? customText : null:
+    messageDiv.classList.add("blood-glutony");
+
+{
+    const bloodGlutonyLine = document.createElement("div");
+    bloodGlutonyLine.className = "effect-message-line blood-glutony";
+
+    const bloodGlutonyIcon = document.createElement("div");
+    bloodGlutonyIcon.className = "picto-stat bloodGlutony";
+
+    const [, healPart] = String(customText).split("|");
+
+    const bloodGlutonyHeal = document.createElement("span");
+    bloodGlutonyHeal.className = "blood-glutony-heal-text heal";
+    bloodGlutonyHeal.textContent = `${healPart || ""} !`;
+
+    bloodGlutonyLine.appendChild(bloodGlutonyIcon);
+    bloodGlutonyLine.appendChild(bloodGlutonyHeal);
+    messageDiv.appendChild(bloodGlutonyLine);
+}
+
+    break;
+        default:
+            if (/^\+\d+\s*HP$/i.test(customText)) {
+                messageDiv.classList.add("heal");
+                messageDiv.textContent = customText;
+            } else {
+                messageDiv.classList.add("generic");
+                messageDiv.textContent = customText;
+            }
+            break;
+    }
+
+    foundContainer.appendChild(messageDiv);
+
+const duration =
+    customText === "OVERKILL !" || messageType === "execution-critical"
+        ? 1500
+        : 1000;
+
+setTimeout(() => {
+    messageDiv.remove();
+}, duration);
 }
 
 export function toggleEffectClass(target, effectName, action = 'add') {
@@ -440,7 +637,7 @@ export function rez(target) {
     const spriteImg = document.createElement('img');
     spriteImg.id = `sprite_${target.id}`;
     spriteImg.className = 'hb';
-    spriteImg.src = target.originalSprite || target.sprite || "/media/assets/ui/picto-default.svg";
+    spriteImg.src = target.originalSprite || target.sprite || "/media/sprites/default.png";
     spriteImg.alt = target.name;
     container.appendChild(spriteImg);
 
@@ -454,7 +651,7 @@ export function rez(target) {
     }
 
     const rezVFX = document.createElement('img');
-    rezVFX.src = '../../media/assets/effects/life.gif';
+    rezVFX.src = '../../media/assets/effects/rez.gif';
     rezVFX.className = 'effect-vfx extraLife';
     rezVFX.alt = `${target.name} est ressuscité !`;
     effectsContainer.appendChild(rezVFX);
@@ -473,71 +670,53 @@ export function rez(target) {
 
 
 export function lifesteal(attacker, totalReducedDamage, attackEffects) {
+  if (!attacker?.stats?.HP) return;
   if (!attackEffects || attackEffects.effectName !== 'lifesteal') {
     console.warn(`⚠️ lifesteal() a été appelé sans attackEffects valide.`);
     return;
   }
-
   console.log(`--- [Lifesteal Debug] ---`);
   console.log(`Attaquant : ${attacker.name}`);
   console.log(`Dégâts après résistances : ${totalReducedDamage}`);
   console.log(`Effect ID : ${attackEffects.effectId}`);
   console.log(`Effect Projectile : ${attackEffects.effectProjectile}`);
   console.log(`Effect Magical Ratio : ${attackEffects.effectMagicalRatio}`);
-
-  // Calcul du vol de vie
-  const baseLifesteal = Math.floor(totalReducedDamage * 0.2);
-  const bonusMagicalLifesteal = Math.floor(attacker.stats.magicalDamage * attackEffects.effectMagicalRatio);
-  const lifestealAmount = baseLifesteal + bonusMagicalLifesteal;
-
+  const currentHP = Math.max(0, Number(attacker.stats.HP.current) || 0);
+  const maxHP = Math.max(0, Number(attacker.stats.HP.max) || 0);
+  const reducedDamage = Math.max(0, Number(totalReducedDamage) || 0);
+  const magicalDamage = Math.max(0, Number(attacker.stats.magicalDamage) || 0);
+  const magicalRatio = Math.max(0, Number(attackEffects.effectMagicalRatio) || 0);
+  const baseLifesteal = Math.floor(reducedDamage * 0.2);
+  const bonusMagicalLifesteal = Math.floor(magicalDamage * magicalRatio);
+  const calculatedHeal = baseLifesteal + bonusMagicalLifesteal;
+  const newHP = Math.min(maxHP, currentHP + calculatedHeal);
+  const restoredHP = newHP - currentHP;
   console.log(`Base Lifesteal (20%) : ${baseLifesteal}`);
-  console.log(`Bonus via magicalDamage (0.5 * ${attacker.stats.magicalDamage}) : ${bonusMagicalLifesteal}`);
-  console.log(`Total HP récupérés : ${lifestealAmount}`);
-
-  // Appliquer le soin et mise à jour de l'affichage
-  attacker.stats.HP.current = Math.min(attacker.stats.HP.current + lifestealAmount, attacker.stats.HP.max);
-
-  // ✅ APPEL DE `PopUpDamages()` POUR AFFICHER LE POP-UP DE SOIN AVEC LA CLASSE `heal-pop-up`
-  PopUpDamages(attacker, lifestealAmount, "heal", "", { piercingDamage: 0, physical: 0, magical: 0, hybridalDamage: 0, heal: lifestealAmount });
-
-  // 🏥 Mise à jour du compteur de soins
-  if (attacker.totalHeal === undefined) {
-    attacker.totalHeal = 0;
-  }
-  attacker.totalHeal += lifestealAmount;
+  console.log(`Bonus via magicalDamage : ${magicalDamage} × ${magicalRatio} = ${bonusMagicalLifesteal}`);
+  console.log(`Soin calculé : ${calculatedHeal}`);
+  console.log(`Soin réellement appliqué : ${restoredHP}`);
+  if (restoredHP <= 0) return;
+  attacker.stats.HP.current = newHP;
+  // Sauvegarde immédiate des HP
+  saveEntityHPToStorage(attacker);
+  // Popup basée sur le soin réellement reçu
+  PopUpDamages(attacker, restoredHP, "heal", "", { piercingDamage: 0, physical: 0, magical: 0, hybridalDamage: 0, heal: restoredHP });
+  attacker.totalHeal = (Number(attacker.totalHeal) || 0) + restoredHP;
   updateTotalHealCounter(attacker.id, attacker.totalHeal);
-
-  // 📊 Mise à jour de la barre de vie
-updateHealthBar(attacker.stats.HP.current, attacker.stats.HP.max, attacker.stats.armor?.current || 0, attacker.stats.armor?.max || 0, attacker.id);
-
-  // 🏆 Mise à jour du score
-  updateScore(attacker, lifestealAmount);
-
-  // 🎨 Gestion des effets visuels pour le vol de vie
+  updateHealthBar(attacker.stats.HP.current, attacker.stats.HP.max, attacker.stats.armor?.current || 0, attacker.stats.armor?.max || 0, attacker.id);
+  updateScore(attacker, restoredHP);
   const effectsContainer = document.getElementById(`effectsContainer_${attacker.id}`);
-
   if (effectsContainer && attackEffects.effectProjectile) {
-    console.log(`Ajout d'un effet visuel de vol de vie : ${attackEffects.effectProjectile}.gif`);
-
-    // Création de l'effet visuel
     const lifestealVFX = document.createElement('img');
-    lifestealVFX.src = '../../media/assets/effects/heal.gif'; // Chemin vers l'image de vol de vie
+    lifestealVFX.src = `../../media/assets/effects/heal.gif?t=${Date.now()}`;
     lifestealVFX.className = 'effect-vfx lifesteal';
     lifestealVFX.alt = `${attacker.name} bénéficie du vol de vie !`;
-
-    // Ajout de l'effet visuel
     effectsContainer.appendChild(lifestealVFX);
-
-    // Suppression de l'effet après 1 seconde
     setTimeout(() => {
       lifestealVFX.remove();
-      console.log(`Effet visuel supprimé après 1 seconde.`);
     }, 1000);
-  } else {
-    console.warn(`⚠️ Aucun conteneur d'effets trouvé pour ${attacker.name} ou aucun effet visuel défini.`);
   }
 }
-
 
 export function LifestealBloodFury(attacker, target, hpLoss, bloodFuryPercent) {
   if (!attacker || !target) return;

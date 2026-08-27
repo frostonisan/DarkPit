@@ -2,7 +2,9 @@ import { saveToLocalStorage, loadFromLocalStorage, saveCurrentGameData } from '.
 import { toggleEffectClass } from './attackEffectMecanics.js';
 import { updateHealthBar } from './UpgradeEntity.js';
 import { toNonNegInt } from './ui.js';
-
+import { calculateMovementStartingCharges, calculateHpBattleRegenAmount, attemptBattleRegen } from "./damagesCalcul.js";
+import { battleLogs } from "./battleLogs.js";
+import { syncEntityAuras } from "./entitesAura.js";
 export function getCorrectedArmyB(armyBId) {
     const allArmyB = loadFromLocalStorage('ArmyB', { armies: {} });
     let armyBContainer = allArmyB.armies?.[armyBId];
@@ -400,4 +402,264 @@ export function EquipedEntityItems(entiteId, equippedItemId) {
     saveToLocalStorage('selectedArmyA', armyA);
 
     console.log(`🧷 Objet ${equippedItemId} ajouté au ${selectedSlot} de ${targetEntity.name} (ID ${targetEntity.id})`);
+}
+
+export function saveEntityArmorState(entite) {
+  if (!entite?.id || !entite?.stats?.armor) {
+    return;
+  }
+
+  const armorSave = {
+    current: Math.max(
+      0,
+      Math.round(
+        Number(entite.stats.armor.current) || 0
+      )
+    ),
+
+    max: Math.max(
+      0,
+      Math.round(
+        Number(entite.stats.armor.max) || 0
+      )
+    ),
+  };
+
+  entite.stats.armor.current =
+    armorSave.current;
+
+  entite.stats.armor.max =
+    armorSave.max;
+
+  syncEntityAuras(entite, "battle");
+
+  const armyBId = window.currentStageId
+    ? `ArmyB_${window.currentStageId}`
+    : null;
+
+  // 1. Tentative Side B
+  if (armyBId) {
+    const { armyB, allArmyB } =
+      getCorrectedArmyB(armyBId);
+
+    const entityInArmyB = armyB.find(
+      entity =>
+        Number(entity.id) === Number(entite.id)
+    );
+
+    if (entityInArmyB) {
+      entityInArmyB.stats =
+        entityInArmyB.stats || {};
+
+      entityInArmyB.stats.armor = {
+        ...armorSave
+      };
+
+      allArmyB.armies[armyBId].entities = armyB;
+
+      saveToLocalStorage(
+        "ArmyB",
+        allArmyB
+      );
+
+      console.log(
+        `🛡️ Armor sauvegardée pour ${entite.name} Side B : ` +
+        `${armorSave.current}/${armorSave.max}`
+      );
+
+      return;
+    }
+  }
+
+  // 2. Fallback Side A
+  const selectedArmyA = loadFromLocalStorage(
+    "selectedArmyA",
+    []
+  );
+
+  const entityInArmyA = selectedArmyA.find(
+    entity =>
+      Number(entity.id) === Number(entite.id)
+  );
+
+  if (entityInArmyA) {
+    entityInArmyA.stats =
+      entityInArmyA.stats || {};
+
+    entityInArmyA.stats.armor = {
+      ...armorSave
+    };
+
+    saveToLocalStorage(
+      "selectedArmyA",
+      selectedArmyA
+    );
+
+    console.log(
+      `🛡️ Armor sauvegardée pour ${entite.name} Side A : ` +
+      `${armorSave.current}/${armorSave.max}`
+    );
+
+    return;
+  }
+
+  console.warn(
+    `⚠️ Armor non sauvegardée : ${entite.name} ` +
+    `non trouvé dans ArmyA ni ArmyB.`
+  );
+}
+
+export function resetStoredArmorCurrentToMax() {
+  const selectedArmyA = loadFromLocalStorage("selectedArmyA", []);
+
+  selectedArmyA.forEach(entite => {
+    if (!entite?.stats?.armor) return;
+    entite.stats.armor.current = Math.max(0, Math.round(Number(entite.stats.armor.max) || 0));
+  });
+
+  saveToLocalStorage("selectedArmyA", selectedArmyA);
+
+  const armyBData = loadFromLocalStorage("ArmyB", { armies: {} });
+
+  Object.values(armyBData.armies || {}).forEach(armyContainer => {
+    const entities = armyContainer?.entities;
+    if (!Array.isArray(entities)) return;
+
+    entities.forEach(entite => {
+      if (!entite?.stats?.armor) return;
+      entite.stats.armor.current = Math.max(0, Math.round(Number(entite.stats.armor.max) || 0));
+    });
+  });
+
+  saveToLocalStorage("ArmyB", armyBData);
+
+  console.log("🛡️ Worldmap chargée : armor.current restauré au max pour ArmyA et ArmyB.");
+}
+export function applyHpBattleRegenAtTurnStart(entite) {
+  if (!entite?.stats?.HP) return 0;
+  const currentHP = Math.max(0, Number(entite.stats.HP.current) || 0);
+  const maxHP = Math.max(0, Number(entite.stats.HP.max) || 0);
+  if (maxHP <= 0 || currentHP <= 0 || currentHP >= maxHP) return 0;
+  const regenAmount = Math.max(0, Number(calculateHpBattleRegenAmount(entite)) || 0);
+  if (regenAmount <= 0) return 0;
+  const newHP = Math.min(maxHP, currentHP + regenAmount);
+  const hpRestored = Math.max(0, newHP - currentHP);
+  if (hpRestored <= 0) return 0;
+  entite.stats.HP.current = newHP;
+  saveEntityHPToStorage(entite, newHP);
+  updateHealthBar(newHP, maxHP, entite.stats?.armor?.current || 0, entite.stats?.armor?.max || 0, entite.id);
+  battleLogs("entity_battle_regen", { entity: entite, hpRestored });
+  attemptBattleRegen(entite, hpRestored);
+
+  return hpRestored;
+}
+export function saveEntityMovementState(entite) {
+  if (!entite?.id || !entite?.stats?.shift) return;
+
+  const shiftSave = {
+    current: Math.max(0, Math.round(Number(entite.stats.shift.current) || 0)),
+    max: Math.max(0, Math.round(Number(entite.stats.shift.max) || 0)),
+  };
+
+  const selectedArmyA = loadFromLocalStorage("selectedArmyA", []);
+  const indexA = selectedArmyA.findIndex(e => Number(e.id) === Number(entite.id));
+
+  if (indexA !== -1) {
+    selectedArmyA[indexA].stats = selectedArmyA[indexA].stats || {};
+    selectedArmyA[indexA].stats.shift = shiftSave;
+    saveToLocalStorage("selectedArmyA", selectedArmyA);
+    return;
+  }
+
+  const currentStageId =
+    window.currentStageId ||
+    localStorage.getItem("currentLevel") ||
+    localStorage.getItem("levelRunning");
+
+  if (!currentStageId) return;
+
+  const armyBKey = `ArmyB_${currentStageId}`;
+  const armyB = loadFromLocalStorage(armyBKey, null);
+
+  if (!armyB?.entities?.length) return;
+
+  const indexB = armyB.entities.findIndex(e => Number(e.id) === Number(entite.id));
+
+  if (indexB !== -1) {
+    armyB.entities[indexB].stats = armyB.entities[indexB].stats || {};
+    armyB.entities[indexB].stats.shift = shiftSave;
+    saveToLocalStorage(armyBKey, armyB);
+  }
+}
+export function resetStoredShiftCurrentToStartingCharges() {
+  const resetShift = entite => {
+    if (!entite?.stats?.shift) return;
+
+    entite.stats.shift.current = calculateMovementStartingCharges(entite);
+  };
+
+  const selectedArmyA = loadFromLocalStorage("selectedArmyA", []);
+
+  if (Array.isArray(selectedArmyA)) {
+    selectedArmyA.forEach(resetShift);
+    saveToLocalStorage("selectedArmyA", selectedArmyA);
+  }
+
+  const armyBData = loadFromLocalStorage("ArmyB", { armies: {} });
+
+  Object.values(armyBData.armies || {}).forEach(armyContainer => {
+    const entities = armyContainer?.entities;
+    if (!Array.isArray(entities)) return;
+
+    entities.forEach(resetShift);
+  });
+
+  saveToLocalStorage("ArmyB", armyBData);
+
+  console.log("🏃 Worldmap chargée : shift.current restauré aux charges de départ pour ArmyA et ArmyB.");
+}
+export function saveEntityPositionState(entite) {
+  if (!entite?.id) return;
+
+  const positionSave = entite.position || "";
+
+  // Army A
+  const selectedArmyA = loadFromLocalStorage("selectedArmyA", []);
+  const indexA = selectedArmyA.findIndex(e => Number(e.id) === Number(entite.id));
+
+  if (indexA !== -1) {
+    selectedArmyA[indexA].position = positionSave;
+    saveToLocalStorage("selectedArmyA", selectedArmyA);
+    console.log(`📍 Position sauvegardée Side A : ${entite.name} -> ${positionSave}`);
+    return;
+  }
+
+  // Army B
+  const armyBData = loadFromLocalStorage("ArmyB", { armies: {} });
+
+  for (const [armyBId, armyContainer] of Object.entries(armyBData.armies || {})) {
+    const entities = armyContainer?.entities;
+    if (!Array.isArray(entities)) continue;
+
+    const indexB = entities.findIndex(e => Number(e.id) === Number(entite.id));
+
+    if (indexB !== -1) {
+      entities[indexB].position = positionSave;
+      armyBData.armies[armyBId].entities = entities;
+      saveToLocalStorage("ArmyB", armyBData);
+
+      console.log(`📍 Position sauvegardée Side B : ${entite.name} -> ${positionSave}`);
+      return;
+    }
+  }
+
+  console.warn(`⚠️ Position non sauvegardée : ${entite.name} introuvable ArmyA/ArmyB.`);
+}
+
+export function saveAllEntityPositionsState(entityList = []) {
+  if (!Array.isArray(entityList)) return;
+
+  entityList.forEach(entite => {
+    saveEntityPositionState(entite);
+  });
 }

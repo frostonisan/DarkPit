@@ -213,12 +213,16 @@ export function DropInventorytoCodex(codexEntry, entiteId) {
 export function removeItem(itemId, options = {}) {
     const { from = 'inventory' } = options;
 
-    // petit utilitaire pour filtrer une liste d'IDs OU d'objets { itemId }
     const dropByItemId = (arr) => {
         if (!Array.isArray(arr)) return arr;
+
         return arr.filter(entry => {
             if (typeof entry === 'string') return entry !== itemId;
-            if (entry && typeof entry === 'object') return entry.itemId !== itemId;
+
+            if (entry && typeof entry === 'object') {
+                return entry.itemId !== itemId;
+            }
+
             return true;
         });
     };
@@ -235,57 +239,71 @@ export function removeItem(itemId, options = {}) {
         ...data,
         ItemsIDs: dropByItemId(data.ItemsIDs),
         Playerinventory: dropByItemId(data.Playerinventory),
-        equippedItems: dropByItemId(data.equippedItems),
-        items: dropByItemId(data.items)
+        items: dropByItemId(data.items),
+
+        // IMPORTANT :
+        // removeItem() ne gère PAS l'équipement.
+        // Sinon, équiper un objet puis removeItem(itemId)
+        // détruit directement l'objet équipé.
+        equippedItems: data.equippedItems
     };
+
     saveToLocalStorage('IngameItemsData', updatedData);
-    console.log(`🗑️ Objet supprimé : ${itemId} (IngameItemsData)`);
+    console.log(`🗑️ Objet supprimé de l'inventaire : ${itemId} (IngameItemsData)`);
 
     // ==== 2) PlayerSave ====
     const playerSave = loadFromLocalStorage('PlayerSave', {});
     if (playerSave) {
         playerSave.Playerinventory = dropByItemId(playerSave.Playerinventory || []);
-        playerSave.equippedItems   = dropByItemId(playerSave.equippedItems   || []);
-        playerSave.items           = dropByItemId(playerSave.items           || []);
+        playerSave.items = dropByItemId(playerSave.items || []);
+
+        // IMPORTANT :
+        // Ne pas toucher à playerSave.equippedItems ici.
+        // L'équipement/déséquipement doit être géré par equipement.js.
         saveToLocalStorage('PlayerSave', playerSave);
-        console.log(`🔄 PlayerSave synchronisé : suppression de ${itemId} partout (inventory/equipped/items).`);
+
+        console.log(`🔄 PlayerSave synchronisé : suppression de ${itemId} uniquement côté inventaire/items.`);
     }
 
     // ==== 3) Anciennes clés éventuelles ====
-    // getIngameItemById lit encore 'IngameItems' et 'equippedItems' -> on nettoie aussi.
+    // getIngameItemById lit encore 'IngameItems'.
+    // On nettoie l'inventaire legacy, mais PAS 'equippedItems'.
     const legacyIngameItems = loadFromLocalStorage('IngameItems', []);
-    if (legacyIngameItems && legacyIngameItems.length) {
+    if (Array.isArray(legacyIngameItems) && legacyIngameItems.length) {
         const cleaned = dropByItemId(legacyIngameItems);
+
         if (cleaned.length !== legacyIngameItems.length) {
             saveToLocalStorage('IngameItems', cleaned);
             console.log(`🧹 Legacy: suppression dans IngameItems de ${itemId}`);
         }
     }
 
-    const legacyEquipped = loadFromLocalStorage('equippedItems', []);
-    const legacyEquippedArr = Array.isArray(legacyEquipped) ? legacyEquipped : Object.values(legacyEquipped || {});
-    if (legacyEquippedArr && legacyEquippedArr.length) {
-        const cleanedEq = dropByItemId(legacyEquippedArr);
-        // on ré-enregistre sous forme de tableau
-        saveToLocalStorage('equippedItems', cleanedEq);
-        console.log(`🧹 Legacy: suppression dans equippedItems de ${itemId}`);
-    }
+    // IMPORTANT :
+    // Ne jamais faire ça ici :
+    //
+    // const legacyEquipped = loadFromLocalStorage('equippedItems', []);
+    // saveToLocalStorage('equippedItems', cleanedEq);
+    //
+    // Sinon tu transformes parfois equippedItems objet -> tableau
+    // et tu peux supprimer l'objet qui vient d'être équipé.
 
     // ==== 4) Nettoyage DOM ciblé ====
     if (from === 'inventory') {
         const inventoryContainer = document.querySelector('.inventory-interface .inventory-content');
+
         if (inventoryContainer) {
-            // items d’inventaire
-            const itemEl = inventoryContainer.querySelector(`[data-item-id="${itemId}"]`);
-            if (itemEl) itemEl.remove();
+            const itemEl =
+                inventoryContainer.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`) ||
+                inventoryContainer.querySelector(`img.inventory-item-icon#${CSS.escape(itemId)}`)?.closest('.inventory-item') ||
+                inventoryContainer.querySelector(`#${CSS.escape(itemId)}`)?.closest('.inventory-item');
 
-            // icône flottante
-            const imgEl = inventoryContainer.querySelector(`img.inventory-item-icon#${CSS.escape(itemId)}`);
-            if (imgEl) imgEl.closest('.inventory-item')?.remove();
+            if (itemEl) {
+                itemEl.remove();
+            }
 
-            // message "Aucun objet"
             const hasItems = inventoryContainer.querySelectorAll('.inventory-item').length;
             let existingEmptyMsg = inventoryContainer.querySelector('p.empty-msg');
+
             if (hasItems === 0) {
                 if (!existingEmptyMsg) {
                     existingEmptyMsg = document.createElement('p');
@@ -301,8 +319,10 @@ export function removeItem(itemId, options = {}) {
 
     if (from === 'shop') {
         const shopContainer = document.querySelector('.shop-interface');
+
         if (shopContainer) {
-            const itemShopEl = shopContainer.querySelector(`[data-item-id="${itemId}"]`);
+            const itemShopEl = shopContainer.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`);
+
             if (itemShopEl) {
                 itemShopEl.remove();
                 console.log(`🏪 Objet retiré de la boutique : ${itemId}`);
@@ -310,7 +330,6 @@ export function removeItem(itemId, options = {}) {
         }
     }
 }
-
 export function addItemToInventory(itemId) {
     // Chargement + validation initiale
     const save = loadFromLocalStorage('PlayerSave', { Playerinventory: [], equippedItems: [] });
@@ -389,31 +408,26 @@ itemDiv.classList.add('inventory-item', `quality-${fullItem.itemQuality}`, fullI
         inventoryContainer.appendChild(itemDiv);
 		DclicSlottoInventory();
 		glitterStuff('.inventory-item.stuff', 3);
-        itemDiv.addEventListener('mouseenter', () => {
-            createItemDescription(fullItem, itemId);
-        });
-        itemDiv.addEventListener('mouseleave', () => {
-            removeItemDescription(itemDiv);
-        });
-    }
-}
+bindPersistentDescription(itemDiv, fullItem, itemId, 'item');
+}}
 
 
 
-export function addEntityLootToArmyA(entity) {
+export function addEntityLootToArmyA(entity, acquisition = { source: 'loot' }) {
     if (!entity || entity.type !== 'sbire') {
         console.warn("⛔ Entité invalide ou non lootable.");
         return;
     }
 
-    addEntityToArmyA(entity, 1); // Niveau de base = 1
+    const addedEntity = addEntityToArmyA(entity, 1, acquisition);
+    if (!addedEntity) return null;
     console.log(`🎖️ Entité lootée ajoutée à l’armée A : ${entity.name} (serial: ${entity.serial})`);
 
     // DOM : affichage dans le Codex
     const armyCodexList = document.querySelector('.army-codex-list');
     if (!armyCodexList) {
         console.log("📭 Codex non affiché, affichage annulé.");
-        return;
+        return addedEntity;
     }
 
     console.log("📦 Codex détecté, tentative d'ajout visuel…");
@@ -426,12 +440,12 @@ export function addEntityLootToArmyA(entity) {
 
     if (!entite) {
         console.warn(`❌ Entité avec ID ${entity.id} non trouvée dans selectedArmyA.`);
-        return;
+        return addedEntity;
     }
 
     if (armyCodexList.querySelector(`#CodexEntityList_${entite.id}`)) {
         console.log(`⛔ Entrée Codex déjà présente pour l'ID ${entite.id}, aucun doublon créé.`);
-        return;
+        return addedEntity;
     }
 
     console.log(`✅ Création visuelle du codex pour ${entite.name} (ID: ${entite.id})`);
@@ -445,11 +459,12 @@ export function addEntityLootToArmyA(entity) {
 
     armyCodexList.appendChild(codexEntry);
     console.log(`🆕 Entrée ajoutée dans le DOM pour ${entite.name} (ID: ${entite.id})`);
+    return addedEntity;
 }
 export function clicSelectItem(itemWrapper) {
     // Trouver la classe principale à utiliser pour la sélection
     const selectionClass = Array.from(itemWrapper.classList).find(cls =>
-        cls === 'shop-item-wrapper' || cls === 'codex-entity-list' || cls === 'inventory-item-wrapper' || cls === 'equipped-item-wrapper'
+        cls === 'item-wrapper' || cls === 'codex-entity-list' || cls === 'inventory-item-wrapper' || cls === 'equipped-item-wrapper'
     );
 
     if (!selectionClass) return;
@@ -473,177 +488,287 @@ export function clicSelectItem(itemWrapper) {
     if (sellerButton) sellerButton.classList.add('buy');
 }
 
+export function createAllItems(
+    item,
+    {
+        source,
+        showCost = false,
+        onDoubleClick = null
+    } = {}
+) {
+    if (!item) return null;
+
+    const isEntity = item.type === 'sbire';
+
+    const itemWrapper = document.createElement('div');
+    itemWrapper.classList.add('item-wrapper');
+
+    itemWrapper.classList.add(
+        isEntity
+            ? 'entity'
+            : `quality-${item.itemQuality}`
+    );
+
+    if (!isEntity && Array.isArray(item.itemType)) {
+        item.itemType.forEach(type => {
+            itemWrapper.classList.add(type);
+        });
+    }
+
+    let itemId;
+
+    if (isEntity) {
+        itemId = `entity-${item.id}`;
+    } else {
+        const createdItem = createIngameItem(
+            item.serial,
+            source
+        );
+
+        if (!createdItem) return null;
+
+        itemId = createdItem.itemId;
+    }
+
+    itemWrapper.dataset.itemId = itemId;
+
+    const image = document.createElement('img');
+
+    image.src = isEntity
+        ? item.sprite
+        : item.itemAsset;
+
+    image.alt = isEntity
+        ? item.name
+        : item.displayName;
+
+    image.classList.add('item-icon');
+
+    if (isEntity) {
+        image.classList.add(
+            'iddle',
+            item.class
+        );
+    } else {
+        image.classList.add(item.functionName);
+        image.id = itemId;
+    }
+
+    itemWrapper.appendChild(image);
+
+    if (showCost) {
+        const { price } = isEntity
+            ? getEntityPriceAndQuality(item)
+            : { price: item.itemCost };
+
+        const cost = document.createElement('div');
+        cost.classList.add('item-cost');
+        cost.textContent = `${price} 🪙`;
+
+        itemWrapper.appendChild(cost);
+    }
+
+    itemWrapper.addEventListener('click', () => {
+        clicSelectItem(itemWrapper);
+    });
+
+    itemWrapper.addEventListener('dblclick', event => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        onDoubleClick?.(
+            item,
+            itemId,
+            itemWrapper,
+            isEntity
+        );
+    });
+
+    bindPersistentDescription(
+        itemWrapper,
+        item,
+        itemId,
+        isEntity ? 'entity' : 'item'
+    );
+
+    return itemWrapper;
+}
 export function displayShopItems(mosaic, shopRight) {
     mosaic.innerHTML = '';
 
-    // Sélection aléatoire des objets
-    const shuffledItems = [...ItemDetails].sort(() => Math.random() - 0.5).slice(0, 6);
+    const shuffledItems = [...ItemDetails]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 6);
 
-    // Sélection aléatoire de 1 ou 2 entités
-    const allEntities = Object.values(entitesNestUp).filter(e => !e.isLord && !e.isDead);
-    const selectedEntities = [...allEntities].sort(() => Math.random() - 0.5).slice(0, Math.random() < 0.5 ? 1 : 2);
-
-    const shopPool = [...shuffledItems, ...selectedEntities];
-
-    shopPool.forEach(item => {
-        const isEntity = item.type === 'sbire';
-
-        const itemWrapper = document.createElement('div');
-        itemWrapper.classList.add('shop-item-wrapper');
-        itemWrapper.classList.add(isEntity ? 'entity' : `quality-${item.itemQuality}`);
-		if (!isEntity && Array.isArray(item.itemType)) {
-    item.itemType.forEach(type => {
-        itemWrapper.classList.add(type);
-    });
-}
-        let itemId;
-
-        if (isEntity) {
-            itemId = `entity-${item.id}`;
-        } else {
-            const createdItem = createIngameItem(item.serial, "worldmap-shop");
-            if (!createdItem) return;
-            itemId = createdItem.itemId;
-        }
-
-        itemWrapper.dataset.itemId = itemId;
-
-    const img = document.createElement('img');
-img.src = isEntity ? item.sprite : item.itemAsset;
-img.alt = isEntity ? item.name : item.displayName;
-
-// Classe CSS
-if (isEntity) {
-    img.className = `shop-item-icon iddle ${item.class}`;
-} else {
-    img.className = `shop-item-icon ${item.functionName}`;
-    img.id = itemId;
-}
-
-itemWrapper.appendChild(img);
-
-
-        // 💰 Coût
-        const { price } = isEntity ? getEntityPriceAndQuality(item) : { price: item.itemCost };
-        const cost = document.createElement('div');
-        cost.className = 'shop-item-cost';
-        cost.textContent = `${price} 🪙`;
-        itemWrapper.appendChild(cost);
-
-        // Sélection
-        itemWrapper.addEventListener('click', () => clicSelectItem(itemWrapper));
-
-        // Double-clic pour achat
-        itemWrapper.addEventListener('dblclick', () => {
-            console.log("🖱️ Double clic détecté pour achat.");
-            BuyItems(item, itemWrapper.dataset.itemId);
+    const allEntities = Object
+        .values(entitesNestUp)
+        .filter(entity => {
+            return !entity.isLord && !entity.isDead;
         });
 
-        // Survol = description
-itemWrapper.addEventListener('mouseenter', () => {
-    if (itemWrapper.classList.contains('selected')) return;
+    const selectedEntities = [...allEntities]
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.random() < 0.5 ? 1 : 2);
 
-    if (isEntity) {
-        createEntityDescription(item, itemWrapper); 
-    } else {
-        createItemDescription(item, item?.itemId || 'empty', itemWrapper);
-    }
-});
+    const shopPool = [
+        ...shuffledItems,
+        ...selectedEntities
+    ];
 
-itemWrapper.addEventListener('mouseleave', () => {
-    if (!itemWrapper.classList.contains('selected')) {
-        removeItemDescription(itemWrapper);
-    }
-});
+    shopPool.forEach(item => {
+        const itemWrapper = createAllItems(item, {
+            source: 'worldmap-shop',
+            showCost: true,
 
-        // Ajout DOM
+            onDoubleClick: (
+                selectedItem,
+                itemId
+            ) => {
+                console.log(
+                    '🖱️ Double clic détecté pour achat.'
+                );
+
+                BuyItems(selectedItem, itemId);
+            }
+        });
+
+        if (!itemWrapper) return;
+
         mosaic.appendChild(itemWrapper);
     });
 
-    // Bouton d'achat
-    const sellerButton = document.querySelector('.seller-button');
-    if (sellerButton) {
-        sellerButton.addEventListener('click', () => {
-            const selected = document.querySelector('.shop-item-wrapper.selected');
-            if (!selected) {
-                console.warn("❌ Aucun objet sélectionné.");
-                return;
-            }
+    const sellerButton =
+        document.querySelector('.seller-button');
 
-            const itemId = selected.dataset.itemId;
-            let item;
+    if (!sellerButton) return;
 
-            if (itemId.startsWith('entity-')) {
-                const entityId = itemId.split('-')[1];
-                item = Object.values(entitesNestUp).find(e => e.id == entityId);
-            } else {
-                item = getIngameItemById(itemId);
-            }
+    sellerButton.addEventListener('click', () => {
+        const selected = document.querySelector(
+            '.item-wrapper.selected'
+        );
 
-            if (!item) {
-                console.warn(`❌ Aucun objet ou entité trouvé avec l'ID : ${itemId}`);
-                return;
-            }
+        if (!selected) {
+            console.warn('❌ Aucun objet sélectionné.');
+            return;
+        }
 
-            BuyItems(item, itemId);
-            selected.classList.remove('selected');
-            selected.style.removeProperty('animation');
-            sellerButton.classList.remove('buy');
-            console.log(`🛍️ Achat déclenché depuis bouton pour ${item.displayName || item.name}`);
-        });
-    }
+        const itemId = selected.dataset.itemId;
+        let item;
+
+        if (itemId.startsWith('entity-')) {
+            const entityId = itemId.split('-')[1];
+
+            item = Object
+                .values(entitesNestUp)
+                .find(entity => {
+                    return entity.id == entityId;
+                });
+        } else {
+            item = getIngameItemById(itemId);
+        }
+
+        if (!item) {
+            console.warn(
+                `❌ Aucun objet ou entité trouvé avec l'ID : ${itemId}`
+            );
+
+            return;
+        }
+
+        BuyItems(item, itemId);
+
+        selected.classList.remove('selected');
+        selected.style.removeProperty('animation');
+        sellerButton.classList.remove('buy');
+    });
 }
+export function acquireItem(item, origin = 'unknown') {
+    if (!item?.serial) {
+        console.warn('❌ Objet sans serial, acquisition impossible.', item);
+        return null;
+    }
 
+    const createdItem = createIngameItem(item.serial, origin);
+
+    if (!createdItem?.itemId) {
+        console.warn(
+            `❌ Impossible de créer l’instance de l’objet ${item.serial}.`
+        );
+
+        return null;
+    }
+
+    addItemToInventory(createdItem.itemId);
+    saveItemsData();
+
+    console.log(
+        `🎒 Objet acquis et conservé : ${createdItem.displayName} (${createdItem.itemId}, origine: ${origin})`
+    );
+
+    return createdItem;
+}
 export function BuyItems(item, sourceId = null) {
     if (!item) {
-        console.warn("❌ Objet ou entité invalide pour achat.");
+        console.warn('❌ Objet ou entité invalide pour achat.');
         return;
     }
 
     const isEntity = item.type === 'sbire';
 
     if (isEntity) {
-        // ⚠️ Ne jamais enregistrer dans IngameItems : ce n’est PAS un item
         const lootEntity = {
             ...item,
             type: 'sbire',
             side: 'A',
             id: generateUniqueID()
         };
-        addEntityLootToArmyA(lootEntity);
-        console.log(`🧬 Achat confirmé pour ${lootEntity.name} (ID : ${lootEntity.id})`);
+
+        addEntityLootToArmyA(lootEntity, {
+            source: 'shop',
+            sourceId
+        });
+
+        console.log(
+            `🧬 Achat confirmé pour ${lootEntity.name} (ID : ${lootEntity.id})`
+        );
     } else {
-        if (!item.serial) {
-            console.warn("❌ Objet sans serial, achat impossible.");
+        const created = acquireItem(item, 'shop');
+
+        if (!created) {
             return;
         }
 
-        const created = createIngameItem(item.serial, "shop");
-        if (!created || !created.itemId) {
-            console.warn(`❌ Échec création ou ID manquant pour l’item ${item.serial}`);
-            return;
-        }
-
-        addItemToInventory(created.itemId);
-        saveItemsData(); // ✅ Synchronise dans IngameItemsData
-        console.log(`🛒 Achat confirmé pour ${item.displayName} (ID : ${created.itemId})`);
+        console.log(
+            `🛒 Achat confirmé pour ${created.displayName} (ID : ${created.itemId})`
+        );
     }
 
-    // Nettoyage visuel depuis la boutique si besoin
     if (sourceId) {
         removeItem(sourceId, { from: 'shop' });
     }
 }
+export function createEntityDescription(entity, hoveredElement, options = {}) {
+    const { persistent = false } = options;
 
-export function createEntityDescription(entity, hoveredElement) {
-    // Supprime les anciennes fiches
-   
-  removeItemDescription(hoveredElement);
-  
+    const helperContainer = document.querySelector('.Game-helper');
+    if (!helperContainer) {
+        console.warn('createEntityDescription: .Game-helper introuvable');
+        return;
+    }
+
+    const entityDescId = `entity-${entity.id}`;
+    const className = getRawItemDescriptionClass(entityDescId);
+
+    const existing = helperContainer.querySelector(`.${className}`);
+    if (existing) existing.remove();
+
     const detailCard = document.createElement('div');
-    detailCard.className = `shop-item-card entity`;
+    detailCard.classList.add('shop-item-card', 'item-description-card', 'entity', className);
+    if (persistent) detailCard.classList.add('persistent');
 
-    // --- contenu ---
+    detailCard.style.position = 'absolute';
+    detailCard.dataset.itemId = entityDescId;
+
     const name = document.createElement('h3');
     name.textContent = entity.nickname ?? entity.name;
     detailCard.appendChild(name);
@@ -683,24 +808,221 @@ export function createEntityDescription(entity, hoveredElement) {
         detailCard.appendChild(role);
     }
 
-   let gameHelper = document.querySelector('.Game-helper');
-if (!gameHelper) {
-    gameHelper = document.createElement('div');
-    gameHelper.classList.add('Game-helper');
-    document.body.appendChild(gameHelper);
-}
-positionHelperCard(detailCard, hoveredElement);
-// Ajout de detailCard dans .Game-helper
-gameHelper.appendChild(detailCard);
-}
+    positionHelperCard(detailCard, hoveredElement);
+    helperContainer.appendChild(detailCard);
 
+    return detailCard;
+}
 
 function getStatLabelFromKey(statKey) {
   const stat = stats.find(s => s.key === statKey);
   return stat ? stat.name : statKey;
 }
+const ITEM_DESC_MAX_PINNED = 2;
+const pinnedItemDescriptions = [];
+let itemDescriptionClickTimer = null;
 
-export function createItemDescription(item, itemId = item?.itemId || 'empty', hoveredElement) {
+function getItemDescriptionId(itemId) {
+  return `itemDescription-${CSS.escape(String(itemId || 'empty'))}`;
+}
+
+function getRawItemDescriptionClass(itemId) {
+  return `itemDescription-${String(itemId || 'empty').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+function isEquipmentElement(el) {
+    return !!el?.closest?.(
+        '.inventory-item, .item-wrapper, .stuff-slot, .stuff-item-wrapper, .inventory-item-icon, .shop-item-card.item-description-card'
+    );
+}
+function cleanupDetachedPinnedDescriptions() {
+  for (let i = pinnedItemDescriptions.length - 1; i >= 0; i--) {
+    const entry = pinnedItemDescriptions[i];
+
+    if (!entry.anchor || !document.body.contains(entry.anchor)) {
+      entry.card?.remove();
+      pinnedItemDescriptions.splice(i, 1);
+    }
+  }
+}
+
+export function clearItemDescriptions() {
+  const helperContainer = document.querySelector('.Game-helper');
+  if (!helperContainer) return;
+
+  helperContainer
+    .querySelectorAll('.shop-item-card.item-description-card')
+    .forEach(card => card.remove());
+
+  pinnedItemDescriptions.length = 0;
+}
+
+export function removePinnedItemDescription(itemId) {
+  const index = pinnedItemDescriptions.findIndex(entry => entry.itemId === itemId);
+  if (index === -1) return false;
+
+  pinnedItemDescriptions[index].card?.remove();
+  pinnedItemDescriptions.splice(index, 1);
+  return true;
+}
+
+export function pinItemDescription(item, itemId, anchorElement) {
+  cleanupDetachedPinnedDescriptions();
+
+  if (!item || !itemId) return;
+
+  // Si déjà ouverte : on la vire
+  if (removePinnedItemDescription(itemId)) return;
+
+  const card = createItemDescription(item, itemId, anchorElement, {
+    persistent: true
+  });
+
+  if (!card) return;
+
+  pinnedItemDescriptions.push({
+    itemId,
+    card,
+    anchor: anchorElement
+  });
+
+  while (pinnedItemDescriptions.length > ITEM_DESC_MAX_PINNED) {
+    const removed = pinnedItemDescriptions.shift();
+    removed?.card?.remove();
+  }
+}
+export function pinEntityDescription(entity, entityId, anchorElement) {
+    cleanupDetachedPinnedDescriptions();
+
+    if (!entity || !entityId) return;
+
+    if (removePinnedItemDescription(entityId)) return;
+
+    const card = createEntityDescription(entity, anchorElement, {
+        persistent: true
+    });
+
+    if (!card) return;
+
+    pinnedItemDescriptions.push({
+        itemId: entityId,
+        card,
+        anchor: anchorElement
+    });
+
+    while (pinnedItemDescriptions.length > ITEM_DESC_MAX_PINNED) {
+        const removed = pinnedItemDescriptions.shift();
+        removed?.card?.remove();
+    }
+}
+
+export function setupEntityDescriptionClick(entityElement, entity, entityId) {
+    if (!entityElement || entityElement.dataset.entityDescBound === '1') return;
+
+    entityElement.dataset.entityDescBound = '1';
+
+    entityElement.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        clearTimeout(itemDescriptionClickTimer);
+
+        itemDescriptionClickTimer = setTimeout(() => {
+            pinEntityDescription(entity, entityId, entityElement);
+        }, 180);
+    });
+
+    entityElement.addEventListener('dblclick', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        clearTimeout(itemDescriptionClickTimer);
+        clearItemDescriptions();
+    });
+}
+export function setupItemDescriptionClick(itemElement, item, itemId) {
+  if (!itemElement || itemElement.dataset.itemDescBound === '1') return;
+
+  itemElement.dataset.itemDescBound = '1';
+
+  itemElement.addEventListener('click', (event) => {
+    event.stopPropagation();
+
+    clearTimeout(itemDescriptionClickTimer);
+
+    itemDescriptionClickTimer = setTimeout(() => {
+      pinItemDescription(item, itemId, itemElement);
+    }, 180);
+  });
+
+  itemElement.addEventListener('dblclick', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    clearTimeout(itemDescriptionClickTimer);
+
+    // Double clic sur item déjà ouvert : on vire tout.
+    clearItemDescriptions();
+  });
+}
+export function bindPersistentDescription(element, data, id, type = 'item') {
+    if (!element || !data || !id) return;
+    if (element.dataset.persistentDescBound === '1') return;
+
+    element.dataset.persistentDescBound = '1';
+
+    element.addEventListener('mouseenter', () => {
+        if (type === 'entity') {
+            createEntityDescription(data, element);
+        } else {
+            createItemDescription(data, id, element);
+        }
+    });
+
+    element.addEventListener('mouseleave', () => {
+        removeItemDescription(id);
+    });
+
+    element.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        clearTimeout(itemDescriptionClickTimer);
+
+        itemDescriptionClickTimer = setTimeout(() => {
+            if (type === 'entity') {
+                pinEntityDescription(data, id, element);
+            } else {
+                pinItemDescription(data, id, element);
+            }
+        }, 180);
+    });
+
+    element.addEventListener('dblclick', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        clearTimeout(itemDescriptionClickTimer);
+        clearItemDescriptions();
+    });
+}
+// Clic dans le vide = toutes les descriptions dégagent
+if (!window.__itemDescriptionGlobalClickBound) {
+  window.__itemDescriptionGlobalClickBound = true;
+
+  document.addEventListener('click', (event) => {
+    cleanupDetachedPinnedDescriptions();
+
+    const clickedInsideDescription = event.target.closest?.('.shop-item-card.item-description-card');
+
+    if (clickedInsideDescription) return;
+
+    if (!isEquipmentElement(event.target)) {
+      clearItemDescriptions();
+    }
+  });
+}
+
+export function createItemDescription(item, itemId = item?.itemId || 'empty', hoveredElement, options = {}) {
+  const { persistent = false } = options;
   const helperContainer = document.querySelector('.Game-helper');
   if (!helperContainer) { 
     console.warn('createItemDescription: .Game-helper introuvable'); 
@@ -708,29 +1030,20 @@ export function createItemDescription(item, itemId = item?.itemId || 'empty', ho
   }
 
   // Empêche doublons
-  const className = `itemDescription-${itemId}`;
+ const className = getRawItemDescriptionClass(itemId);
   
   const existing = helperContainer.querySelector(`.${className}`);
   if (existing) existing.remove();
 
   const detailCard = document.createElement('div');
-  detailCard.classList.add('shop-item-card', className);
+  detailCard.classList.add('shop-item-card', 'item-description-card', className);
+if (persistent) detailCard.classList.add('persistent');
   detailCard.style.position = 'absolute';
 detailCard.dataset.itemId = itemId; 
-  // --- Slot vide ---
+// --- Slot vide ---
 if (!item) {
-  const name = document.createElement('div');
-  name.classList.add('empty-message');
-  name.textContent = 'Emplacement d’équipement libre.';
-  detailCard.appendChild(name);
-  helperContainer.appendChild(detailCard);
-
-  // Positionner en relatif comme pour les autres
-  positionHelperCard(detailCard, hoveredElement);
-
   return;
 }
-
   // --- Types robustes ---
   const types = Array.isArray(item.itemType) ? item.itemType : [item.itemType].filter(Boolean);
   types.forEach(t => detailCard.classList.add(t));
@@ -790,14 +1103,14 @@ if (!item) {
       if (effect?.type === 'stat-buff') {
         const { stat, value } = effect;
         const fakeEntity = { name: item.displayName, stats: { [stat]: value }, speed: 1000 };
-        createUmbraBlock(
-          attributStatsDiv,
-          getStatLabelFromKey(stat),
-          () => `+ ${value}`,
-          fakeEntity,
-          stat,
-          true
-        );
+   createUmbraBlock(
+  attributStatsDiv,
+  getStatLabelFromKey(stat),
+  () => Number(value),
+  fakeEntity,
+  stat,
+  false
+);
       }
     });
     detailCard.appendChild(attributStatsDiv);
@@ -807,6 +1120,7 @@ if (!item) {
 
   detailCard.appendChild(desc);
   helperContainer.appendChild(detailCard);
+return detailCard;
 }
 
 function positionHelperCard(detailCard, hoveredElement) {
@@ -829,54 +1143,63 @@ function positionHelperCard(detailCard, hoveredElement) {
 
 
 export function equippedHoverDescription() {
-  const equippedItemsRaw = loadFromLocalStorage('equippedItems', {});
-  const equippedItemsArray = Array.isArray(equippedItemsRaw)
-      ? equippedItemsRaw
-      : Object.values(equippedItemsRaw);
+    const equippedItemsRaw = loadFromLocalStorage('equippedItems', {});
 
-  const equippedItems = {};
-  equippedItemsArray.forEach((item) => {
-      equippedItems[item.itemId] = item;
-  });
+    const equippedItemsArray = Array.isArray(equippedItemsRaw)
+        ? equippedItemsRaw
+        : Object.values(equippedItemsRaw || {});
 
-  console.log('[Hover] Items chargés :', equippedItems);
+    const equippedItems = {};
 
-  document.querySelectorAll('.stuff-slot').forEach((slot) => {
-      const wrapper = slot.querySelector('.stuff-item-wrapper');
-      let item = null;
-      let itemId = 'empty';
+    equippedItemsArray.forEach((item) => {
+        if (!item) return;
 
-      if (wrapper) {
-          const key = wrapper.dataset.stuffId;
-          if (key) {
-              item = equippedItems[key];
-              itemId = key;
-          }
-      }
+        const key = item.equippedId || (item.itemId ? `e${item.itemId}` : null);
+        if (!key) return;
 
-      slot.addEventListener('mouseenter', () => {
-          createItemDescription(item, itemId, slot); // positionné automatiquement
-      });
+        equippedItems[key] = item;
+    });
 
-      slot.addEventListener('mouseleave', () => {
-          removeItemDescription(); // supprime la fiche
-      });
-  });
+    console.log('[Hover] Items équipés chargés par equippedId :', equippedItems);
+
+    document.querySelectorAll('.stuff-slot').forEach((slot) => {
+        const wrapper = slot.querySelector('.stuff-item-wrapper');
+
+        let item = null;
+        let itemId = 'empty';
+
+        if (wrapper) {
+            const equippedId = wrapper.dataset.stuffId;
+
+            if (equippedId) {
+                item = equippedItems[equippedId] || null;
+                itemId = equippedId;
+            }
+        }
+
+if (wrapper && item) {
+    bindPersistentDescription(wrapper, item, itemId, 'item');
+}
+    });
 }
 
-
-
-export function removeItemDescription() {
-    // On cible directement le container des descriptions
+export function removeItemDescription(itemId = null) {
     const helperContainer = document.querySelector('.Game-helper');
     if (!helperContainer) return;
 
-    // Supprimer toutes les cartes présentes dans le helper
-    const detailCards = helperContainer.querySelectorAll('.shop-item-card');
-    detailCards.forEach(card => card.remove());
+    if (!itemId) {
+        helperContainer
+            .querySelectorAll('.shop-item-card.item-description-card:not(.persistent)')
+            .forEach(card => card.remove());
+        return;
+    }
+
+    const className = getRawItemDescriptionClass(itemId);
+
+    helperContainer
+        .querySelectorAll(`.shop-item-card.item-description-card.${className}:not(.persistent)`)
+        .forEach(card => card.remove());
 }
-
-
 export function setupDragAndDropItem(imgElement, itemId) {
     if (!imgElement || !itemId || itemId.startsWith('http')) {
         console.warn(`❌ setupDragAndDropItem : élément ou itemId invalide :`, imgElement, itemId);
@@ -891,7 +1214,7 @@ export function setupDragAndDropItem(imgElement, itemId) {
 
     const dragStartHandler = (e) => {
         e.dataTransfer.setData('text/plain', itemId);
-        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.effectAllowed = 'shift';
         imgElement.classList.add('using');
         setLastDraggedItemId(itemId);
         console.log(`🚚 Drag lancé pour ${itemId}`);

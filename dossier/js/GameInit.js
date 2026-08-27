@@ -5,24 +5,31 @@ import { selectRandomEntitiesForSideB } from './ArmyBFactory.js';
 import { generateArmyA } from './ArmyAFactory.js';
 import { createNicknameForm, updateNickname, createLevelUpForm, playerExperience, updateExperienceDisplay, LevelupSignal, getClassLabel,  getCycleForKey,  getCycleLenFor,  getArchetypeMilestones } from './UpgradeEntity.js';
 import { attackEffects } from './attackEffects.js';
-import { generateUniqueID, entitesNestUp, enrichEntityStats, calculatePhysicalPenPercent, calculateMagicalPenPercent, calculateHastePercent, calculateBloodFuryPercent, calculateEsoterismPercent, calculateTranscendenceExtraLife} from './entites.js';
+import { generateUniqueID, entitesNestUp, enrichEntityStats, migrateEntityAcquisitions, calculatePhysicalPenPercent, calculateMagicalPenPercent, calculateHastePercent, getBloodThirstyPercent, calculateEsoterismPercent, calculateTranscendenceExtraLife, calculateWeaponMasteryCharge, getMovementWeightMalus} from './entites.js';
 import { AdminButtons } from './admin.js';
 import { launchCurrentLevelFromStorage } from './newgame.js';
 import { isEntiteAlive } from './game.js';
 import { ItemDetails } from './itemList.js';
-import { displayShopItems,  createItemDescription, removeItemDescription, DropFromCodexToInventory, DropInventorytoCodex, setupDragAndDropItem, DropEquipementtoInventory, DclicSlottoInventory, sanitizeItemId, getIngameItemById, equippedHoverDescription } from './itemManager.js';
+import { displayShopItems,  createItemDescription, removeItemDescription, DropFromCodexToInventory, DropInventorytoCodex, setupDragAndDropItem, DropEquipementtoInventory, DclicSlottoInventory, sanitizeItemId, getIngameItemById, equippedHoverDescription, setupItemDescriptionClick } from './itemManager.js';
 import { glitterStuff } from './meteo.js';
 import { stats } from './statsData.js';
-import { createLifeBars, createLifeCounter, syncEntityAuras } from './createEntity.js';
-import { toNumber, getSafe, calculateStatsDisplay, calculateStatGraphValue, calculateResistanceReductionPercent, calculateMagicalTotal, calculateHastePrepReduc, calculateHasteExecReduc, calculateHasteCDReduc, calculateHasteRecupReduc, calculateHasteProjectilSpeed, getEffectiveAttackTimings, calculateCritTotalChance, calculateCritDamageBonus, calculateAmbidextryTotalChance, calculateAmbidextryDamageBonus, calculateBloodFuryExecutionPercent, calculateBloodFuryExecChanceBonus, calculateExecutionDamage, calculateHypercognitionBonus, calculateRangeRatio, calculateTotalDodgeBonus, calculateResilienceCritTotalBonus, calculateResilienceTotalCancelBonus, calculateResilienceAlterationTotalBonus, caluclateIndestructibilityReductionTotal, calculateIndestructibilityPercentFromEntity, calculateAstralityTotal, calculateTranscendenceConsoProtectionTotal, calculateTotalRegenAmount, calculateRangeAccuracy, calculateBrokenSpellDamage, calculateBrokenSpellChance, totalMeleeExecReduction, totalPiercingRecupReductionWithAgi } from './damagesCalcul.js';
+import { createLifeBars, createLifeCounter, createArmorCounter, createMovementCounter } from './createEntity.js';
+import { toNumber, getSafe, calculateStatsDisplay, calculateStatGraphValue, calculateResistanceReductionPercent, calculateMagicalTotal, getFinalAttackPreparationReduc, getFinalAttackExecutionReduc, getFinalAttackCooldownReduc, getFinalAttackRecoveryReduc, getFinalAttackProjectileSpeed, getEffectiveAttackTimings, calculateCritTotalChance, calculateCritDamageBonus, getFinalCriticalChanceFlat,
+getFinalCriticalDamageFlat, calculateAmbidextryTotalChance, calculateAmbidextryDamageBonus, calculateBloodFuryExecutionPercent, calculateBloodFuryExecChanceBonus, calculateBloodThirstyPercent, calculateExecutionDamage, calculateHypercognitionBonus, calculateRangeRatio, calculateTotalDodgeBonus, calculateResilienceCritTotalBonus, calculateResilienceTotalCancelBonus, calculateResilienceAlterationTotalBonus, caluclateIndestructibilityReductionTotal, calculateIndestructibilityPercentFromEntity, calculateHpBattleRegenPercent, calculateAstralityTotal, calculateTranscendenceConsoProtectionTotal, calculateTotalRegenAmount, calculateRangeAccuracy, calculateBrokenSpellDamage, calculateBrokenSpellChance, totalMeleeExecReduction, totalPiercingRecupReductionWithAgi, totalTranspiercingRecupReductionWithAgi, calculateTranspiercingAccuracyBonus, transpiercingAgiRatio, transpiercingTotal, brutalityPercantBonus, intellectPercantBonus, calculateMeleeExecBonus, calculateMysticismProcChance, calculateMysticismTranceDuration, calculateMysticismPreparationAcceleration, calculateMysticismTotalDamageBonus, calculateLvlMaxEntiteWithWill, calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateEquilibreAttackChance, calculateOccultismInvisibilityChance, calculateOccultismTargetableChanceDisplay, calculateOccultismDodgeBonus, calculateOccultismCritChanceBonus, calculateOccultismShadowFragilityPercent,calculateMovementMaxCharges, calculateMovementStartingChargePercent, calculateMovementStartingCharges, calculateMovementMarathonChance, createMovementDisplay, ensureMovementState, updateMovementDisplay, calculateWeaponOrfevreWeaponMastery, calculateWeaponOrfevreStrength, getFinalWeaponOrfevreBonus, getFinalWeaponCollectorBonus, calculateChargeEquipmentSlots, calculateWeaponMasteryTotalChargeBonus, calculateWeaponMasteryTrophyChance, getMarathonChance, getTrailerChance, } from './damagesCalcul.js';
 import { cyclesData } from './cycleData.js';
-import { toRoman, isRegenKey, toNonNegInt, goldTitle } from './ui.js';
+import { toRoman, isRegenKey, toNonNegInt, goldTitle, resetParallaxView } from './ui.js';
 import { normArr } from './entityAttributs.js';
+import { getAttackResolutionFlags } from "./attackResolution.js";
+import { entitesLore } from './entitesLore.js';
+import { getBattleLogsIndex, loadBattleLogByKey, renderBattleBookList, renderBattleBookReport, clearAllBattleLogs } from './battleLogs.js';
+import { syncEntityAuras } from "./entitesAura.js";
+
 
 window.updateExperienceDisplay = updateExperienceDisplay;
 const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 const CODEX_MENU_KEY = 'CodexMenuIndex';
 const CODEX_SUBMENU_KEY = 'CodexSubmenuIndex';
+const CODEX_SUBSTAT_MODE_KEY = "CodexSubstatMode";
 // Map pour stocker les timers de suppression
 const helperTimers = new Map();
 
@@ -43,7 +50,15 @@ function setCodexSubmenuIndex(idx1) {
   if (!Number.isInteger(idx1) || idx1 < 1) idx1 = 1;
   saveToLocalStorage(CODEX_SUBMENU_KEY, idx1);
 }
+function getCodexSubstatMode() {
+  const mode = loadFromLocalStorage(CODEX_SUBSTAT_MODE_KEY, "stat");
+  return ["stat", "umbra", "archetype", "soul"].includes(mode) ? mode : "stat";
+}
 
+function setCodexSubstatMode(mode) {
+  if (!["stat", "umbra", "archetype", "soul"].includes(mode)) mode = "stat";
+  saveToLocalStorage(CODEX_SUBSTAT_MODE_KEY, mode);
+}
 // util: renvoie l'index 1-based de l'enfant actif selon un sélecteur
 function activeIndex1Based(parent, itemSelector, activeClass='active') {
   const items = Array.from(parent.querySelectorAll(itemSelector));
@@ -98,32 +113,63 @@ export function markPageLoaded() {
 }
 
 export function createGameContainer() {
-    // helper
-    let gameHelper = document.createElement('div');
-    gameHelper.className = 'Game-helper';
-    document.body.appendChild(gameHelper);
+    // Structure canonique :
+    // <body>
+    //   <div class="Game-helper"></div>
+    //   <div id="game-windows">
+    //     <div id="game-container">...</div>
+    //   </div>
+    // </body>
 
-    // Game windows
     let gameWindows = document.getElementById('game-windows');
+
+    let gameHelper = document.querySelector('body > .Game-helper');
+    if (!gameHelper) {
+        gameHelper = document.createElement('div');
+        gameHelper.className = 'Game-helper';
+    }
+
     if (!gameWindows) {
         gameWindows = document.createElement('div');
         gameWindows.id = 'game-windows';
+
+        document.body.appendChild(gameHelper);
         document.body.appendChild(gameWindows);
+    } else {
+        // Le helper doit toujours être juste avant #game-windows.
+        document.body.insertBefore(gameHelper, gameWindows);
     }
 
-    // Game container
-    let gameContainer = document.getElementById('game-container');
+    // Aucun doublon de helper direct dans body.
+    document.querySelectorAll('body > .Game-helper').forEach(otherHelper => {
+        if (otherHelper !== gameHelper) otherHelper.remove();
+    });
+
+    let gameContainer = gameWindows.querySelector(':scope > #game-container');
+
     if (!gameContainer) {
-        gameContainer = document.createElement('div');
-        gameContainer.id = 'game-container';
-        gameWindows.appendChild(gameContainer);
+        const misplacedContainer = document.getElementById('game-container');
+
+        if (misplacedContainer) {
+            gameWindows.appendChild(misplacedContainer);
+            gameContainer = misplacedContainer;
+        } else {
+            gameContainer = document.createElement('div');
+            gameContainer.id = 'game-container';
+            gameWindows.appendChild(gameContainer);
+        }
     }
 
-    // Worldmap
-    const worldmap = document.createElement('img');
-    worldmap.src = './media/worldmap.jpg';
-    worldmap.classList.add('worldmap');
-    gameContainer.appendChild(worldmap);
+    // Une seule worldmap, uniquement dans #game-container.
+    let worldmap = gameContainer.querySelector(':scope > .worldmap');
+    if (!worldmap) {
+        worldmap = document.createElement('img');
+        worldmap.src = './media/worldmap.jpg';
+        worldmap.classList.add('worldmap');
+        gameContainer.prepend(worldmap);
+    }
+
+    return gameContainer;
 }
 
 export function getOrCreateWorldMapID() {
@@ -172,12 +218,20 @@ export function GameUi() {
         return;
     }
 
-    // Vérifier ou créer .Game-UI
-    let GameUI = document.querySelector('.Game-UI');
+    // Vérifier ou créer .Game-UI dans son parent canonique.
+    let GameUI = GameContainer.querySelector(':scope > .Game-UI');
+
     if (!GameUI) {
-        GameUI = document.createElement('div');
-        GameUI.className = 'Game-UI';
-        GameContainer.appendChild(GameUI);
+        const misplacedGameUI = document.querySelector('.Game-UI');
+
+        if (misplacedGameUI) {
+            GameContainer.appendChild(misplacedGameUI);
+            GameUI = misplacedGameUI;
+        } else {
+            GameUI = document.createElement('div');
+            GameUI.className = 'Game-UI';
+            GameContainer.appendChild(GameUI);
+        }
     }
 
     // Supprimer les anciens éléments pour éviter la duplication
@@ -212,6 +266,40 @@ export function GameUi() {
 	createDayCounter(GameUI);
 
 
+    // Groupe unique des contrôles de vue : voir les hex, masquer les hex,
+    // restaurer la perspective.
+    let viewControls = GameUI.querySelector(':scope > .view-controls');
+    if (!viewControls) {
+        viewControls = document.createElement('div');
+        viewControls.className = 'view-controls';
+        GameUI.appendChild(viewControls);
+    }
+
+    // Garantit qu'il n'existe qu'un seul groupe, sous .Game-UI.
+    document.querySelectorAll('.view-controls').forEach(other => {
+        if (other === viewControls) return;
+
+        other.querySelectorAll('.seehex-button, .hidehex-button, .reset-view-button, .battle-log-button')
+            .forEach(control => {
+                const className = control.classList[0];
+                if (!viewControls.querySelector(`.${className}`)) {
+                    viewControls.appendChild(control);
+                }
+            });
+
+        other.remove();
+    });
+
+    if (!viewControls.querySelector('.reset-view-button')) {
+        createResetViewButton(viewControls);
+    }
+
+    // Le reset de perspective doit toujours être tout à droite.
+    const resetViewControl = viewControls.querySelector('.reset-view-button');
+    if (resetViewControl) {
+        viewControls.appendChild(resetViewControl);
+    }
+
     // ✅ Créer menu-player-icons si absent
     let menuIcons = GameUI.querySelector('.menu-player-icons');
     if (!menuIcons) {
@@ -220,10 +308,16 @@ export function GameUi() {
         GameUI.appendChild(menuIcons);
     }
 
-    // Ajout des icônes dans menuIcons
-    if (!menuIcons.querySelector('.settings-icon')) {
-        createSettingsMenu(menuIcons);
-    }
+    // L'icône des paramètres vit directement sous <body>, mais le menu reste
+    // dans la .Game-UI courante. En combat, .Game-UI peut être reconstruite :
+    // il faut donc recréer/rattacher le menu même si l'icône existe encore.
+   // L'icône et le menu des paramètres vivent directement sous <body>.
+if (
+    !document.querySelector('body > .master-menu > .settings-icon') ||
+    !document.querySelector('body > .master-menu > .settings-menu')
+) {
+    createSettingsMenu();
+}
     if (!menuIcons.querySelector('.shop-icon')) {
         MapShop(menuIcons);
     }
@@ -233,16 +327,130 @@ export function GameUi() {
     if (!menuIcons.querySelector('.army-codex-icon')) {
         PlayerArmyCodex(menuIcons);
     }
-
+if (!menuIcons.querySelector('.battle-book-icon')) {
+    createBattleBook(menuIcons);
+}
     updateExperienceDisplay();
 }
 
+export function createResetViewButton(parent) {
+    const button = document.createElement('div');
 
+   button.className = 'reset-view-button picto-ui';
+    button.style.opacity = '0';
+    button.style.transition = 'opacity 180ms ease';
+    button.style.pointerEvents = 'none';
+    const resetView = () => resetParallaxView();
+    button.addEventListener('click', resetView);
+    button.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            resetView();
+        }
+    });
+
+    parent.appendChild(button);
+}
+
+export function createBattleBook(menuIcons) {
+      const battleBookIcon = document.createElement('img');
+    battleBookIcon.className = 'battle-book-icon';
+    battleBookIcon.id = 'battle-book-display';
+    battleBookIcon.src = '/media/assets/ui/picto-battle-book.svg';
+    battleBookIcon.alt = 'journal des combats';
+
+    menuIcons.appendChild(battleBookIcon);
+
+    battleBookIcon.addEventListener('click', () => {
+        toggleBattleBookWindow();
+    });
+}
+function toggleBattleBookWindow() {
+    let existingWindow = document.getElementById('battle-book-window');
+
+    if (existingWindow) {
+        existingWindow.remove();
+        return;
+    }
+
+    createBattleBookWindow({
+        openLastBattleLog: true
+    });
+}
+
+function createBattleBookWindow(options = {}) {
+    const {
+        openLastBattleLog = false
+    } = options;
+
+    const gameUI = document.querySelector('.Game-helper');
+
+    if (!gameUI) {
+        console.warn("Aucune div .Game-UI trouvée pour BattleBook.");
+        return;
+    }
+
+    const battleBookWindow = document.createElement('div');
+    battleBookWindow.id = 'battle-book-window';
+    battleBookWindow.className = 'battle-book-window';
+
+    battleBookWindow.innerHTML = `
+        <span class="close-helper" id="close-battle-book-button">X</span>
+
+        <div class="battle-book-content">
+            <div class="battle-book-left-column">
+                <div class="battle-book-title">Journaux</div>
+                <div class="battle-book-list"></div>
+            </div>
+
+            <div class="battle-book-right-column">
+                <div class="battle-book-title">Rapport</div>
+                <div class="battle-book-report-content">
+                    Sélectionnez un journal.
+                </div>
+            </div>
+        </div>
+    `;
+
+    gameUI.appendChild(battleBookWindow);
+
+    document
+        .getElementById('close-battle-book-button')
+        .addEventListener('click', () => {
+            battleBookWindow.remove();
+        });
+
+    renderBattleBookList();
+
+    if (openLastBattleLog) {
+        openLastBattleLogReport();
+    }
+}
+function openLastBattleLogReport() {
+    const index = getBattleLogsIndex();
+
+    if (!index?.logs?.length) return;
+
+    const lastLog = index.logs[index.logs.length - 1];
+
+    renderBattleBookReport(lastLog.key);
+
+    const lastButton = document.querySelector(
+        `.battle-book-log-item[data-log-key="${lastLog.key}"]`
+    );
+
+    if (lastButton) {
+        lastButton.classList.add('active');
+    }
+}
 function createDayCounter(GameUI) {
     const currentDay = Number.parseInt(localStorage.getItem('gameDay'), 10) || 1;
 
-    const dayCounter = document.createElement('div');
+    const dayCounters = [...GameUI.querySelectorAll(':scope > .day-counter')];
+    const dayCounter = dayCounters[0] || document.createElement('div');
     dayCounter.className = 'day-counter';
+    dayCounters.slice(1).forEach((element) => element.remove());
+    dayCounter.replaceChildren();
 
     // si tu veux garder ton inline style de transition
     dayCounter.style.transition = 'opacity 0.8s, transform 0.8s';
@@ -650,6 +858,9 @@ const updateNicknameInBrowser = (id, nickname) => {
 // Rendre la fonction disponible dans la console
 window.updateNicknameInBrowser = updateNicknameInBrowser;
 const loadedArmyA = loadFromLocalStorage('selectedArmyA', []);
+if (migrateEntityAcquisitions(loadedArmyA, { source: 'legacy' }) > 0) {
+  saveToLocalStorage('selectedArmyA', loadedArmyA);
+}
 window.selectedArmyA = loadedArmyA; // Expose la version chargée globalement
 console.log('selectedArmyA rechargé depuis le localStorage :', selectedArmyA);
 export const helperEntityByRoot = new WeakMap();
@@ -670,11 +881,11 @@ export function getBoundHelperEntity(fromEl) {
 
   return helperEntityByRoot.get(root) || null;
 }
+
 export function AttackDetailInfos(attack, entity, fromMulti = false) {
   if (!attack) return document.createElement("div");
 
-  // ✅ Normalisations (évite les crash .join / .includes)
-  const attackTargets = normArr(attack?.attackTarget);     // ["ally"|"enemy"|"hexa"...]
+  const attackTargets = normArr(attack?.attackTarget);
   const displayName = attack?.displayName || "Inconnu";
   const deadTargetInfo = normArr(attack?.deadTarget).includes("yes") ? " mort" : "";
 
@@ -688,7 +899,6 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
 
   bindHelperEntity(attackDetailsDiv, entity);
 
-  // Titre (hors multi)
   if (!fromMulti) {
     const attackTitleName = document.createElement("div");
     attackTitleName.className = "attack-loot-name";
@@ -696,17 +906,16 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
     attackDetailsDiv.appendChild(attackTitleName);
   }
 
-  // Image attaque
   const attackImageContainer = document.createElement("div");
   attackImageContainer.className = "attack-image-container";
 
   const attackImgComplete = document.createElement("div");
   attackImgComplete.className = "attack-img-complete";
 
-  const attackImg = document.createElement("img");
-  attackImg.src = attack.attackAsset;
-  attackImg.className = `attackElement-asset-spell ${attackTargets.join(" ")}`.trim();
-  attackImg.classList.add("attack-image");
+	const attackImg = document.createElement("img");
+	attackImg.src = `${attack.attackAsset}-hd.jpg`;
+	attackImg.className = `attackElement-asset-spell ${attackTargets.join(" ")}`.trim();
+	attackImg.classList.add("attack-image");
 
   const pictoTarget = document.createElement("div");
   pictoTarget.className = `picto-target-attack-detail ${attackTargets.join(" ")}`.trim();
@@ -721,68 +930,71 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
   const attackMoreDetails = document.createElement("div");
   attackMoreDetails.className = "attack-more-details";
 
-  // ===========================================================
-  // 🟪 PIPELINE HYPERCOGNITION (affichage UI)
-  // ===========================================================
   const hypercoValue = Number(entity?.stats?.hypercognition || 0);
-
-  // Copie locale de la nature réelle (array)
   let displayNature = normArr(attack?.attacknature);
 
-  // Si hyperco > 0 → Physique devient Hybride
   if (hypercoValue > 0 && displayNature.includes("physicalDamage")) {
     console.log("⚡ Hypercognition détectée → affichage HYBRIDE");
     displayNature = ["hybridalDamage"];
   }
 
-  // ===========================================================
-  // 🟫 TYPE D'ATTAQUE
-  // ===========================================================
   const attackTypeDiv = document.createElement("div");
   attackTypeDiv.className = "ciblage-attack-detail-infos";
 
-  // ✅ NEW RULE : perçante = stat piercingDamage de l'entité (plus de baseDamage)
   const rawStat = Math.max(0, +entity?.stats?.piercingDamage || 0);
   const isPiercing = rawStat > 0;
 
   let parts = [];
 
-  if (displayNature.includes("physicalDamage")) {
-    parts.push(`
-      <div class="attack-nature" data-stat="physicalDamage" data-hover="true">
-        <div class="picto-stat physicalDamage"></div>
-        <div class="physicalDamage">Physique</div>
-      </div>
-    `);
-  } else if (displayNature.includes("magicalDamage")) {
-    parts.push(`
-      <div class="attack-nature" data-stat="magicalDamage" data-hover="true">
-        <div class="picto-stat magicalDamage"></div>
-        <div class="magicalDamage">Magique</div>
-      </div>
-    `);
-  } else if (displayNature.includes("hybridalDamage")) {
-    parts.push(`
-      <div class="attack-nature" data-stat="hybridalDamage" data-hover="true">
-        <div class="picto-stat hybridalDamage"></div>
-        <div class="hybridalDamage">Hybride</div>
-      </div>
-    `);
+  const hasPhysical = displayNature.includes("physicalDamage");
+  const hasMagical = displayNature.includes("magicalDamage");
+  const hasHybridal = displayNature.includes("hybridalDamage");
+
+  const isPurePiercing = isPiercing && !hasPhysical && !hasMagical && !hasHybridal;
+  const isAdditivePiercing = isPiercing && (hasPhysical || hasMagical || hasHybridal);
+
+  let natureStat = null;
+  let natureClass = null;
+  let natureLabel = null;
+
+  if (isPurePiercing) {
+    natureStat = "transpiercingDamage";
+    natureClass = "transpiercingDamage";
+    natureLabel = "Transperçante";
+  } else if (isAdditivePiercing && hasPhysical) {
+    natureStat = "physicalPiercingDamage";
+    natureClass = "physicalPiercingDamage";
+    natureLabel = "Physique perçante";
+  } else if (isAdditivePiercing && hasMagical) {
+    natureStat = "magicalPiercingDamage";
+    natureClass = "magicalPiercingDamage";
+    natureLabel = "Magique perçante";
+  } else if (isAdditivePiercing && hasHybridal) {
+    natureStat = "hybridalPiercingDamage";
+    natureClass = "hybridalPiercingDamage";
+    natureLabel = "Hybride perçante";
+  } else if (hasPhysical) {
+    natureStat = "physicalDamage";
+    natureClass = "physicalDamage";
+    natureLabel = "Physique";
+  } else if (hasMagical) {
+    natureStat = "magicalDamage";
+    natureClass = "magicalDamage";
+    natureLabel = "Magique";
+  } else if (hasHybridal) {
+    natureStat = "hybridalDamage";
+    natureClass = "hybridalDamage";
+    natureLabel = "Hybride";
   }
 
-  // Piercing
-  if (isPiercing) {
-    if (parts.length > 0) parts.push(`<span class="et-separator"> et </span>`);
+  if (natureStat) {
     parts.push(`
-      <div class="attack-nature" data-stat="piercingDamage" data-hover="true">
-        <div class="picto-stat piercingDamage"></div>
-        <div class="piercingDamage">Perçante</div>
+      <div class="attack-nature" data-stat="${natureStat}" data-hover="true">
+        <div class="picto-stat ${natureClass}"></div>
+        <div class="${natureClass}">${natureLabel}</div>
       </div>
     `);
-  }
-
-  // Default
-  if (parts.length === 0) {
+  } else {
     parts.push(`
       <div class="picto-stat unknownDamage"></div>
       <div class="unknownDamage">Inconnue</div>
@@ -796,14 +1008,8 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
     </div>
   `;
 
-  // ===========================================================
-  // PORTÉE
-  // ===========================================================
- const rangeDiv = attackNatureRange(attack, displayNature, entity);
+  const rangeDiv = attackNatureRange(attack, displayNature, entity);
 
-  // ===========================================================
-  // CIBLAGE
-  // ===========================================================
   const targetingInfoDiv = document.createElement("div");
   targetingInfoDiv.className = "ciblage-attack-detail-infos";
   targetingInfoDiv.innerHTML = `Ciblage : <strong>${attackDetailinfos}${deadTargetInfo}</strong>`;
@@ -815,19 +1021,17 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
     attackMoreDetails.appendChild(attackTitleClone);
   }
 
-  // Description dynamique
   const dynamicDescription = generateAttackDescription(attack, entity);
   const attackDescriptionParagraph = document.createElement("p");
   attackDescriptionParagraph.innerHTML = dynamicDescription;
 
-  // Ajout au DOM
   attackMoreDetails.appendChild(attackTypeDiv);
   attackMoreDetails.appendChild(rangeDiv);
   attackMoreDetails.appendChild(targetingInfoDiv);
   attackMoreDetails.appendChild(attackDescriptionParagraph);
 
   // ===========================================================
-  // TIMINGS (valeurs effectives selon l'entité)
+  // TIMINGS
   // ===========================================================
   const attackMoreDetailsReveal = document.createElement("div");
   attackMoreDetailsReveal.className = "attack-more-details-reveal";
@@ -847,9 +1051,60 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
   const recoveryTimeDiv = document.createElement("div");
   recoveryTimeDiv.className = "timers-detail";
 
-  // Calcul timings effectifs
   const timings = getEffectiveAttackTimings(attack, entity);
   const fmt = (ms) => `${((Number(ms) || 0) / 1000).toFixed(2)}s`;
+
+  const attackRangeArr = normArr(attack?.attackRange);
+  const isRangeAttack =
+    attackRangeArr.includes("range") ||
+    attackRangeArr.includes("ranged") ||
+    attackRangeArr.includes("distance");
+
+  const enableTimingHelper = (node, statKey, detail = {}) => {
+    node.dataset.stat = `${statKey}Detail`;
+    node.dataset.hover = "true";
+
+    if (entity?.id != null) {
+      node.dataset.entityId = String(entity.id);
+    }
+
+    node.dataset.timingDetail = JSON.stringify(detail);
+  };
+
+  enableTimingHelper(cooldownDiv, "cooldownTime", {
+    label: "Cooldown",
+    baseMs: timings.base.cooldown,
+    effectiveMs: timings.effective.cooldown,
+    reduc: timings.reduc.cdReduc,
+    reducKey: "cdReduc",
+  });
+
+  enableTimingHelper(preparationTimeDiv, "preparationTime", {
+    label: "Préparation",
+    baseMs: timings.base.preparationTime,
+    effectiveMs: timings.effective.preparationTime,
+    reduc: timings.reduc.prepReduc,
+    reducKey: "prepReduc",
+  });
+
+enableTimingHelper(
+  executionTimeDiv,
+  isRangeAttack ? "executionRangeTime" : "executionTime",
+  {
+    label: isRangeAttack ? "Vitesse projectile" : "Exécution",
+    baseMs: timings.base.executionTime,
+    effectiveMs: timings.effective.executionTime,
+    reduc: timings.reduc,
+    reducKey: isRangeAttack ? "projectileTime" : "totalExecReduc",
+  }
+);
+
+enableTimingHelper(recoveryTimeDiv, "recoveryTime", {
+  label: "Récupération",
+  baseMs: timings.base.recoveryTime,
+  effectiveMs: timings.effective.recoveryTime,
+  reduc: timings.reduc,
+});
 
   cooldownDiv.innerHTML = `Cooldown :<br/>${fmt(timings.effective.cooldown)}
     <span class="timing-base">(${fmt(timings.base.cooldown)})</span>`;
@@ -857,9 +1112,7 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
   preparationTimeDiv.innerHTML = `Préparation :<br/>${fmt(timings.effective.preparationTime)}
     <span class="timing-base">(${fmt(timings.base.preparationTime)})</span>`;
 
-  // ✅ Execution : range = projectile
-  const attackRangeArr = normArr(attack?.attackRange);
-  if (attackRangeArr.includes("range") || attackRangeArr.includes("ranged") || attackRangeArr.includes("distance")) {
+  if (isRangeAttack) {
     executionTimeDiv.innerHTML = `
       Vitesse projectile :<br/>${fmt(timings.effective.executionTime)}
       <span class="timing-base">(${fmt(timings.base.executionTime)})</span>
@@ -872,16 +1125,14 @@ export function AttackDetailInfos(attack, entity, fromMulti = false) {
   recoveryTimeDiv.innerHTML = `Récupération :<br/>${fmt(timings.effective.recoveryTime)}
     <span class="timing-base">(${fmt(timings.base.recoveryTime)})</span>`;
 
-  // Append timings
   attackMoreDetailsReveal.appendChild(timingsPicto);
   attackMoreDetailsReveal.appendChild(cooldownDiv);
   attackMoreDetailsReveal.appendChild(preparationTimeDiv);
   attackMoreDetailsReveal.appendChild(executionTimeDiv);
   attackMoreDetailsReveal.appendChild(recoveryTimeDiv);
 
-  // Layout multi vs normal
   if (fromMulti) {
-    attackMoreDetails.prepend(attackImageContainer); // image au-dessus des infos
+    attackMoreDetails.prepend(attackImageContainer);
   } else {
     attackDetailsColumn.appendChild(attackImageContainer);
   }
@@ -943,10 +1194,10 @@ export function attackNatureRange(attack, displayNature = [], entity = null) {
   let extraLabelHtml = "";                     // "perçante"
   let extraClass = "";                         // class "piercing"
 
-  if (isOnlyPiercing) {
-    dataStat = `${rangeKey}Piercing`;
-    natureClass = "piercing"; // optionnel mais utile pour le CSS/tooltip
-  } else if (hasPiercing && hasBaseNature) {
+if (isOnlyPiercing) {
+  dataStat = `${rangeKey}Transpiercing`;
+  natureClass = "transpiercing";
+} else if (hasPiercing && hasBaseNature) {
     // ✅ CAS 2 : piercing + nature → additif
     addStat = `${rangeKey}Piercing`;
     extraClass = "piercing";
@@ -968,7 +1219,8 @@ export function attackNatureRange(attack, displayNature = [], entity = null) {
          data-stat="${dataStat}"
          ${addStat ? `data-addstat="${addStat}"` : ""}>
       <div class="picto-stat ${rangeKey}" data-stat="${dataStat}"></div>
-      <span class="attack-range-type ${rangeKey}">${rangeLabel}</span>${extraLabelHtml}
+     <span class="attack-range-type ${rangeKey}">${rangeLabel}</span>
+${isOnlyPiercing ? ` <span class="attack-range-addon">transperçante</span>` : extraLabelHtml}
     </div>
   `;
 
@@ -1072,6 +1324,7 @@ function findStatKeyFromLabel(label) {
   return match?.key || null;
 }
 
+
 // Transforme "utilitaire-2" => { category:"utilitaire", level:2 }
 function umbraDetection(statKey) {
   const def = statsByKey[statKey];
@@ -1091,6 +1344,7 @@ function umbraDetection(statKey) {
   };
 }
 
+
 function umbraCreation({ attribut, category, level }, filled = true) {
   const milestone = document.createElement("div");
   milestone.className = `milestone ${category} lvl-${level} ${filled ? "filled" : ""} ${attribut}`.trim();
@@ -1102,6 +1356,25 @@ function umbraCreation({ attribut, category, level }, filled = true) {
   return milestone;
 }
 
+function initUmbraOrnementBlink(root = document) {
+  const ornaments = root.querySelectorAll(
+    ".umbra-ornement.lvl-1:not(.umbra-ornement--blink)"
+  );
+
+  ornaments.forEach((el) => {
+    const duration = 5200 + Math.random() * 2600;
+    const delay = Math.random() * 2200;
+    const opacityMin = 0.2 + Math.random() * 0.08;
+    const opacityMax = 0.8 + Math.random() * 0.10;
+
+    el.style.setProperty("--umbra-blink-duration", `${duration}ms`);
+    el.style.setProperty("--umbra-blink-delay", `${delay}ms`);
+    el.style.setProperty("--umbra-opacity-min", opacityMin);
+    el.style.setProperty("--umbra-opacity-max", opacityMax);
+
+    el.classList.add("umbra-ornement--blink");
+  });
+}
 
 export function createUmbraBlock(
   parentDiv,
@@ -1202,6 +1475,53 @@ export function createUmbraBlock(
 
   const picto = document.createElement("div");
   picto.className = `picto-stat ${statKey}`;
+const umbraOrnement = document.createElement("div");
+umbraOrnement.className = "umbra-ornement";
+
+if (typeof umbraDetection === "function") {
+  const umbraProfile = umbraDetection(statKey);
+
+  if (umbraProfile) {
+    const level = umbraProfile.level;
+    const attributName = umbraProfile.attribut;
+
+  if (level) {
+  umbraOrnement.classList.add(`lvl-${level}`);
+}
+
+if (attributName) {
+  umbraOrnement.classList.add(attributName);
+}
+
+if (Number(level) === 3) {
+  const delay = Math.random() * 5500;
+
+  setTimeout(() => {
+    const img = document.createElement("img");
+    img.className = "umbra-apng";
+
+    // const flipX = Math.random() < 0.5 ? -1 : 1;
+    // const flipY = Math.random() < 0.5 ? -1 : 1;
+    // img.style.transform = `scale(${flipX}, ${flipY})`;
+
+    umbraOrnement.style.setProperty(
+      "--umbra-lvl3-blink-duration",
+      `${3600 + Math.random() * 2400}ms`
+    );
+
+    umbraOrnement.style.setProperty(
+      "--umbra-lvl3-blink-delay",
+      `${Math.random() * 1800}ms`
+    );
+
+    img.src = `../media/assets/misc/umbra-ornement-lvl-3.apng?seed=${Date.now()}-${Math.random()}`;
+
+    umbraOrnement.appendChild(img);
+    umbraOrnement.classList.add("umbra-visible");
+  }, delay);
+}
+  }
+}
   if (["strength", "agility", "intelligence"].includes(statKey)) {
     picto.classList.add("attribut");
   }
@@ -1289,6 +1609,7 @@ export function createUmbraBlock(
     statDiv.appendChild(pictoContainer);
 
     parentDiv.appendChild(statDiv);
+	
     return;
   }
 
@@ -1297,6 +1618,7 @@ export function createUmbraBlock(
   appendUmbraMilestone(pictoContainer);
 
   pictoContainer.appendChild(picto);
+pictoContainer.appendChild(umbraOrnement);
 
   if (!inlineStatName && statName && statName.trim()) {
     const nameDiv = document.createElement("div");
@@ -1311,6 +1633,7 @@ export function createUmbraBlock(
 
   statDiv.appendChild(pictoContainer);
   parentDiv.appendChild(statDiv);
+  initUmbraOrnementBlink(parentDiv);
 }
 
 // 1) Délimitation: on prend #game-windows si présent (idéal si ta “fenêtre” fait 1536x676)
@@ -1450,49 +1773,60 @@ function getStatValue(entity, statKey) {
   if (!entity) return null;
   return getSafe(entity, statKey, null);
 }
+function umbraDescription(nature, attribut, type) {
+  const [classeType, niveauType] = String(type).split("-");
 
+  const labels = {
+    agilite: "agilité",
+    force: "force",
+    intelligence: "intelligence",
+    umbra: "Umbra",
+  };
+
+  const natureLabel = labels[nature] || nature;
+  const attributLabel = labels[attribut] || attribut;
+
+  const deOrD = (word) => /^[aeiouhàâäéèêëîïôöùûü]/i.test(word) ? "d’" : "de ";
+
+  return `${natureLabel} ${deOrD(attributLabel)}${attributLabel} ${classeType} de niveau ${niveauType}`;
+}
 // =====================================================
 // ✅ Handler mouseover
 // =====================================================
 document.addEventListener("mouseover", (e) => {
   if (!(e.target instanceof Element)) return;
 
-  // Ignore le tooltip lui-même (évite boucle)
+  // Ignore le tooltip lui-même
   if (e.target.closest(".stat-hover")) return;
 
-  // Récupère le host survolé
   const host = getStatHost(e.target);
   if (!host) return;
-// ✅ garde-fou : opt-in obligatoire
-if (!isHelperHoverEnabled(host)) return;
+
+  // Opt-in obligatoire
+  if (!isHelperHoverEnabled(host)) return;
+
   const statKey = String(host.dataset.stat || "").trim();
   if (!statKey) return;
 
-  // Root du bloc (utile pour entity binding + UID stable)
   const rootAttack = host.closest(".attack-details");
   const rootUid = rootAttack ? getOrCreateRootUid(rootAttack) : "no-attack-root";
 
-  // 1) Entité : d'abord via binding DOM (AttackDetailInfos), sinon via localStorage (armée A)
   let entity = getBoundHelperEntity(host);
-
-  // entityId : si tu as un id réel, sinon rootUid
   let entityId = "";
 
-  // Si l'entité est bindée, tente de prendre un id stable si dispo
   if (entity) {
-    entityId =
-      String(
-        entity?.id ??
-        entity?.uniqueId ??
-        entity?.entityId ??
-        entity?.serial ??
-        ""
-      );
+    entityId = String(
+      entity?.id ??
+      entity?.uniqueId ??
+      entity?.entityId ??
+      entity?.serial ??
+      ""
+    );
   }
 
-  // Fallback localStorage si pas d'entité bindée
   if (!entity) {
-    const lsEntityId = resolveEntityId(host); // ta logique existante (armée A)
+    const lsEntityId = resolveEntityId(host);
+
     if (lsEntityId != null) {
       entityId = String(lsEntityId);
       const armyA = ArmyACache.get();
@@ -1500,64 +1834,111 @@ if (!isHelperHoverEnabled(host)) return;
     }
   }
 
-  // Si toujours pas d'entityId, on utilise rootUid pour éviter collisions
   const entityUid = entityId || rootUid;
-
   const helperId = `${statKey}-${entityUid}`;
 
-  // Timers: si on revient dessus, on annule la fermeture
   if (helperTimers && helperTimers.has(helperId)) {
     clearTimeout(helperTimers.get(helperId));
     helperTimers.delete(helperId);
   }
 
-  // Évite doublon (même stat + même entityUid)
   const sel = `.stat-hover[data-stat="${cssEscape(statKey)}"][data-entity-uid="${cssEscape(entityUid)}"]`;
   if (document.querySelector(sel)) return;
 
-  // Valeur de stat (optionnelle)
-  const statValue = getStatValue(entity, statKey);
+  let statValue = getStatValue(entity, statKey);
 
-  // Texte helper (calculateStatsDisplay doit contenir helpContent[statKey])
+  if (host.dataset.timingDetail) {
+    try {
+      statValue = JSON.parse(host.dataset.timingDetail);
+    } catch (err) {
+      console.warn("❌ timingDetail JSON invalide :", host.dataset.timingDetail, err);
+    }
+  }
+
   const calculated = calculateStatsDisplay(statKey, entity || null, statValue);
-  const helperHTML =
-    calculated?.helpContent || "Aucune aide disponible pour ce type de stat.";
+  const helperHTML = calculated?.helpContent;
+
+  if (!helperHTML || !helperHTML.trim()) return;
+
+  // Un seul hover à la fois
+  document.querySelectorAll(".stat-hover").forEach(el => el.remove());
+
+  if (helperTimers) {
+    helperTimers.forEach(timer => clearTimeout(timer));
+    helperTimers.clear();
+  }
 
   const container = document.querySelector(".Game-helper");
   if (!container) return;
 
   const statHelper = document.createElement("div");
   statHelper.className = "stat-hover";
+
+  const statDef = stats.find(s => s.key === statKey);
+
+  if (statDef?.nature === "umbra" && statDef?.attribut) {
+    statHelper.classList.add(statDef.attribut);
+  }
+
   statHelper.dataset.stat = statKey;
-  statHelper.dataset.entityUid = entityUid; // ✅ clé anti-doublon (stable)
+  statHelper.dataset.entityUid = entityUid;
 
-  // Si tu veux quand même exposer entityId “réel” quand il existe
-  if (entityId) statHelper.dataset.entityId = entityId;
+  if (entityId) {
+    statHelper.dataset.entityId = entityId;
+  }
 
-  statHelper.innerHTML = helperHTML;
+  const umbraHTML =
+    statDef?.nature && statDef?.attribut && statDef?.type
+      ? umbraDescription(statDef.nature, statDef.attribut, statDef.type)
+      : "";
+
+  const ambianceHTML = calculated?.ambianceContent || "";
+
+  statHelper.innerHTML = `
+    <div class="stat-hover-header">
+      ${
+        umbraHTML
+          ? `<div class="umbra-description">${umbraHTML}</div>`
+          : ""
+      }
+      <div class="separation-line"></div>
+    </div>
+
+    <div class="stat-hover-body">
+      ${helperHTML}
+    </div>
+
+    <div class="stat-hover-footer">
+      <div class="separation-line"></div>
+      ${
+        ambianceHTML
+          ? `<div class="stat-lore">${ambianceHTML}</div>`
+          : ""
+      }
+    </div>
+  `;
 
   Object.assign(statHelper.style, {
     position: "absolute",
     opacity: "0",
     transition: "opacity 1s ease",
-    pointerEvents: "none", // ✅ le tooltip n'intercepte pas le hover
+    pointerEvents: "none",
   });
 
-  // Positionnement basé sur le host
   const rect = host.getBoundingClientRect();
   statHelper.style.top = `${rect.bottom + window.scrollY + 5}px`;
   statHelper.style.left = `${rect.left + window.scrollX}px`;
 
   container.appendChild(statHelper);
 
-  // Clamp dans l’écran si tu l’as
-  try { placeHelperInBounds(statHelper, host, { offset: 5, margin: 8 }); } catch {}
+  try {
+    placeHelperInBounds(statHelper, host, { offset: 5, margin: 8 });
+  } catch {}
 
   requestAnimationFrame(() => {
     statHelper.style.opacity = "1";
   });
 });
-
 // ✅ Masquage du helper avec délai de tolérance
 // =====================================================
 // ✅ Mouseout (fermeture) – adapté au nouveau mapping
@@ -1680,16 +2061,16 @@ document.addEventListener('click', (e) => {
     const shopInterface = document.querySelector('.shop-interface');
     if (!shopInterface) return; // Ne rien faire si .shop-interface n'est pas présent
 
-    const clickedInsideItem = e.target.closest('.shop-item-wrapper');
+    const clickedInsideItem = e.target.closest('.item-wrapper');
     
     // ✅ Ne rien faire si clic sur un objet OU une entité du shop
-    if (clickedInsideItem && clickedInsideItem.classList.contains('shop-item-wrapper')) return;
+    if (clickedInsideItem && clickedInsideItem.classList.contains('item-wrapper')) return;
 
     // 🔄 Supprimer toutes les cartes .shop-item-card
     shopInterface.querySelectorAll('.shop-item-card').forEach(card => card.remove());
 
     // 🔄 Retirer .selected sur tous les wrappers
-    document.querySelectorAll('.shop-item-wrapper.selected').forEach(el => {
+    document.querySelectorAll('.item-wrapper.selected').forEach(el => {
         el.classList.remove('selected');
         el.style.removeProperty('animation');
     });
@@ -1866,6 +2247,17 @@ speedDiv.textContent = speedValue != null
 speedDiv.className = 'entite-stat';
 entityStatsDiv.appendChild(speedDiv);
 
+ensureMovementState(entity);
+
+const movementDiv = document.createElement('div');
+movementDiv.className = 'entite-stat movement-ingame-stat';
+movementDiv.innerHTML = `Déplacements : `;
+
+const movementValue = createMovementDisplay(entity);
+movementDiv.appendChild(movementValue);
+
+entityStatsDiv.appendChild(movementDiv);
+
         entityDetailsDiv.appendChild(entityStatsDiv);
         entityDetailDiv.appendChild(entityDetailsDiv);
 
@@ -1937,7 +2329,7 @@ export function initializeArmyConfig() {
     console.log("❌ Aucune armée détectée. Démarrage de la sélection d'entités de départ.");
 
     // 🔢 Liste des serials disponibles (tu peux en mettre autant que tu veux)
-    let defaultEntitySerials = [11];
+    let defaultEntitySerials = [11,1];
 
     // 🧮 Sélection pondérée par le power
     if (defaultEntitySerials.length > 3) {
@@ -2017,7 +2409,15 @@ export function showConfirmation(entity) {
     `;
 
     confirmationModal.appendChild(confirmationContent);
-    gameUI.appendChild(confirmationModal);
+
+    let masterMenu = document.querySelector('body > .master-menu');
+    if (!masterMenu) {
+        masterMenu = document.createElement('div');
+        masterMenu.className = 'master-menu';
+        document.body.appendChild(masterMenu);
+    }
+
+    masterMenu.appendChild(confirmationModal);
 
     setTimeout(() => {
         const confirmButton = document.getElementById('confirm-choice');
@@ -2049,7 +2449,7 @@ purgeStatPreview();
             console.log("Nouvelle armée enrichie sauvegardée :", enrichedArmyA);
 
             // Fermer le modal et supprimer le conteneur de sélection
-            gameUI.removeChild(confirmationModal);
+            confirmationModal.remove();
 
             const entitylootContainer = document.querySelector('.entitylootContainer');
             if (entitylootContainer) {
@@ -2064,7 +2464,7 @@ purgeStatPreview();
 
         cancelButton?.addEventListener('click', function () {
             console.log("Sélection d'entité annulée.");
-            gameUI.removeChild(confirmationModal);
+            confirmationModal.remove();
 
             // Rendre à nouveau visibles `.settings-menu` et `.settings-icon`
             const settingsMenu = document.querySelector('.settings-menu');
@@ -2150,39 +2550,49 @@ document.addEventListener('click', function (event) {
 
             confirmationModal.appendChild(confirmationContent);
 
-            const gameUI = document.querySelector('.Game-UI') || document.body;
+            let masterMenu = document.querySelector('body > .master-menu');
+            if (!masterMenu) {
+                masterMenu = document.createElement('div');
+                masterMenu.className = 'master-menu';
+                document.body.appendChild(masterMenu);
+            }
+
             const confirmationBackdrop = document.createElement('div');
             confirmationBackdrop.id = 'confirmation-backdrop';
-            gameUI.appendChild(confirmationBackdrop);
+            masterMenu.appendChild(confirmationBackdrop);
 
             setTimeout(() => {
                 confirmationBackdrop.classList.add('visible');
             }, 500);
 
-            gameUI.appendChild(confirmationModal);
+            masterMenu.appendChild(confirmationModal);
 
             requestAnimationFrame(() => {
-                document.getElementById('confirm-new-game')?.addEventListener('click', function () {
-                    console.log("Nouvelle partie confirmée.");
-                    resetFullGame();
+      document.getElementById('confirm-new-game')?.addEventListener('click', function () {
+    console.log("Nouvelle partie confirmée.");
 
-                    gameUI.removeChild(confirmationModal);
-                    gameUI.removeChild(confirmationBackdrop);
+    clearAllBattleLogs();
+    resetFullGame();
 
-                    playLoadingAnimation('reset');
-                });
+    confirmationModal.remove();
+    confirmationBackdrop.remove();
+
+    playLoadingAnimation('reset');
+});
 
                 document.getElementById('cancel-new-game')?.addEventListener('click', function () {
                     console.log("Nouvelle partie annulée.");
-                    gameUI.removeChild(confirmationModal);
-                    gameUI.removeChild(confirmationBackdrop);
+                    confirmationModal.remove();
+                    confirmationBackdrop.remove();
                 });
             });
 
-        } else {
-            console.log("Aucune armée détectée. Démarrage direct.");
-            initializeArmyConfig();
-        }
+       } else {
+    console.log("Aucune armée détectée. Démarrage direct.");
+
+    clearAllBattleLogs();
+    initializeArmyConfig();
+}
     }
 });
 
@@ -2367,6 +2777,7 @@ requestAnimationFrame(() => {
 	enforceMenuDisplayRules();
 });
 }
+
 function reorderMenuMapChildren() {
     const container = document.querySelector('.menu-map-container');
     if (!container) return;
@@ -2585,17 +2996,20 @@ if (save.Playerinventory.length === 0) {
         const label = document.createElement('span');
         label.textContent = fullData.displayName;
 
-        itemDiv.appendChild(img);
-        itemDiv.appendChild(label);
-        inventoryContent.appendChild(itemDiv);
-		
+    		
+itemDiv.appendChild(img);
+itemDiv.appendChild(label);
+inventoryContent.appendChild(itemDiv);
+
 itemDiv.addEventListener('mouseenter', () => {
     createItemDescription(fullData, item.itemId, itemDiv);
 });
 
 itemDiv.addEventListener('mouseleave', () => {
-    removeItemDescription(item.itemId); // on passe l’ID
+    removeItemDescription(item.itemId);
 });
+
+setupItemDescriptionClick(itemDiv, fullData, item.itemId);
 
     });
 }
@@ -2749,7 +3163,7 @@ shopRight.appendChild(buttonsContainer);
 	enforceMenuDisplayRules();
     // Remplir la mosaïque avec une fonction tierce
     displayShopItems(mosaic, shopRight);
-	glitterStuff('.shop-item-wrapper.stuff', 3);
+	glitterStuff('.shop-interface .item-wrapper.stuff', 3);
 }
 
 function createSettingsMenu() {
@@ -2759,48 +3173,85 @@ function createSettingsMenu() {
         return;
     }
 
-    // Vérifier si les éléments existent déjà
-    if (gameUI.querySelector('.settings-icon') || gameUI.querySelector('.settings-menu')) {
-        console.log("Le menu des paramètres existe déjà.");
-        return;
+    let masterMenu = document.querySelector('body > .master-menu');
+    if (!masterMenu) {
+        masterMenu = document.createElement('div');
+        masterMenu.className = 'master-menu';
+        document.body.appendChild(masterMenu);
     }
 
-    const settingsIcon = document.createElement('div');
-    settingsIcon.className = 'settings-icon';
+    let settingsIcon = masterMenu.querySelector(':scope > .settings-icon');
+    if (!settingsIcon) {
+        settingsIcon = document.createElement('div');
+        settingsIcon.className = 'settings-icon';
+        masterMenu.appendChild(settingsIcon);
+    }
 
-    const settingsMenu = document.createElement('div');
-    settingsMenu.className = 'settings-menu';
-    settingsMenu.style.display = 'none';
+    let settingsMenu = masterMenu.querySelector(':scope > .settings-menu');
 
-    const closeButton = document.createElement('div');
-    closeButton.className = 'settings-menu-close';
-    closeButton.innerText = '×';
-    closeButton.onclick = () => settingsMenu.style.display = 'none';
+    if (!settingsMenu) {
+        // Nettoyage défensif d'un éventuel ancien menu encore rattaché ailleurs.
+        document.querySelectorAll('.settings-menu').forEach(menu => {
+            if (menu !== settingsMenu && menu.parentElement !== gameUI) {
+                menu.remove();
+            }
+        });
 
-    settingsMenu.appendChild(closeButton);
+        settingsMenu = document.createElement('div');
+        settingsMenu.className = 'settings-menu';
+        settingsMenu.style.display = 'none';
 
-    const options = [
-        { text: 'Nouvelle partie', id: 'new-game' },
-        { text: 'Charger une partie', id: 'load-game' },
-    ];
+        const closeButton = document.createElement('div');
+        closeButton.className = 'settings-menu-close';
+        closeButton.innerText = '×';
+        closeButton.onclick = () => {
+            const currentMenu = document.querySelector('body > .master-menu > .settings-menu');
+            if (currentMenu) currentMenu.style.display = 'none';
+        };
 
-    options.forEach(option => {
-        const optionButton = document.createElement('div');
-        optionButton.className = 'option-button';
-        optionButton.id = option.id;
-        optionButton.innerText = option.text;
-        settingsMenu.appendChild(optionButton);
-    });
+        settingsMenu.appendChild(closeButton);
 
-    createSoundControls(settingsMenu);
+        const options = [
+            { text: 'Nouvelle partie', id: 'new-game' },
+            { text: 'Charger une partie', id: 'load-game' },
+        ];
 
-    gameUI.appendChild(settingsIcon);
-    gameUI.appendChild(settingsMenu);
+        options.forEach(option => {
+            const optionButton = document.createElement('div');
+            optionButton.className = 'option-button';
+            optionButton.id = option.id;
+            optionButton.innerText = option.text;
+            settingsMenu.appendChild(optionButton);
+        });
 
+        createSoundControls(settingsMenu);
+        masterMenu.appendChild(settingsMenu);
+    }
+
+    // Toujours rebrancher le clic sur le menu ACTUEL. Ainsi, si .Game-UI a été
+    // détruite/recréée pendant le combat, l'icône ne conserve jamais une
+    // référence vers un ancien settingsMenu détaché du DOM.
     settingsIcon.onclick = () => {
-        settingsMenu.style.display = settingsMenu.style.display === 'none' ? 'flex' : 'none';
+    let currentMenu = document.querySelector('body > .master-menu > .settings-menu');
+
+if (!currentMenu) {
+    createSettingsMenu();
+    currentMenu = document.querySelector('body > .master-menu > .settings-menu');
+}
+
+        if (!currentMenu) {
+            console.warn("⚠️ settings-menu introuvable au clic sur settings-icon.");
+            return;
+        }
+
+        const isHidden =
+            currentMenu.style.display === 'none' ||
+            getComputedStyle(currentMenu).display === 'none';
+
+        currentMenu.style.display = isHidden ? 'flex' : 'none';
     };
 }
+
 function buildSoulSection(entite) {
   const hasHybridAttack = entite.attacks.some(attackName => {
     const attack = attackDetails.find(a => a.functionName === attackName);
@@ -2833,7 +3284,7 @@ function buildSoulSection(entite) {
   createUmbraBlock(detailstatsDiv2, 'Résilience', () => entite.stats.resilience, entite);
   createUmbraBlock(detailstatsDiv2, 'Fureur Sanguinaire', () => entite.stats.bloodFury, entite);
   createUmbraBlock(detailstatsDiv2, 'Indestructibilité', () => entite.stats.indestructibility, entite);
-  createUmbraBlock(detailstatsDiv2, 'Charge', () => entite.stats.charge, entite);
+  createUmbraBlock(detailstatsDiv2, 'Maîtrise d\'arme', () => entite.stats.weaponMastery, entite);
 
   // MIDDLE
   createUmbraBlock(detailstatsDiv3, 'Puissance Magique', () => entite.stats.magicalDamage, entite);
@@ -2850,7 +3301,7 @@ function buildSoulSection(entite) {
   createUmbraBlock(detailstatsDiv4, 'Puissance Perçante', () => entite.stats.piercingDamage, entite);
   createUmbraBlock(detailstatsDiv4, 'Ésquive', () => entite.stats.dodge, entite);
   createUmbraBlock(detailstatsDiv4, 'Précision', () => entite.stats.precision, entite);
-  createUmbraBlock(detailstatsDiv4, 'Coup critique', () => entite.stats.criticalChance, entite);
+  createUmbraBlock(detailstatsDiv4, 'Puissance Critique', () => entite.stats.criticalPower, entite);
   createUmbraBlock(detailstatsDiv4, 'Ésotérisme', () => entite.stats.esoterism, entite);
   createUmbraBlock(detailstatsDiv4, 'Vélocité', () => entite.stats.velocity, entite);
   createUmbraBlock(detailstatsDiv4, 'Ambidextrie', () => entite.stats.ambidextry, entite);
@@ -2895,7 +3346,7 @@ requestAnimationFrame(() => {
 
    
     const spriteImg = document.createElement('img');
-    spriteImg.src = entite.sprite || '/media/assets/ui/picto-entity.svg';
+    spriteImg.src = entite.sprite || '/media/assets/misc/default-entity.png';
     spriteImg.alt = entite.name;
     spriteImg.classList.add('codex-entity-sprite');
     spriteImgContainer.appendChild(spriteImg);
@@ -2911,7 +3362,12 @@ requestAnimationFrame(() => {
     nameP.textContent = entite.nickname ?? entite.name;
     textInfos.appendChild(nameP);
     entiteInfos.appendChild(textInfos);
+entiteInfos.appendChild(textInfos);
 
+const armorCounter = createArmorCounter(entite);
+if (armorCounter) {
+  entiteInfos.appendChild(armorCounter);
+}
     // HP
  // 🧩 HEADSUP — HP + Armor unifiés
 const headsupHP = document.createElement('div');
@@ -2968,12 +3424,11 @@ function createCodexEntityView(entite) {
     AuraContainer.className = `aura-container codex side-${entite.side} ${entite.class}`;
 
     // AJOUTS
-	detailsImageDiv.appendChild(AuraContainer);  
-    detailsImageDiv.appendChild(entiteDetailsImage);
-    codexEntityView.appendChild(detailsImageDiv);
-	if (entite.stats.hypercognition > 0) {
-    detailsImageDiv.classList.add("hypercognition-aura");
-}
+// AJOUTS
+detailsImageDiv.appendChild(AuraContainer);
+detailsImageDiv.appendChild(entiteDetailsImage);
+codexEntityView.appendChild(detailsImageDiv);
+
 }
     // Nom
     if (entite.name) {
@@ -3005,12 +3460,32 @@ if (lifeBarsCodex) {
 
 
 // 🧮 Création du conteneur global pour HP + Armure
+const battleStats = document.createElement("div");
+battleStats.className = "battle-stats";
+battleStats.dataset.entityId = entite.id;
+
 const lifeCounter = createLifeCounter(entite);
 if (lifeCounter) {
-  HUhealthBarContainer.appendChild(lifeCounter);
+  battleStats.appendChild(lifeCounter);
 }
 
+const armorCounter = createArmorCounter(entite);
+if (armorCounter) {
+  battleStats.appendChild(armorCounter);
+}
 
+const movementCounter = createMovementCounter(entite);
+if (movementCounter) {
+  battleStats.appendChild(movementCounter);
+}
+
+battleStats.querySelectorAll("[data-stat]").forEach(el => {
+  el.dataset.hover = "true";
+});
+
+if (battleStats.children.length > 0) {
+  HUhealthBarContainer.appendChild(battleStats);
+}
 // Injection dans le conteneur principal
 CodexhealthBarEntite.appendChild(HUhealthBarContainer);
 
@@ -3122,10 +3597,6 @@ function statTitle({
   wrapper.classList.add(wrapperClass);
   if (statClass) wrapper.classList.add(statClass);
 
-  // const picto = document.createElement("div");
-  // picto.classList.add(pictoBaseClass);
-  // if (statClass) picto.classList.add(statClass);
-
   const name = document.createElement("div");
   name.classList.add(nameClass);
   name.textContent = title;
@@ -3146,7 +3617,7 @@ function createCodexStatLine({ statClass, entite, calculatorName, content }) {
   return line;
 }
 export function calculateMeleeExecutionPercent(entite) {
-  const reduc = calculateHasteExecReduc(entite); // 0..25 (points de %)
+  const reduc = getFinalAttackExecutionReduc(entite); // 0..25 (points de %)
   const execPercent = 100 - reduc;               // ex: reduc=1 => 99
   return clamp(execPercent, 0, 100);
 }
@@ -3154,10 +3625,10 @@ export function calculateMeleeExecutionPercent(entite) {
 const STAT_CALCULATORS = {
  calculateMagicalTotal,
  calculateMeleeExecutionPercent,
- calculateCritTotalChance, calculateCritDamageBonus,
+ calculateCritTotalChance, calculateCritDamageBonus, getFinalCriticalChanceFlat, getFinalCriticalDamageFlat,
  calculateAmbidextryTotalChance, calculateAmbidextryDamageBonus,
- calculateBloodFuryExecutionPercent, calculateBloodFuryExecChanceBonus, calculateExecutionDamage,
- calculateBloodFuryPercent,
+ calculateBloodFuryExecutionPercent, calculateBloodFuryExecChanceBonus, calculateExecutionDamage, calculateBloodThirstyPercent,
+ getBloodThirstyPercent,
  calculatePhysicalPenPercent,
  calculateMagicalPenPercent,
  calculateHypercognitionBonus,
@@ -3165,15 +3636,29 @@ const STAT_CALCULATORS = {
  calculateTotalDodgeBonus,
  calculateResilienceCritTotalBonus, calculateResilienceTotalCancelBonus, calculateResilienceAlterationTotalBonus,
  caluclateIndestructibilityReductionTotal, calculateIndestructibilityPercentFromEntity,
+ calculateHpBattleRegenPercent,
  calculateAstralityTotal,
  calculateTranscendenceConsoProtectionTotal, calculateTranscendenceExtraLife,
  calculateEsoterismPercent,
  calculateTotalRegenAmount,
-calculateHastePrepReduc, calculateHasteExecReduc, calculateHasteCDReduc, calculateHasteRecupReduc, calculateHasteProjectilSpeed,
+getFinalAttackPreparationReduc, getFinalAttackExecutionReduc, getFinalAttackCooldownReduc, getFinalAttackRecoveryReduc, getFinalAttackProjectileSpeed,
 calculateRangeAccuracy,
-calculateBrokenSpellDamage, calculateBrokenSpellChance,
+calculateBrokenSpellChance,
 totalMeleeExecReduction,
-totalPiercingRecupReductionWithAgi,
+totalPiercingRecupReductionWithAgi, totalTranspiercingRecupReductionWithAgi,
+calculateTranspiercingAccuracyBonus,
+transpiercingAgiRatio, 
+transpiercingTotal,
+brutalityPercantBonus,
+intellectPercantBonus, 
+calculateBrokenSpellDamage,
+calculateMeleeExecBonus,
+calculateMysticismProcChance, calculateMysticismTranceDuration, calculateMysticismPreparationAcceleration, calculateMysticismTotalDamageBonus,
+calculateLvlMaxEntiteWithWill: (e) => { const willValue = readEntityKey(e, "will"); return calculateStatsDisplay("will", e, willValue)?.lvlMaxEntite ?? 0;},
+calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateEquilibreAttackChance,
+calculateOccultismInvisibilityChance, calculateOccultismTargetableChanceDisplay, calculateOccultismDodgeBonus, calculateOccultismCritChanceBonus, calculateOccultismShadowFragilityPercent,
+calculateMovementMaxCharges, calculateMovementStartingChargePercent, calculateMovementStartingCharges, calculateMovementMarathonChance, getMarathonChance, getTrailerChance,
+calculateWeaponOrfevreWeaponMastery, calculateWeaponOrfevreStrength, getFinalWeaponOrfevreBonus, getFinalWeaponCollectorBonus, calculateChargeEquipmentSlots, calculateWeaponMasteryTotalChargeBonus, calculateWeaponMasteryTrophyChance,
 };
 
 function createFullStatDom({
@@ -3199,10 +3684,9 @@ function createFullStatDom({
       : stat;
 
   // --- value "simple" : si value est fourni ET ne contient pas ${value}, on affiche value tel quel
-  const hasValue =
-    valueTemplate !== null &&
-    valueTemplate !== undefined &&
-    String(valueTemplate).length > 0;
+const hasValue =
+  valueTemplate !== null &&
+  valueTemplate !== undefined;
 
   const isTemplate =
     hasValue &&
@@ -3228,7 +3712,7 @@ function createFullStatDom({
       if (typeof fn !== "function") {
         throw new Error(`Calculator introuvable: "${calculatorName}"`);
       }
-      rawValue = entite ? fn(entite, stat) : 0;
+      rawValue = entite ? fn(entite, readEntityKey(entite, dataStatKey)) : 0;
     }
   } else {
     rawValue = readStatValue();
@@ -3280,7 +3764,7 @@ function createFullStatDom({
   mainVal.setAttribute("data-stat", dataStatKey);
   enableHover(mainVal); // ✅ IMPORTANT
   if (entityId) mainVal.setAttribute("data-entity-id", entityId);
-  mainVal.textContent = renderedValue;
+  mainVal.innerHTML = renderedValue;
 
   wrap.append(picto, name, mainVal);
   root.appendChild(wrap);
@@ -3313,7 +3797,7 @@ function buildSoulSubStatBlock(entite) {
 
   createUmbraBlock(detailstatsDiv2, "Fureur Sanguinaire", () => entite.stats.bloodFury, entite);
   createUmbraBlock(detailstatsDiv2, "Indestructibilité", () => entite.stats.indestructibility, entite);
-  createUmbraBlock(detailstatsDiv2, "Charge", () => entite.stats.charge, entite);
+  createUmbraBlock(detailstatsDiv2, "Maîtrise d\'arme", () => entite.stats.weaponMastery, entite);
 
   // --- MIDDLE (copie Soul) ---
   createUmbraBlock(detailstatsDiv3, "Puissance Magique", () => entite.stats.magicalDamage, entite);
@@ -3333,7 +3817,7 @@ function buildSoulSubStatBlock(entite) {
   createUmbraBlock(detailstatsDiv4, "Ésquive", () => entite.stats.dodge, entite);
   createUmbraBlock(detailstatsDiv4, "Précision", () => entite.stats.precision, entite);
 
-  createUmbraBlock(detailstatsDiv4, "Coup critique", () => entite.stats.criticalChance, entite);
+  createUmbraBlock(detailstatsDiv4, "Puissance Critique", () => entite.stats.criticalPower, entite);
   createUmbraBlock(detailstatsDiv4, "Ésotérisme", () => entite.stats.esoterism, entite);
   createUmbraBlock(detailstatsDiv4, "Vélocité", () => entite.stats.velocity, entite);
 
@@ -3515,12 +3999,44 @@ function ensureCodexAuraContainer() {
 
   return aura;
 }
+const syncCodexAuras = () => {
+  const auraContainer =
+    ensureCodexAuraContainer();
+
+  if (!auraContainer?.isConnected) {
+    return;
+  }
+
+  syncEntityAuras(
+    entite,
+    auraContainer
+  );
+};
 
 let AuraContainer = ensureCodexAuraContainer();
-if (AuraContainer) {
-  requestAnimationFrame(() => syncEntityAuras(entite, AuraContainer));
+
+requestAnimationFrame(() => {
+  requestAnimationFrame(syncCodexAuras);
+});
+
+const codexImage = document.querySelector(
+  `.codex-entity-view[data-id="${entite.id}"]
+   img.codex-scan-image`
+);
+
+if (codexImage) {
+  if (codexImage.complete) {
+    requestAnimationFrame(syncCodexAuras);
+  } else {
+    codexImage.addEventListener(
+      "load",
+      syncCodexAuras,
+      { once: true }
+    );
+  }
 }
-    let codexColumn4 = document.createElement('div');
+
+let codexColumn4 = document.createElement('div');
     codexColumn4.className = 'codex-colomn-4';
 
     let codexColumn2 = document.createElement('div');
@@ -3529,7 +4045,70 @@ if (AuraContainer) {
     const sections = ['Profil', 'Stats', 'Soul', 'Informations'];
     let codexColumn3 = document.createElement('div');
     codexColumn3.className = 'codex-colomn-3';
+function getActiveCodexInnerSection(codexColumn2) {
+  const activeBtn = codexColumn2.querySelector(".codex-inner-menu.active");
+  if (!activeBtn) return null;
 
+  return [...activeBtn.childNodes]
+    .filter(node => node.nodeType === Node.TEXT_NODE)
+    .map(node => node.textContent.trim())
+    .join("");
+}
+
+function hasLevelUpPreview(entite) {
+  const preview = entite?.modifierStats?.preview;
+  const statLeveled = preview?.statLeveled;
+
+  return !!(
+    preview &&
+    statLeveled &&
+    Object.keys(statLeveled).length > 0
+  );
+}
+
+function purgeLevelUpPreviewOnSoulExit(entite, codexColumn2, nextSection) {
+  const currentSection = getActiveCodexInnerSection(codexColumn2);
+
+  // On ne purge que si on quitte Soul vers un autre onglet
+  if (currentSection !== "Soul") return;
+  if (nextSection === "Soul") return;
+
+  // Si aucun brouillon de level-up n'existe, rien à faire
+  if (!hasLevelUpPreview(entite)) return;
+
+  console.log("🧹 Sortie de Soul sans validation : purge preview level-up", {
+    entiteId: entite.id,
+    name: entite.name,
+    nextSection
+  });
+
+  // 1. Purge mémoire immédiate
+  if (entite.modifierStats?.preview) {
+    delete entite.modifierStats.preview;
+  }
+
+  // 2. Purge localStorage / selectedArmyA
+  purgeStatPreview(entite.id);
+
+  // 3. Nettoyage visuel de sécurité si des nodes existent encore
+  document
+    .querySelectorAll(`#codex-entity_${entite.id} .entite-stat.preview`)
+    .forEach(el => {
+      el.textContent = "";
+      el.classList.add("is-hidden");
+    });
+
+  document
+    .querySelectorAll(`#codex-entity_${entite.id} .stat-container`)
+    .forEach(el => {
+      el.classList.remove("upgraded", "reducted", "has-preview", "last-substat", "last-attribut");
+      delete el.dataset.previewDelta;
+    });
+
+  document
+    .querySelectorAll(`#archetype-icons-${entite.id} .archetype-icon.preview`)
+    .forEach(el => el.remove());
+}
 function showSection(section) {
   // ✅ refresh entite depuis storage
   const selectedArmy = loadFromLocalStorage("selectedArmyA", []);
@@ -3538,7 +4117,7 @@ function showSection(section) {
   // ✅ stats-view ON uniquement sur la section Stats, OFF sinon
   const codexRoot = document.getElementById(codexId) || codexDiv; // codexId = "codex-entity_..."
   setCodexActiveSectionClass(codexRoot, section);
-
+  purgeLevelUpPreviewOnSoulExit(entite, codexColumn2, section);
   if (cleanupTopLinesClass) {
     cleanupTopLinesClass();
     cleanupTopLinesClass = null;
@@ -3549,29 +4128,61 @@ function showSection(section) {
   const sectionDiv = document.createElement("div");
   sectionDiv.className = `section-content ${section.toLowerCase()}`;
 
-  // ✅ menu state
-  codexColumn2.querySelectorAll(".codex-inner-menu").forEach(btn => {
-    btn.classList.toggle("active", btn.textContent.trim() === section);
-  });
+// ✅ menu state
+codexColumn2.querySelectorAll(".codex-inner-menu").forEach(btn => {
+  const cleanText = [...btn.childNodes]
+    .filter(node => node.nodeType === Node.TEXT_NODE)
+    .map(node => node.textContent.trim())
+    .join("");
+
+  btn.classList.toggle("active", cleanText === section);
+});
+
+// ✅ injecte le level up icon
+const soulMenuEl = codexColumn2.querySelector('.codex-inner-menu:has(.codex-soul)');
+
+LevelupSignal(entite, 'icon', {
+  section: 'Soul',
+  parent: soulMenuEl,
+  onOpen: (s) => showSection(s)
+});
+
+
   const menuIdx1 = activeIndex1Based(codexColumn2, ".codex-inner-menu");
   setCodexMenuIndex(menuIdx1);
   // =========================
   // INFORMATIONS
   // =========================
-  if (section === "Informations") {
-    ensureDirectEntityView(codexColumn1, entite);
-    toggleCodexSideColumns(section, codexColumn1, entite);
+if (section === "Informations") {
+  resetCodexColumn1(codexColumn1);
+  toggleCodexSideColumns(section, codexColumn1, entite);
 
-    const entityDescription = document.createElement("p");
-    entityDescription.className = "entity-lore codex";
-    entityDescription.innerHTML = entite.lore || "Donnée sur l'Entité insuffisante";
-    sectionDiv.appendChild(entityDescription);
-  }
+  sectionDiv.innerHTML = "";
 
-  // =========================
+  const { textDiv, ambianceDiv } = createEntityLore(entite);
+
+  codexColumn1.appendChild(ambianceDiv);
+
+  const entityName = document.createElement("h3");
+  entityName.className = "codex-entity-name-only";
+  entityName.textContent =
+    entite?.name ||
+    entite?.nom ||
+    entite?.class ||
+    "Entité inconnue";
+
+	const goldline = document.createElement("div");
+  goldline.className = "separation-line golden";
+
+  sectionDiv.appendChild(entityName);
+  sectionDiv.appendChild(goldline)
+  sectionDiv.appendChild(textDiv);
+}
+ // =========================
   // PROFIL
   // =========================
   if (section === "Profil") {
+	resetCodexColumn1(codexColumn1);
     ensureDirectEntityView(codexColumn1, entite);
     toggleCodexSideColumns(section, codexColumn1, entite);
 
@@ -3633,6 +4244,17 @@ function showSection(section) {
     speedDiv.className = "entite-stat";
     speedDiv.textContent = `Vitesse : ${(entite.stats.speed / 1000).toFixed(2)}s`;
     attributStatsDiv.appendChild(speedDiv);
+	
+	ensureMovementState(entite);
+
+const movementDiv = document.createElement("div");
+movementDiv.className = "entite-stat movement-ingame-stat";
+movementDiv.innerHTML = `Déplacements : `;
+
+const movementValue = createMovementDisplay(entite);
+movementDiv.appendChild(movementValue);
+
+attributStatsDiv.appendChild(movementDiv);
 
     createUmbraBlock(damageStatsDiv, "Puissance Physique :", () => entite.stats.physicalDamage);
     createUmbraBlock(damageStatsDiv, "Puissance Magique :", () => entite.stats.magicalDamage);
@@ -3661,6 +4283,7 @@ function showSection(section) {
 // STATS 
 // =========================
 if (section === "Stats") {
+  resetCodexColumn1(codexColumn1);
   removeDirectEntityView(codexColumn1);
 
   // ✅ 1) Dans Stats, on veut le menu de Soul en colonne 1
@@ -3668,44 +4291,113 @@ if (section === "Stats") {
 
   const statsBlock = document.createElement("div");
   statsBlock.className = "codex-attack-stat-block";
-
-  // ✅ 2) Bouton toggle + contenu sub-stat (copié de Soul)
   const subStatToggle = document.createElement("div");
-  subStatToggle.className = "codex-substat-toggle";
+  subStatToggle.className = "codex-substat-toggle codex-substat-tabs-vertical";
+
+  const createSubStatTab = ({ mode, iconClass, title, text }) => {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = `codex-substat-tab codex-substat-tab--${mode}`;
+    tab.dataset.mode = mode;
+    tab.title = title;
+
+    const icon = document.createElement("span");
+    icon.className = `codex-picto-menu-entity ${iconClass}`;
+    icon.textContent = text || "";
+
+    tab.appendChild(icon);
+    return tab;
+  };
+
+  const statTab = createSubStatTab({
+    mode: "stat",
+    iconClass: "picto-stat-percent",
+    title: "Voir les statistiques",
+    text: ""
+  });
+
+  const umbraTab = createSubStatTab({
+    mode: "umbra",
+    iconClass: "picto-umbra",
+    title: "Voir les Umbras",
+    text: ""
+  });
+
+  const archetypeTab = createSubStatTab({
+    mode: "archetype",
+    iconClass: "picto-archetype-list",
+    title: "Voir tous les archétypes",
+    text: ""
+  });
+
+  const soulTab = createSubStatTab({
+    mode: "soul",
+    iconClass: "codex-soul",
+    title: "Voir Soul",
+    text: ""
+  });
+
+  subStatToggle.append(statTab, umbraTab, archetypeTab, soulTab);
 
   const subStatContainer = document.createElement("div");
-  subStatContainer.className = "codex-substat-container";
-  // subStatContainer.style.display = "none"; // toggle simple sans CSS obligatoire
+subStatContainer.className = "codex-substat-container codex-substat-panel codex-substat-panel--umbra";
 
-  // construit le bloc sub-stat (copie Soul)
-  subStatContainer.appendChild(buildSoulSection(entite));
+  const archetypeContainer = document.createElement("div");
+  archetypeContainer.className = "codex-archetype-container codex-substat-panel codex-substat-panel--archetype";
+  archetypeContainer.appendChild(createArchetypesList(entite));
 
+ const soulContainer = document.createElement("div");
+soulContainer.className = "codex-soul-container codex-substat-panel codex-substat-panel--soul";
+soulContainer.appendChild(createSoulGraphPanel(entite));
 
-// État initial
-// État initial : mode "stat"
-codexColumn3.classList.add("stat");
-codexColumn3.classList.remove("umbra");
+const setStatsPanelMode = (mode) => {
+  const isStat = mode === "stat";
+  const isUmbra = mode === "umbra";
+  const isArchetype = mode === "archetype";
+  const isSoul = mode === "soul";
 
-subStatToggle.addEventListener("click", () => {
-  const willShowUmbras = codexColumn3.classList.contains("stat");
+  codexColumn3.classList.toggle("stat", isStat);
+  codexColumn3.classList.toggle("umbra", isUmbra);
+  codexColumn3.classList.toggle("archetype", isArchetype);
+  codexColumn3.classList.toggle("soul", isSoul);
 
-  codexColumn3.classList.toggle("umbra", willShowUmbras);
-  codexColumn3.classList.toggle("stat", !willShowUmbras);
+  statsBlock.style.display = isStat ? "" : "none";
+  subStatContainer.style.display = isUmbra ? "" : "none";
+  archetypeContainer.style.display = isArchetype ? "" : "none";
+  soulContainer.style.display = isSoul ? "" : "none";
 
-  // optionnel : style du bouton
-  subStatToggle.classList.toggle("show-stats", willShowUmbras);
-});
+  [statTab, umbraTab, archetypeTab, soulTab].forEach(tab => {
+    tab.classList.toggle("active", tab.dataset.mode === mode);
+  });
 
- const statTitleAttribut = goldTitle('Attributs', 'p');
+  setCodexSubstatMode(mode);
+};
+  statTab.addEventListener("click", () => setStatsPanelMode("stat"));
+  umbraTab.addEventListener("click", () => setStatsPanelMode("umbra"));
+  archetypeTab.addEventListener("click", () => setStatsPanelMode("archetype"));
+  soulTab.addEventListener("click", () => setStatsPanelMode("soul"));
+
+  const statTitleAttribut = goldTitle('Attributs', 'p');
 
   const attributheader = document.createElement("div");
   attributheader.className = "entity-stats-section attributs";
-  
+
   createUmbraBlock(attributheader, 'Force', () => entite.stats.strength, entite, null, false, 'attribut');
   createUmbraBlock(attributheader, 'Intelligence', () => entite.stats.intelligence, entite, null, false, 'attribut');
   createUmbraBlock(attributheader, 'Agilité', () => entite.stats.agility, entite, null, false, 'attribut');
-  
- const statTitleStats = goldTitle('Statistiques', 'p');
+
+  const umbraStatTitleAttribut = goldTitle('Attributs', 'p');
+
+  const umbraAttributheader = document.createElement("div");
+  umbraAttributheader.className = "entity-stats-section attributs umbra-attributs";
+
+  createUmbraBlock(umbraAttributheader, 'Force', () => entite.stats.strength, entite, null, false, 'attribut');
+  createUmbraBlock(umbraAttributheader, 'Intelligence', () => entite.stats.intelligence, entite, null, false, 'attribut');
+  createUmbraBlock(umbraAttributheader, 'Agilité', () => entite.stats.agility, entite, null, false, 'attribut');
+
+  subStatContainer.append(umbraStatTitleAttribut, umbraAttributheader, buildSoulSection(entite));
+
+  const statTitleStats = goldTitle('Statistiques', 'p');
 
   // ----------------------- ATTACK ----------------------- //
   const attackBlock = createStatSection({
@@ -3718,10 +4410,10 @@ subStatToggle.addEventListener("click", () => {
 
   frag.appendChild(statTitle({ statClass: "physicalDamage", title: "Attaques physiques :" }));
 
-  // frag.appendChild(createValideStatDom({ stat: "execution-time", label: "Durée d'Exécution :", value: "${value} %", entite, calculatorName: (e) => clamp(100 - calculateHasteExecReduc(e), 0, 100), dataStat: "executionTime", }));
+  // frag.appendChild(createValideStatDom({ stat: "executionTime", label: "Durée d'Exécution :", value: "${value} %", entite, calculatorName: (e) => clamp(100 - getFinalAttackExecutionReduc(e), 0, 100), dataStat: "executionTime", }));
   // frag.appendChild(createValideStatDom({ stat: "meleeAttack", label: "Dégats :", value: "100 %", entite }));
   // frag.appendChild(statTitle({ statClass: "rangeAttack", title: "Attaques à distance :" }));
-  // frag.appendChild( createValideStatDom({ stat: "rangeAttack", label: "Vitesse des projectiles :", value: "+ ${value} %", entite, calculatorName: "calculateHasteProjectilSpeed",dataStat: "projectileSpeed", })
+  // frag.appendChild( createValideStatDom({ stat: "rangeAttack", label: "Vitesse des projectiles :", value: "+ ${value} %", entite, calculatorName: "getFinalAttackProjectileSpeed",dataStat: "projectileTime", })
   // );
   // frag.appendChild( createValideStatDom({ stat: "rangeAttack", label: "Chance d'atteindre la cible :", value: "${value} %", entite, calculatorName: "calculateRangeAccuracy", dataStat: "executionTime", }) );
   // frag.appendChild( createValideStatDom({ stat: "rangeAttack", label: "Dégats des projectiles :", value: "${value} %", entite, calculatorName: "calculateRangeRatio", dataStat: "executionTime", }) );
@@ -3735,22 +4427,102 @@ subStatToggle.addEventListener("click", () => {
 
 
   frag.appendChild(createValideStatDom({ stat: "physicalDamage", label: "Puissance Physique : ", value: "${value}", entite }));
-  frag.appendChild(createValideStatDom({ stat: "piercingDamage", label: "Puissance Perçante : ", value: "${value}", entite }));
+  frag.appendChild(  createValideStatDom({
+    stat: "piercingDamage",
+    label: "Puissance Perçante : ",
+    value: "${value}",
+    entite,
+    dataStat: "piercingPower",
+  }));
 
 
   frag.appendChild(createValideStatDom({ stat: "physicalPen", label: "Pénétration résistance physique : ", value: "${value} %", entite, calculatorName: "calculatePhysicalPenPercent" }));
 
-  frag.appendChild(createValideStatDom({ stat: "criticalChance", label: "Chance de coup Critique : ", value: "${value} %", entite, calculatorName: "calculateCritTotalChance" }));
-  frag.appendChild(createValideStatDom({ stat: "criticalChance", label: "Dégats des coups critiques : ", value: "+ ${value} %", entite, calculatorName: "calculateCritDamageBonus" }));
+const criticalPowerValue = Number(readEntityKey(entite, "criticalPower")) || 0;
+const criticalChanceValue = Number(readEntityKey(entite, "criticalChance")) || 0;
+const criticalDamageValue = Number(readEntityKey(entite, "criticalDamage")) || 0;
 
+const hasCriticalPower = criticalPowerValue > 0;
+const hasCriticalChance = criticalChanceValue > 0;
+const hasCriticalDamage = criticalDamageValue > 0;
+
+if (hasCriticalPower || hasCriticalChance) {
+  frag.appendChild(createValideStatDom({
+    stat: "criticalChance",
+    originKey: hasCriticalChance ? "criticalChance" : "criticalPower",
+    label: "Chance de coup critique :",
+    value: "${value} %",
+    entite,
+    calculatorName: (e) => calculateCritTotalChance(e),
+    dataStat: "criticalChance"
+  }));
+}
+
+if (hasCriticalPower || hasCriticalDamage) {
+  frag.appendChild(createValideStatDom({
+    stat: "criticalDamage",
+    originKey: hasCriticalDamage ? "criticalDamage" : "criticalPower",
+    label: "Dégâts des coups critiques :",
+    value: "+ ${value} %",
+    entite,
+    calculatorName: (e) => calculateCritDamageBonus(e),
+    dataStat: "criticalDamage"
+  }));
+}
   frag.appendChild(createValideStatDom({ stat: "ambidextry", label: "Chance de 2éme coup : ", value: "${value} %", entite, calculatorName: "calculateAmbidextryTotalChance" }));
   frag.appendChild(createValideStatDom({ stat: "ambidextry", label: "Dégats du 2éme coup : ", value: "${value} %", entite, calculatorName: "calculateAmbidextryDamageBonus" }));
 
-  frag.appendChild(createValideStatDom({ stat: "bloodFury", label: "Chance d'éxecution : ", value: "${value} %", entite, calculatorName: "calculateBloodFuryExecutionPercent" }));
-  frag.appendChild(createValideStatDom({ stat: "bloodFury", label: "Dégats de l'éxecution : ", value: "+ ${value}", entite, calculatorName: "calculateExecutionDamage" }));
-  frag.appendChild(createValideStatDom({ stat: "bloodFury", label: "Vulnérabilité de la cible : ", value: "${value} % de ses HP", entite, calculatorName: "calculateBloodFuryExecChanceBonus" }));
-  frag.appendChild(createValideStatDom({ stat: "lifesteal", label: "Vol de vie : ", value: "${value} %", entite, calculatorName: "calculateBloodFuryPercent" }));
+if (Number(entite?.stats?.bloodFury || 0) > 0) {
+  frag.appendChild(createValideStatDom({
+    stat: "bloodFury",
+    originKey: "bloodFury",
+    label: "Chance d'exécution :",
+    value: "${value} %",
+    entite,
+    calculatorName: "calculateBloodFuryExecutionPercent",
+    dataStat: "bloodFuryExecutionChance"
+  }));
 
+  frag.appendChild(createValideStatDom({
+    stat: "bloodFury",
+    originKey: "bloodFury",
+    label: "Dégâts de l'exécution :",
+    value: "+ ${value}",
+    entite,
+    calculatorName: "calculateExecutionDamage",
+    dataStat: "bloodFuryExecutionDamage"
+  }));
+if (Number(entite?.stats?.bloodFury || 0) > 0) {
+  frag.appendChild(createValideStatDom({
+    stat: "bloodThirsty",
+    originKey: "bloodFury",
+    label: "Soif de sang :",
+    value: "${value} %",
+    entite,
+    calculatorName: (e) => calculateBloodThirstyPercent(e),
+    dataStat: "bloodThirsty"
+  }));
+}
+  frag.appendChild(createValideStatDom({
+    stat: "bloodFury",
+    originKey: "bloodFury",
+    label: "Vulnérabilité de la cible :",
+    value: "${value} % de ses HP",
+    entite,
+    calculatorName: "calculateBloodFuryExecChanceBonus",
+    dataStat: "bloodFuryTargetThreshold"
+  }));
+}
+
+frag.appendChild(createValideStatDom({
+  stat: "bloodThirsty",
+  originKey: "bloodThirsty",
+  label: "Soif de sang :",
+  value: "${value} %",
+  entite,
+  calculatorName: "getBloodThirstyPercent",
+  dataStat: "bloodThirsty"
+}));
   frag.appendChild(statTitle({ statClass: "magicalDamage", title: "Attaques magiques :" }));
   frag.appendChild(createValideStatDom({ stat: "magicalDamage", label: "Puissance Magique : ", value: "${value}", entite, calculatorName: "calculateMagicalTotal" }));
   frag.appendChild(createValideStatDom({ stat: "magicalPen", label: "Pénétration résistance magique : ", value: "${value} %", entite, calculatorName: "calculateMagicalPenPercent" }));
@@ -3769,6 +4541,15 @@ subStatToggle.addEventListener("click", () => {
   defenceBlock.appendChild(createValideStatDom({ stat: "resilience", label: "Chance de Résilience : ", value: "${value} %", entite, calculatorName: "calculateResilienceTotalCancelBonus" }));
   defenceBlock.appendChild(createValideStatDom({ stat: "indestructibility", label: "Chance d'Indestructibilité : ", value: "${value} %", entite, calculatorName: "calculateIndestructibilityPercentFromEntity" }));
   defenceBlock.appendChild(createValideStatDom({ stat: "indestructibility", label: "Réduction de tous les dégats : ", value: "${value} %", entite, calculatorName: "caluclateIndestructibilityReductionTotal" }));
+defenceBlock.appendChild(createValideStatDom({
+  stat: "hpBattleRegen",
+  originKey: "indestructibility",
+  label: "Régénération de Combat : ",
+  value: "${value} % des HP max / tour",
+  entite,
+  calculatorName: "calculateHpBattleRegenPercent",
+  dataStat: "hpBattleRegen"
+}));
   defenceBlock.appendChild(createValideStatDom({ stat: "astrality", label: "Chance d'Astralité : ", value: "${value} %", entite, calculatorName: "calculateAstralityTotal" }));
   defenceBlock.appendChild(createValideStatDom({ stat: "esoterism", label: "Chance d'Ésotérisme : ", value: "${value} %", entite, calculatorName: "calculateEsoterismPercent" }));
   defenceBlock.appendChild(createValideStatDom({ stat: "transcendence", label: "Chance de Transcendance : ", value: "${value} %", entite, calculatorName: "calculateTranscendenceConsoProtectionTotal" }));
@@ -3787,10 +4568,90 @@ subStatToggle.addEventListener("click", () => {
       return calculateTranscendenceExtraLife(points);
     },
   }));
+defenceBlock.appendChild(createValideStatDom({
+  stat: "occultism",
+  label: "Chance d'invisibilité :",
+  value: "${value} %",
+  entite,
+  calculatorName: "calculateOccultismInvisibilityChance"
+}));
 
+defenceBlock.appendChild(createValideStatDom({
+  stat: "occultism",
+  label: "Chance d'être prise pour cible :",
+  value: "- ${value} %",
+  entite,
+  calculatorName: "calculateOccultismTargetableChanceDisplay"
+}));
+
+// defenceBlock.appendChild(createValideStatDom({
+  // stat: "occultism",
+  // label: "Bonus esquive invisible :",
+  // value: "+ ${value}",
+  // entite,
+  // calculatorName: "calculateOccultismDodgeBonus"
+// }));
+
+defenceBlock.appendChild(createValideStatDom({
+  stat: "occultism",
+  label: "Bonus critique prochaine attaque :",
+  value: "+ ${value} %",
+  entite,
+  calculatorName: "calculateOccultismCritChanceBonus"
+}));
+
+// defenceBlock.appendChild(createValideStatDom({
+  // stat: "occultism",
+  // label: "Fragilité des ombres :",
+  // value: "+ ${value} % dégâts reçus",
+  // entite,
+  // calculatorName: "calculateOccultismShadowFragilityPercent"
+// }));
   // ----------------------- UTILITAIRE ----------------------- //
   const utilitaireBlock = createStatSection({ sectionClass: "utilitaire", titleText: "Utilitaire", titleClass: "utilitaire" });
 
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "will",
+  label: "Lvl max",
+  value: "${value}",
+  entite,
+  calculatorName: "calculateLvlMaxEntiteWithWill"
+}));
+function createWeightStatDom(entite) {
+  const weight = getMovementWeightMalus(entite);
+
+  if (!weight || !weight.weightClass || !weight.label) {
+    return document.createDocumentFragment();
+  }
+
+  const qualifier = String(weight.label || "")
+  .replace(/^Poids\s+/i, "")
+  .replace(/^./, c => c.toUpperCase());
+
+  return createFullStatDom({
+    stat: weight.weightClass,
+    label: "Poids :",
+    value: qualifier,
+    entite,
+    dataStat: "weight",
+    showZero: true,
+  });
+}utilitaireBlock.appendChild(createWeightStatDom(entite));
+function createShiftStatDom(entite) {
+  if (!entityHasKey(entite, "shift")) {
+    return document.createDocumentFragment();
+  }
+
+  const shift = entite?.stats?.shift ?? { current: 0, max: 0 };
+
+  return createFullStatDom({
+    stat: "shift",
+    label: "Déplacements :",
+    value: `${Number(shift.current || 0)} / ${Number(shift.max || 0)}`,
+    entite,
+    showZero: true,
+  });
+} utilitaireBlock.appendChild(createShiftStatDom(entite));
   utilitaireBlock.appendChild(createValideStatDom({ stat: "HP", label: "HP max :", value: "${value}", entite, calculatorName: (e) => e?.stats.HP.max ?? 0 }));
   utilitaireBlock.appendChild(createValideStatDom({
     stat: "dayHpRegen",
@@ -3822,32 +4683,193 @@ subStatToggle.addEventListener("click", () => {
       return (Number(ms) || 0) / 1000;
     },
   }));
-    createUmbraBlock(utilitaireBlock, 'Volonté', () => entite.stats.will, entite);
-utilitaireBlock.appendChild(createValideStatDom({ stat: "cooldown-time", originKey: "haste", label: "Durée de Cooldown :", value: "- ${value} %", entite, calculatorName: "calculateHasteCDReduc", dataStat: "cooldownTime" })); 
-utilitaireBlock.appendChild(createValideStatDom({ stat: "preparation-time", originKey: "haste", label: "Durée de Préparation :", value: "- ${value} %", entite, calculatorName: "calculateHastePrepReduc", dataStat: "preparationTime" }));
- utilitaireBlock.appendChild(createValideStatDom({ stat: "execution-time", originKey: "haste", label: "Durée d'Exécution :", value: "- ${value} %", entite, calculatorName: "calculateHasteExecReduc", dataStat: "executionTime" }));
- utilitaireBlock.appendChild(createValideStatDom({ stat: "recuperation-time", originKey: "haste", label: "Durée de Récupération :", value: "- ${value} %", entite, calculatorName: "calculateHasteRecupReduc", dataStat: "recuperationTime" }));
- utilitaireBlock.appendChild(createValideStatDom({ stat: "projectile-speed", originKey: "haste", label: "Vitesse des projectiles :", value: "+ ${value} %", entite, calculatorName: "calculateHasteProjectilSpeed", dataStat: "projectileSpeed" }));
+    
+	utilitaireBlock.appendChild(createValideStatDom({
+  stat: "equilibre",
+  label: "Réduction d'aggro :",
+  value: "- ${value} %",
+  entite,
+  calculatorName: "calculateEquilibreAggroReduction"
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "equilibre",
+  label: "Détection des cibles invisibles :",
+  value: "${value} %",
+  entite,
+  calculatorName: "calculateEquilibreInvisibleDetection"
+}));
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "equilibre",
+  label: "Attaque équilibrée :",
+  value: "${value} %",
+  entite,
+  calculatorName: "calculateEquilibreAttackChance"
+}));
+	utilitaireBlock.appendChild(createValideStatDom({
+  stat: "mysticism",
+  label: "Chance d'entrer en transe mystique :",
+  value: "${value} %",
+  entite,
+  calculatorName: "calculateMysticismProcChance"
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "mysticism",
+  label: "Durée de la transe mystique :",
+  value: "${value} scd",
+  entite,
+  calculatorName: (e) =>
+    ((Number(calculateMysticismTranceDuration(e)) || 0) / 1000)
+      .toFixed(1)
+      .replace(/\.0$/, "")
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "mysticism",
+  label: "Bonus vitesse de préparation :",
+  value: "+ ${value} %",
+  entite,
+  calculatorName: "calculateMysticismPreparationAcceleration"
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "mysticism",
+  label: "Bonus attaque mystique :",
+  value: "+ ${value} % de dégâts de l'attaque",
+  entite,
+  calculatorName: "calculateMysticismTotalDamageBonus"
+}));
+
+
+// utilitaireBlock.appendChild(createValideStatDom({
+  // stat: "movement",
+  // label: "Déplacements au début du tour :",
+  // value: "${value}",
+  // entite,
+  // calculatorName: "calculateMovementStartingCharges"
+// }));
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "marathon",
+  label: "Marathonien :",
+  value: "${value} %",
+  entite,
+  calculatorName: "getMarathonChance"
+}));
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "trailer",
+  label: "Trailer :",
+  value: "${value} %",
+  entite,
+  calculatorName: "getTrailerChance"
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "weaponOrfevre",
+  label: "Efficacité des équipements :",
+  value: "+ ${value}%",
+  entite,
+  calculatorName: "getFinalWeaponOrfevreBonus",
+  dataStat: "weaponOrfevre"
+}));
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "weaponCollector",
+  label: "Butins d'équipement :",
+  value: "+ ${value}%",
+  entite,
+ calculatorName: "getFinalWeaponCollectorBonus",
+  dataStat: "weaponCollector"
+}));
+
+
+
+utilitaireBlock.appendChild(createValideStatDom({
+  stat: "charge",
+  label: "Emplacement d'équipement :",
+  value: "${value}",
+  entite,
+  calculatorName: "calculateChargeEquipmentSlots",
+  dataStat: "charge"
+}));
+const speedStats = [
+  {
+    stat: "cooldownTime",
+    originKey: "attackCooldownReduc",
+    label: "Durée de Cooldown :",
+    value: "- ${value} %",
+    calculatorName: "getFinalAttackCooldownReduc",
+    dataStat: "cooldownTime"
+  },
+  {
+    stat: "preparationTime",
+    originKey: "attackPreparationReduc",
+    label: "Durée de Préparation :",
+    value: "- ${value} %",
+    calculatorName: "getFinalAttackPreparationReduc",
+    dataStat: "preparationTime"
+  },
+  {
+    stat: "executionTime",
+    originKey: "attackExecutionReduc",
+    label: "Durée d'Exécution :",
+    value: "- ${value} %",
+    calculatorName: "getFinalAttackExecutionReduc",
+    dataStat: "executionTime"
+  },
+  {
+    stat: "recuperationTime",
+    originKey: "attackRecoveryReduc",
+    label: "Durée de Récupération :",
+    value: "- ${value} %",
+    calculatorName: "getFinalAttackRecoveryReduc",
+    dataStat: "recuperationTime"
+  },
+  {
+    stat: "projectileTime",
+    originKey: "attackProjectileSpeed",
+    label: "Vitesse des projectiles :",
+    value: "+ ${value} %",
+    calculatorName: "getFinalAttackProjectileSpeed",
+    dataStat: "projectileTime"
+  }
+];
+
+speedStats.forEach(opts => {
+  const directExists = entityHasKey(entite, opts.originKey);
+  const hasteExists = entityHasKey(entite, "haste");
+
+  if (!directExists && !hasteExists) return;
+
+  utilitaireBlock.appendChild(createValideStatDom({
+    ...opts,
+    originKey: directExists ? opts.originKey : "haste",
+    entite
+  }));
+});
  
    const allStatBlock = document.createElement("div");
   allStatBlock.className = "entity-stats-title statistiques";
   
- 
- allStatBlock.append(attackBlock, defenceBlock, utilitaireBlock);
+allStatBlock.append(attackBlock, defenceBlock, utilitaireBlock);
 
-  sectionDiv.appendChild(statTitleAttribut);
-    sectionDiv.appendChild(attributheader);
-  statsBlock.append(statTitleStats, allStatBlock);
-  sectionDiv.appendChild(subStatToggle);
-  sectionDiv.appendChild(subStatContainer);
-  sectionDiv.appendChild(statsBlock);
+statsBlock.append(statTitleAttribut, attributheader, statTitleStats, allStatBlock);
+
+sectionDiv.appendChild(subStatToggle);
+sectionDiv.appendChild(subStatContainer);
+sectionDiv.appendChild(archetypeContainer);
+sectionDiv.appendChild(soulContainer);
+sectionDiv.appendChild(statsBlock);
+
+setStatsPanelMode(getCodexSubstatMode());
 }
 
   // =========================
   // SOUL
   // =========================
 if (section === 'Soul') {
-  removeDirectEntityView(codexColumn1);
+    resetCodexColumn1(codexColumn1);
+    removeDirectEntityView(codexColumn1);
 	toggleCodexSideColumns(section, codexColumn1, entite);
 
   const levelUpFormEl = createLevelUpForm(entite); // ✅ Element
@@ -3861,7 +4883,9 @@ if (section === 'Soul') {
   AuraContainer = ensureCodexAuraContainer();
   if (AuraContainer) requestAnimationFrame(() => syncEntityAuras(entite, AuraContainer));
 }
-
+function resetCodexColumn1(codexColumn1) {
+  codexColumn1.innerHTML = "";
+}
 sections.forEach(section => {
     let buttonDiv = document.createElement('div');
     buttonDiv.className = 'codex-inner-menu';
@@ -3992,9 +5016,7 @@ function createSoulSubmenu(codexColumn1, entite) {
   col6.className = "codex-colomn-6";
   codexColumn1.appendChild(col6);
 
-  const NewUmbra = document.createElement("div");
-  NewUmbra.className = "umbra-submenu new entity-stats-section";
-  col6.appendChild(NewUmbra);
+  
 
   const UmbraDiv1 = document.createElement("div");
   UmbraDiv1.className = "umbra-submenu entity-stats-section";
@@ -4002,12 +5024,48 @@ function createSoulSubmenu(codexColumn1, entite) {
 
   UmbraDiv1.appendChild(createEntityStatsTitleNode("Umbras"));
 
+
+// afficher masquer les filtres
+
+const UmbraFiltreCont = document.createElement("div");
+  UmbraFiltreCont.className = "umbra-filtre-container";
+  UmbraDiv1.appendChild(UmbraFiltreCont);
+ 
+ const UmbraFiltrePic = document.createElement("div");
+  UmbraFiltrePic.className = "umbra-filtre-pic";
+  UmbraFiltreCont.appendChild(UmbraFiltrePic);
+
+	const UmbraFiltreTitle = document.createElement("div");
+  UmbraFiltreTitle.className = "umbra-filtre-title";
+  UmbraFiltreTitle.textContent = "Filtrer les Umbras :";
+	UmbraFiltreCont.appendChild(UmbraFiltreTitle);
+
+ 
+const UmbraFiltre = document.createElement("div");
+UmbraFiltre.className = "umbra-filtres-container";
+UmbraFiltre.style.display = "none"; // <- important
+UmbraDiv1.appendChild(UmbraFiltre);
+	
   // ✅ Barre de filtres (avec bouton Réinitialiser)
   const filterBar = createUmbraFilterBar(UmbraDiv1);
-  UmbraDiv1.appendChild(filterBar);
+  UmbraFiltre.appendChild(filterBar);
+ // toggle afficher / masquer
+  UmbraFiltreTitle.addEventListener("click", () => {
+
+    const isVisible = UmbraFiltre.style.display === "block";
+
+    UmbraFiltre.style.display = isVisible
+      ? "none"
+      : "block";
+
+    UmbraFiltreTitle.classList.toggle("active", !isVisible);
+  });
+
 
   const umbra = true;
-
+const NewUmbra = document.createElement("div");
+  NewUmbra.className = "umbra-submenu new entity-stats-section";
+  UmbraDiv1.appendChild(NewUmbra);
   // Force
   createUmbraBlockTagged(UmbraDiv1, 'Puissance Physique', () => entite.stats.physicalDamage, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Résistance Physique', () => entite.stats.physicalResistance, entite, umbra);
@@ -4017,7 +5075,7 @@ function createSoulSubmenu(codexColumn1, entite) {
   createUmbraBlockTagged(UmbraDiv1, 'Résilience', () => entite.stats.resilience, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Fureur Sanguinaire', () => entite.stats.bloodFury, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Indestructibilité', () => entite.stats.indestructibility, entite, umbra);
-  createUmbraBlockTagged(UmbraDiv1, 'Charge', () => entite.stats.charge, entite, umbra);
+  createUmbraBlockTagged(UmbraDiv1, 'Maîtrise d\'arme', () => entite.stats.weaponMastery, entite, umbra);
 
   // Intel
   createUmbraBlockTagged(UmbraDiv1, 'Puissance Magique', () => entite.stats.magicalDamage, entite, umbra);
@@ -4034,7 +5092,7 @@ function createSoulSubmenu(codexColumn1, entite) {
   createUmbraBlockTagged(UmbraDiv1, 'Puissance Perçante', () => entite.stats.piercingDamage, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Ésquive', () => entite.stats.dodge, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Précision', () => entite.stats.precision, entite, umbra);
-  createUmbraBlockTagged(UmbraDiv1, 'Coup critique', () => entite.stats.criticalChance, entite, umbra);
+  createUmbraBlockTagged(UmbraDiv1, 'Puissance Critique', () => entite.stats.criticalPower, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Ésotérisme', () => entite.stats.esoterism, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Vélocité', () => entite.stats.velocity, entite, umbra);
   createUmbraBlockTagged(UmbraDiv1, 'Ambidextrie', () => entite.stats.ambidextry, entite, umbra);
@@ -4187,7 +5245,7 @@ function createUmbraFilterBar(scope) {
     title.textContent = titleText;
     group.appendChild(title);
 
-    items.forEach(({ groupName, value, label }) => {
+    items.forEach(({ groupName, value, label, iconClass }) => {
       const wrap = document.createElement("label");
       wrap.className = "umbra-filter-item";
 
@@ -4196,62 +5254,71 @@ function createUmbraFilterBar(scope) {
       input.value = value;
       input.dataset.group = groupName;
 
+      const icon = document.createElement("i");
+      icon.className = `umbra-filter-picto ${iconClass}`;
+
       const txt = document.createElement("span");
       txt.textContent = label;
 
-      wrap.appendChild(input);
-      wrap.appendChild(txt);
+      wrap.append(input, icon, txt);
       group.appendChild(wrap);
     });
 
     return group;
   };
 
-  bar.appendChild(
-    makeGroup("Attribut", [
-      { groupName: "attr", value: "force",        label: "Force" },
-      { groupName: "attr", value: "intelligence", label: "Intel" },
-      { groupName: "attr", value: "agilite",      label: "Agilité" },
-    ])
-  );
+  bar.appendChild(makeGroup("Attribut", [
+    { groupName: "attr", value: "force", label: "Force", iconClass: "strength" },
+    { groupName: "attr", value: "intelligence", label: "Intel", iconClass: "intelligence" },
+    { groupName: "attr", value: "agilite", label: "Agilité", iconClass: "agility" },
+  ]));
 
-  bar.appendChild(
-    makeGroup("Niveau", [
-      { groupName: "lvl", value: "1", label: "Lvl 1" },
-      { groupName: "lvl", value: "2", label: "Lvl 2" },
-      { groupName: "lvl", value: "3", label: "Lvl 3" },
-    ])
-  );
+  bar.appendChild(makeGroup("Niveau", [
+    { groupName: "lvl", value: "1", label: "Lvl 1", iconClass: "level" },
+    { groupName: "lvl", value: "2", label: "Lvl 2", iconClass: "level" },
+    { groupName: "lvl", value: "3", label: "Lvl 3", iconClass: "level" },
+  ]));
 
-  bar.appendChild(
-    makeGroup("Type", [
-      { groupName: "cat", value: "attaque",    label: "Attaque" },
-      { groupName: "cat", value: "defense",    label: "Défense" },
-      { groupName: "cat", value: "utilitaire", label: "Utilitaire" },
-    ])
-  );
+  bar.appendChild(makeGroup("Type", [
+    { groupName: "cat", value: "attaque", label: "Attaque", iconClass: "attack" },
+    { groupName: "cat", value: "defense", label: "Défense", iconClass: "defence" },
+    { groupName: "cat", value: "utilitaire", label: "Utilitaire", iconClass: "utilitaire" },
+  ]));
 
-  // ✅ bouton reset
   const resetWrap = document.createElement("div");
   resetWrap.className = "umbra-filter-reset";
+  resetWrap.style.display = "none";
 
   const resetBtn = document.createElement("button");
   resetBtn.type = "button";
   resetBtn.className = "umbra-reset-btn";
   resetBtn.textContent = "Réinitialiser";
 
+  const updateResetVisibility = () => {
+    const hasActiveFilter = [...bar.querySelectorAll('input[type="checkbox"]')]
+      .some(input => input.checked === true);
+
+    resetWrap.style.display = hasActiveFilter ? "flex" : "none";
+  };
+
   resetBtn.addEventListener("click", () => {
-    // décoche tout (même ceux cachés)
-    bar.querySelectorAll('input[type="checkbox"]').forEach(i => (i.checked = false));
-    // remet l’état : toutes les facettes visibles selon dataset global, et items affichés
+    bar.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.checked = false;
+    });
+
     syncUmbraFilters(scope, bar);
+    updateResetVisibility();
   });
 
   resetWrap.appendChild(resetBtn);
   bar.appendChild(resetWrap);
 
-  // events
-  bar.addEventListener("change", () => syncUmbraFilters(scope, bar));
+  bar.addEventListener("change", () => {
+    syncUmbraFilters(scope, bar);
+    updateResetVisibility();
+  });
+
+  updateResetVisibility();
 
   return bar;
 }
@@ -4330,7 +5397,7 @@ function createStatsSubmenu(codexColumn1, entite) {
 
     const pictos = ['picto-entity'];
     if (showAttackMenu) pictos.push('picto-attack');          // ✅ NEW
-    pictos.push('picto-graph', 'picto-archetype-list');
+    pictos.push('picto-graph');
     if (showExtraLifeMenu) pictos.push('picto-extralife');
 
     pictos.forEach(pictoClass => submenu.appendChild(makePictoItem(pictoClass)));
@@ -4454,13 +5521,6 @@ if (pictoEl.classList.contains('picto-entity')) {
   }
 
   // ==============================
-  // SUBMENU : Archétypes
-  // ==============================
-} else if (pictoEl.classList.contains('picto-archetype-list')) {
-  const listNode = createArchetypesList(entite);
-  if (listNode) col5.appendChild(listNode);
-
-  // ==============================
   // SUBMENU : Résurrections / Extra life
   // ==============================
 } else if (pictoEl.classList.contains('picto-extralife')) {
@@ -4520,7 +5580,108 @@ function desyncVars(el, baseDuration, durationJitter = 0, maxDelay = null) {
   el.style.setProperty("--desync-duration", `${dur.toFixed(3)}s`);
   el.style.setProperty("--desync-delay", `${(-phase).toFixed(3)}s`);
 }
+function createSoulGraphPanel(entite) {
+  const wrapper = document.createElement('div');
+  wrapper.classList.add('sub-menu-stat', 'soul-stat', 'soul-stat-graph-panel');
 
+  const header = document.createElement('div');
+  header.className = 'sub-menu-stat__header';
+  header.appendChild(createEntityStatsTitleNode("Soul"));
+  wrapper.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'sub-menu-stat__body soul-graph-body';
+  wrapper.appendChild(body);
+
+  const levelUpForm = createLevelUpForm(entite);
+  const graph = levelUpForm?.querySelector?.('.attribut-graph-container');
+
+  if (graph) {
+    body.appendChild(graph);
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'soul-empty';
+    empty.textContent = "Graph Soul introuvable.";
+    body.appendChild(empty);
+  }
+
+  body.appendChild(createSoulAttributDistribution(entite));
+
+  return wrapper;
+}
+function createSoulAttributDistribution(entite) {
+  const strength = Number(entite?.stats?.strength ?? entite?.baseStats?.strength ?? 0) || 0;
+  const agility = Number(entite?.stats?.agility ?? entite?.baseStats?.agility ?? 0) || 0;
+  const intelligence = Number(entite?.stats?.intelligence ?? entite?.baseStats?.intelligence ?? 0) || 0;
+
+  const total = strength + agility + intelligence;
+
+  const percent = (value) => {
+    if (total <= 0) return 0;
+    return Math.round((value / total) * 100);
+  };
+
+  const activeArchetype = entite?.Archetype?.current || null;
+  const archetypeName = activeArchetype
+    ? getArchetypeDisplayName(activeArchetype)
+    : "ÉGARÉ";
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'soul-attribut-distribution';
+
+  const title = document.createElement('p');
+  title.className = 'gold-title';
+  title.textContent = activeArchetype
+  ? `Soul de ${archetypeName}`
+  : "Soul égarée";
+  wrapper.appendChild(title);
+
+  // const subtitle = document.createElement('p');
+  // subtitle.className = 'soul-attribut-distribution-subtitle';
+  // subtitle.textContent = "Répartition des attributs de l’âme";
+  // wrapper.appendChild(subtitle);
+
+  const list = document.createElement('div');
+  list.className = 'soul-attribut-distribution-list';
+  wrapper.appendChild(list);
+
+  const addLine = ({ key, label, value }) => {
+    const pct = percent(value);
+
+    const row = document.createElement('div');
+    row.className = `soul-attribut-row soul-attribut-row--${key}`;
+
+    const top = document.createElement('div');
+    top.className = 'soul-attribut-row-top';
+
+    const name = document.createElement('span');
+    name.className = 'soul-attribut-name';
+    name.textContent = label;
+
+    const amount = document.createElement('span');
+    amount.className = 'soul-attribut-percent';
+    amount.textContent = ` ${pct} %`;
+
+    top.append(name, amount);
+
+    const bar = document.createElement('div');
+    bar.className = 'soul-attribut-bar';
+
+    const fill = document.createElement('div');
+    fill.className = 'soul-attribut-bar-fill';
+    fill.style.width = ` ${pct} %`;
+
+    bar.appendChild(fill);
+    row.append(top, bar);
+    list.appendChild(row);
+  };
+
+  addLine({ key: 'strength', label: 'Force :', value: strength });
+  addLine({ key: 'agility', label: 'Agilité :', value: agility });
+  addLine({ key: 'intelligence', label: 'Intelligence :', value: intelligence });
+
+  return wrapper;
+}
 function createFadedLivesNode(entite) {
   const count = getFadedLifeCount(entite);
   if (count <= 0) return null;
@@ -4574,9 +5735,9 @@ function createEntityStatsTitleNode(text) {
   const title = document.createElement("div");
   title.className = "entity-stats-title attribut";
   title.innerHTML = `
-    <div class="gold-line"></div>
+    <div class="separation-line golden"></div>
     <p class="title">${text}</p>
-    <div class="gold-line"></div>
+    <div class="separation-line golden"></div>
   `;
   return title;
 }
@@ -4915,58 +6076,213 @@ function createAttackSubmenu(entite, attackDetails, { compact = true } = {}) {
 // ===================================================
 // MAPPING EXACT (attackRange + attacknature)
 // ===================================================
+
 const ATTACK_SUBMENU_MAP = {
   melee: {
     common: (frag, entite) => {
+frag.appendChild(
+  createFullStatDom({
+    stat: "shortRange",
+    label: "Courte portée :",
+    value: "<span class='less-bonus'>-</span> <span class='value-duo'>${value}%</span> <div class='picto-stat executionTime'></div>",
+    entite,
+    calculatorName: (e) => calculateMeleeExecBonus(e, null),
+    dataStat: "executionMelee",
+  })
+);
+
+    },
+
+    magicalDamage: (frag, entite, flags = {}) => {
+      if (!flags.isPureMagicalIntellect) return;
+
       frag.appendChild(
         createFullStatDom({
-          stat: "execution-time",
-          label: "Durée d'Exécution de mélée:",
+          stat: "messedSpell",
+          label: "Foirage : ",
           value: "${value} %",
           entite,
-          calculatorName: (e) => clamp(100 - totalMeleeExecReduction(e), 0, 100),
+          calculatorName: "calculateBrokenSpellChance",
+          dataStat: "messedSpell",
+        })
+      );
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "intellect",
+          label: "Intellect :",
+          value: "<span class='value-duo'>${value}%</span> <div class='picto-stat magicalDamage'></div>",
+          entite,
+          calculatorName: "intellectPercantBonus",
+          dataStat: "intellect",
+        })
+      );
+	  
+	  frag.appendChild(
+  createFullStatDom({
+    stat: "undogeable",
+    label: "Inesquivable",
+    value: "",
+    entite,
+    calculatorName: null,
+    dataStat: "undogeable",
+  })
+);
+	  
+    },
+
+    physicalDamage: (frag, entite, flags = {}) => {
+      if (!flags.isPurePhysicalBrutality) return;
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "brutality",
+          label: "Brutalité :",
+          value: "<span class='value-duo'>${value}%</span> <div class='picto-stat physicalDamage'></div>",
+          entite,
+          calculatorName: "brutalityPercantBonus",
+          dataStat: "brutality",
+        })
+      );
+    },
+
+    hybridalDamage: (frag, entite) => {},
+
+piercingDamage: (frag, entite) => {
+  frag.appendChild(
+    createFullStatDom({
+      stat: "piercingDamage",
+      label: "Récupération perçante :",
+      value: "- ${value} %",
+      entite,
+      calculatorName: totalPiercingRecupReductionWithAgi,
+      dataStat: "recoveryTime",
+    })
+  );
+},
+transpiercingDamage: (frag, entite) => {
+  frag.appendChild(
+    createFullStatDom({
+      stat: "transpiercingDamage",
+      label: "Récupération transperçante :",
+      value: "- ${value} %",
+      entite,
+      calculatorName: totalTranspiercingRecupReductionWithAgi,
+      dataStat: "recoveryTime",
+    })
+  );
+},
+  },
+
+  range: {
+    common: (frag, entite) => {
+      frag.appendChild(
+        createFullStatDom({
+          stat: "rangeAttack",
+          label: "Vitesse des projectiles :",
+          value: "+ ${value} %",
+          entite,
+          calculatorName: "getFinalAttackProjectileSpeed",
+          dataStat: "projectileTime",
+        })
+      );
+    },
+
+    physicalDamage: (frag, entite, flags = {}) => {
+      if (!flags.isPurePhysicalBrutality) return;
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "rangeAttack",
+          label: "Chance d'atteindre la cible :",
+          value: "${value} %",
+          entite,
+          calculatorName: "calculateRangeAccuracy",
           dataStat: "executionTime",
         })
       );
 
       frag.appendChild(
         createFullStatDom({
-          stat: "meleeAttack",
-          label: "Dégats :",
-          value: "100 %",
+          stat: "rangeAttack",
+          label: "Dégats des projectiles :",
+          value: "${value} %",
           entite,
+          calculatorName: "calculateRangeRatio",
+          dataStat: "executionTime",
+        })
+      );
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "brutality",
+          label: "Brutalité :",
+          value: "<span class='value-duo'>${value}%</span> <div class='picto-stat physicalDamage'></div>",
+          entite,
+          calculatorName: "brutalityPercantBonus",
+          dataStat: "brutality",
         })
       );
     },
 
-    magicalDamage: (frag, entite) => {
+    magicalDamage: (frag, entite, flags = {}) => {
+      if (!flags.isPureMagicalIntellect) return;
+
       frag.appendChild(
         createFullStatDom({
           stat: "brokenSpell",
-          label: "Chance de péter une attaque magique : ",
+          label: "Pétage : ",
           value: "${value} %",
           entite,
           calculatorName: "calculateBrokenSpellChance",
+          dataStat: "brokenSpell",
         })
       );
 
       frag.appendChild(
         createFullStatDom({
-          stat: "brokenSpell",
-          label: "Dégats Attaque pétée : ",
-          value: "${value} % de l'attaque",
+          stat: "intellect",
+          label: "Intellect :",
+          value: "<span class='value-duo'>${value}%</span> <div class='picto-stat magicalDamage'></div>",
           entite,
-          calculatorName: "calculateBrokenSpellDamage",
+          calculatorName: "intellectPercantBonus",
+          dataStat: "intellect",
         })
       );
-    },
-
-    physicalDamage: (frag, entite) => {
-      /* melee + physicalDamage : rien de plus */
+	  frag.appendChild(
+  createFullStatDom({
+    stat: "undogeable",
+    label: "Inesquivable",
+    value: "",
+    entite,
+    calculatorName: null,
+    dataStat: "undogeable",
+  })
+);
     },
 
     hybridalDamage: (frag, entite) => {
-      /* melee + hybridalDamage : rien de plus */
+      frag.appendChild(
+        createFullStatDom({
+          stat: "rangeAttack",
+          label: "Chance d'atteindre la cible :",
+          value: "${value} %",
+          entite,
+          calculatorName: "calculateRangeAccuracy",
+          dataStat: "executionTime",
+        })
+      );
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "rangeAttack",
+          label: "Dégats des projectiles :",
+          value: "${value} %",
+          entite,
+          calculatorName: "calculateRangeRatio",
+          dataStat: "executionTime",
+        })
+      );
     },
 
     piercingDamage: (frag, entite) => {
@@ -4981,101 +6297,64 @@ const ATTACK_SUBMENU_MAP = {
         })
       );
     },
-  },
 
-  range: {
-    common: (frag, entite) => {
-      frag.appendChild(
-        createFullStatDom({
-          stat: "rangeAttack",
-          label: "Vitesse des projectiles :",
-          value: "+ ${value} %",
-          entite,
-          calculatorName: "calculateHasteProjectilSpeed",
-          dataStat: "projectileSpeed",
-        })
-      );
-    },
-
-    physicalDamage: (frag, entite) => {
-      frag.appendChild(
-        createFullStatDom({
-          stat: "rangeAttack",
-          label: "Chance d'atteindre la cible :",
-          value: "${value} %",
-          entite,
-          calculatorName: "calculateRangeAccuracy",
-          dataStat: "executionTime",
-        })
-      );
-
-      frag.appendChild(
-        createFullStatDom({
-          stat: "rangeAttack",
-          label: "Dégats des projectiles :",
-          value: "${value} %",
-          entite,
-          calculatorName: "calculateRangeRatio",
-          dataStat: "executionTime",
-        })
-      );
-    },
-
-    magicalDamage: (frag, entite) => {
-      frag.appendChild(
-        createFullStatDom({
-          stat: "brokenSpell",
-          label: "Chance de péter une attaque magique : ",
-          value: "${value} %",
-          entite,
-          calculatorName: "calculateBrokenSpellChance",
-        })
-      );
-
-      frag.appendChild(
-        createFullStatDom({
-          stat: "brokenSpell",
-          label: "Dégats Attaque pétée : ",
-          value: "${value} % de l'attaque",
-          entite,
-          calculatorName: "calculateBrokenSpellDamage",
-        })
-      );
-    },
-
-    hybridalDamage: (frag, entite) => {
-      frag.appendChild(
-        createFullStatDom({
-          stat: "rangeAttack",
-          label: "Chance d'atteindre la cible :",
-          value: "${value} %",
-          entite,
-          calculatorName: "calculateRangeAccuracy",
-          dataStat: "executionTime",
-        })
-      );
-
-      frag.appendChild(
-        createFullStatDom({
-          stat: "rangeAttack",
-          label: "Dégats des projectiles :",
-          value: "${value} %",
-          entite,
-          calculatorName: "calculateRangeRatio",
-          dataStat: "executionTime",
-        })
-      );
-    },
-
-    piercingDamage: (frag, entite) => {
+    transpiercingDamage: (frag, entite) => {
       frag.appendChild(
         createFullStatDom({
           stat: "piercingDamage",
-          label: "Réduction récupération (perçante) :",
-          value: "- ${value} %",
+          label: "Bonus de précision transperçante :",
+          value: "+ ${value} %",
           entite,
-          calculatorName: totalPiercingRecupReductionWithAgi, // ✅ même fonction (ou mets la tienne)
-          dataStat: "recoveryTime",
+          calculatorName: "calculateTranspiercingAccuracyBonus",
+          dataStat: "rangeAttackTranspiercing",
+        })
+      );
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "rangeAttack",
+          label: "Chance d'atteindre avec transperçante :",
+          value: "${value} %",
+          entite,
+          calculatorName: (e) => {
+            const base = calculateRangeAccuracy(e);
+            const bonus = calculateTranspiercingAccuracyBonus(e);
+            return Math.min(100, Math.round((base + bonus) * 10) / 10);
+          },
+          dataStat: "rangeAttackTranspiercing",
+        })
+      );
+
+frag.appendChild(
+  createFullStatDom({
+    stat: "transpiercingDamage",
+    label: "Réduction récupération transperçante :",
+    value: "- ${value} %",
+    entite,
+    calculatorName: totalTranspiercingRecupReductionWithAgi,
+    dataStat: "recoveryTime",
+  })
+);
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "piercingDamage",
+          label: "Transpercement :",
+          value: "Bonus de + ${value} aux dégâts",
+          entite,
+          calculatorName: "transpiercingAgiRatio",
+          dataStat: "transpiercingDamage",
+        })
+      );
+
+      frag.appendChild(
+        createFullStatDom({
+          stat: "perforation",
+          label: "Perforation",
+          value: "",
+          entite,
+          calculatorName: null,
+          dataStat: "perforation",
         })
       );
     },
@@ -5085,31 +6364,64 @@ const ATTACK_SUBMENU_MAP = {
 // ===================================================
 // BUILDER : (melee|range) -> common + (magicalDamage|physicalDamage|hybridalDamage)
 // ===================================================
+
 function attackSubmenuInfos(rangeType, natureType, entite) {
   const frag = document.createDocumentFragment();
-  const r = (rangeType === 'range') ? 'range' : 'melee';
+
+  const r = rangeType === "range" ? "range" : "melee";
   const bucket = ATTACK_SUBMENU_MAP[r];
   if (!bucket) return frag;
 
-  if (typeof bucket.common === 'function') bucket.common(frag, entite);
-
-  // ✅ Base nature
-  if (natureType && typeof bucket[natureType] === 'function') {
-    bucket[natureType](frag, entite);
+  if (typeof bucket.common === "function") {
+    bucket.common(frag, entite);
   }
 
-  // ✅ Additif piercing si l'entité a piercingDamage > 0
-  const hasPiercing = Math.max(0, +entite?.stats?.piercingDamage || 0) > 0;
+  const hasEntityPiercing =
+    Math.max(0, Number(entite?.stats?.piercingDamage || 0)) > 0;
 
-  // - si attaque pure perçante => natureType est déjà "piercingDamage"
-  // - si attaque base + perçante => on ajoute bucket.piercingDamage en plus
-  if (hasPiercing && natureType !== "piercingDamage" && typeof bucket.piercingDamage === "function") {
-    bucket.piercingDamage(frag, entite);
+  const hasBaseNature =
+    natureType === "physicalDamage" ||
+    natureType === "magicalDamage" ||
+    natureType === "hybridalDamage";
+
+  const effectiveNatures = [];
+
+  if (natureType) {
+    effectiveNatures.push(natureType);
+  }
+
+  // IMPORTANT :
+  // si l'entité a piercingDamage et que l'attaque a une nature de base,
+  // alors ce n'est PAS pure physical, c'est physical + piercing.
+  if (hasEntityPiercing && hasBaseNature) {
+    effectiveNatures.push("piercingDamage");
+  }
+
+  const flags = getAttackResolutionFlags({
+    attackRange: [rangeType],
+    attacknature: effectiveNatures,
+  });
+
+  const resolvedNatureType =
+    flags.isTranspiercing ? "transpiercingDamage" : natureType;
+
+  if (resolvedNatureType && typeof bucket[resolvedNatureType] === "function") {
+    bucket[resolvedNatureType](frag, entite, flags);
+  }
+
+  if (
+    flags.hasPiercing &&
+    !flags.isTranspiercing &&
+    typeof bucket.piercingDamage === "function"
+  ) {
+    bucket.piercingDamage(frag, entite, {
+      ...flags,
+      mode: "additive",
+    });
   }
 
   return frag;
 }
-
 // ===================================================
 // ATTACK submenu (infos)
 // ===================================================
@@ -5531,11 +6843,7 @@ function createArchetypesList(entite) {
     title.className = 'title';
     title.textContent = titleText;
 
-    const goldLine = document.createElement('div');
-    goldLine.className = 'gold-line';
-
     sectionHeader.appendChild(title);
-    sectionHeader.appendChild(goldLine);
     body.appendChild(sectionHeader);
 
     const section = document.createElement('div');
@@ -5555,7 +6863,68 @@ function createArchetypesList(entite) {
 
   return wrapper;
 }
+function createCurrentArchetypesList(entite) {
+  const wrapper = document.createElement('div');
+  wrapper.classList.add('sub-menu-stat', 'archetype-stat', 'archetype-stat-current-only');
 
+  const header = document.createElement('div');
+  header.className = 'sub-menu-stat__header';
+  header.appendChild(createEntityStatsTitleNode("Archétypes en cours"));
+  wrapper.appendChild(header);
+
+  const body = document.createElement('div');
+  body.className = 'sub-menu-stat__body';
+  wrapper.appendChild(body);
+
+  const arche = entite?.Archetype || {};
+  const rawCurrent = arche.current || null;
+  const rawInProgress = Array.isArray(arche.inProgress) ? arche.inProgress.slice() : [];
+
+  const items = [];
+
+  if (rawCurrent) {
+    items.push({ entry: rawCurrent, type: 'current' });
+  }
+
+  rawInProgress
+    .map(entry => ({ entry, info: getArchetypeProgressInfo(entry, entite) }))
+    .filter(obj => obj.info.stage > 0)
+    .sort((a, b) => b.info.ratio - a.info.ratio)
+    .forEach(obj => items.push({ entry: obj.entry, type: 'progress' }));
+
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'archetype-empty';
+    empty.textContent = "Aucun archétype en cours.";
+    body.appendChild(empty);
+    return wrapper;
+  }
+
+  const sectionHeader = document.createElement('div');
+  sectionHeader.className = 'archetype-section';
+
+  const title = document.createElement('p');
+  title.className = 'title';
+  title.textContent = 'ARCHETYPES EN COURS :';
+
+  const goldLine = document.createElement('div');
+  goldLine.className = 'separation-line golden';
+
+  sectionHeader.appendChild(title);
+  sectionHeader.appendChild(goldLine);
+  body.appendChild(sectionHeader);
+
+  const section = document.createElement('div');
+  section.className = 'archetype-section-content archetype-section-content--current-tabs';
+
+  items.forEach(({ entry, type }) => {
+    section.appendChild(createArchetypeLine(entite, entry, type));
+  });
+
+  body.appendChild(section);
+
+  return wrapper;
+}
 function createArchetypeLine(entite, archEntry, type) {
   const line = document.createElement('div');
   line.className = `archetype-line archetype-line--${type}`;
@@ -5999,16 +7368,16 @@ if (hasEquip) {
         const itemImg = document.createElement('img');
         itemImg.src = itemData.itemAsset;
         itemImg.alt = itemData.displayName;
-        itemImg.id = itemData.itemId;
+        itemImg.id = rawItemId;
         itemImg.classList.add('inventory-item-icon', itemData.functionName);
         itemImg.setAttribute('draggable', 'true');
 
-        itemImg.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', itemData.itemId);
-            e.dataTransfer.effectAllowed = 'move';
-            itemImg.classList.add('using');
-            console.log(`🚚 Drag depuis slot (createStuffDom) pour ${itemData.itemId}`);
-        });
+itemImg.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', rawItemId);
+    e.dataTransfer.effectAllowed = 'shift';
+    itemImg.classList.add('using');
+    console.log(`🚚 Drag depuis slot (createStuffDom) pour ${rawItemId}`);
+});
 
         itemImg.addEventListener('dragend', () => {
             itemImg.classList.remove('using');
@@ -6026,7 +7395,14 @@ if (hasEquip) {
 	
 } else {
     console.log(`🕳️ ${slotKey} → slot vide`);
-    slot.classList.remove('equiped'); // ✅ Supprime la classe si vide
+    slot.classList.remove('equiped');
+
+    // Helper uniquement sur les slots générés vides
+    if (!slot.classList.contains("equiped")) {
+        slot.dataset.stat = "stuffSlot";
+        slot.dataset.hover = "true";
+        slot.dataset.entityId = entite.id;
+    }
 }
 
 
@@ -6376,4 +7752,41 @@ function initStatRadar(canvas, graphValues, legendRoot) {
 
   // dispose
   canvas._disposeRadar = () => ac.abort();
+}
+
+function createEntityLore(entite) {
+  const DEFAULT_LORE = "Données manquantes sur l'entité...";
+  const DEFAULT_IMAGE = "../../media/lore/entites/lore-unknown.jpg";
+
+  const entityClass = entite?.class;
+
+  const loreData = entityClass
+    ? entitesLore.find(loreItem => loreItem.class === entityClass)
+    : null;
+
+  const loreText = loreData?.lore || DEFAULT_LORE;
+  const loreImage = loreData?.ambiance || DEFAULT_IMAGE;
+
+  const textDiv = document.createElement("div");
+  textDiv.className = "entity-lore-text codex";
+  textDiv.innerHTML = loreText;
+
+  const ambianceDiv = document.createElement("div");
+  ambianceDiv.className = "entity-lore-ambiance codex";
+
+  const img = document.createElement("img");
+  img.className = "entity-lore-image";
+  img.src = loreImage;
+  img.alt = `Ambiance lore - ${entityClass || "entité inconnue"}`;
+
+  img.onerror = () => {
+    img.src = DEFAULT_IMAGE;
+  };
+
+  ambianceDiv.appendChild(img);
+
+  return {
+    textDiv,
+    ambianceDiv
+  };
 }

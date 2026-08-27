@@ -134,7 +134,7 @@ position: fixed;
   overflow-y: auto;
   padding: 6px;
   border: 1px solid rgba(255,255,255,0.2);
-  flex-direction: column;}
+  flex-direction: column;min-height: 270px;}
   .GameOverMessage .IngameAlert{background: linear-gradient(to right, transparent, black 20%, #740000 80%, transparent);}
     .IngameAlert.runaway-msg{background: linear-gradient(to right, transparent, #001013 20%, #00745ede 80%, transparent);
   height: 4vh;
@@ -147,7 +147,7 @@ position: fixed;
   z-index: 5;
   position: absolute;
   overflow: hidden;
-  display: block ruby;}
+  display: block ruby;width: max-content;}
 .IngameAlert {
   top: 50%;
   left: 50%;
@@ -191,6 +191,28 @@ position: fixed;
 }
 
 
+.Game-UI > .IngameAlert.surpriseAttack {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  z-index: 10000;
+  padding: 15px;
+    padding-right: 15px;
+    padding-left: 15px;
+  color: #fff1ba;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: surprise-attack-squeeze 4s linear forwards;
+  padding-left: 70px;
+  padding-right: 70px;
+}
   .board, .foreground, .hud-ingame, .drag-box, #hexGrid{
   transition: transform 1.3s ease;}
 .hex.SideA .socle {background-color: #bbe2ff30;}    
@@ -431,4 +453,561 @@ top: -180%;}
   transform: translateX(-50%);} 
 .meteo.sunray{
   top: -50px;
+}
+:root {
+  --cinematic-bar-height: max(
+    10dvh,
+    calc((100dvh - (100vw * 9 / 16)) / 2)
+  );
+
+  --cinematic-duration: 700ms;
+  --cinematic-easing: cubic-bezier(.22, 1, .36, 1);
+
+  --cinematic-overlay-color: rgb(0 0 0 / .42);
+  --cinematic-choice-overlay-color: rgba(99, 46, 0, .42);
+  --cinematic-bar-color: #000;
+
+  --cinematic-z-index: 10;
+
+  --cinematic-screen-fx-z-index: 1;
+  --cinematic-screen-fx-duration: 520ms;
+
+  --cinematic-damage-flash-z-index: 20;
+}
+
+
+/* =========================================================
+   MODE CINÉMATIQUE
+   ========================================================= */
+
+#game-windows > .event-cinematic {
+  position: fixed;
+  inset: 0;
+
+  z-index: var(--cinematic-z-index);
+
+  pointer-events: none;
+
+  visibility: hidden;
+
+  contain: layout paint;
+
+  transition:
+    visibility
+    0s
+    linear
+    var(--cinematic-duration);
+}
+
+
+#game-windows > .event-cinematic.is-visible {
+  visibility: visible;
+
+  pointer-events: auto;
+  touch-action: none;
+
+  transition-delay: 0s;
+}
+
+
+#game-windows > .event-cinematic.is-visible.is-action-running {
+  pointer-events: none;
+  touch-action: auto;
+}
+
+
+/* =========================================================
+   VOILE NOIR
+   couche 0
+   ========================================================= */
+
+#game-windows > .event-cinematic .cinematic-corp {
+  position: absolute;
+  inset: 0;
+
+  z-index: 0;
+
+  background-color:
+    var(--cinematic-overlay-color);
+
+  opacity: 0;
+
+  will-change: opacity;
+
+  transition:
+    opacity
+    var(--cinematic-duration)
+    ease,
+    background-color
+    var(--cinematic-duration)
+    ease;
+}
+
+
+#game-windows
+> .event-cinematic.event-cinematic-choice
+.cinematic-corp {
+  background-color:
+    var(--cinematic-choice-overlay-color);
+}
+
+
+#game-windows
+> .event-cinematic.is-visible
+.cinematic-corp {
+  opacity: 1;
+}
+
+
+/* Masque le voile pendant les actions visibles. */
+#game-windows
+> .event-cinematic.is-visible.is-action-running
+.cinematic-corp {
+  opacity: 0;
+}
+
+
+/* =========================================================
+   AURA CINÉMATIQUE
+   couche 1
+
+   Elle est :
+   - AU-DESSUS du voile noir
+   - EN-DESSOUS des bandes noires
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx {
+  --cinematic-screen-fx-rgb: 255 255 255;
+
+  position: absolute;
+  inset: 0;
+
+  z-index:
+    var(--cinematic-screen-fx-z-index);
+
+  pointer-events: none;
+
+  visibility: hidden;
+  opacity: 0;
+
+  background:
+    linear-gradient(
+      to right,
+      rgb(var(--cinematic-screen-fx-rgb) / .70),
+      transparent 25%,
+      transparent 75%,
+      rgb(var(--cinematic-screen-fx-rgb) / .70)
+    ),
+
+    linear-gradient(
+      to bottom,
+      rgb(var(--cinematic-screen-fx-rgb) / .25),
+      transparent 25%,
+      transparent 75%,
+      rgb(var(--cinematic-screen-fx-rgb) / .25)
+    );
+
+  will-change:
+    opacity,
+    box-shadow;
+
+  transition:
+    opacity 180ms ease-out,
+    visibility 0s linear 180ms;
+}
+
+
+/* =========================================================
+   AURA VISIBLE
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.is-visible {
+  visibility: visible;
+
+  transition-delay: 0s;
+
+  animation:
+    cinematicAuraPulseFast
+    2.4s
+    ease-in-out
+    infinite;
+}
+
+
+/* =========================================================
+   CHOICE — DORÉ
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.choice {
+  --cinematic-screen-fx-rgb: 255 172 0;
+}
+
+
+/* =========================================================
+   SUCCESS — VERT
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.success {
+  --cinematic-screen-fx-rgb: 55 200 95;
+}
+
+
+/* =========================================================
+   MIDDLE — BLEU
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.middle {
+  --cinematic-screen-fx-rgb: 145 210 255;
+}
+
+
+/* =========================================================
+   FAIL — ROUGE
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.fail {
+  --cinematic-screen-fx-rgb: 230 25 25;
+}
+
+
+/* =========================================================
+   ANIMATION COMMUNE DES AURAS
+   Adaptation plein écran de textGlowPulseFast
+   ========================================================= */
+
+@keyframes cinematicAuraPulseFast {
+
+  0%,
+  100% {
+    opacity: .55;
+
+    box-shadow:
+      inset 0 0 3px
+      rgb(var(--cinematic-screen-fx-rgb) / .45),
+
+      inset 0 0 8px
+      rgb(var(--cinematic-screen-fx-rgb) / .25);
+  }
+
+
+  50% {
+    opacity: .78;
+
+    box-shadow:
+      inset 0 0 5px
+      rgb(var(--cinematic-screen-fx-rgb) / .75),
+
+      inset 0 0 14px
+      rgb(var(--cinematic-screen-fx-rgb) / .45);
+  }
+}
+
+
+/* =========================================================
+   ENTRÉE FAIL ROUGE INTENSE
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.fail.is-entering {
+  animation:
+    cinematic-fail-entry
+    650ms
+    ease-out
+    both;
+}
+
+
+@keyframes cinematic-fail-entry {
+
+  0% {
+    opacity: 0;
+
+    filter:
+      saturate(1)
+      brightness(1);
+  }
+
+
+  20% {
+    opacity: 1;
+
+    filter:
+      saturate(1.7)
+      brightness(1.4);
+  }
+
+
+  45% {
+    opacity: .85;
+
+    filter:
+      saturate(1.35)
+      brightness(1.15);
+  }
+
+
+  100% {
+    opacity: .55;
+
+    filter:
+      saturate(1.1)
+      brightness(1);
+  }
+}
+
+
+/* =========================================================
+   BANDES CINÉMATIQUES
+   couche 2
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+.cinematic-broder {
+  position: absolute;
+  inset: 0;
+
+  z-index: 2;
+
+  overflow: hidden;
+
+  pointer-events: none;
+}
+
+
+#game-windows
+> .event-cinematic
+.border-top,
+
+#game-windows
+> .event-cinematic
+.border-bottom {
+  position: absolute;
+
+  left: 0;
+
+  width: 100%;
+
+  height:
+    var(--cinematic-bar-height);
+
+  background:
+    var(--cinematic-bar-color);
+
+  backface-visibility: hidden;
+
+  will-change: transform;
+
+  transition:
+    transform
+    var(--cinematic-duration)
+    var(--cinematic-easing);
+}
+
+
+#game-windows
+> .event-cinematic
+.border-top {
+  top: 0;
+
+  transform:
+    translate3d(0, -100%, 0);
+}
+
+
+#game-windows
+> .event-cinematic
+.border-bottom {
+  bottom: 0;
+
+  transform:
+    translate3d(0, 100%, 0);
+}
+
+
+#game-windows
+> .event-cinematic.is-visible
+.border-top,
+
+#game-windows
+> .event-cinematic.is-visible
+.border-bottom {
+  transform:
+    translate3d(0, 0, 0);
+}
+
+
+/* Les deux modes découvrent l'action ; seul `hard` agit aussi sur la vue. */
+#game-windows
+> .event-cinematic.is-visible.is-action-running
+.border-top {
+  transform:
+    translate3d(0, -100%, 0);
+}
+
+
+#game-windows
+> .event-cinematic.is-visible.is-action-running
+.border-bottom {
+  transform:
+    translate3d(0, 100%, 0);
+}
+
+
+/* =========================================================
+   TREMBLEMENT D'ÉCHEC
+   ========================================================= */
+
+.event-screen-shake-fail {
+  transform-origin: center;
+
+  will-change: transform;
+
+  animation:
+    cinematic-screen-fail-shake
+    var(--cinematic-screen-fx-duration)
+    cubic-bezier(.22, 1, .36, 1)
+    both;
+}
+
+@keyframes cinematic-screen-fail-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  12% {
+    transform: translate3d(-6px, 1px, 0) rotate(-.34deg);
+  }
+  25% {
+    transform: translate3d(6px, -3px, 0) rotate(.4deg);
+  }
+  39% {
+    transform: translate3d(-5px, 3px, 0) rotate(-.32deg);
+  }
+  54% {
+    transform: translate3d(4px, -2px, 0) rotate(.24deg);
+  }
+  69% {
+    transform: translate3d(-3px, 1px, 0) rotate(-.16deg);
+  }
+  84% {
+    transform: translate3d(2px, 0, 0) rotate(.09deg);
+  }
+}
+
+/* =========================================================
+   FLASH ROUGE DES DÉGÂTS
+   ========================================================= */
+
+#game-windows > .cinematic-damage-flash {
+  position: fixed;
+  inset: 0;
+  z-index: var(--cinematic-damage-flash-z-index);
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at center,
+    rgb(255 35 35 / .12),
+    rgb(235 15 15 / .38) 60%,
+    rgb(160 0 0 / .68)
+  );
+  will-change: opacity, filter;
+}
+
+#game-windows > .cinematic-damage-flash.is-active {
+  animation: cinematic-damage-flash-impact 380ms ease-out both;
+}
+
+@keyframes cinematic-damage-flash-impact {
+  0% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+  12% {
+    opacity: .9;
+    filter: brightness(1.35) saturate(1.5);
+  }
+  36% {
+    opacity: .45;
+    filter: brightness(1.1) saturate(1.2);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+/* =========================================================
+   FLASH BLANC — VALIDATION D'UN CHOIX
+   ========================================================= */
+
+#game-windows > .cinematic-validation-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  background: #fff;
+  opacity: 0;
+  will-change: opacity;
+}
+
+#game-windows > .cinematic-validation-flash.is-active {
+  animation: cinematic-validation-white-flash 180ms ease-out both;
+}
+
+@keyframes cinematic-validation-white-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: .85;
+  }
+  35% {
+    opacity: .55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* =========================================================
+   ACCESSIBILITÉ
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  #game-windows > .event-cinematic,
+  #game-windows > .event-cinematic .cinematic-corp,
+  #game-windows > .event-cinematic .border-top,
+  #game-windows > .event-cinematic .border-bottom {
+    transition-duration: 1ms;
+  }
+
+  #game-windows > .event-cinematic > .cinematic-screen-fx.is-visible {
+    animation-duration: 600ms;
+  }
+
+  .event-screen-shake-fail {
+    animation-duration: 220ms;
+  }
+
+  #game-windows > .cinematic-damage-flash.is-active {
+    animation-duration: 220ms;
+  }
+
+  #game-windows > .cinematic-validation-flash.is-active {
+    animation-duration: 100ms;
+  }
 }

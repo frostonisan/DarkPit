@@ -69,5 +69,10 @@ export const screenLoadOptions = [
         titleContent: 'Développement',
         textContent: 'Le jeux est développé sur son temps libre par une seule personne ! Avis constructifs, et un peu d\'indulgence, seront les bienvenus. frostonisan@gmail.com',
         imageSrc: '/media/assets/loading/loader-14.jpg',
+      },{
+        backgroundColor: 'black',
+        titleContent: 'Déplacement en combat : Échange de position',
+        textContent: 'Vous pouvez échanger la position des entités en combat. Réalisez un dragNdrop sur une position occupée par une entité alliée pour le faire. Seule l\'entité à l\'origine du mouvement utilisera une charge de déplacement.',
+        imageSrc: '/media/assets/loading/loader-15.jpg',
     }
 ];

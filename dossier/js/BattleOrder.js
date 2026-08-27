@@ -2,19 +2,34 @@ import { entites, RemoveEntite } from './entites.js';
 import { runPhaseTimer, LifeandDeath } from './entityAttributs.js';
 import { stopAllIntervals, setOrderSide, getOrderSide } from './gameState.js';
 import { RunawayAnimation, playRunawaySuccessAnimation, orderAnimation, runawayInfosBulle } from './entitesAnimation.js';
+import { battleLogs } from './battleLogs.js';
+
+// Durée commune de la réaction visuelle aux ordres et au réveil d'une
+// attaque surprise. Modifier cette valeur met à jour les deux systèmes.
+export const ORDER_DECISION_DURATION = 2000;
 
 export const fledEntities = [];
 // Variables globales entites fuites 
 let remainingRunaways = 0;
 let successfulRunaways = 0;
+let totalRunawayCandidates = 0;
+
+function isEntityAlreadyDead(entite) {
+    return entite?.isDEAD === true
+        || entite?.statut?.includes?.('dead')
+        || Number(entite?.stats?.HP?.current ?? 0) <= 0;
+}
 
 export async function launchOrderCycleForSide(side, orderType) {
     setOrderSide(side);
     stopAllIntervals();
 
-   entites.forEach(entite => LifeandDeath(entite)); // mise à jour des statuts vitaux
+// Ne jamais appeler LifeandDeath sur un cadavre pendant le lancement d'une fuite.
+// LifeandDeath nettoie/recrée son rendu de mort. Le canvas existant doit rester intact.
+const livingEntities = entites.filter(entite => !isEntityAlreadyDead(entite));
+livingEntities.forEach(entite => LifeandDeath(entite));
 
-const executants = entites.filter(e => e.side === side && !e.isDEAD);
+const executants = livingEntities.filter(e => e.side === side && !isEntityAlreadyDead(e));
 
     if (executants.length === 0) {
         console.warn(`❌ Aucun survivant côté ${side} pour exécuter un ordre.`);
@@ -24,10 +39,13 @@ const executants = entites.filter(e => e.side === side && !e.isDEAD);
     console.log(`🏃‍ Les entités du camp ${side} reçoivent l'ordre : ${orderType}`);
 
     // INITIALISATION SPÉCIALE POUR LA FUITE
-    if (orderType === 'runaway') {
-        remainingRunaways = executants.length;
-        successfulRunaways = 0;
-    }
+if (orderType === 'runaway') {
+    battleLogs("runaway_order_launched");
+
+    remainingRunaways = executants.length;
+    successfulRunaways = 0;
+    totalRunawayCandidates = executants.length;
+}
 
     // Lancer tous les cycles en parallèle
     const promises = executants.map(entite => startOrderCycle(entite, orderType));
@@ -59,7 +77,7 @@ entite.hasResetOrderTimers = true;
 
     // === PHASE 1 : Décision de l'ordre ===
     entite.orderPhase = 'orderDecision';
-    entite.orderDecisionTimer = 2000;
+    entite.orderDecisionTimer = ORDER_DECISION_DURATION;
     entite.recoveryTime = entite.orderDecisionTimer;
     entite.maxRecoveryTime = entite.orderDecisionTimer;
 
@@ -133,9 +151,10 @@ export async function RunawayFunction(entite) {
 		runawayInfosBulle(entite, 'success'); 
         registerSuccessfulRunaway(entite);
     } else {
-        console.warn(`❌ Fuite échouée pour ${entite.name}. Lancement de runawayLoop...`);
-		runawayInfosBulle(entite, 'fail'); 
-        await runawayLoop(entite);
+      console.warn(`❌ Fuite échouée pour ${entite.name}. Lancement de runawayLoop...`);
+		battleLogs("runaway_fail", { entity: entite });
+		runawayInfosBulle(entite, 'fail');
+		await runawayLoop(entite);
     }
 }
 
@@ -150,7 +169,7 @@ function registerSuccessfulRunaway(entite) {
     }
 
     console.log(`✅ ${entite.name} a réussi à fuir.`);
-
+	battleLogs("runaway_success", { entity: entite });
     entite.hasFled = true;                      // ✅ On marque l'entité
     fledEntities.push(entite);                  // ✅ On stocke la référence
     successfulRunaways += 1;
@@ -162,10 +181,17 @@ function registerSuccessfulRunaway(entite) {
 function checkRunawayEnd() {
     if (remainingRunaways <= 0) {
         console.log(`🏁 Tous les candidats à la fuite ont fini leur cycle.`);
-        if (successfulRunaways > 0) {
-            console.log(`➡️ Au moins une fuite réussie ! Déclenchement animation de fin...`);
-            playRunawaySuccessAnimation(); // ← ici tu peux appeler quitCurrentLevel() dedans
-        } else {
+if (successfulRunaways > 0) {
+    console.log(`➡️ Au moins une fuite réussie ! Déclenchement animation de fin...`);
+
+    if (successfulRunaways === totalRunawayCandidates) {
+        battleLogs("battle_escape_total");
+    } else {
+        battleLogs("battle_escape_partial");
+    }
+
+    playRunawaySuccessAnimation();
+}else {
             console.log(`❌ Aucune fuite réussie. On reste dans le niveau.`);
         }
     }
@@ -224,6 +250,7 @@ async function runawayLoop(entite) {
         registerSuccessfulRunaway(entite);
     } else {
         console.warn(`❌ Fuite échouée pour ${entite.name}. Reprise de la boucle...`);
+		battleLogs("runaway_fail", { entity: entite });
 		runawayInfosBulle(entite, 'fail');
         await runawayLoop(entite);
     }

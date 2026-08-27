@@ -19,7 +19,7 @@ export const cyclesData = [
 	condition: "Agilité : ≥ 95%",
     description: "Invisible, insaisissable, il frappe entre deux souffles et disparaît avant l’écho. Il vit dans l’interstice.",
     cycle: [
-'attaque-1','utilitaire-1','utilitaire-1','attaque-1','utilitaire-1','defense-1','attaque-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-2','utilitaire-1','attaque-1','attaque-1','utilitaire-1','defense-3','utilitaire-1','attaque-1','defense-1','attaque-1','utilitaire-2','attaque-1','attaque-1','defense-1','utilitaire-1','utilitaire-1','attaque-1','defense-1','attaque-1','attaque-1','defense-3','utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-1','defense-1','utilitaire-1','defense-1','utilitaire-2','defense-3','utilitaire-1','attaque-1','defense-1','attaque-1','defense-1','attaque-1','attaque-1','utilitaire-2','utilitaire-2','utilitaire-3'
+'attaque-1','utilitaire-1','utilitaire-1','attaque-1','utilitaire-1','defense-1','attaque-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-2','utilitaire-1','attaque-1','attaque-1','utilitaire-3','defense-3','utilitaire-1','attaque-1','defense-1','attaque-1','utilitaire-2','attaque-1','attaque-1','defense-1','utilitaire-1','utilitaire-1','attaque-1','defense-1','attaque-1','attaque-1','defense-3','utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-1','defense-1','utilitaire-1','defense-1','utilitaire-2','defense-3','utilitaire-1','attaque-1','defense-1','attaque-1','defense-1','attaque-1','attaque-1','utilitaire-2','utilitaire-2','utilitaire-3'
     ]
   },{
     name: "Archimaitre",
@@ -30,7 +30,7 @@ export const cyclesData = [
 	condition: "Intelligence : ≥ 95%",
     description: "Son esprit consume plus qu’il ne comprend. Il modèle la réalité comme d'autres froissent du papier.",
 	cycle: [
- 'attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','attaque-2','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-2','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-3','attaque-1','utilitaire-1','attaque-1','utilitaire-1','attaque-2','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-3','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-1','defense-1','defense-1','utilitaire-1','attaque-2','utilitaire-3','attaque-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-1','attaque-1','defense-1','attaque-2','attaque-2','attaque-3'
+ 'attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','attaque-2','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','defense-1','utilitaire-2','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-3','attaque-1','utilitaire-1','attaque-1','utilitaire-1','attaque-2','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-1','attaque-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-3','attaque-1','utilitaire-1','attaque-1','attaque-1','utilitaire-1','defense-1','defense-1','utilitaire-1','attaque-2','utilitaire-3','attaque-1','utilitaire-1','attaque-1','utilitaire-1','utilitaire-1','attaque-1','defense-1','attaque-2','attaque-2','utilitaire-3'
     ]
   },{
 	name: "Archon",
@@ -49,7 +49,7 @@ export const cyclesData = [
 	condition: "Force : ≥ 80%",
     description: "Il encaisse ce que d’autres fuient. Lent, solide, implacable — un roc que les siècles ne courbent pas.",
     cycle: [
-'utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','attaque-1','utilitaire-1','defense-1','defense-2','utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','attaque-1','utilitaire-1','defense-1','defense-2','utilitaire-1','utilitaire-1','defense-2','attaque-1','attaque-3'
+'utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','attaque-1','utilitaire-1','defense-1','defense-2','utilitaire-1','defense-1','attaque-1','utilitaire-1','utilitaire-2','defense-1','attaque-1','utilitaire-1','defense-1','defense-2','utilitaire-3','utilitaire-1','defense-2','attaque-1','attaque-3'
     ]
   },{
     name: "Spectre",

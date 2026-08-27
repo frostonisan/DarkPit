@@ -555,6 +555,60 @@ export function glitterStuff(selector, maxGlitters = 4) {
   });
 }
 
+export function glitterLoot(selector, maxGlitters = 15) {
+  const random = (min, max) => Math.random() * (max - min) + min;
+
+  document.querySelectorAll(selector).forEach(element => {
+    let container = element.querySelector(
+      ':scope > .glitter-loot-container'
+    );
+
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'glitter-loot-container';
+      element.appendChild(container);
+    }
+
+    if (container.dataset.initialized === 'true') return;
+    container.dataset.initialized = 'true';
+
+    const fragment = document.createDocumentFragment();
+
+    for (let i = 0; i < maxGlitters; i++) {
+      const glitter = document.createElement('img');
+
+      Object.assign(glitter, {
+        className: 'glitter-loot',
+        src: '/media/assets/misc/glitter-loot.svg',
+        alt: '',
+        draggable: false
+      });
+
+      glitter.setAttribute('aria-hidden', 'true');
+
+      const properties = {
+        '--size': `${random(15, 35)}px`,
+        '--x': `${random(8, 92)}%`,
+        '--y': `${random(25, 90)}%`,
+        '--duration': `${random(3, 7)}s`,
+        '--delay': `${random(-7, 0)}s`,
+        '--move-x': `${random(-55, 55)}px`,
+        '--move-y': `${random(50, 150)}px`,
+        '--rotation': `${random(-180, 180)}deg`
+      };
+
+      Object.entries(properties).forEach(([property, value]) => {
+        glitter.style.setProperty(property, value);
+      });
+
+      fragment.appendChild(glitter);
+    }
+
+    container.appendChild(fragment);
+  });
+}
+
+
 export function startArchup() {
 
   const canvas = document.getElementById('archup');

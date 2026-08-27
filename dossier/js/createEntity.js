@@ -1,11 +1,18 @@
-import { updateRoleInDOM} from './load-entity.js'; 
+import {
+  determineClasse,
+  observeRoleChanges,
+  positionnerEntites,
+  TraitementRolesSbires,
+  updateGlobalRoleSbire,
+  updateRoleInDOM
+} from './load-entity.js';
 import { IngameListingFocus, AttackerSbireTargetPriority, AllySbireTargetPriority } from './role-rule.js';
 import { createUmbraBlock, AttackDetailInfos, MultiAttackDisplay, createStuffDom } from './GameInit.js';
-import { entites } from './entites.js'; 
+import { enrichEntityStats, entites, generateUniqueID } from './entites.js';
 import { attackDetails } from './attackList.js';
-import { adjustFontSize } from './ui.js';
+import { adjustFontSize, toggleScanEntityListener } from './ui.js';
 import { updateHealthBar } from './UpgradeEntity.js';
-import { getPoolCurrent } from './entityAttributs.js';
+import { syncEntityAuras, cleanupEntityAuras, getAuraPoolCurrent } from "./entitesAura.js";
 
 export function createHPCounter(entite) {
   if (!entite?.stats?.HP) return null;
@@ -22,6 +29,35 @@ export function createHPCounter(entite) {
   return HPCounter;
 }
 
+export function createMovementCounter(entite) {
+  const shift = entite?.stats?.shift;
+  if (!shift) return null;
+
+  const currentMovement = shift.current ?? 0;
+  const maxMovement = shift.max ?? 0;
+
+  const movementCounter = document.createElement("div");
+  movementCounter.className = "movement-counter hu";
+  movementCounter.dataset.stat = "shift";
+  movementCounter.dataset.entityId = entite.id;
+  movementCounter.dataset.movementEntityId = entite.id;
+
+  const movementPicto = document.createElement("div");
+  movementPicto.className = "picto-stat shift";
+
+  const movementText = document.createElement("span");
+  movementText.className = "counter-shift hu";
+  movementText.innerHTML = `
+    : <span class="current-shift current">${currentMovement}</span>
+    /
+    <span class="current-shift max">${maxMovement}</span>
+  `;
+
+  movementCounter.appendChild(movementPicto);
+  movementCounter.appendChild(movementText);
+
+  return movementCounter;
+}
 export function createArmorCounter(entite) {
   const currentArmor = entite?.stats?.armor?.current ?? 0;
   const maxArmor     = entite?.stats?.armor?.max ?? 0;
@@ -31,10 +67,10 @@ export function createArmorCounter(entite) {
 
   const node = document.createElement("div");
   node.className = "armor-counter hu"; // "hu" si tu veux la même typo que tes autres compteurs
-  node.dataset.stat = "armor-counter";
+  node.dataset.stat = "armor";
   node.dataset.entityId = entite.id;
 
-  node.textContent = `🛡️ ${currentArmor}`; // conforme à ton exemple
+  node.textContent = `🛡️ : ${currentArmor}`; // conforme à ton exemple
   return node;
 }
 
@@ -50,7 +86,7 @@ export function createFadedLifeCounter(entite) {
 
   const fadedLifeCounterContainer = document.createElement("div");
   fadedLifeCounterContainer.className = "fadedLife-counter";
-  fadedLifeCounterContainer.dataset.stat = "fadedLife-counter";
+  fadedLifeCounterContainer.dataset.stat = "fadedLife";
   fadedLifeCounterContainer.dataset.entityId = entite.id;
 
   const pictoFadedDiv = document.createElement("div");
@@ -91,7 +127,7 @@ export function createExtraLifeCounter(entite) {
 
   const extraLifeCounterContainer = document.createElement("div");
   extraLifeCounterContainer.className = "extraLife-counter";
-  extraLifeCounterContainer.dataset.stat = "extraLife-counter";
+  extraLifeCounterContainer.dataset.stat = "extraLife";
   extraLifeCounterContainer.dataset.entityId = entite.id;
 
   // ✅ même convention que tes stats
@@ -131,7 +167,7 @@ export function createEternalLifeCounter(entite) {
 
   const eternalLifeCounterContainer = document.createElement("div");
   eternalLifeCounterContainer.className = "eternalLife-counter";
-  eternalLifeCounterContainer.dataset.stat = "eternalLife-counter";
+  eternalLifeCounterContainer.dataset.stat = "eternalLife";
   eternalLifeCounterContainer.dataset.entityId = entite.id;
 
   const pictoEtDiv = document.createElement("div");
@@ -159,9 +195,6 @@ export function createLifeCounter(entite) {
 
   // const hp = createHPCounter(entite);
   // if (hp) lifeCounterContainer.appendChild(hp);
-
-  const armor = createArmorCounter(entite);
-  if (armor) lifeCounterContainer.appendChild(armor);
 
   const fadedLife = createFadedLifeCounter(entite);
   if (fadedLife) lifeCounterContainer.appendChild(fadedLife);
@@ -242,14 +275,170 @@ export function createLifeBars(entite, { context = null } = {}) {
   return container;
 }
 
+function stopDeadEntityAnimations(entite) {
+  const entityBox = document.getElementById(`Box_Entite_${entite.id}`);
+  if (!entityBox) return;
+
+  cleanupEntityAuras(entite);
+
+  entityBox.querySelectorAll('[id^="auraContainer_"], .aura-container').forEach((aura) => {
+    aura.replaceChildren();
+    aura.setAttribute('aria-hidden', 'true');
+  });
+
+  if (typeof entityBox.getAnimations === 'function') {
+    entityBox.getAnimations({ subtree: true }).forEach((animation) => {
+      const target = animation.effect?.target;
+      if (target?.closest?.('.effects-container')) return;
+      animation.cancel();
+      if (target?.style) {
+        target.style.setProperty('animation', 'none', 'important');
+        target.style.setProperty('transition', 'none', 'important');
+      }
+    });
+  }
+
+  entityBox.querySelectorAll(
+    `[id^="Animationsprite_${entite.id}"], #DragSprite_${entite.id}, #spriteCanvas_${entite.id}`
+  ).forEach((element) => {
+    element.style.setProperty('animation', 'none', 'important');
+    element.style.setProperty('transition', 'none', 'important');
+  });
+}
+
+function forceDeadEntityOpacity(entite, entityBox, container, canvas = null) {
+  const animationSprite = document.getElementById(`Animationsprite_${entite.id}`);
+  const spriteContainer = document.getElementById(`spriteContainer_${entite.id}`);
+
+  [entityBox, spriteContainer, animationSprite, container, canvas]
+    .filter(Boolean)
+    .forEach((element) => {
+      element.style.setProperty('opacity', '1', 'important');
+      element.style.setProperty('visibility', 'visible', 'important');
+    });
+}
+
+export function stabilizeDeadEntityVisual(entite, { playDeathBlood = false } = {}) {
+  if (!entite) return null;
+
+  entite.isDEAD = true;
+  entite.statut = ['dead'];
+  if (entite?.stats?.HP) entite.stats.HP.current = 0;
+
+  const entityBox = document.getElementById(`Box_Entite_${entite.id}`);
+  const container = document.getElementById(`DragSprite_${entite.id}`);
+  if (!container) {
+    console.warn(`⚠️ Aucun conteneur trouvé pour l'entité ${entite.id}`);
+    return null;
+  }
+
+  // Une fois le canvas du cadavre créé, il devient immuable. Les mises à jour
+  // du loot et du glitter ne doivent plus toucher à son DOM ni à ses animations.
+  let canvas = document.getElementById(`spriteCanvas_${entite.id}`);
+  const alreadyCanonical = canvas?.classList.contains('dead-sprite')
+    && canvas.width === 603
+    && canvas.height === 328;
+
+  if (alreadyCanonical) {
+    forceDeadEntityOpacity(entite, entityBox, container, canvas);
+    return canvas;
+  }
+
+  stopDeadEntityAnimations(entite);
+
+  entityBox?.classList.remove('dead', 'corpse', 'no-animation');
+  if (entityBox) entityBox.style.pointerEvents = '';
+
+  container.classList.remove('hb', 'dead', 'hbox');
+  const spriteImg = document.getElementById(`sprite_${entite.id}`);
+  spriteImg?.remove();
+
+  canvas?.remove();
+  canvas = document.createElement('canvas');
+  canvas.id = `spriteCanvas_${entite.id}`;
+  canvas.className = `dead-sprite ${entite.class} side-${entite.side} dead hbox`;
+  canvas.width = 603;
+  canvas.height = 328;
+  container.appendChild(canvas);
+
+  const context = canvas.getContext('2d');
+  const deadSprite = new Image();
+  deadSprite.onload = () => {
+    if (!canvas.isConnected || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(deadSprite, 0, 0, canvas.width, canvas.height);
+    forceDeadEntityOpacity(entite, entityBox, container, canvas);
+  };
+  deadSprite.src = entite.deadsprite || entite.DeadSprite || '/media/sprites/0-dead.png';
+
+  forceDeadEntityOpacity(entite, entityBox, container, canvas);
+
+  const animationSprite = document.getElementById(`Animationsprite_${entite.id}`);
+  animationSprite?.classList.add('dead');
+  animationSprite?.classList.remove('no-animation');
+
+  const spriteContainer = document.getElementById(`spriteContainer_${entite.id}`);
+  if (entite.side === 'B' && spriteContainer && !spriteContainer.style.transform) {
+    spriteContainer.style.transform = 'scaleX(-1)';
+  }
+
+  document.getElementById(`sbire_${entite.id}`)?.classList.remove('dead', 'hbox');
+  document.getElementById(`lord_${entite.id}`)?.classList.remove('dead', 'hbox');
+
+  let effectsContainer = document.getElementById(`effectsContainer_${entite.id}`);
+  if (!effectsContainer) {
+    const effectsHost = entityBox?.querySelector(':scope > .drag-box') || container;
+    effectsContainer = document.createElement('div');
+    effectsContainer.id = `effectsContainer_${entite.id}`;
+    effectsContainer.className = 'effects-container';
+    effectsHost.appendChild(effectsContainer);
+  }
+
+  if (playDeathBlood) {
+    document.getElementById(`bloodEffect_${entite.id}`)?.remove();
+    const bloodGif = document.createElement('img');
+    bloodGif.src = `/media/assets/effects/death-blood.gif?t=${Date.now()}`;
+    bloodGif.className = 'effect-vfx blood';
+    bloodGif.id = `bloodEffect_${entite.id}`;
+    effectsContainer.appendChild(bloodGif);
+    setTimeout(() => bloodGif.remove(), 1000);
+  }
+
+  return canvas;
+}
+
 export function createEntiteInDOM(entite) {
     // console.log('// EXEC createEntiteInDOM');
+
+    // Protection contre une position sauvegardée qui n'existe plus sur le
+    // board courant. Si la grille n'est pas encore générée (chargement initial),
+    // la même vérification sera rejouée juste avant positionnerEntites().
+    repairMissingEntityPosition(entite);
+
+    const entityStartsDead =
+      entite?.isDEAD === true ||
+      entite?.statut?.includes?.("dead") ||
+      Number(entite?.stats?.HP?.current ?? 0) <= 0;
+
+    if (entityStartsDead) {
+      entite.isDEAD = true;
+      entite.isSurprised = false;
+      entite.statut = ["dead"];
+      if (entite?.stats?.HP) entite.stats.HP.current = 0;
+      cleanupEntityAuras(entite);
+    }
 
     const entiteBox = document.createElement('div');
     entiteBox.id = `Box_Entite_${entite.id}`;
     entiteBox.className = `entite-box side-${entite.side} role-${entite.role}`;
-    entiteBox.setAttribute('data-position', `hex_${15 + entite.id - 2}`);
-    entiteBox.addEventListener('dragstart', event => event.dataTransfer.setData('text', entiteBox.id));
+    if (entityStartsDead) {
+      entiteBox.dataset.dead = 'true';
+    }
+    entiteBox.setAttribute( "data-position", entite.position || `hex_${15 + entite.id - 2}`);
+    // entiteBox.draggable = !entityStartsDead;
+    if (!entityStartsDead) {
+      entiteBox.addEventListener('dragstart', event => event.dataTransfer.setData('text', entiteBox.id));
+    }
     updateRoleInDOM(entite, entiteBox);
 
 	const castAnimation = document.createElement('div');
@@ -259,10 +448,13 @@ export function createEntiteInDOM(entite) {
 
     const dragBox = document.createElement('div');
     dragBox.className = 'drag-box';
-    dragBox.addEventListener('dragstart', event => {
-        event.dataTransfer.setData('text', entiteBox.id);
-        console.log('Started dragging:', entiteBox.id);
-    });
+    dragBox.draggable = !entityStartsDead;
+    if (!entityStartsDead) {
+      dragBox.addEventListener('dragstart', event => {
+          event.dataTransfer.setData('text', entiteBox.id);
+          console.log('Started dragging:', entiteBox.id);
+      });
+    }
 
    
     let entityDiv = document.createElement('div');
@@ -274,9 +466,6 @@ export function createEntiteInDOM(entite) {
     spriteContainer.id = `spriteContainer_${entite.id}`;
     spriteContainer.className = `sprite-container ${entite.side}`;
 
-if (entite.stats.hypercognition > 0) {
-    spriteContainer.classList.add("hypercognition-aura");
-}
 
     let effectsContainer = document.createElement('div');
     effectsContainer.id = `effectsContainer_${entite.id}`;
@@ -287,48 +476,49 @@ if (entite.stats.hypercognition > 0) {
     let imgSide = document.createElement('div');
     imgSide.id = `imgContainer_${entite.id}`
     imgSide.className = `img-container img-side-${entite.side} ${entite.type}`;
+    if (!entityStartsDead && entite.isSurprised === true) {
+      imgSide.classList.add('surprised');
+    }
     spriteContainer.appendChild(imgSide);
 
 
 // SPRITE ENTITE - Conteneur d'animation
 let spriteAnimation = document.createElement('div');
 spriteAnimation.id = `Animationsprite_${entite.id}`;
-spriteAnimation.className = `animation-sprite ${entite.class} side-${entite.side}`;
+spriteAnimation.className = entityStartsDead
+  ? `animation-sprite ${entite.class} side-${entite.side} dead`
+  : `animation-sprite ${entite.class} side-${entite.side}`;
 imgSide.appendChild(spriteAnimation);
 
 // Création de la div .sprite
 let spriteDiv = document.createElement('div');
 spriteDiv.className = `sprite side-${entite.side} ${entite.class} hb iddle`;
 spriteDiv.id = `DragSprite_${entite.id}`;
-spriteDiv.setAttribute('draggable', 'true'); // Rend la div draggable
+spriteDiv.setAttribute('draggable', entityStartsDead ? 'false' : 'true');
+if (entityStartsDead) spriteDiv.classList.remove('hb');
 
 // Aura Conteneur 
 let AuraContainer = document.createElement('div');
 AuraContainer.id = `auraContainer_${entite.id}`;
 AuraContainer.className = `aura-container side-${entite.side} ${entite.class}`;
 spriteAnimation.appendChild(AuraContainer);
-syncEntityAuras(entite, AuraContainer);
+
 
 // Création du canvas
 let canvas = document.createElement('canvas');
 canvas.id = `spriteCanvas_${entite.id}`;
-canvas.width = 500;
-canvas.height = 500;
-canvas.className = `sprite-canvas side-${entite.side} ${entite.class}`;
+canvas.width = entityStartsDead ? 603 : 500;
+canvas.height = entityStartsDead ? 328 : 500;
+canvas.className = entityStartsDead
+  ? `dead-sprite ${entite.class} side-${entite.side} dead hbox`
+  : `sprite-canvas side-${entite.side} ${entite.class}`;
 
 // Ajout du canvas dans la div .sprite
 spriteDiv.appendChild(canvas);
 
-// Ajout de la div .sprite dans #Animationsprite_
-setTimeout(() => {
-    let animSprite = document.getElementById(`Animationsprite_${entite.id}`);
-    if (animSprite) {
-        animSprite.appendChild(spriteDiv);
-        console.log("✅ Div .sprite ajoutée à Animationsprite_ avec le canvas :", canvas.id);
-    } else {
-        console.error("❌ Animationsprite_ introuvable !");
-    }
-}, 50);
+// Le canvas rejoint immédiatement l'arbre de l'entité. Aucun timer n'est
+// nécessaire : l'arbre complet sera connecté lorsque entiteBox rejoindra body.
+spriteAnimation.appendChild(spriteDiv);
 
 // Récupération du contexte du canvas
 let ctx = canvas.getContext('2d');
@@ -339,27 +529,101 @@ if (!ctx) {
 
 
 // Chargement du sprite et dessin
-let spriteEntite = new Image();
+const spriteEntite = new Image();
+let resolveSpriteReady;
+const spriteReady = new Promise((resolve) => {
+  resolveSpriteReady = resolve;
+});
 
-if (entite.stats.HP.current <= 0) {
-    spriteEntite.src = entite.deadsprite || "/media/sprites/0-dead.png";
+/*
+ * IMPORTANT :
+ * on installe les événements AVANT d'affecter src.
+ * Sinon une image déjà en cache peut charger
+ * avant l'enregistrement du onload.
+ */
+spriteEntite.onload = function () {
+  if (!ctx) {
+    resolveSpriteReady({ loaded: false, canvas, error: 'Contexte 2D indisponible' });
+    return;
+  }
 
-    // ✅ Ajout des classes si entité morte
-    canvas.classList.add('dead', 'hbox');
-    spriteDiv.classList.add('dead', 'hbox');
+  try {
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    ctx.drawImage(
+        spriteEntite,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+  } catch (error) {
+    console.error(`❌ Dessin du sprite impossible pour ${entite.id}`, error);
+    resolveSpriteReady({ loaded: false, canvas, error: error.message });
+    return;
+  }
+
+    /*
+     * La synchronisation des effets arrive uniquement
+     * après que le sprite réel a été dessiné.
+     */
+    if (!entityStartsDead) {
+      try {
+        syncEntityAuras(entite, AuraContainer);
+      } catch (error) {
+        // Une aura défaillante ne doit jamais annuler le dessin du sprite.
+        console.error(`❌ Synchronisation des auras impossible pour ${entite.id}`, error);
+      }
+    }
+
+    resolveSpriteReady({ loaded: true, canvas, image: spriteEntite });
+};
+
+spriteEntite.onerror = function () {
+    console.error(
+        "❌ Erreur chargement image :",
+        spriteEntite.src
+    );
+    resolveSpriteReady({
+      loaded: false,
+      canvas,
+      error: `Image inaccessible : ${spriteEntite.src}`
+    });
+};
+
+/*
+ * Détermination du sprite après installation du onload.
+ */
+const isDead = entityStartsDead;
+
+if (isDead) {
+    spriteEntite.src =
+        entite.deadsprite ||
+        entite.DeadSprite ||
+        "/media/sprites/0-dead.png";
 } else {
-    spriteEntite.src = entite.sprite;
+    canvas.classList.remove(
+        "dead",
+        "hbox"
+    );
+
+    spriteDiv.classList.remove(
+        "dead",
+        "hbox"
+    );
+
+    if (entite.sprite) {
+      spriteEntite.src = entite.sprite;
+    } else {
+      console.error(`❌ Sprite non défini pour l'entité ${entite.id}`);
+      resolveSpriteReady({ loaded: false, canvas, error: 'Sprite non défini' });
+    }
 }
-
-spriteEntite.onload = function() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(spriteEntite, 0, 0, canvas.width, canvas.height);
-};
-
-spriteEntite.onerror = function() {
-    console.error("❌ Erreur chargement image :", spriteEntite.src);
-};
-
 // SPRITE TARGET INFOS
  let TargetInfos = document.createElement('div');
  TargetInfos.id = `TargetInfos_${entite.id}`; 
@@ -387,6 +651,13 @@ spriteEntite.onerror = function() {
     let roleImgHud = document.createElement('div');
     roleImgHud.className = `role-img-hud ${entite.type}`;;
    	roleContainer.appendChild(roleImgHud);
+	
+const levelDiv = document.createElement("div");
+levelDiv.className = "entity-level hu";
+levelDiv.dataset.entityId = entite.id;
+levelDiv.textContent = `${entite.level?.current ?? entite.level ?? 1}`;
+
+hudIngame.appendChild(levelDiv);
 	
 // TARGET HUD	
 	let TargetroleContainer = document.createElement('div');
@@ -434,8 +705,12 @@ if (lifeBarsContainer) {
     statusBar.className = `status-bar ${entite.type}`;
     hudIngame.appendChild(statusBar);
 	
-    statusBar.appendChild(healthBarContainer);
+const movementCounter = createMovementCounter(entite);
+if (movementCounter) {
+  statusBar.appendChild(movementCounter);
+}
 
+statusBar.appendChild(healthBarContainer);
 	const atbUI = CreateATBEntity(entite);
 	statusBar.appendChild(atbUI);
 	
@@ -444,22 +719,12 @@ if (lifeBarsContainer) {
     entiteBox.appendChild(hudIngame);
     entiteBox.appendChild(dragBox);
     dragBox.appendChild(entityDiv);
-	
-setTimeout(() => {
-    let animSprite = document.getElementById(`Animationsprite_${entite.id}`);
-    if (animSprite) {
-        animSprite.appendChild(spriteDiv);
-
-        console.log("✅ Div .sprite ajoutée :", canvas.id);
-
-        // 🎇 FX PERSISTANTS – Hypercognition après création du sprite
-
-    } else {
-        console.error("❌ Animationsprite_ introuvable !");
-    }
-}, 50);
     document.body.appendChild(entiteBox);
-	    requestAnimationFrame(() => syncEntityAuras(entite, "battle"));
+    if (entityStartsDead) {
+      setTimeout(() => stabilizeDeadEntityVisual(entite, { playDeathBlood: false }), 60);
+    }
+
+    return { element: entiteBox, canvas, spriteReady };
 }
 
 export function createHeadUpInDom(entityId) {
@@ -1067,7 +1332,9 @@ function currentAttackTimers(entite, container) {
     const currentAttackImage = document.createElement('img');
     currentAttackImage.id = `currentAttackImage_${entite.id}`;
     currentAttackImage.className = 'attack-image';
-    currentAttackImage.src = attack?.attackAsset || '';
+    currentAttackImage.src = attack?.attackAsset
+    ? `${attack.attackAsset}-ld.jpg`
+    : '';
     currentAttackImage.alt = attack?.displayName || '';
     visualGroup.appendChild(currentAttackImage);
 
@@ -1139,399 +1406,328 @@ export function CreateATBEntity(entite) {
 
     return SpeedInterface; // On retourne l'élément DOM complet
 }
-// =========================
-// AURA SYSTEM (GENERIC)
-// 2 auras pour l’instant :
-// - Hypercognition (FX aléatoires en boucle)
-// - Life halos (eternal/extra/faded)
-// Appel unique : syncEntityAuras(entite, AuraContainer) ou syncEntityAuras(entite, "battle")
-// =========================
 
-function getSpriteBox(entite, auraContainer) {
-  // Codex: image
-  const codexRoot = auraContainer.closest(".codex-entity-scan") || auraContainer.parentElement;
-  const img = codexRoot?.querySelector("img.codex-scan-image");
+// ---------------------------------------------------------------------------
+// Création d'entités en cours de partie
+// ---------------------------------------------------------------------------
 
-  if (img) {
-    const r = img.getBoundingClientRect();
-    return { w: r.width || img.naturalWidth || 64, h: r.height || img.naturalHeight || 64 };
-  }
-
-  // Battle fallback: auraContainer est déjà overlay sur le sprite
-  const r = auraContainer.getBoundingClientRect();
-  return { w: r.width || 64, h: r.height || 64 };
-}
-// ---------- HELPERS ----------
-function isElement(node) {
-  return !!node && typeof node === "object" && node.nodeType === 1;
-}
-function resolveAuraContainer(entite, sourceOrContainer = "battle") {
-  // ✅ si on passe un container direct
-  if (isElement(sourceOrContainer)) {
-    // IMPORTANT : il lui faut un id stable
-    if (!sourceOrContainer.id) sourceOrContainer.id = `auraContainer_direct_${entite.id}`;
-    return sourceOrContainer;
-  }
-
-  // ✅ sinon on résout via id attendu
-  const id =
-    sourceOrContainer === "codex"
-      ? `auraContainer_codex_${entite.id}`
-      : `auraContainer_${entite.id}`;
-
-  return document.getElementById(id);
-}
-
-function getAuraContextKey(container) {
-  return container?.id || "aura"; // ✅ clé stable
-}
-
-// =========================
-// 1) HYPERCOGNITION (refactor : accepte container direct)
-// =========================
-const HYPERCOG = {
-  FX_DURATION: 2000,
-  FX_BASE_INTERVAL: 2000,
-  FX_VARIATION: 0.10,
-  FX_PATHS: [
-    "/media/assets/effects/hypercognition-01.gif",
-    "/media/assets/effects/hypercognition-02.gif",
-    "/media/assets/effects/hypercognition-03.gif"
-  ]
+const cloneEntityForSpawn = (entity) => {
+  if (typeof structuredClone === 'function') return structuredClone(entity);
+  return JSON.parse(JSON.stringify(entity));
 };
 
-function variationPercent(base, percent) {
-  const min = base * (1 - percent);
-  const max = base * (1 + percent);
-  return Math.random() * (max - min) + min;
+const sideToHexClass = (side) => (side === 'A' ? 'SideA' : 'SideB');
+
+function normalizeEntityRoles(role) {
+  const roles = Array.isArray(role) ? role : [role];
+
+  return roles
+    .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+    .filter(Boolean);
 }
 
-function ensureHypercognitionLayer(entite, container, ctxKey) {
-  const layerKey = `_auraLayer_hypercognition_${ctxKey}`;
-  let layer = entite[layerKey];
-
-  // 1) si le cache pointe vers un node mort, on invalide
-  if (layer && !container.contains(layer)) layer = null;
-
-  // 2) adoption DOM : si une layer existe déjà, on la réutilise
-  if (!layer) {
-    const layers = container.querySelectorAll(":scope > .aura-fx.hypercognition");
-    if (layers.length) {
-      layer = layers[0];
-      // cleanup sécurité : supprime d'éventuels doublons
-      for (let i = 1; i < layers.length; i++) layers[i].remove();
-    }
-  }
-
-  // 3) création seulement si aucune layer n'existe
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.className = "aura-fx hypercognition";
-    container.appendChild(layer);
-  }
-
-  entite[layerKey] = layer;
-  return layer;
+function getCurrentBoardHexes() {
+  return [...document.querySelectorAll('#hexGrid .hex[data-position]')];
 }
 
-function stopHypercognition(entite, ctxKey) {
-  const timeoutKey = `_hypercognitionTimeout_${ctxKey}`;
-  if (entite[timeoutKey]) {
-    clearTimeout(entite[timeoutKey]);
-    entite[timeoutKey] = null;
-  }
+function getReservedEntityPositions(excludedEntityId, hexes) {
+  const validBoardPositions = new Set(hexes.map((hex) => hex.dataset.position));
 
-  const layerKey = `_auraLayer_hypercognition_${ctxKey}`;
-  const layer = entite[layerKey];
-  if (layer) {
-    layer.remove();
-    entite[layerKey] = null;
-  }
+  return new Set(
+    entites
+      .filter((item) => String(item?.id) !== String(excludedEntityId))
+      .map((item) => String(item?.position ?? ''))
+      .filter((position) => validBoardPositions.has(position))
+  );
 }
 
-function startHypercognition(entite, container, ctxKey) {
-  const timeoutKey = `_hypercognitionTimeout_${ctxKey}`;
+/**
+ * Recherche la case de repli d'une entité dont la position sauvegardée
+ * n'existe plus.
+ *
+ * Priorité stricte :
+ * 1. case libre du même side correspondant à l'un des rôles de l'entité ;
+ * 2. case libre "neutre" du même side.
+ *
+ * La zone centrale `.Neutral` n'est volontairement pas utilisée ici.
+ */
+function findFallbackHexForEntity(entite, hexes, reservedPositions) {
+  if (!entite || (entite.side !== 'A' && entite.side !== 'B')) return null;
 
-  // déjà actif
-  if (entite[timeoutKey]) return;
-
-  const layer = ensureHypercognitionLayer(entite, container, ctxKey);
-
-  function spawnFx() {
-    const fx = document.createElement("img");
-    const chosenFx = HYPERCOG.FX_PATHS[Math.floor(Math.random() * HYPERCOG.FX_PATHS.length)];
-
-    fx.src = `${chosenFx}?t=${performance.now()}`;
-    fx.className = "hypercognition-aura-fx";
-    fx.style.position = "absolute";
-    fx.style.pointerEvents = "none";
-    fx.style.width = "64px";
-    fx.style.height = "64px";
-
-    const rect = layer.getBoundingClientRect();
-    fx.style.left = Math.random() * rect.width + "px";
-    fx.style.top  = Math.random() * rect.height + "px";
-
-    const rotation = Math.random() * 360;
-    const scale = 0.5 + Math.random() * 0.5;
-    fx.style.transform = `rotate(${rotation}deg) scale(${scale})`;
-
-    layer.appendChild(fx);
-    setTimeout(() => fx.remove(), HYPERCOG.FX_DURATION);
-  }
-
-  function loopSpawn() {
-    // stop si container/layer n’existent plus
-    if (!document.body.contains(container) || !document.body.contains(layer)) {
-      stopHypercognition(entite, ctxKey);
-      return;
-    }
-
-    spawnFx();
-
-    const nextDelay = variationPercent(HYPERCOG.FX_BASE_INTERVAL, HYPERCOG.FX_VARIATION);
-    entite[timeoutKey] = setTimeout(loopSpawn, nextDelay);
-  }
-
-  loopSpawn();
-}
-
-function syncHypercognitionAura(entite, container, ctxKey) {
-  const points = Number(entite?.stats?.hypercognition ?? 0) || 0;
-  if (points > 0) startHypercognition(entite, container, ctxKey);
-  else stopHypercognition(entite, ctxKey);
-}
-
-
-// =========================
-// 2) LIFE HALOS (ton système actuel, rendu idempotent + cleanup root si vide)
-// =========================
-const LIFE_AURA_MAP = {
-  eternalLife: { icon:"/media/assets/effects/picto-aura-eternallife.svg", sizeR:0.55, offsetR:0.00, ampR:0.05, floatDur:1800, z:7 },
-  extraLife:   { icon:"/media/assets/effects/picto-aura-extralife.svg",   sizeR:0.45, offsetR:0.06, ampR:0.045,floatDur:1900, z:6 },
-  fadedLife:   { icon:"/media/assets/effects/picto-aura-fadedlife.svg",   sizeR:0.35, offsetR:0.12, ampR:0.04, floatDur:2000, z:5 }
-};
-
-
-function getSpriteBoxFromAuraContainer(entite, auraContainer) {
-  const dragEl  = document.getElementById(`DragSprite_${entite?.id}`);
-  const codexEl = document.getElementById(`codex-image_${entite?.id}`);
-  const el = dragEl || codexEl;
-
-  if (el) {
-    const r = el.getBoundingClientRect();
-    const img = el.tagName === "IMG" ? el : el.querySelector?.("img");
-    return {
-      w: r.width || img?.naturalWidth || 64,
-      h: r.height || img?.naturalHeight || 64
-    };
-  }
-
-  const codexRoot = auraContainer.closest(".codex-entity-scan") || auraContainer.parentElement;
-  const img = codexRoot?.querySelector("img.codex-scan-image");
-  if (img) {
-    const r = img.getBoundingClientRect();
-    return { w: r.width || img.naturalWidth || 64, h: r.height || img.naturalHeight || 64 };
-  }
-
-  const r = auraContainer.getBoundingClientRect();
-  return { w: r.width || 64, h: r.height || 64 };
-}
-
-function ensureLifeAuraStyles() {
-  if (document.getElementById("lifeAuraStyles")) return;
-
-  const style = document.createElement("style");
-  style.id = "lifeAuraStyles";
-  style.textContent = `
-    .life-aura-wrap { position:absolute; left:50%; top:0; pointer-events:none; }
-    .life-aura-img  { display:block; width:100%; height:100%; pointer-events:none; }
-
-    @keyframes lifeAuraFloat {
-      0%   { transform: translateY(0px); }
-      50%  { transform: translateY(calc(-1 * var(--amp))); }
-      100% { transform: translateY(0px); }
-    }
-
-    .life-aura-img {
-      animation-name: lifeAuraFloat;
-      animation-timing-function: ease-in-out;
-      animation-iteration-count: infinite;
-      will-change: transform;
-    }
-  `;
-  document.head.appendChild(style);
-}
-const LIFE_AURA_ORDER = ["fadedLife", "extraLife", "eternalLife"];
-const AURA_REF_BASE = 120;      // taille “référence” (px)
-const AURA_INV_EXP  = 1.15;     // >1 => plus c’est grand, plus ça rétrécit
-const AURA_MIN_F    = 0.45;     // clamp
-const AURA_MAX_F    = 1.35;
-
-function getInverseAuraScale(base) {
-  const f = Math.pow(AURA_REF_BASE / Math.max(1, base), AURA_INV_EXP);
-  return Math.min(AURA_MAX_F, Math.max(AURA_MIN_F, f));
-}
-
-function getOrInitLifeAuraBase(entite, container, ctxKey) {
-  const baseKey = `_lifeAuraBase_${ctxKey}`;
-
-  // ✅ Base figée : si déjà définie, on ne la recalcule jamais
-  const existing = entite[baseKey];
-  if (Number.isFinite(existing) && existing > 0) return existing;
-
-  const { w, h } = getSpriteBoxFromAuraContainer(entite, container);
-  const base = Math.max(w, h) || 64;
-  entite[baseKey] = base;
-  return base;
-}
-function updateLifeAurasInContainer(entite, container, ctxKey) {
-  ensureLifeAuraStyles();
-
-  const isNode = (v) => !!v && typeof v === "object" && typeof v.nodeType === "number";
-  const isEl   = (v) => isNode(v) && v.nodeType === 1;
-
-  // Si container n’est pas un Element, on ne peut rien faire proprement
-  if (!isEl(container)) return;
-
-  const rootKey = `_lifeAurasRoot_${ctxKey}`;
-
-  const activeKeys = LIFE_AURA_ORDER.filter(
-    (k) => getPoolCurrent(entite?.stats?.[k]) > 0
+  const sideClass = sideToHexClass(entite.side);
+  const availableSideHexes = hexes.filter((hex) =>
+    hex.classList.contains(sideClass) &&
+    !hex.classList.contains('occupied') &&
+    !reservedPositions.has(hex.dataset.position)
   );
 
-  // Rien d’actif => cleanup
-  if (activeKeys.length === 0) {
-    const root = entite[rootKey];
-    if (isEl(root)) root.remove();
-    entite[rootKey] = null;
+  const roles = normalizeEntityRoles(entite.role);
 
-    for (const k of Object.keys(LIFE_AURA_MAP)) {
-      const elKey = `_lifeAuraEl_${k}_${ctxKey}`;
-      const node = entite[elKey];
-      if (isEl(node)) node.remove();
-      entite[elKey] = null;
-    }
-    return;
+  // Ex.: role: ["tank"] => .hex.SideA[data-role="tank"] / SideB.
+  for (const role of roles) {
+    const roleHex = availableSideHexes.find((hex) => hex.dataset.role === role);
+    if (roleHex) return roleHex;
   }
 
-  let root = entite[rootKey];
-  let dirtyOrder = false;
+  return availableSideHexes.find((hex) => hex.dataset.role === 'neutre') ?? null;
+}
 
-  // Purge si root n’est pas un vrai Element (ou s’il n’est plus sous container)
-  if (!isEl(root) || root.parentNode !== container) {
-    root = null;
-    entite[rootKey] = null;
+/**
+ * Corrige uniquement le cas où la position de l'entité n'existe plus sur le
+ * board. Une position encore existante n'est jamais remplacée ici.
+ */
+function repairMissingEntityPosition(entite, {
+  hexes = getCurrentBoardHexes(),
+  reservedPositions = null
+} = {}) {
+  if (!entite || hexes.length === 0) {
+    return { changed: false, hex: null, reason: 'grid-not-ready' };
   }
 
-  if (!root) {
-    const roots = container.querySelectorAll(":scope > .aura-fx.life-sup");
-    if (roots.length) {
-      root = roots[0];
-      for (let i = 1; i < roots.length; i++) roots[i].remove();
-      dirtyOrder = true;
-    } else {
-      root = document.createElement("div");
-      root.className = "aura-fx life-sup";
-      container.appendChild(root);
-      dirtyOrder = true;
-    }
-    entite[rootKey] = root;
+  const currentPosition = String(entite.position ?? '');
+  const currentHex = hexes.find((hex) => hex.dataset.position === currentPosition);
+
+  if (currentHex) {
+    return { changed: false, hex: currentHex, reason: 'position-valid' };
   }
 
-  const base = getOrInitLifeAuraBase(entite, container, ctxKey);
-  const inv = getInverseAuraScale(base);
+  const reservations = reservedPositions ?? getReservedEntityPositions(entite.id, hexes);
+  const fallbackHex = findFallbackHexForEntity(entite, hexes, reservations);
 
-  for (const key of LIFE_AURA_ORDER) {
-    const cfg = LIFE_AURA_MAP[key];
-    const cur = getPoolCurrent(entite?.stats?.[key]);
-
-    const elKey = `_lifeAuraEl_${key}_${ctxKey}`;
-    let existingAnim = entite[elKey];
-
-    // Purge si la “référence” n’est pas un Element
-    if (existingAnim && !isEl(existingAnim)) {
-      entite[elKey] = null;
-      existingAnim = null;
-      dirtyOrder = true;
-    }
-
-    if (cur <= 0) {
-      if (existingAnim) {
-        existingAnim.remove();
-        entite[elKey] = null;
-        dirtyOrder = true;
-      }
-      continue;
-    }
-
-    // Déjà créée => rattache si nécessaire
-    if (existingAnim) {
-      if (existingAnim.parentNode !== root) {
-        root.appendChild(existingAnim);
-        dirtyOrder = true;
-      }
-      continue;
-    }
-
-    // Adoption DOM si déjà présent
-    const domExisting = root.querySelector(`.life-aura-anim.anim-${key}`);
-    if (domExisting) {
-      entite[elKey] = domExisting;
-      continue;
-    }
-
-    // Création
-    const sizePx   = Math.round(base * (cfg.sizeR ?? 0.5)   * inv);
-    const offsetPx = Math.round(base * (cfg.offsetR ?? 0.0) * inv);
-    const ampPx    = Math.max(2, Math.round(base * (cfg.ampR ?? 0.05) * inv));
-
-    const anim = document.createElement("div");
-    anim.className = `life-aura-anim anim-${key}`;
-
-    const wrap = document.createElement("div");
-    wrap.className = `life-aura-wrap life-aura-wrap--${key}`;
-    wrap.style.transform = `translate(-50%, -45%) translateY(${offsetPx}px)`;
-    wrap.style.zIndex = String(cfg.z ?? 5);
-
-    const img = document.createElement("img");
-    img.className = `life-aura-img life-aura-img--${key}`;
-    img.src = `${cfg.icon}?t=${performance.now()}`;
-    img.style.width = `${sizePx}px`;
-    img.style.height = `${sizePx}px`;
-    img.style.setProperty("--amp", `${ampPx}px`);
-    img.style.animationDuration = `${cfg.floatDur ?? 2000}ms`;
-
-    wrap.appendChild(img);
-    anim.appendChild(wrap);
-    root.appendChild(anim);
-
-    entite[elKey] = anim;
-    dirtyOrder = true;
+  if (!fallbackHex) {
+    console.warn(
+      `[EntityPositionGuard] Aucune hex libre de repli pour l'entité ${entite.id} ` +
+      `(side ${entite.side}, position absente: ${currentPosition || 'indéfinie'}).`
+    );
+    return { changed: false, hex: null, reason: 'no-fallback' };
   }
 
-  // Ré-ordonnancement : appendChild suffit (et évite contains)
-  if (dirtyOrder) {
-    for (const key of LIFE_AURA_ORDER) {
-      const elKey = `_lifeAuraEl_${key}_${ctxKey}`;
-      const node = entite[elKey];
-      if (isEl(node)) root.appendChild(node);
+  const previousPosition = currentPosition || 'indéfinie';
+  entite.position = fallbackHex.dataset.position;
+  reservations.add(entite.position);
+
+  const entiteBox = document.getElementById(`Box_Entite_${entite.id}`);
+  if (entiteBox) {
+    entiteBox.dataset.position = entite.position;
+  }
+
+  const roles = normalizeEntityRoles(entite.role);
+  console.warn(
+    `[EntityPositionGuard] Entité ${entite.id}: ${previousPosition} n'existe plus. ` +
+    `Repositionnement sur ${entite.position} (${entite.side}, ` +
+    `${roles.length ? `rôle ${roles.join('/')}` : 'sans rôle'}).`
+  );
+
+  return { changed: true, hex: fallbackHex, reason: 'repositioned' };
+}
+
+/**
+ * Appelé par board.js quand toutes les hex viennent d'être créées, mais avant
+ * positionnerEntites(). Les positions encore valides sont réservées en premier
+ * afin qu'une entité à réparer ne prenne pas la future case d'une autre entité.
+ */
+function repairMissingEntityPositionsBeforePlacement() {
+  const hexes = getCurrentBoardHexes();
+  if (hexes.length === 0) return;
+
+  const validBoardPositions = new Set(hexes.map((hex) => hex.dataset.position));
+  const reservedPositions = new Set();
+
+  for (const entite of entites) {
+    const position = String(entite?.position ?? '');
+    if (validBoardPositions.has(position)) {
+      reservedPositions.add(position);
     }
+  }
+
+  for (const entite of entites) {
+    const position = String(entite?.position ?? '');
+    if (validBoardPositions.has(position)) continue;
+
+    repairMissingEntityPosition(entite, { hexes, reservedPositions });
   }
 }
 
+document.addEventListener(
+  'hexGridReadyForEntityPlacement',
+  repairMissingEntityPositionsBeforePlacement
+);
 
-// =========================
-// ✅ FONCTION GÉNÉRALE UNIQUE
-// =========================
-export function syncEntityAuras(entite, sourceOrContainer = "battle") {
-  if (!entite?.stats) return;
+function prepareSpawnHexForSide(hex, side) {
+  if (!hex) return;
+  hex.classList.remove('SideA', 'SideB');
+  hex.classList.add(sideToHexClass(side));
+  hex.dataset.side = side;
+}
 
-  const container = resolveAuraContainer(entite, sourceOrContainer);
-  if (!container) return;
+function findAvailableSpawnPosition(side) {
+  const sideClass = sideToHexClass(side);
+  const hex =
+    document.querySelector(`.hex.${sideClass}:not(.occupied)`) ||
+    document.querySelector('.hex.Neutral:not(.occupied)') ||
+    document.querySelector('.hex:not(.occupied)');
 
-  const ctxKey = getAuraContextKey(container); // ✅ toujours container.id
+  return hex?.dataset.position ?? null;
+}
 
-  syncHypercognitionAura(entite, container, ctxKey);
-  updateLifeAurasInContainer(entite, container, ctxKey);
+function normalizeSpawnResources(entity) {
+  entity.stats ??= {};
+
+  if (typeof entity.stats.HP === 'number') {
+    entity.stats.HP = { current: entity.stats.HP, max: entity.stats.HP };
+  } else if (!entity.stats.HP || typeof entity.stats.HP !== 'object') {
+    entity.stats.HP = { current: 1, max: 1 };
+  } else {
+    entity.stats.HP.current = entity.stats.HP.max;
+  }
+
+  if (typeof entity.stats.extraLife === 'number') {
+    entity.stats.extraLife = {
+      current: entity.stats.extraLife,
+      max: entity.stats.extraLife
+    };
+  } else if (typeof entity.stats.extraLife === 'undefined') {
+    entity.stats.extraLife = { current: 0, max: 0 };
+  } else if (
+    !entity.stats.extraLife ||
+    !('current' in entity.stats.extraLife) ||
+    !('max' in entity.stats.extraLife)
+  ) {
+    throw new Error(`extraLife mal défini pour l'entité ${entity.id}`);
+  }
+}
+
+function showSpawnBoardFullAlert() {
+  if (document.querySelector('.Game-UI .IngameAlert')) return;
+
+  const gameUI = document.querySelector('.Game-UI');
+  if (!gameUI) return;
+
+  const alert = document.createElement('div');
+  alert.className = 'IngameAlert';
+  alert.textContent = 'Plus de places disponibles sur le board !';
+  gameUI.appendChild(alert);
+  setTimeout(() => alert.remove(), 3000);
+}
+
+/**
+ * Insère dans le jeu une entité déjà préparée.
+ * Le pipeline reprend l'ordre utilisé par ArmyBFactory.
+ */
+export async function spawnEntiteIngame(entity) {
+  if (!entity) throw new Error('Aucune entité fournie.');
+
+  entity.id ||= generateUniqueID();
+
+  if (entites.some((item) => String(item.id) === String(entity.id))) {
+    throw new Error(`L'entité ${entity.id} existe déjà.`);
+  }
+  if (!entity.position) {
+    throw new Error(`Position indéfinie pour l'entité ${entity.id}.`);
+  }
+
+  normalizeSpawnResources(entity);
+  determineClasse(entity);
+  TraitementRolesSbires(entity);
+  const domSpawn = createEntiteInDOM(entity);
+  updateGlobalRoleSbire(entity);
+  observeRoleChanges(entity);
+  toggleScanEntityListener();
+
+  const element = domSpawn?.element || document.getElementById(`Box_Entite_${entity.id}`);
+  if (!element) {
+    throw new Error(`Élément DOM introuvable pour l'entité ${entity.id}.`);
+  }
+
+  if (domSpawn?.spriteReady) {
+    const spriteResult = await Promise.race([
+      domSpawn.spriteReady,
+      new Promise((resolve) => setTimeout(
+        () => resolve({ loaded: false, error: 'Délai de chargement dépassé' }),
+        10000
+      ))
+    ]);
+
+    if (!spriteResult?.loaded) {
+      element.remove();
+      throw new Error(
+        `Sprite non chargé pour l'entité ${entity.id} : ${spriteResult?.error || 'erreur inconnue'}`
+      );
+    }
+  }
+
+  entites.push(entity);
+  positionnerEntites(entity);
+
+  const targetHex = element.closest('.hex');
+  if (!targetHex) {
+    const entityIndex = entites.findIndex((item) => item.id === entity.id);
+    if (entityIndex !== -1) entites.splice(entityIndex, 1);
+    element.remove();
+    showSpawnBoardFullAlert();
+    throw new Error(`Aucune case disponible pour l'entité ${entity.id}.`);
+  }
+
+  targetHex.classList.add('occupied');
+  targetHex.dataset.occupiedBy = entity.id;
+
+  const socle = targetHex.querySelector('.socle');
+  if (socle) socle.style.opacity = '1';
+
+  const extraLife = document.getElementById(`extraLife_${entity.id}`);
+  if (extraLife && entity.stats.extraLife.max === 0) {
+    extraLife.style.display = 'none';
+  }
+
+  return entity;
+}
+
+/**
+ * API commune au drag-and-drop et aux déclencheurs automatiques.
+ */
+export async function createEntityIngame(entityBase, {
+  side,
+  position = null,
+  level = null
+} = {}) {
+  if (!entityBase) throw new Error('Le modèle d’entité est obligatoire.');
+  if (side !== 'A' && side !== 'B') throw new Error('Le side doit être A ou B.');
+
+  const entity = cloneEntityForSpawn(entityBase);
+  entity.id = generateUniqueID();
+  entity.side = side;
+  entity.position = position ?? findAvailableSpawnPosition(side);
+
+  // Conserve la structure level originale utilisée par le rendu des entités.
+  if (level !== null) {
+    if (entity.level && typeof entity.level === 'object') {
+      entity.level.current = level;
+    } else {
+      entity.level = { current: level };
+    }
+  }
+
+  if (!entity.position) {
+    showSpawnBoardFullAlert();
+    throw new Error(`Aucune position disponible pour le side ${side}.`);
+  }
+
+  entity.position = String(entity.position);
+  let hex = [...document.querySelectorAll('.hex[data-position]')]
+    .find((item) => item.dataset.position === entity.position);
+
+  // Une position explicitement fournie peut provenir d'un état sauvegardé
+  // construit avec une grille plus grande. On applique le même garde-fou.
+  if (!hex) {
+    const repairedPosition = repairMissingEntityPosition(entity);
+    hex = repairedPosition.hex;
+  }
+
+  if (!hex) throw new Error(`La case ${entity.position} n'existe pas et aucune case de repli n'est disponible.`);
+  if (hex.classList.contains('occupied')) {
+    throw new Error(`La case ${entity.position} est déjà occupée.`);
+  }
+
+  prepareSpawnHexForSide(hex, side);
+  return spawnEntiteIngame(enrichEntityStats(entity));
 }

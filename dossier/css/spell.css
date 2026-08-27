@@ -30,6 +30,124 @@
     50% { transform: scale(1.2); }
     53% { transform: scale(1); }
 }
+.sbire-projectile{
+  width: 10px;
+  height: 10px;
+    background-color: red;
+   box-shadow: 0 0 4px 1px #F00;
+  border-radius: 50%;
+}
+
+.lord-projectile{
+  width: 13px;
+  height: 13px;
+ box-shadow: 0 0 7px 4px #8B00FF;
+	background-color: black;
+  border-radius: 50%;
+}
+
+.projectile-parent{overflow: visible;
+  width: 10px;
+  height: 10px;}
+  .projectile-parent.profanation-fx{
+  filter: drop-shadow(0px 0 10px #F00);}
+  .projectile.profanation-fx{background-color: inherit;
+  background-color: none;
+  background-repeat: no-repeat;
+  background-image: url('/media/assets/projectiles/projectile-profanation.gif');
+  border-radius: 0%;
+  width: 90px;
+  height: 90px;
+  background-size: 90px;
+  box-shadow: none;
+  animation: Profanationpulse 0.5s infinite ease-in-out;
+  top: -400%;
+  position: absolute;
+  left: -150%;
+}	
+.projectile.deadshot-fx{
+background-color: inherit;
+  background-color: none;
+  background-repeat: no-repeat;
+  background-image: url('/media/assets/projectiles/projectile-deadshot.png');
+  border-radius: 0%;
+
+  background-size: 150px;
+  box-shadow: none;
+  top: -400%;
+  position: absolute;
+  left: -150%;
+}
+.projectile.jarret-fx{background-color: inherit;
+  background-color: none;
+  background-repeat: no-repeat;
+  background-image: url('/media/assets/projectiles/projectile-jarret.png');
+  border-radius: 0%;
+width: 40px;
+  height: 40px;
+  background-size: 40px;
+  box-shadow: none;
+  animation: Consommablepulse 1s infinite ease-in-out, spin 0.7s linear infinite;
+  top: -400%;
+  position: absolute;
+  left: -150%;
+}
+.projectile.jarret-fx{background-color: inherit;
+  background-color: none;
+  background-repeat: no-repeat;
+  background-image: url('/media/assets/projectiles/projectile-jarret.png');
+  border-radius: 0%;
+width: 40px;
+  height: 40px;
+  background-size: 40px;
+  box-shadow: none;
+  animation: Consommablepulse 1s infinite ease-in-out, spin 0.7s linear infinite;
+  top: -400%;
+  position: absolute;
+  left: -150%;
+}	
+.projectile.poison-fx {
+    filter: drop-shadow(0px 0px 2mm #76ff04);
+	background-color:#026800;
+}
+				
+.projectile.brulure-fx {
+    filter: drop-shadow(0px 0px 2mm #f00); /* Ombre existante */
+	background-color:#740000;
+}
+.projectile.heal-fx{
+background-color: #cdfdff;
+  filter: drop-shadow(0px 0px 10mm #0ff);
+}
+.projectile.rez-fx{
+background-color: #white;
+  filter: drop-shadow(0px 0px 10mm #ccfff3);
+}
+.effects-container{z-index: 100;
+  max-width: 100%;
+  position: absolute;
+  top: -12px;pointer-events: none;height: 100%;
+  width: 100%;}
+
+.projectile-impacte.jarret-fx{background-image: url('/media/assets/projectiles/impact-jarret.gif');
+  width: 120px;
+  height: 120px;
+  background-size: 120px;
+  display: flex;
+  justify-content: center;margin-top: -15px;
+  background-position: center;filter: drop-shadow(0px 0 10px #A2A2A2BF);pointer-events:none;
+  
+}	
+.projectile-impacte.profanation-fx{background-image: url('/media/assets/projectiles/impact-profanation.gif');
+  width: 230px;
+  height: 230px;
+  background-size: 230px;pointer-events:none;
+  display: flex;
+  justify-content: center;margin-top: -45px;
+  background-position: center;filter: drop-shadow(0px 0 10px #F00);
+}	
+
+
 .cast-animation-container{top: -10px;
   position: absolute;
   left: -15px;
@@ -56,6 +174,10 @@
 .armorImpactGif { transform: translateY(60%); }
 .effect-vfx.astrality{width: 45px;
 filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));}
+.blood-impact.damage-explode{width: 135px;
+  height: 135px;
+  transform: initial;
+  top: 60px;}
 .blood-impact.fx-3{transform: translate(-65px,40px);}
 .blood-impact{opacity: 1;
   position: absolute;
@@ -73,6 +195,8 @@ filter: drop-shadow(0 0 4px rgba(0,0,0,0.8));}
   filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.30));}
 .effect-vfx.bloodfuryexec{width: 95px;
   top: -100px;
+  filter: drop-shadow(0 0 5px rgba(255, 0, 0, 1)); animation:
+   
   }
 .effect-vfx.ambidextry{z-index: 20;
   height: 91px;
@@ -168,3 +292,124 @@ filter: drop-shadow(0 0 5px rgba(235, 237, 255, 0.30));}
   .effect-vfx.esoterism{position: absolute;
   width: 60px;
  filter: drop-shadow(0 0 10px rgba(255, 184, 227, 0.8));}
+ 
+.effect-vfx.mysticism{position: absolute;
+  width: 150px;
+  height: 150px;
+  filter: drop-shadow(0 0 10px rgba(192, 250, 255));
+ top:45px;
+  opacity:1;
+   -webkit-mask-image: linear-gradient( to top, transparent 0%, black 10%,  black 100% );
+  mask-image: linear-gradient( to top, transparent 0%, black 10%, black 100% );
+   transform: translate(-50%, -50%);
+  transform-origin: bottom center;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.effect-vfx.mysticism.mysticism-pop {
+  animation: mysticismScaleIn 500ms ease-out forwards;
+}
+
+.effect-vfx.mysticism.mysticism-fade-out {
+  animation: mysticismFadeOut 350ms ease-in forwards;
+}
+.projectile.mysticism-aura {
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 1),
+    0 0 18px rgba(210, 235, 255, 0.95),
+    0 0 34px rgba(150, 205, 255, 0.85);
+  animation: mysticismProjectileAura 0.45s ease-in-out infinite alternate;
+}
+
+.projectile-parent.mysticism-projectile::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255,255,255,0.95) 0%,
+    rgba(210,235,255,0.65) 35%,
+    rgba(120,180,255,0.25) 65%,
+    rgba(120,180,255,0) 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+  animation: mysticismProjectileHalo 0.55s ease-in-out infinite alternate;
+}
+
+@keyframes mysticismProjectileAura {
+  from {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  to {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+}
+
+@keyframes mysticismProjectileHalo {
+  from {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.65;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 1;
+  }
+}
+@keyframes mysticismBarBlink {
+  0% {
+    filter: brightness(1);
+    background-position: 0% 50%;
+  }
+
+  50% {
+    filter: brightness(2);
+    background-position: 100% 50%;
+  }
+
+  100% {
+    filter: brightness(1);
+    background-position: 0% 50%;
+  }
+}
+.effect-vfx.mysticism-attack {
+left: 100%;
+  top: 50%;
+  width: 60px;
+  height: 150px;
+  object-fit: contain;
+  transform: translate(-50%, -5%);
+  z-index: 35; filter: drop-shadow(0 0 10px rgba(192, 250, 255));
+}
+
+.effect-vfx.mysticism-attack.side-b {
+  transform: translate(-250%, -5%) scaleX(-1);
+}
+.effect-vfx.balance-strike {
+height: 85px;
+top: -100px;
+filter: drop-shadow(0 0 10px rgba(226, 189, 255));}
+
+.bloodCrazy-aura-fx {
+  filter:
+    hue-rotate(70deg)
+    saturate(3)
+   
+    contrast(1.5)
+    drop-shadow(0 0 6px #ff0000);
+  mix-blend-mode: screen;
+}
+.current-shift.current.bounce-shift {
+  display: inline-block;
+  animation: bounceOnce 0.5s ease;
+  filter: drop-shadow(0 0 6px #ff9100);
+  color:#ff9100;
+}

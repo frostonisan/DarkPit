@@ -77,14 +77,15 @@
 }
 @keyframes chestpulse {
   0% {
-    transform: scale(1.3);filter: drop-shadow(0px 0 8px #ffd800)
+    transform: scale(1.2);filter: drop-shadow(0px 0 8px #ffd800)
   }
   25% {
-    transform: scale(1.5);filter: drop-shadow(0px 0 28px #ffd800)
+    transform: scale(1.3);filter: drop-shadow(0px 0 28px #ffd800)
   }
   100% {
-    transform: scale(1.3);filter: drop-shadow(0px 0 8px #ffd800)
+    transform: scale(1.2);filter: drop-shadow(0px 0 8px #ffd800)
 }}
+
 @keyframes bounce-in-top {
   0% {
     transform: translateY(-800px);
@@ -148,8 +149,8 @@
        transform-origin: center; /* Centrer la transformation */
     }
     
-    20% {
-        transform: translateY(0px) scale(2); /* Léger rebond vers le bas */
+    30% {
+        transform: translateY(0px) scale(1.5); /* Léger rebond vers le bas */
      
     }
  }
@@ -220,17 +221,15 @@
 @keyframes DotTextUp {
      0% {
         opacity: 1;
-        transform: translateY(0px);
-		 font-size: 14px;
+        transform: translateY(0px) scale(1.5);
+
   }  30% {
         opacity: 1;
-		 font-size: 13px;
-        transform: translateY(0px); /* L'élément monte de 30 pixels avant de disparaître */
+		transform: translateY(0px) scale(1.2);
     }
     100% {
         opacity: 0;
-       font-size: 12px;
-	        transform: translateY(-4px); /* L'élément monte de 30 pixels avant de disparaître */
+      transform: translateY(-4px) scale(1);
     }
 }
 
@@ -253,6 +252,28 @@
     }
 }
 
+@keyframes critPopFloat {
+  0% {
+    transform: translateY(0) scale(1);
+    }
+    10% {
+    transform: translateY(0) scale(2.2);
+    }
+
+    20% {
+    transform: translateY(0) scale(1);
+    }
+
+  65% {
+    transform: translateY(-10) ;
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-20px) scale(0.8);
+    opacity: 0;
+  }
+}
 @keyframes floatUpLeft {
      0% {
 	font-size: 1.1em;
@@ -342,6 +363,63 @@
     100% {
     transform: scale(0.9);
   }
+}
+@keyframes Zoof {
+  0% {
+    transform: translateX(-150%) scale(0.7);
+    opacity: 0;
+  } 12% {
+    transform: translateX(-20%);
+    opacity: 1;
+  } 85% {
+    transform: translateX(5%) scale(1.1);
+    opacity: 1;
+  }  100% {
+    transform: translateX(40%) scale(1.2);
+    opacity: 0;
+  }
+}
+@keyframes glitterLootFloat {
+  0% {
+    transform:
+      translate3d(0, 20px, 0)
+      rotate(0deg)
+      scale(0.4);
+    opacity: 0;
+  }
+  5% {
+    opacity: 0.2;
+  }
+  25% {
+    opacity: 0.7;
+  }
+
+  70% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform:
+      translate3d(
+        var(--move-x),
+        calc(var(--move-y) * -1),
+        0
+      )
+      rotate(var(--rotation))
+      scale(1.2);
+    opacity: 0;
+  }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeinblack {
+    to {
+        opacity: 1;
+    }
 }
 @keyframes SoftPulsation {
   0% {
@@ -502,7 +580,7 @@
 }
 
 
-@keyframes runaway-move {
+@keyframes runaway-shift {
     0% {
         transform: translateX(0) scaleX(-1);
         opacity: 1;
@@ -555,6 +633,138 @@
   }
 }
 
+@keyframes textGlowPulseFast {
+  0%,
+  100% {
+    text-shadow:
+      0 0 3px rgba(255, 216, 0, 0.45),
+      0 0 8px rgba(255, 216, 0, 0.25);
+  }
+
+  50% {
+    text-shadow:
+      0 0 5px rgba(255, 231, 0, 0.75),
+      0 0 14px rgba(255, 231, 0, 0.45);
+  }
+}
+
+
+@keyframes glowPulseLoot {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ffd800);
+  }
+  20% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ffe700);
+   }
+
+  50% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ffd800);
+   }
+
+  70% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ffd800);
+   }
+  90% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ffe700);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ffd800);
+  }
+}
+@keyframes glowPulseLootCritical{
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ff7200);
+  }
+  20% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ff3c00);
+   }
+
+  50% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ff7200);
+   }
+
+  70% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ff7200);
+   }
+  90% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ff3c00);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #ff7200);
+  }
+}
+@keyframes glowPulseLootLock {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #980000);
+  }
+  20% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ff0000);
+   }
+
+  50% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #980000);
+   }
+
+  70% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #980000);
+   }
+  90% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #ff0000);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #980000);
+  }
+}
+@keyframes glowPulseUnlocking {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #feffe2);
+  }
+  20% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #fffff2);
+   }
+
+  50% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #feffe2);
+   }
+
+  70% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #feffe2);
+   }
+  90% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 10px #fffff2);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px #feffe2);
+  }
+}
 @keyframes glowFast {
   0% {
         filter: drop-shadow(0 0 4px #ffd800);
@@ -671,14 +881,36 @@
     100% { transform: scale(1); }
 }
 
+@keyframes bounceRotate {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
 
+  50% {
+    transform: scale(1.2) rotate(12deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
  @keyframes glitter-fade {
       0% { opacity: 0; transform: scale(0.5); }
       50% { opacity: 1; transform: scale(1.1); }
       100% { opacity: 0; transform: scale(0.3); }
     }
 	
-
+@keyframes hardBounceRotate {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(20deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+} 
 @keyframes fallFromSky {
   0% {
     opacity: 0;
@@ -726,6 +958,7 @@
    
   }
 }
+
 @keyframes hypercognitionAura {
   0% {
         filter: drop-shadow(0 0 3px #C100AFCC);
@@ -872,3 +1105,303 @@ opacity:1;
     filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
   }
 }
+
+
+@keyframes mysticismFadeOut {
+  from {
+   transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+     }
+
+  to {
+     transform: translate(-50%, -50%) scale(0);
+
+    opacity: 0;
+  }
+}
+@keyframes mysticismScaleIn {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+   
+ opacity:0;
+  }
+
+  50% {
+   transform: translate(-50%, -50%) scale(1);
+    
+    opacity:1;
+  }
+}
+@keyframes overkillScale {
+  0%   { transform: scale(0) translateY(20px); }
+  7%   { transform: scale(1.1); }
+  10%  { transform: scale(1); }
+  100% { transform: scale(1.05)translateY(-10px); }
+}
+
+@keyframes overkillBlink {
+  0%, 70% { opacity: 1; }
+
+  74% { opacity: 0; }
+  78% { opacity: 1; }
+
+  82% { opacity: 0; }
+  86% { opacity: 1; }
+
+  89% { opacity: 0; }
+  92% { opacity: 1; }
+
+  94% { opacity: 0; }
+  96% { opacity: 1; }
+
+  100% { opacity: 0; }
+}
+@keyframes bloodCrazyPopIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes bloodCrazyAuraVibrate {
+	0% { transform: scale(1); 
+	} 8% { 
+	transform: scale(1.18); 
+	} 16% { 
+	transform: scale(1); 
+	} 26% {
+	transform: scale(1.18); 
+	} 36% {
+		transform: scale(1); 
+		} 100% { 
+		transform: scale(1.18); 
+		} } 
+		
+	@keyframes bloodCrazyConsumed { 0% { transform: scale(1); opacity: 1; } 35% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(0); opacity: 0; } }
+	
+	@keyframes umbraSoftBlink {
+  0%, 100% {
+    opacity: var(--umbra-opacity-min);
+  }
+
+  50% {
+    opacity: var(--umbra-opacity-max);
+  }
+}
+@keyframes umbraFadeIn {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+
+@keyframes umbraLvl3Blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes chest-grow-opening {
+    /* Pulsation 1 */
+    0% {
+        transform: scale(1);
+    }
+
+    6% {
+        transform: scale(0.98);
+    }
+
+    14% {
+        transform: scale(1.10);
+    }
+
+    22% {
+        transform: scale(1.01);
+    }
+
+    /* Pulsation 2 */
+    29% {
+        transform: scale(0.97);
+    }
+
+    38% {
+        transform: scale(1.22);
+    }
+
+    46% {
+        transform: scale(1.07);
+    }
+
+    /* Pulsation 3 */
+    53% {
+        transform: scale(1.01);
+    }
+
+    62% {
+        transform: scale(1.38);
+    }
+
+    69% {
+        transform: scale(1.16);
+    }
+
+    /* Pulsation 4 */
+    75% {
+        transform: scale(1.08);
+    }
+
+    83% {
+        transform: scale(1.46);
+    }
+
+    89% {
+        transform: scale(1.28);
+    }
+
+    /* Pulsation 5 rapide */
+    93% {
+        transform: scale(1.18);
+    }
+
+    97% {
+        transform: scale(1.57);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+@keyframes chest-angry-opening {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+
+    10% {
+        transform: translate(-8px, 3px) rotate(-4deg);
+    }
+
+    20% {
+        transform: translate(7px, -5px) rotate(5deg);
+    }
+
+    30% {
+        transform: translate(-5px, -8px) rotate(-3deg);
+    }
+
+    40% {
+        transform: translate(9px, 6px) rotate(4deg);
+    }
+
+    50% {
+        transform: translate(-9px, 1px) rotate(-5deg);
+    }
+
+    60% {
+        transform: translate(5px, 8px) rotate(3deg);
+    }
+
+    70% {
+        transform: translate(8px, -3px) rotate(5deg);
+    }
+
+    80% {
+        transform: translate(-6px, 7px) rotate(-4deg);
+    }
+
+    90% {
+        transform: translate(3px, -7px) rotate(3deg);
+    }
+
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+    }
+}
+
+@keyframes chestAutoPulse {
+  0%, 3%, 8%, 12%, 16%,100% {
+    transform: rotate(0deg);
+  }
+
+  2%,6%, 10%,14%, 18% {
+    transform: rotate(2deg);
+  }
+
+  7%, 13% {
+    transform: rotate(-2deg);
+  }
+}
+@keyframes occultismBarSlowBlink {
+  0% {
+    background-position: 0% 50%;
+    filter: brightness(0.75) saturate(0.85);
+    box-shadow:
+      0 0 5px rgba(90, 45, 18, 0.55),
+      0 0 12px rgba(110, 63, 28, 0.35),
+      0 0 22px rgba(90, 45, 18, 0.25);
+  }
+
+  50% {
+    background-position: 100% 50%;
+    filter: brightness(1.15) saturate(1.15);
+    box-shadow:
+      0 0 10px rgba(150, 90, 40, 1),
+      0 0 22px rgba(170, 105, 52, 0.85),
+      0 0 36px rgba(120, 68, 30, 0.65);
+  }
+
+  100% {
+    background-position: 0% 50%;
+    filter: brightness(0.75) saturate(0.85);
+    box-shadow:
+      0 0 5px rgba(90, 45, 18, 0.55),
+      0 0 12px rgba(110, 63, 28, 0.35),
+      0 0 22px rgba(90, 45, 18, 0.25);
+  }
+}
+@keyframes battleRegenHpRise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px) scale(.75);
+  }
+
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70px) scale(1.08);
+  }
+}
+@keyframes surprise-attack-squeeze {
+            0% {
+                opacity: 0;
+                transform: translate3d(100vw, -50%, 0) scaleX(0.2);
+            }
+            5% { opacity: 1; }
+            10% {
+                transform: translate3d(-50%, -50%, 0) scaleX(1.3);
+            }
+            15% {
+                transform: translate3d(-50%, -50%, 0) scaleX(0.88);
+            }
+            20%, 80% {
+                opacity: 1;
+                transform: translate3d(-50%, -50%, 0) scaleX(1);
+            }
+            90% {
+                opacity: 1;
+                transform: translate3d(calc(-100vw - 100%), -50%, 0) scaleX(0.25);
+            }
+            100% {
+                opacity: 0;
+                transform: translate3d(calc(-100vw - 100%), -50%, 0) scaleX(0.15);
+            }
+        }

@@ -1,7 +1,7 @@
 import { entites } from './entites.js';
 import { attackDetails } from './attackList.js'; 
 import { gameStarted } from './gameState.js';
-
+import { EffectMessage } from './attackEffectMecanics.js';
 
 // TIMERS ENTITES
 export function updateTimerDisplay(entite) {
@@ -355,12 +355,12 @@ export let dotNameElement;
 
 export function PopUpDamages(
   target,
-  damage,                  // HP réellement perdus (damageApplied)
+  damage,
   effectName,
   popupContent,
-  totalDamageSources = {},  // breakdown post-résistances (HP part)
+  totalDamageSources = {},
   popupType = "normal",
-  armorGate = 0             // armure tankée (absorbedByArmor)
+  armorGate = 0
 ) {
   if (!totalDamageSources || typeof totalDamageSources !== "object") {
     console.error("totalDamageSources est manquant ou invalide dans PopUpDamages.");
@@ -375,10 +375,26 @@ export function PopUpDamages(
 
   const effectClass = effectName ? `${effectName}-pop-up` : "generic-pop-up";
   const isCritical = popupType === "critical";
+  const isExecutionCritical = popupType === "execution-critical";
+  const isBloodGlutony = popupType === "blood-glutony";
   const popupClass = isCritical ? "popup-critical" : "popup-normal";
 
-  // ✅ CAS UNIQUE où 0 NE DOIT PAS S’AFFICHER :
-  // Armure encaisse 100% => afficher uniquement l’armure
+if (isExecutionCritical) {
+    EffectMessage(
+        target,
+        `Exécution critique : ${hpLoss + armorLoss} !!!`,
+        "execution-critical"
+    );
+    return;
+}
+if (isBloodGlutony) {
+    EffectMessage(
+        target,
+        `Voracité sanguinaire|+${hpLoss} HP`,
+        "blood-glutony"
+    );
+    return;
+}
   if (armorLoss > 0 && hpLoss === 0) {
     const el = document.createElement("div");
     el.className = `damage-popup ${effectClass} armor ${popupClass}`;
@@ -388,13 +404,12 @@ export function PopUpDamages(
     return;
   }
 
-  // ✅ Si dégâts effectifs = 0 (pas d’armure absorbée non plus) => afficher 0
   if (armorLoss === 0 && hpLoss === 0) {
     if (isCritical) {
       const critElement = document.createElement("div");
       critElement.className = `damage-popup ${popupClass} ${effectClass}`;
       critElement.innerHTML = `
-        <div class="picto-stat criticalChance"></div>
+        <div class="picto-stat criticalPower"></div>
         <span class="critical-text">0 !</span>
       `;
       entityContainer.appendChild(critElement);
@@ -412,27 +427,25 @@ export function PopUpDamages(
     return;
   }
 
-  // Types actifs (jamais de 0 en détail)
   const activeTypes = Object.entries(totalDamageSources)
     .filter(([_, value]) => Number(value) > 0);
 
-  // ✅ Critique : afficher uniquement le total (pas de détails à 0)
   if (isCritical) {
-    const totalShown = hpLoss + armorLoss; // (armorLoss=0 ici, sinon armor-only aurait return)
+    const totalShown = hpLoss + armorLoss;
     const critElement = document.createElement("div");
     critElement.className = `damage-popup ${popupClass} ${effectClass}`;
     critElement.innerHTML = `
-      <div class="picto-stat criticalChance"></div>
+      <div class="picto-stat criticalPower"></div>
       <span class="critical-text">${totalShown} !</span>
     `;
     entityContainer.appendChild(critElement);
+    critElement.style.top = "-100px";
     critElement.style.transform = "scale(1.3)";
     setTimeout(() => (critElement.style.transform = "scale(1)"), 100);
     setTimeout(() => critElement.remove(), 1500);
     return;
   }
 
-  // ✅ Normal : si un seul type et pas d’armure => popup simple
   if (armorLoss === 0 && activeTypes.length === 1) {
     const [type, value] = activeTypes[0];
     const el = document.createElement("div");
@@ -443,7 +456,6 @@ export function PopUpDamages(
     return;
   }
 
-  // ✅ Sinon : total + détails (armure si >0 + types actifs)
   const totalShown = hpLoss + armorLoss;
 
   const totalElement = document.createElement("div");

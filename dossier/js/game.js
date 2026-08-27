@@ -5,21 +5,111 @@ import { getStyleProperties, calculerPointsHexagone, genererSvgHexagone, setupBo
 import { createEntiteInDOM } from './createEntity.js';
 import { HideGenerateLevelButton, toggleScanEntityListener, HexButtonVisibility, parallaxEffect, loadStageAnimation, helperDisplay, isRegenKey, toNonNegInt } from './ui.js';
 import { screenLoadOptions } from './loaderList.js';
-import { saveCurrentGameData, loadFromLocalStorage, saveToLocalStorage, getOrCreateGameID, setCurrentLevel, purgeStatPreview} from './GameStorage.js';
-import { startGame, StopGame, stopAllIntervals, setOrderSide } from './gameState.js';
+import { saveCurrentGameData, loadFromLocalStorage, saveToLocalStorage, getOrCreateGameID, setCurrentLevel, getCurrentLevel, purgeStatPreview, getVisibleHexes } from './GameStorage.js';
+import {
+    BATTLE_ACTION_MODE,
+    configureBattleActionManager,
+    hasSideBThreat,
+    isBattleDialogueVisible,
+    manageBattleActions,
+    gameStarted,
+    startGame,
+    StopGame,
+    stopAllIntervals,
+    triggerAdminStageGameOver,
+    triggerAdminStageVictory,
+    setOrderSide
+} from './gameState.js';
 import { launchOrderCycleForSide } from './BattleOrder.js';
+import { initializeAllMovementStatesAtBattleStart } from './damagesCalcul.js';
+import { resetStoredArmorCurrentToMax, resetStoredShiftCurrentToStartingCharges } from './entityUpdatesStorage.js';
+import { battleLogs } from './battleLogs.js';
+import { attackSurprise, configureEventRuntime, initializeEvents } from './events.js';
 
 let selectedBiome = null;
 let selectedDifficulty = null;
+let selectedSurpriseAttack = null;
+let surpriseFleeLocked = false;
+let surpriseAutoStartTimer = null;
+let battleSystemsConfigured = false;
+
+function isAdminLevel() {
+    return window.levelRunning === 'admin';
+}
+
+function isPlayerSurprised(side = selectedSurpriseAttack) {
+    if (typeof side !== 'string') return false;
+    const normalizedSide = side.trim().toLowerCase();
+    return normalizedSide === 'sideb' || normalizedSide === 'b';
+}
+
+function removeSurpriseLockedCombatControls() {
+    document.querySelectorAll([
+        '#startButton',
+        '.launch-combat-button',
+        '.flee-button',
+        '.escape-button',
+        '.runaway-button',
+        '.run-away-button',
+        '.cancelrunaway-button',
+        '[data-action="flee"]',
+        '[data-order="flee"]',
+        '[data-order="escape"]',
+        '[data-order="runaway"]',
+        '[data-order="cancelrunaway"]'
+    ].join(',')).forEach(element => element.remove());
+}
+
+function unlockFleeAfterFirstCompletedTurn(event) {
+    if (!surpriseFleeLocked || !isPlayerSurprised()) return;
+
+    surpriseFleeLocked = false;
+    console.log('Une entité a terminé son premier tour : la fuite est maintenant disponible.', event?.detail);
+
+    if (gameStarted) {
+        manageBattleActions({
+            mode: BATTLE_ACTION_MODE.FLEE,
+            entityList: entites
+        });
+    }
+}
+
+function configureBattleSystemsOnce() {
+    if (battleSystemsConfigured) return;
+
+    configureEventRuntime({
+        quitLevel: () => QuitCurrentLevel(),
+        stageVictory: () => triggerAdminStageVictory(),
+        stageGameOverPreview: payload => triggerAdminStageGameOver({
+            source: payload?.eventKey || 'admin-event'
+        })
+    });
+
+    configureBattleActionManager({
+        createStartButton: createStartCombatButton,
+        createFleeButton: createFleeCombatButton,
+        createQuitButton
+    });
+
+    document.addEventListener('entityTurnCompleted', unlockFleeAfterFirstCompletedTurn);
+
+    battleSystemsConfigured = true;
+}
 
 // ✅ Chargement du jeu 
-export async function launchLevel({ biome, difficulty, levelId }) {
+export async function launchLevel({ biome, difficulty, levelId, surpriseAttack = null }) {
     if (levelId) {
         setCurrentLevel(levelId); // 🔥 assure que currentLevel correspond au vrai niveau lancé
     }
 
     updateSelectedBiome(biome);
     updateSelectedDifficulty(difficulty);
+    if (surpriseAutoStartTimer !== null) {
+        window.clearTimeout(surpriseAutoStartTimer);
+        surpriseAutoStartTimer = null;
+    }
+    selectedSurpriseAttack = surpriseAttack;
+    surpriseFleeLocked = isPlayerSurprised(surpriseAttack);
     await loadGame();
 }
 function updateSelectedBiome(biome) {
@@ -107,62 +197,293 @@ function updateProgressBar(progress) {
     if (bar) bar.style.width = `${progress}%`;
     if (text) text.textContent = `${progress}%`;
 }
+function isDialogueActive() {
+    return isBattleDialogueVisible();
+}
+
+/**
+ * Vérification obligatoire à chaque chargement du stage, premier lancement
+ * comme rechargement F5. À cet instant, les entités sauvegardées, leurs camps,
+ * le DOM du plateau et les événements ont déjà été restaurés.
+ */
+function initializeBattleActionsForLoadedStage() {
+    const sideBThreat = hasSideBThreat(entites);
+    const dialogueActive = isDialogueActive();
+
+    const surpriseActionLock = isPlayerSurprised() && surpriseFleeLocked;
+    const requestedMode = dialogueActive || surpriseActionLock
+        ? BATTLE_ACTION_MODE.HIDDEN
+        : isAdminLevel()
+            // Un niveau admin doit pouvoir être lancé même avant que son
+            // armée B soit composée depuis le panneau de génération.
+            ? (gameStarted ? BATTLE_ACTION_MODE.FLEE : BATTLE_ACTION_MODE.START)
+            : BATTLE_ACTION_MODE.AUTO;
+    const managedResult = manageBattleActions({
+        // AUTO tient aussi compte d'un clic éventuel survenu pendant les
+        // tentatives : il ne recréera jamais START si le combat a commencé.
+        mode: requestedMode,
+        dialogueActive,
+        entityList: entites
+    });
+
+    let result = managedResult;
+    if (isAdminLevel() && requestedMode !== BATTLE_ACTION_MODE.HIDDEN) {
+        const container = managedResult.container
+            || document.querySelector('.Game-UI > .battle-actions');
+
+        if (container) {
+            if (requestedMode === BATTLE_ACTION_MODE.START) {
+                createStartCombatButton(container);
+            } else if (requestedMode === BATTLE_ACTION_MODE.FLEE) {
+                createFleeCombatButton(container);
+            }
+            createQuitButton(container);
+        }
+
+        // La réconciliation doit contrôler l'action imposée par le niveau
+        // admin, pas le fallback choisi selon la présence initiale d'ennemis.
+        result = { ...managedResult, mode: requestedMode, container };
+    }
+
+    console.log('[BattleActions] État initial du stage :', {
+        sideBThreat,
+        dialogueActive,
+        surpriseActionLock,
+        requestedMode,
+        selectedMode: result.mode,
+        sideBEntities: entites
+            .filter(entity => entity?.side === 'B')
+            .map(entity => ({
+                id: entity.id,
+                name: entity.name,
+                statut: entity.statut,
+                isDEAD: entity.isDEAD,
+                hasFled: entity.hasFled,
+                hp: entity?.stats?.HP?.current
+            }))
+    });
+
+    return result;
+}
+
+let battleActionReconcileToken = 0;
+
+/**
+ * Réconciliation finale après les animations/reconstructions de l'interface.
+ * Une décision n'est validée que si le bouton attendu existe encore dans le
+ * DOM et est bien rattaché à `.Game-UI`.
+ */
+function reconcileLoadedStageBattleActions() {
+    const token = ++battleActionReconcileToken;
+    const retryDelays = [0, 50, 150, 300, 600, 1000, 1600];
+
+    const reconcile = () => {
+        if (token !== battleActionReconcileToken) return;
+
+        const result = initializeBattleActionsForLoadedStage();
+        const expectedSelector = {
+            [BATTLE_ACTION_MODE.START]: '#startButton, .launch-combat-button',
+            [BATTLE_ACTION_MODE.FLEE]: [
+                '.flee-button',
+                '.escape-button',
+                '.runaway-button',
+                '[data-order="flee"]',
+                '[data-order="escape"]',
+                '[data-order="runaway"]'
+            ].join(','),
+            [BATTLE_ACTION_MODE.QUIT]: '.quit-level-button'
+        }[result.mode];
+
+        if (!expectedSelector) return;
+
+        const actionElement = document.querySelector(expectedSelector);
+        const correctlyMounted = Boolean(
+            actionElement?.isConnected &&
+            actionElement.closest('.Game-UI > .battle-actions')
+        );
+
+        if (!correctlyMounted) {
+            console.warn('[BattleActions] Action absente après rendu, nouvelle tentative.', {
+                mode: result.mode,
+                expectedSelector
+            });
+        }
+    };
+
+    retryDelays.forEach(delay => window.setTimeout(reconcile, delay));
+}
+
+function createStartCombatButton(battleActions = null) {
+    if (isPlayerSurprised()) {
+        document.querySelectorAll('#startButton, .launch-combat-button')
+            .forEach(element => element.remove());
+        return null;
+    }
+
+    // En admin, Quitter reste disponible avant le lancement du combat.
+    const controlsToRemove = [
+        '.flee-button',
+        '.escape-button',
+        '.runaway-button',
+        '.run-away-button',
+        '.cancelrunaway-button',
+        '[data-action="flee"]',
+        '[data-order="flee"]',
+        '[data-order="escape"]',
+        '[data-order="runaway"]',
+        '[data-order="cancelrunaway"]'
+    ];
+    if (!isAdminLevel()) controlsToRemove.push('.quit-level-button');
+    document.querySelectorAll(controlsToRemove.join(',')).forEach(element => element.remove());
+
+    // Empêche les doublons
+    const existing = document.querySelector(
+        '#startButton, .launch-combat-button'
+    );
+
+    if (existing) {
+        if (isAdminLevel() && battleActions) createQuitButton(battleActions);
+        return existing;
+    }
+
+    if (!battleActions) {
+        console.warn('[BattleActions] Conteneur directeur introuvable.');
+        return null;
+    }
+
+    const startButton = document.createElement('div');
+    startButton.id = 'startButton';
+    startButton.className = 'launch-combat-button';
+    startButton.textContent = 'Lancer les combats';
+
+    startButton.style.opacity = '0';
+    startButton.style.transition = 'opacity 2s ease';
+
+    startButton.addEventListener('click', () => {
+        saveCurrentGameData();
+        battleLogs('battle_start');
+        startGame();
+        startButton.remove();
+    });
+
+    battleActions.appendChild(startButton);
+
+    if (isAdminLevel()) {
+        createQuitButton(battleActions);
+    }
+
+    requestAnimationFrame(() => {
+        startButton.style.opacity = '1';
+    });
+
+    return startButton;
+}
+
+/** Affiche l'annonce uniquement pour un niveau possédant surpriseAttack. */
+export function showSurpriseAttackAnnouncement(side) {
+    const normalizedSide = typeof side === 'string' ? side.trim().toLowerCase() : '';
+    if (normalizedSide !== 'sidea' && normalizedSide !== 'sideb') return null;
+
+    const gameUI = document.querySelector('.Game-UI');
+    if (!gameUI) {
+        console.warn("Annonce d'attaque surprise impossible : .Game-UI introuvable.");
+        return null;
+    }
+
+    gameUI.querySelector('.IngameAlert.surpriseAttack')?.remove();
+
+    const announcement = document.createElement('span');
+    announcement.className = 'IngameAlert surpriseAttack';
+    announcement.textContent = normalizedSide === 'sideb'
+        ? 'Vous subissez une attaque surprise !'
+        : 'Vous réalisez une attaque surprise !';
+    announcement.setAttribute('role', 'status');
+    announcement.setAttribute('aria-live', 'polite');
+    gameUI.appendChild(announcement);
+
+    announcement.addEventListener('animationend', () => announcement.remove(), { once: true });
+    window.setTimeout(() => announcement.remove(), 4500);
+    return announcement;
+}
+
+function schedulePlayerSurprisedCombatStart() {
+    if (!isPlayerSurprised()) return;
+
+    removeSurpriseLockedCombatControls();
+    if (surpriseAutoStartTimer !== null) {
+        window.clearTimeout(surpriseAutoStartTimer);
+    }
+
+    surpriseAutoStartTimer = window.setTimeout(() => {
+        surpriseAutoStartTimer = null;
+        removeSurpriseLockedCombatControls();
+
+        if (gameStarted) return;
+
+        saveCurrentGameData();
+        battleLogs('battle_start');
+        startGame();
+    }, 3000);
+}
 
 function displayStartMessage(startMessage, loadingScreen) {
     setTimeout(() => {
-        startMessage.textContent = "Cliquer sur l'écran pour démarrer";
+        startMessage.textContent =
+            "Cliquer sur l'écran pour continuer";
+
         startMessage.classList.add('loaded');
 
         loadingScreen.addEventListener('click', () => {
-            loadingScreen.style.transition = 'opacity 0.5s ease';
+            loadingScreen.style.transition =
+                'opacity 0.5s ease';
+
             loadingScreen.style.opacity = '0';
+
             loadStageAnimation();
 
             setTimeout(() => {
                 loadingScreen.remove();
 
-                // 🔘 Création du bouton "Lancer les combats"
-                const startButton = document.createElement('div');
-                startButton.id = 'startButton';
-                startButton.className = 'launch-combat-button';
-                startButton.textContent = 'Lancer les combats';
+                // Le niveau est désormais visible : l'annonce traverse .Game-UI.
+                showSurpriseAttackAnnouncement(selectedSurpriseAttack);
+                schedulePlayerSurprisedCombatStart();
 
-                // 🔗 Lier l'action au clic
-startButton.addEventListener('click', () => {
-    startGame();
-    startButton.style.pointerEvents = 'none';
-    startButton.style.opacity = '0.5'; // Visuellement il semble désactivé
-});
-
-                // 💡 Apparition douce
-                startButton.style.opacity = '0';
-                startButton.style.transition = 'opacity 2s ease';
-
-                // 🎯 Insertion dans .Game-UI
-                const gameUi = document.querySelector('.Game-UI');
-                if (gameUi) {
-                    gameUi.appendChild(startButton);
-                    // ⚙️ Déclenchement de l'animation d'opacité
-                    requestAnimationFrame(() => {
-                        startButton.style.opacity = '1';
-                    });
-                } else {
-                    console.warn("Élément .Game-UI introuvable, bouton non ajouté.");
-                }
+                /*
+                 * SÉCURITÉ 1 :
+                 * un dialogue d'événement est actuellement affiché.
+                 * Aucun bouton d'action ne doit exister.
+                 */
+                // L'animation de stage peut encore reconstruire `.Game-UI`.
+                // On réconcilie donc l'action plusieurs fois après sa fin.
+                reconcileLoadedStageBattleActions();
             }, 500);
-        });
+        }, { once: true });
     }, 1000);
+}
+function recordLoadedEntityOriginalPositions() {
+    entites.forEach(entity => {
+        if (!entity) return;
+        entity.originalPosition = entity.position ?? null;
+    });
 }
 
 async function loadGame() {
     try {
+		// Les modules ES sont maintenant complètement initialisés : on peut
+		// enregistrer les factories sans déclencher de dépendance circulaire.
+		configureBattleSystemsOnce();
 		injectSavedEntities();
         initFightEntites();
+        recordLoadedEntityOriginalPositions();
 
 		console.log("🔍 Vérif entites avant tout :");
 entites.forEach(ent => {
     console.log(`   ${ent.name} - nickname: ${ent.nickname} - stuff:`, ent.stuff);
 });
+
+        // Réinitialise toujours l'état entre deux niveaux, y compris lorsque
+        // le nouveau niveau n'a pas d'attaque surprise.
+        attackSurprise(null);
         const { startMessage, loadingScreen } = LoadingScreen();
 		purgeStatPreview();
         StageLoading();
@@ -172,16 +493,34 @@ entites.forEach(ent => {
         const totalItems = entites.length + 3;
 		setOrderSide(false);
         let loadedItems = 0;
-        const increment = () => {
-            loadedItems++;
-            const progress = Math.floor((loadedItems / totalItems) * 100);
-            updateProgressBar(progress);
-            if (progress >= 100) displayStartMessage(startMessage, loadingScreen);
-        };
+ const increment = () => {
+    loadedItems++;
+
+    const progress = Math.floor(
+        (loadedItems / totalItems) * 100
+    );
+
+    updateProgressBar(progress);
+};
 
         await Promise.all(entites.map(entite => loadSprite(entite).then(increment)));
 
-        entites.forEach(entite => createEntiteInDOM(entite));
+// Marque les entités vivantes avant leur création DOM. createEntiteInDOM()
+// peut ainsi ajouter .surprised directement à leur propre img-container.
+attackSurprise(selectedSurpriseAttack);
+
+entites.forEach(entite => {
+  try {
+    createEntiteInDOM(entite);
+  } catch (err) {
+    console.error(
+      `Erreur createEntiteInDOM pour ${entite?.name ?? entite?.id}:`,
+      err
+    );
+    console.error(err?.stack);
+    throw err;
+  }
+});
 logPositionsAndAnalyze();
 observeRoleChanges();
 updateGlobalRoleSbire();
@@ -193,13 +532,31 @@ TraitementRolesSbires();
         calculerPointsHexagone();
         genererSvgHexagone();
         setupBoard(entityCount);
+
+        // Le plateau existe maintenant : appliquer la préférence du joueur à
+        // chaque génération de stage sans modifier sa valeur sauvegardée.
+        HexButtonVisibility(getVisibleHexes());
+
         parallaxEffect();
         HideGenerateLevelButton();
         toggleScanEntityListener();
         helperDisplay();
-        HexButtonVisibility();
-		increment(); increment(); increment(); // fin des tâches
-	    // createQuitButton();
+
+        // Le plateau et #game-windows sont prêts : restaurer d'abord une quête
+        // en cours, sinon seulement vérifier les nouveaux déclencheurs.
+       await initializeEvents({
+    levelId: getCurrentLevel()
+});
+
+// La vérification effective est faite après la disparition de l'écran de
+// chargement, car loadStageAnimation() peut reconstruire `.Game-UI`.
+
+increment();
+increment();
+increment();
+
+// On attend que les 3 états soient connus avant d'afficher l'action.
+displayStartMessage(startMessage, loadingScreen);
     } catch (err) {
         console.error("Erreur lors du chargement :", err);
     }
@@ -213,26 +570,100 @@ function loadSprite(entite) {
         img.onerror = reject;
     });
 }
+export function createQuitButton(battleActions = null) {
+    // Conserve la compatibilité avec les anciens appels directs tout en
+    // faisant obligatoirement passer la décision par gameState.js.
+    if (!battleActions) {
+        manageBattleActions({ mode: BATTLE_ACTION_MODE.QUIT });
+        return document.querySelector('.quit-level-button');
+    }
 
-export function createQuitButton() {
+    // Hors admin, Quitter reste une action exclusive. En admin, il demeure
+    // visible aux côtés de Lancer avant combat, puis de Fuir après lancement.
+    if (!isAdminLevel()) document.querySelectorAll([
+        '#startButton',
+        '.launch-combat-button',
+        '.flee-button',
+        '.escape-button',
+        '.runaway-button',
+        '.run-away-button',
+        '.cancelrunaway-button',
+        '[data-action="flee"]',
+        '[data-order="flee"]',
+        '[data-order="escape"]',
+        '[data-order="runaway"]',
+        '[data-order="cancelrunaway"]'
+    ].join(',')).forEach(element => element.remove());
+
+    const existing = document.querySelector('.quit-level-button');
+
+    if (existing) {
+        return existing;
+    }
+
     const btn = document.createElement('div');
     btn.className = 'quit-level-button';
     btn.textContent = 'Quitter le niveau';
     btn.addEventListener('click', QuitCurrentLevel);
-    document.getElementById('game-windows').appendChild(btn);
-}
 
-export function createOrderButton(orderType, buttonText, buttonClass = 'order-button') {
+    if (!battleActions) {
+        console.warn('[BattleActions] Conteneur directeur introuvable.');
+        return null;
+    }
+
+    battleActions.appendChild(btn);
+
+    return btn;
+}
+function appendOrderButton(
+    orderType,
+    buttonText,
+    buttonClass,
+    battleActions
+) {
+    if (!battleActions) return null;
+
+    const fleeOrders = [
+        'flee',
+        'escape',
+        'runaway',
+        'cancelrunaway'
+    ];
+
+    const isFleeButton = fleeOrders.includes(orderType);
+
+    if (isFleeButton && surpriseFleeLocked) {
+        return null;
+    }
+
+    if (isFleeButton) {
+        // Fuir remplace Lancer. Quitter reste présent uniquement en admin.
+        const controlsToRemove = ['#startButton', '.launch-combat-button'];
+        if (!isAdminLevel()) controlsToRemove.push('.quit-level-button');
+        document.querySelectorAll(controlsToRemove.join(',')).forEach(element => element.remove());
+    }
+
+    const existing = battleActions.querySelector(
+        `[data-order="${CSS.escape(String(orderType))}"]`
+    );
+    if (existing) {
+        if (isFleeButton && isAdminLevel()) createQuitButton(battleActions);
+        return existing;
+    }
+
     const btn = document.createElement('div');
     btn.className = buttonClass;
-    btn.setAttribute('data-order', orderType);
+    btn.dataset.order = orderType;
     btn.textContent = buttonText;
 
     btn.addEventListener('click', () => {
-        console.warn(`⚡ Ordre "${orderType}" déclenché pour le camp A !`);
+        console.warn(
+            `⚡ Ordre "${orderType}" déclenché pour le camp A !`
+        );
+
         stopAllIntervals();
-        launchOrderCycleForSide('A', orderType); 
-        // Animation de disparition
+        launchOrderCycleForSide('A', orderType);
+
         btn.style.transition = 'opacity 0.5s ease';
         btn.style.opacity = '0';
 
@@ -241,9 +672,45 @@ export function createOrderButton(orderType, buttonText, buttonClass = 'order-bu
         }, 500);
     });
 
-    document.querySelector('.Game-UI').appendChild(btn);
+    battleActions.appendChild(btn);
+
+    if (isFleeButton && isAdminLevel()) {
+        createQuitButton(battleActions);
+    }
+
+    return btn;
 }
 
+function createFleeCombatButton(battleActions) {
+    if (surpriseFleeLocked) return null;
+
+    return appendOrderButton(
+        'runaway',
+        'Fuyez pauvres fous !',
+        'runaway-button',
+        battleActions
+    );
+}
+
+export function createOrderButton(
+    orderType,
+    buttonText,
+    buttonClass = 'order-button'
+) {
+    const fleeOrders = ['flee', 'escape', 'runaway', 'cancelrunaway'];
+    const directedActions = manageBattleActions({
+        mode: fleeOrders.includes(orderType)
+            ? BATTLE_ACTION_MODE.FLEE
+            : BATTLE_ACTION_MODE.ORDERS
+    });
+
+    return appendOrderButton(
+        orderType,
+        buttonText,
+        buttonClass,
+        directedActions.container
+    );
+}
 function getGameDay() {
   const raw = localStorage.getItem('gameDay');
   const n = Number.parseInt(raw, 10);
@@ -603,6 +1070,12 @@ export function QuitCurrentLevel() {
   if (window.__QUIT_LEVEL_LOCK__) return;
   window.__QUIT_LEVEL_LOCK__ = true;
 
+  if (surpriseAutoStartTimer !== null) {
+    window.clearTimeout(surpriseAutoStartTimer);
+    surpriseAutoStartTimer = null;
+  }
+  surpriseFleeLocked = false;
+
   try {
     console.log("🚪 Le joueur quitte le niveau...");
     StopGame();
@@ -645,15 +1118,10 @@ export function QuitCurrentLevel() {
       return;
     }
 
-    // On conserve uniquement l’élément d’ID (si présent)
-    const gameIdDisplay = document.getElementById("game-id-display");
-    if (gameIdDisplay) gameIdDisplay.remove();
-
-    // Reset complet
+    // Reset complet.
+    // Ne jamais conserver #game-id-display séparément :
+    // AdminButtons() le recrée ensuite dans .admin-commands.
     gameWindows.innerHTML = "";
-
-    // Ré-injection de l’ID display
-    if (gameIdDisplay) gameWindows.appendChild(gameIdDisplay);
 
     // Recrée un container clean
     const container = document.createElement("div");
@@ -669,7 +1137,8 @@ export function QuitCurrentLevel() {
     const worldmap_id = localStorage.getItem("worldmap_id");
     if (worldmap_id) {
       setCurrentLevel(worldmap_id);
-
+resetStoredArmorCurrentToMax();
+resetStoredShiftCurrentToStartingCharges();
       // Capture AVANT incrément
       previousDay = parseInt(localStorage.getItem("gameDay"), 10) || 1;
 

@@ -4,58 +4,166 @@ import { updateTimerDisplay } from './dom.js';
 import { attackDetails } from './attackList.js'; 
 import { runPhaseTimer, LifeandDeath, applyDamage, applyDamageToDead, applyDamageToHex, updateBonusLifeCounters } from './entityAttributs.js';
 import { updateTargetStatut } from './fight.js'; 
-import { animatePreparation, animateFinalPhase, animateRecuperation, animateDodge, animationProjectile, animationMelee  } from './entitesAnimation.js'; 
-import { attemptAttackerDamages, attemptDodge, attemptRangeAccuracy, attemptMeleeAmbidextry, attemptRangeAmbidextry, calculateAmbidextryDamageBonus, AmbidextryVFX, calculateHasteExecReduc, calculateHasteRecupReduc, calculateHasteCDReduc, calculateHasteIntelRatio, clampPercent, getHastePoints, applyReducToMs, calculateBrokenSpellDamage, calculateBrokenSpellChance, attemptRangeBrokenSpell, attemptMeleeBrokenSpell, attemptMeleeExecBonus } from './damagesCalcul.js';
+import { animatePreparation, animateFinalPhase, animateRecuperation, animateDodge, animationProjectile, animationMelee,   mysticismBoostedAttackAnimation, mysticismAttackGif } from './entitesAnimation.js'; 
+import { attemptAttackerDamages, attemptDodge, attemptRangeAccuracy, attemptMeleeAmbidextry, attemptRangeAmbidextry, calculateAmbidextryDamageBonus, AmbidextryVFX, getFinalAttackCooldownReduc, getFinalAttackPreparationReduc,getFinalAttackExecutionReduc,
+getFinalAttackRecoveryReduc, calculateHasteIntelRatio, clampPercent, getHastePoints, applyReducToMs, calculateBrokenSpellDamage, calculateBrokenSpellChance, attemptRangeBrokenSpell, attemptMeleeBrokenSpell, attemptMeleeExecBonus, attemptMysticismTrance, attemptEquilibreAttack, attemptOccultismInvisibility, clearOccultismInvisibleState, calculateOccultismPreparationSpeedDebuff, applyOccultismExitCritBoost } from './damagesCalcul.js';
 import { updateHealthBar } from './UpgradeEntity.js';
 import { EffectMessage } from './attackEffectMecanics.js'; 
-
-// =========================
-// HELPERS (portée + nature)
-// =========================
-export const isRangeAttack = (attack) => {
-  const r = attack?.attackRange;
-  if (Array.isArray(r)) return r.includes("range");
-  if (typeof r === "string") return r.includes("range");
-  return false;
-};
-
-export const isMeleeAttack = (attack) => {
-  const r = attack?.attackRange;
-  if (Array.isArray(r)) return r.includes("melee");
-  if (typeof r === "string") return r.includes("melee");
-  return false;
-};
-
-
-export const isPureMagicalAttack = (attack) => {
-  const n = attack?.attacknature;
-  return Array.isArray(n) && n.length === 1 && n[0] === "magicalDamage";
-};
+import { getAttackResolutionFlags } from './attackResolution.js';
+import { battleLogs } from './battleLogs.js';
 
 // =========================
 // HASTE TIMINGS BUILDER
 // =========================
-export function buildAttackTimingsWithHaste(attacker, attack, fns) {
-  const {
-    calculateHastePercent,
-    calculateHasteIntelRatio,
-    calculateHasteCDReduc,
-    calculateHasteExecReduc,
-    calculateHasteRecupReduc,
-  } = fns;
+async function runDynamicPreparationTimerWithMysticism(attacker, basePreparationMs) {
+  const tickDelay = 50;
 
+  let virtualProgressMs = 0;
+  let lastTick = Date.now();
+
+  const totalDuration = Math.max(1, Number(basePreparationMs) || 1);
+
+  attacker.preparationTime = totalDuration;
+  attacker.preparationProgressRatio = 0;
+
+  updateTimerDisplay(attacker);
+
+  let initialBar = document.getElementById(`currentAttackBar_${attacker.id}`);
+
+  if (initialBar) {
+    initialBar.style.transition = "width 0.05s linear";
+    initialBar.style.width = "0%";
+    initialBar.classList.remove("mysticism-accelerated", "occultism-slowed");
+  }
+
+  while (virtualProgressMs < totalDuration) {
+    if (attacker.life <= 0) {
+      console.log(`Timer de préparation stoppé : ${attacker.name} est mort.`);
+
+      stopAllIntervals();
+
+      while (attacker.life <= 0) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      lastTick = Date.now();
+    }
+
+    const now = Date.now();
+    const deltaRealMs = now - lastTick;
+    lastTick = now;
+
+const mysticActive =
+  Boolean(attacker.mysticTrance?.active) &&
+  Number(attacker.mysticTrance?.endsAt || 0) >= now;
+
+const occultismActive =
+  Boolean(attacker.flags?.occultismInvisible) ||
+  Boolean(attacker.isInvisible) ||
+  Boolean(attacker.invisible);
+
+const mysticismSpeedMultiplier = mysticActive
+  ? Math.max(0.01, Number(attacker.mysticTrance?.speedMultiplier || 1))
+  : 1;
+
+const occultismDebuff = occultismActive
+  ? Math.max(0, Number(calculateOccultismPreparationSpeedDebuff(attacker)) || 0)
+  : 0;
+
+const occultismSpeedMultiplier = occultismActive
+  ? 1 / (1 + occultismDebuff / 100)
+  : 1;
+
+const rawSpeedMultiplier =
+  mysticismSpeedMultiplier *
+  occultismSpeedMultiplier;
+
+const speedMultiplier = Number.isFinite(rawSpeedMultiplier)
+  ? Math.max(0.01, rawSpeedMultiplier)
+  : 1;
+
+virtualProgressMs += deltaRealMs * speedMultiplier;
+
+    if (virtualProgressMs > totalDuration) {
+      virtualProgressMs = totalDuration;
+    }
+
+    const remainingMs = Math.max(0, totalDuration - virtualProgressMs);
+    const progressRatio = Math.max(
+      0,
+      Math.min(1, virtualProgressMs / totalDuration)
+    );
+
+    attacker.preparationTime = remainingMs;
+    attacker.preparationProgressRatio = progressRatio;
+
+    updateTimerDisplay(attacker);
+
+    const currentBar = document.getElementById(`currentAttackBar_${attacker.id}`);
+
+    if (currentBar) {
+      currentBar.style.transition = "width 0.05s linear";
+      currentBar.style.width = `${(progressRatio * 100).toFixed(2)}%`;
+      currentBar.classList.toggle("mysticism-accelerated", mysticActive);
+currentBar.classList.toggle("occultism-slowed", occultismActive);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, tickDelay));
+  }
+
+  const launchedAt = Date.now();
+
+  const wasLaunchedUnderMysticism =
+    Boolean(attacker.mysticTrance?.active) &&
+    Number(attacker.mysticTrance?.endsAt || 0) >= launchedAt;
+
+  attacker.attackLaunchedUnderMysticism = wasLaunchedUnderMysticism;
+
+  if (attacker.currentAttack) {
+    attacker.currentAttack.isLaunchedUnderMysticism = wasLaunchedUnderMysticism;
+  }
+
+  console.log(
+    `🔮 Lancement sous Mysticisme : ${wasLaunchedUnderMysticism ? "OUI" : "NON"}`
+  );
+const equilibreAttack = attemptEquilibreAttack(attacker);
+attacker.equilibreAttackDebug = equilibreAttack;
+  if (attacker.mysticismTranceEndTO) {
+    clearTimeout(attacker.mysticismTranceEndTO);
+    attacker.mysticismTranceEndTO = null;
+  }
+
+  if (typeof attacker.stopMysticismAnimation === "function") {
+    attacker.stopMysticismAnimation(true);
+    attacker.stopMysticismAnimation = null;
+  }
+
+  attacker.isMysticTrance = false;
+
+  if (attacker.mysticTrance) {
+    attacker.mysticTrance.active = false;
+  }
+
+  attacker.preparationTime = 0;
+  attacker.preparationProgressRatio = 1;
+
+  updateTimerDisplay(attacker);
+
+  const finalBar = document.getElementById(`currentAttackBar_${attacker.id}`);
+
+  if (finalBar) {
+   finalBar.classList.remove("mysticism-accelerated", "occultism-slowed");
+    finalBar.style.width = "100%";
+  }
+}
+
+export function buildAttackTimingsWithHaste(attacker, attack) {
   const { preparationTime, executionTime, recoveryTime, cooldown } = attack;
 
-  const hastePoints = getHastePoints(attacker);
-  const hasHaste = hastePoints > 0;
-
-  const hastePercent = hasHaste ? calculateHastePercent(hastePoints) : 0;
-  const hasteIntel = hasHaste ? calculateHasteIntelRatio(attacker) : 0;
-
-  const prepReducPct = hasHaste ? clampPercent(hastePercent + hasteIntel) : 0;
-  const cdReducPct = hasHaste ? clampPercent(calculateHasteCDReduc(attacker)) : 0;
-  const execReducPct = hasHaste ? clampPercent(calculateHasteExecReduc(attacker)) : 0;
-  const recupReducPct = hasHaste ? clampPercent(calculateHasteRecupReduc(attacker)) : 0;
+  const prepReducPct = clampPercent(getFinalAttackPreparationReduc(attacker));
+  const cdReducPct = clampPercent(getFinalAttackCooldownReduc(attacker));
+  const execReducPct = clampPercent(getFinalAttackExecutionReduc(attacker));
+  const recupReducPct = clampPercent(getFinalAttackRecoveryReduc(attacker));
 
   const timings = {
     preparationTime: applyReducToMs(preparationTime, prepReducPct),
@@ -64,11 +172,10 @@ export function buildAttackTimingsWithHaste(attacker, attack, fns) {
     cooldown: applyReducToMs(cooldown, cdReducPct),
   };
 
+  const hastePoints = getHastePoints(attacker);
+
   const debug = {
-    hasHaste,
     hastePoints,
-    hastePercent,
-    hasteIntel,
     prepReducPct,
     cdReducPct,
     execReducPct,
@@ -77,9 +184,128 @@ export function buildAttackTimingsWithHaste(attacker, attack, fns) {
     final: { ...timings },
   };
 
-  return { timings, debug, reductions: { prepReducPct, cdReducPct, execReducPct, recupReducPct } };
+  return {
+    timings,
+    debug,
+    reductions: {
+      prepReducPct,
+      cdReducPct,
+      execReducPct,
+      recupReducPct
+    }
+  };
 }
+function startMysticismPreparationState(attacker, basePreparationMs) {
+  attacker.attackLaunchedUnderMysticism = false;
+  attacker.attackBalancedNoAggro = false;
 
+  if (attacker.currentAttack) {
+    attacker.currentAttack.isLaunchedUnderMysticism = false;
+    attacker.currentAttack.isBalancedNoAggro = false;
+  }
+  
+  if (attacker.mysticismTranceEndTO) {
+    clearTimeout(attacker.mysticismTranceEndTO);
+    attacker.mysticismTranceEndTO = null;
+  }
+
+  const trance = attemptMysticismTrance(attacker);
+  attacker.mysticismDebug = trance;
+
+  if (!trance.success) {
+    attacker.isMysticTrance = false;
+
+    attacker.mysticTrance = {
+      active: false,
+      startedAt: null,
+      endsAt: null,
+      durationMs: 0,
+      accelerationPercent: 0,
+      speedMultiplier: 1,
+      basePreparationMs,
+    };
+
+    return trance;
+  }
+
+  const speedMultiplier = 1 + trance.accelerationPercent / 100;
+  const startedAt = Date.now();
+  const endsAt = startedAt + trance.durationMs;
+console.log("🔮 Mysticisme timing", {
+  attacker: attacker.name,
+  durationMs: trance.durationMs,
+  accelerationPercent: trance.accelerationPercent,
+  speedMultiplier,
+  startedAt,
+  endsAt,
+});
+  attacker.isMysticTrance = true;
+
+  attacker.mysticTrance = {
+    active: true,
+    startedAt,
+    endsAt,
+    durationMs: trance.durationMs,
+    accelerationPercent: trance.accelerationPercent,
+    speedMultiplier,
+    basePreparationMs,
+  };
+
+attacker.mysticismTranceEndTO = setTimeout(() => {
+  if (!attacker.mysticTrance) return;
+
+  attacker.mysticTrance.active = false;
+  attacker.isMysticTrance = false;
+
+  console.log(
+    `🔮 Transe mystique terminée pour ${attacker.name} après ${Date.now() - startedAt}ms.`
+  );
+}, trance.durationMs);
+
+  return trance;
+}
+async function runPreparationTimerWithMysticism(attacker, realPreparationDuration) {
+  await runPhaseTimer(
+    attacker,
+    "preparationTime",
+    realPreparationDuration
+  );
+
+  const now = Date.now();
+
+  const wasLaunchedUnderMysticism =
+    Boolean(attacker.mysticTrance?.active) &&
+    Number(attacker.mysticTrance?.endsAt || 0) >= now;
+
+  attacker.attackLaunchedUnderMysticism = wasLaunchedUnderMysticism;
+
+  if (attacker.currentAttack) {
+    attacker.currentAttack.isLaunchedUnderMysticism = wasLaunchedUnderMysticism;
+  }
+
+console.log(
+  `🔮 Lancement sous Mysticisme : ${wasLaunchedUnderMysticism ? "OUI" : "NON"}`
+);
+
+const equilibreAttack = attemptEquilibreAttack(attacker);
+attacker.equilibreAttackDebug = equilibreAttack;
+
+  if (attacker.mysticismTranceEndTO) {
+    clearTimeout(attacker.mysticismTranceEndTO);
+    attacker.mysticismTranceEndTO = null;
+  }
+
+  if (typeof attacker.stopMysticismAnimation === "function") {
+    attacker.stopMysticismAnimation(true);
+    attacker.stopMysticismAnimation = null;
+  }
+
+  attacker.isMysticTrance = false;
+
+  if (attacker.mysticTrance) {
+    attacker.mysticTrance.active = false;
+  }
+}
 // =========================
 // ATTACK METHODS
 // =========================
@@ -99,15 +325,17 @@ const addAliveAttackMethods = () => {
     ) {
       attacker.projectiles = attacker.projectiles || [];
 
+const flags = getAttackResolutionFlags(attack);
+const isRange = flags.isRange;
+const isMelee = flags.isMelee;
+let meleeAnimationController = null;
+
       const { attackId, displayName } = attack;
 
-      const { timings, debug } = buildAttackTimingsWithHaste(attacker, attack, {
-        calculateHastePercent,
-        calculateHasteIntelRatio,
-        calculateHasteCDReduc,
-        calculateHasteExecReduc,
-        calculateHasteRecupReduc,
-      });
+const { timings, debug } = buildAttackTimingsWithHaste(attacker, attack, {
+  calculateHastePercent,
+  calculateHasteIntelRatio,
+});
 
       // Stockage debug optionnel
       attacker.hasteDebug = debug;
@@ -160,8 +388,42 @@ const addAliveAttackMethods = () => {
       try {
         attacker.lastAttackTime = Date.now();
         attacker.currentPhase = "attack_1";
-        animatePreparation(attacker, attack);
-        await runPhaseTimer(attacker, "preparationTime", attacker.preparationTime);
+		
+const basePreparationMs = attacker.preparationTime;
+
+attacker.preparationProgressRatio = 0;
+
+clearOccultismInvisibleState(attacker);
+
+const occultismInvisibility = attemptOccultismInvisibility(attacker);
+attacker.occultismInvisibilityDebug = occultismInvisibility;
+
+startMysticismPreparationState(
+  attacker,
+  basePreparationMs
+);
+
+animatePreparation(
+  attacker,
+  attack,
+  basePreparationMs
+);
+
+await runDynamicPreparationTimerWithMysticism(
+  attacker,
+  basePreparationMs
+);
+
+const wasOccultismInvisible =
+  Boolean(attacker.flags?.occultismInvisible) ||
+  Boolean(attacker.isInvisible) ||
+  Boolean(attacker.invisible);
+
+clearOccultismInvisibleState(attacker);
+
+if (wasOccultismInvisible) {
+  applyOccultismExitCritBoost(attacker);
+}
 
         if (OrderEntity(attacker)) {
           console.warn(`🛑 Phase de préparation interrompue : ordre en cours.`);
@@ -175,14 +437,17 @@ const addAliveAttackMethods = () => {
 
         if (!checkStatusAndGameOver(attacker)) return;
       } catch (error) {
-        console.error(`Erreur pendant la phase de préparation : ${error}`);
-        return;
+        clearOccultismInvisibleState(attacker);
+  console.error(`Erreur pendant la phase de préparation : ${error}`);
+  return;
       }
 
       // EXECUTION
       try {
-        const isRange = isRangeAttack(attack);
-        const isMelee = isMeleeAttack(attack);
+ if (attack.isLaunchedUnderMysticism) {
+    mysticismBoostedAttackAnimation(attacker.id);
+	  mysticismAttackGif(attacker.id);
+  }
 
         // =========================
         // BROKEN SPELL RANGE : UNIQUEMENT SI RANGE
@@ -194,7 +459,7 @@ let brokenSpellDamagePct = 0;
 let brokenSpellChance = 0;
 let brokenSpellRoll = 0;
 
-if (isRange && isPureMagicalAttack(attack)) {
+if (flags.isRange && flags.canBrokenSpell && flags.brokenSpellMode === "range_self") {
   const broken = attemptRangeBrokenSpell(attacker, target, attack);
   if (broken?.success) {
     brokenSpell = true;
@@ -250,15 +515,16 @@ if (isRange && isPureMagicalAttack(attack)) {
           const selfEffectsToApply = brokenSpell ? [] : attack.selfEffects;
 
           // Projectile principal
-          const projectileData = {
-            attackerId: attacker.id,
-            targetId: actualTarget.id,
-            attackId,
-            damage: finalDamage,
-            startTime: Date.now(),
-            status: "in-flight",
-            ...(brokenSpell ? { aura: "brokenSpell" } : {}),
-          };
+const projectileData = {
+  attackerId: attacker.id,
+  targetId: actualTarget.id,
+  attackId,
+  damage: finalDamage,
+  startTime: Date.now(),
+  status: "in-flight",
+  isLaunchedUnderMysticism: Boolean(attack?.isLaunchedUnderMysticism),
+  ...(brokenSpell ? { aura: "brokenSpell" } : {}),
+};
 
           attacker.projectiles.push(projectileData);
           console.log(`🚀 Projectile lancé :`, projectileData);
@@ -266,29 +532,59 @@ if (isRange && isPureMagicalAttack(attack)) {
           let ambiSuccess = false;
           let secondProjectileData = null;
 
-          // 🚫 Ambidextrie BLOQUÉE uniquement si attacknature === ["magicalDamage"]
-          if (!isPureMagicalAttack(attack)) {
-            ambiSuccess = await attemptRangeAmbidextry(
-              attacker,
-              actualTarget,
-              attack,
-              totalDamage,
-              totalDamageSources
-            );
-
+         
+         if (flags.canAmbidextry) {
+  ambiSuccess = await attemptRangeAmbidextry(
+    attacker,
+    actualTarget,
+    attack,
+    totalDamage,
+    totalDamageSources
+  );
             if (ambiSuccess) {
               const ambiBonus = calculateAmbidextryDamageBonus(attacker);
               const ambiDamage = Math.round((totalDamage * ambiBonus) / 100);
 
-              secondProjectileData = {
-                attackerId: attacker.id,
-                targetId: actualTarget.id,
-                attackId,
-                damage: ambiDamage,
-                startTime: Date.now() + AmbidextryProjectileDelay,
-                status: "in-flight",
-                aura: "ambidextry",
-              };
+// 🗡️ Sources du projectile ambidextre
+let ambiForceDamageSources = {
+  piercingDamage: 0,
+  physical: ambiDamage,
+  magical: 0,
+  hybridalDamage: 0,
+};
+
+// ✅ TRANSperçante pure
+if (
+  totalDamageSources?.piercingDamage > 0 &&
+  !totalDamageSources?.physical &&
+  !totalDamageSources?.magical &&
+  !totalDamageSources?.hybridalDamage
+) {
+  ambiForceDamageSources = {
+    piercingDamage: ambiDamage,
+    physical: 0,
+    magical: 0,
+    hybridalDamage: 0,
+  };
+
+  console.log(
+    `🗡️ Ambidextrie Transperçante → projectile piercing (${ambiDamage})`
+  );
+}
+
+secondProjectileData = {
+  attackerId: attacker.id,
+  targetId: actualTarget.id,
+  attackId,
+  damage: ambiDamage,
+  startTime: Date.now() + AmbidextryProjectileDelay,
+  status: "in-flight",
+  aura: "ambidextry",
+
+  isLaunchedUnderMysticism: Boolean(attack?.isLaunchedUnderMysticism),
+
+  forceDamageSources: ambiForceDamageSources,
+};
 
               attacker.projectiles.push(secondProjectileData);
               console.log(
@@ -299,96 +595,122 @@ if (isRange && isPureMagicalAttack(attack)) {
           }
 
           // 💥 Gestion des impacts
-          const handleImpact = (proj, label, impactTarget) => async () => {
-            console.log(`💥 Impact ${label} sur ${impactTarget.name}.`);
+   const handleImpact = (proj, label, impactTarget) => async () => {
+  console.log(`💥 Impact ${label} sur ${impactTarget.name}.`);
 
-            // Accuracy : uniquement si pas pure magical
-            const mustRollAccuracy = !isPureMagicalAttack(attack);
-            const accuracyHit = mustRollAccuracy
-              ? attemptRangeAccuracy(attacker, impactTarget)
-              : true;
+  const isBrokenSpellReturn = brokenSpell && proj === projectileData;
+const projectileSources = proj?.forceDamageSources || totalDamageSources || {};
 
-            // MISS
-            if (!accuracyHit) {
-              proj.status = "miss";
-              proj.impactTime = Date.now();
-              console.log(`❌ ${label} MISS (Adresse) :`, proj);
+const isPurePiercingProjectile =
+  Number(projectileSources.piercingDamage || 0) > 0 &&
+  Number(projectileSources.physical || 0) <= 0 &&
+  Number(projectileSources.magical || 0) <= 0 &&
+  Number(projectileSources.hybridalDamage || 0) <= 0;
+const accuracyHit = isBrokenSpellReturn
+  ? true
+  : flags.canMissAccuracy
+    ? attemptRangeAccuracy(attacker, impactTarget, {
+        transpiercing: isPurePiercingProjectile
+      })
+    : true;
 
-              EffectMessage(impactTarget, "Raté !");
+  if (!accuracyHit) {
+    proj.status = "miss";
+    proj.impactTime = Date.now();
+    console.log(`❌ ${label} MISS (Adresse) :`, proj);
 
-              updateHealthBar(
-                impactTarget.stats.HP.current,
-                impactTarget.stats.HP.max,
-                impactTarget.stats.armor?.current || 0,
-                impactTarget.stats.armor?.max || 0,
-                impactTarget.id
-              );
-              updateBonusLifeCounters(impactTarget);
-              return;
-            }
+    EffectMessage(impactTarget, "Raté !");
 
-            // DODGE : uniquement si pas pure magical
-            const attackDodged = isPureMagicalAttack(attack)
-              ? false
-              : attemptDodge(attacker, impactTarget);
+    updateHealthBar(
+      impactTarget.stats.HP.current,
+      impactTarget.stats.HP.max,
+      impactTarget.stats.armor?.current || 0,
+      impactTarget.stats.armor?.max || 0,
+      impactTarget.id
+    );
+    updateBonusLifeCounters(impactTarget);
+    return "miss";
+  }
 
-            if (attackDodged) {
-              proj.status = "dodged";
-              console.log(`🛡️ ${label} esquivé :`, proj);
+  const attackDodged = isBrokenSpellReturn
+    ? false
+    : flags.canBeDodged
+      ? attemptDodge(attacker, impactTarget)
+      : false;
 
-              updateHealthBar(
-                impactTarget.stats.HP.current,
-                impactTarget.stats.HP.max,
-                impactTarget.stats.armor?.current || 0,
-                impactTarget.stats.armor?.max || 0,
-                impactTarget.id
-              );
-              updateBonusLifeCounters(impactTarget);
-              return;
-            }
+  if (attackDodged) {
+    proj.status = "dodged";
+	battleLogs("attack_dodged", {
+    attacker,
+    target: impactTarget,
+    attack
+});
+    console.log(`🛡️ ${label} esquivé :`, proj);
 
-            // Ambidextry VFX
-            if (ambiSuccess && proj === projectileData) {
-              AmbidextryVFX(impactTarget);
-            }
+    updateHealthBar(
+      impactTarget.stats.HP.current,
+      impactTarget.stats.HP.max,
+      impactTarget.stats.armor?.current || 0,
+      impactTarget.stats.armor?.max || 0,
+      impactTarget.id
+    );
+    updateBonusLifeCounters(impactTarget);
+    return "dodged";
+  }
 
-            // Dégâts
-            if (attack.isAmbidextry || proj === secondProjectileData) {
-              applyDamage(
-                impactTarget,
-                proj.damage,
-                attacker,
-                { ...attack, isAmbidextry: true },
-                totalDamageSources,
-                selfEffectsToApply
-              );
-            } else {
-              applyDamage(
-                impactTarget,
-                proj.damage,
-                attacker,
-                brokenSpell ? { ...attack, isBrokenSpell: true } : attack,
-                totalDamageSources,
-                selfEffectsToApply
-              );
-            }
+  if (ambiSuccess && proj === projectileData) {
+    AmbidextryVFX(impactTarget);
+  }
 
-            updateHealthBar(
-              impactTarget.stats.HP.current,
-              impactTarget.stats.HP.max,
-              impactTarget.stats.armor?.current || 0,
-              impactTarget.stats.armor?.max || 0,
-              impactTarget.id
-            );
-            updateBonusLifeCounters(impactTarget);
+  if (attack.isAmbidextry || proj === secondProjectileData) {
+applyDamage(
+  impactTarget,
+  proj.damage,
+  attacker,
+{
+  ...attack,
+  isAmbidextry: true,
+  ambidextryHitIndex: 2,
+  logVariant: "ambidextry_2",
+  forceDamageSources: proj.forceDamageSources,
+  isLaunchedUnderMysticism: Boolean(proj?.isLaunchedUnderMysticism),
+},
+totalDamageSources,
+  selfEffectsToApply
+);
+  } else {
+   applyDamage(
+  impactTarget,
+  proj.damage,
+  attacker,
+{
+  ...attack,
+  isBrokenSpell: Boolean(brokenSpell),
+  ambidextryHitIndex: ambiSuccess ? 1 : null,
+  logVariant: ambiSuccess ? "ambidextry_1" : "normal",
+  isLaunchedUnderMysticism: Boolean(proj?.isLaunchedUnderMysticism),
+},
+  totalDamageSources,
+  selfEffectsToApply
+);
+  }
 
-            proj.status = "hit";
-            proj.impactTime = Date.now();
-            console.log(`📊 ${label} mis à jour après impact :`, proj);
+  updateHealthBar(
+    impactTarget.stats.HP.current,
+    impactTarget.stats.HP.max,
+    impactTarget.stats.armor?.current || 0,
+    impactTarget.stats.armor?.max || 0,
+    impactTarget.id
+  );
+  updateBonusLifeCounters(impactTarget);
 
-            if (!checkStatusAndGameOver(impactTarget)) checkGameOver(entites);
-          };
+  proj.status = "hit";
+  proj.impactTime = Date.now();
+  console.log(`📊 ${label} mis à jour après impact :`, proj);
 
+  if (!checkStatusAndGameOver(impactTarget)) checkGameOver(entites);
+  return "hit";
+};
           // 🚫 Si broken spell => évite une animation projectile "self"
           if (brokenSpell) {
             await handleImpact(projectileData, "Retour de sort", actualTarget)();
@@ -431,7 +753,7 @@ if (isRange && isPureMagicalAttack(attack)) {
 else if (isMelee) {
   console.log(`⚔️ ${attacker.name} effectue une attaque en mêlée sur ${target.name}.`);
   attacker.currentPhase = "attack_3";
-  animationMelee(attacker, target);
+  meleeAnimationController = animationMelee(attacker, target);
 
   // base avant hâte (très important)
   const baseExecMs = attacker.baseTimings?.executionTime ?? attack.executionTime ?? attacker.executionTime;
@@ -453,149 +775,242 @@ else if (isMelee) {
           );
         }
 
-        // =========================
-        // DEGATS MELEE
-        // =========================
-        if (isMelee) {
-          // DODGE : uniquement si pas pure magical
-          const attackDodged = isPureMagicalAttack(attack)
-            ? false
-            : attemptDodge(attacker, target);
+// =========================
+// DEGATS MELEE
+// =========================
+if (isMelee) {
+  // Sécurité : l'attaquant peut mourir pendant le temps d'exécution CAC
+  LifeandDeath(attacker);
 
-          if (attackDodged) {
-            console.log(
-              `🛡️ ${target.name} esquive l'attaque de ${attacker.name} ! Aucun dégât infligé.`
-            );
+  if (attacker.isDEAD) {
+    meleeAnimationController?.resolveImpact?.(false);
+    console.log(
+      `🛑 ${attacker.name} meurt avant de toucher ${target.name}. L'attaque CAC échoue.`
+    );
 
-            updateHealthBar(
-              target.stats.HP.current,
-              target.stats.HP.max,
-              target.stats.armor?.current || 0,
-              target.stats.armor?.max || 0,
-              target.id
-            );
-            updateBonusLifeCounters(target);
-            console.log(`${attacker.name} termine son attaque après esquive.`);
+    updateHealthBar(
+      attacker.stats.HP.current,
+      attacker.stats.HP.max,
+      attacker.stats.armor?.current || 0,
+      attacker.stats.armor?.max || 0,
+      attacker.id
+    );
+    updateBonusLifeCounters(attacker);
 
-            // Récupération immédiate après esquive (comme ton comportement)
-            try {
-              if (!attacker.isDEAD) {
-                animateRecuperation(attacker, attack);
-                attacker.currentPhase = "attack_4";
-                await runPhaseTimer(attacker, "recoveryTime", attacker.recoveryTime);
+    checkGameOver(entites);
+    return;
+  }
 
-                if (OrderEntity(attacker)) {
-                  console.warn(`🛑 Phase de recuperation interrompue : ordre en cours.`);
-                  return;
-                }
+  // Sécurité : la cible peut mourir pendant le temps d'exécution CAC
+  LifeandDeath(target);
 
-                if (!attacker.isDEAD) {
-                  if (!checkStatusAndGameOver(attacker)) return;
-                  updateTimerDisplay(attacker);
-                } else {
-                  console.log(
-                    `${attacker.name} est mort et ne peut poursuivre la phase de récupération.`
-                  );
-                  stopAllIntervals();
-                  return;
-                }
-              } else {
-                console.log(
-                  `${attacker.name} est déjà mort et ne peut entrer dans la phase de récupération.`
-                );
-                stopAllIntervals();
-                return;
-              }
-            } catch (error) {
-              console.error(`Erreur pendant la phase de récupération : ${error}`);
-              return;
-            }
+  if (target.isDEAD) {
+    meleeAnimationController?.resolveImpact?.(false);
+    console.log(
+      `🛑 ${attacker.name} frappe trop tard : ${target.name} est déjà mort. L'attaque échoue.`
+    );
 
-            return;
-          }
+    updateHealthBar(
+      target.stats.HP.current,
+      target.stats.HP.max,
+      target.stats.armor?.current || 0,
+      target.stats.armor?.max || 0,
+      target.id
+    );
+    updateBonusLifeCounters(target);
 
-          const { totalDamageSources, totalDamage } = attemptAttackerDamages(attacker, attack);
+    checkGameOver(entites);
+    return;
+  }
 
-          if (target.isDEAD) {
-            console.log(
-              `${attacker.name} attaque le cadavre de ${target.name}. Cela ne produit aucun effet.`
-            );
-          } else {
-            // BROKEN SPELL MELEE (double hit)
-			const brokenMelee = isPureMagicalAttack(attack)
-  ? attemptMeleeBrokenSpell(attacker, target, attack)
-  : null;
+  // DODGE
+  const attackDodged = flags.canBeDodged
+    ? attemptDodge(attacker, target)
+    : false;
 
-            if (brokenMelee?.success) {
-              const brokenDamage = Math.round((totalDamage * brokenMelee.damagePct) / 100);
+  if (attackDodged) {
+	meleeAnimationController?.resolveImpact?.(false);
+	  battleLogs("attack_dodged", {
+    attacker,
+    target,
+    attack
+});
+    console.log(
+      `🛡️ ${target.name} esquive l'attaque de ${attacker.name} ! Aucun dégât infligé.`
+    );
 
-              console.warn(
-                `💥 Sort pété ! => ${attacker.name} se blesse et blesse ${target.name} en lançant ${displayName} : ` +
-                  `${brokenDamage} dégâts chacun (${brokenMelee.damagePct.toFixed(
-                    1
-                  )}% de ${totalDamage}). ` +
-                  `(chance ${brokenMelee.chance.toFixed(1)}% | jet ${brokenMelee.roll.toFixed(1)}%)`
-              );
+    updateHealthBar(
+      target.stats.HP.current,
+      target.stats.HP.max,
+      target.stats.armor?.current || 0,
+      target.stats.armor?.max || 0,
+      target.id
+    );
+    updateBonusLifeCounters(target);
 
-              const noSelfEffects = [];
+    console.log(`${attacker.name} termine son attaque après esquive.`);
 
-              // Cible prend les dégâts du pétage
-              applyDamage(
-                target,
-                brokenDamage,
-                attacker,
-                { ...attack, isBrokenSpell: true, brokenSpellMode: "melee_double" },
-                totalDamageSources,
-                noSelfEffects
-              );
+    try {
+      LifeandDeath(attacker);
 
-              // Lanceur prend les mêmes dégâts
-              applyDamage(
-                attacker,
-                brokenDamage,
-                attacker,
-                { ...attack, isBrokenSpell: true, brokenSpellMode: "melee_double" },
-                totalDamageSources,
-                noSelfEffects
-              );
+      if (!attacker.isDEAD) {
+        animateRecuperation(attacker, attack);
+        attacker.currentPhase = "attack_4";
 
-              // UI des deux
-              updateHealthBar(
-                target.stats.HP.current,
-                target.stats.HP.max,
-                target.stats.armor?.current || 0,
-                target.stats.armor?.max || 0,
-                target.id
-              );
-              updateBonusLifeCounters(target);
+        await runPhaseTimer(attacker, "recoveryTime", attacker.recoveryTime);
 
-              updateHealthBar(
-                attacker.stats.HP.current,
-                attacker.stats.HP.max,
-                attacker.stats.armor?.current || 0,
-                attacker.stats.armor?.max || 0,
-                attacker.id
-              );
-              updateBonusLifeCounters(attacker);
-
-              if (!checkStatusAndGameOver(target)) checkGameOver(entites);
-              if (!checkStatusAndGameOver(attacker)) return;
-            } else {
-              // comportement normal
-              applyDamage(target, totalDamage, attacker, attack, totalDamageSources, attack.selfEffects);
-            }
-
-            // Ambidextrie melee BLOQUÉE uniquement si pure magical
-            if (!isPureMagicalAttack(attack)) {
-              attemptMeleeAmbidextry(attacker, target, totalDamage, attack, totalDamageSources);
-            }
-          }
+        if (OrderEntity(attacker)) {
+          console.warn(`🛑 Phase de recuperation interrompue : ordre en cours.`);
+          return;
         }
 
+        LifeandDeath(attacker);
+
+        if (!attacker.isDEAD) {
+          if (!checkStatusAndGameOver(attacker)) return;
+          updateTimerDisplay(attacker);
+        } else {
+          console.log(
+            `${attacker.name} est mort et ne peut poursuivre la phase de récupération.`
+          );
+          stopAllIntervals();
+          return;
+        }
+      } else {
+        console.log(
+          `${attacker.name} est déjà mort et ne peut entrer dans la phase de récupération.`
+        );
+        stopAllIntervals();
+        return;
+      }
+    } catch (error) {
+      console.error(`Erreur pendant la phase de récupération : ${error}`);
+      return;
+    }
+
+    return;
+  }
+
+  const { totalDamageSources, totalDamage } =
+    attemptAttackerDamages(attacker, attack);
+
+  // Re-check juste avant applyDamage
+  LifeandDeath(attacker);
+  LifeandDeath(target);
+
+  if (attacker.isDEAD) {
+    meleeAnimationController?.resolveImpact?.(false);
+    console.log(
+      `🛑 ${attacker.name} meurt juste avant l'application des dégâts. L'attaque CAC échoue.`
+    );
+    checkGameOver(entites);
+    return;
+  }
+
+  if (target.isDEAD) {
+    meleeAnimationController?.resolveImpact?.(false);
+    console.log(
+      `🛑 ${attacker.name} attaque le cadavre de ${target.name}. Cela ne produit aucun effet.`
+    );
+    checkGameOver(entites);
+    return;
+  }
+
+  // BROKEN SPELL MELEE
+  const brokenMelee =
+    flags.canBrokenSpell && flags.brokenSpellMode === "melee_double"
+      ? attemptMeleeBrokenSpell(attacker, target, attack)
+      : null;
+
+  meleeAnimationController?.resolveImpact?.(true);
+
+  if (brokenMelee?.success) {
+    const brokenDamage = Math.round((totalDamage * brokenMelee.damagePct) / 100);
+
+    console.warn(
+      `💥 Sort pété ! => ${attacker.name} se blesse et blesse ${target.name} en lançant ${displayName} : ` +
+        `${brokenDamage} dégâts chacun (${brokenMelee.damagePct.toFixed(
+          1
+        )}% de ${totalDamage}). ` +
+        `(chance ${brokenMelee.chance.toFixed(1)}% | jet ${brokenMelee.roll.toFixed(1)}%)`
+    );
+
+    const noSelfEffects = [];
+
+    applyDamage(
+      target,
+      brokenDamage,
+      attacker,
+      { ...attack, isBrokenSpell: true, brokenSpellMode: "melee_double" },
+      totalDamageSources,
+      noSelfEffects
+    );
+
+    applyDamage(
+      attacker,
+      brokenDamage,
+      attacker,
+      { ...attack, isBrokenSpell: true, brokenSpellMode: "melee_double" },
+      totalDamageSources,
+      noSelfEffects
+    );
+
+    updateHealthBar(
+      target.stats.HP.current,
+      target.stats.HP.max,
+      target.stats.armor?.current || 0,
+      target.stats.armor?.max || 0,
+      target.id
+    );
+    updateBonusLifeCounters(target);
+
+    updateHealthBar(
+      attacker.stats.HP.current,
+      attacker.stats.HP.max,
+      attacker.stats.armor?.current || 0,
+      attacker.stats.armor?.max || 0,
+      attacker.id
+    );
+    updateBonusLifeCounters(attacker);
+
+    if (!checkStatusAndGameOver(target)) checkGameOver(entites);
+    if (!checkStatusAndGameOver(attacker)) return;
+  } else {
+    applyDamage(
+      target,
+      totalDamage,
+      attacker,
+      attack,
+      totalDamageSources,
+      attack.selfEffects
+    );
+  }
+
+  if (flags.canAmbidextry) {
+    LifeandDeath(attacker);
+    LifeandDeath(target);
+
+    if (!attacker.isDEAD && !target.isDEAD) {
+      attemptMeleeAmbidextry(
+        attacker,
+        target,
+        totalDamage,
+        attack,
+        totalDamageSources
+      );
+    }
+  }
+}
         // =========================
         // LAST-TARGET UPDATE (sur la cible réelle)
         // =========================
-        actualTarget.targetStatut = "lastTarget";
+        attacker.attackBalancedNoAggro = false;
+
+if (attacker.currentAttack) {
+  attacker.currentAttack.isBalancedNoAggro = false;
+}
+
+actualTarget.targetStatut = "lastTarget";
         if (attacker.type == "lord") {
           updateTargetStatut(attacker, actualTarget);
         }

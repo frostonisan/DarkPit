@@ -1,11 +1,14 @@
 import { loadFromLocalStorage, saveToLocalStorage, armyAConfig, saveCurrentGameData } from './GameStorage.js';
 import { entitesNest } from './entitesNest.js';
-import { selectRandomEntitiesForSideB, selectScriptedEntitiesForSideB, selectAdminEntitiesForSideB } from './ArmyBFactory.js';
+import { selectRandomEntitiesForSideB, selectScriptedEntitiesForSideB } from './ArmyBFactory.js';
+import { selectAdminEntitiesForSideB } from './admin.js';
 import { generateArmyA } from './ArmyAFactory.js';
 import { ensureEntityLevelObject } from './UpgradeEntity.js';
-import { toNumber, calculateLvlMaxBaseEntite, calculateLvlMaxEntiteWithWill, calculateVitalityRegenPercent, calculateVitalityRegenAmount, calculateTotalRegenAmount } from './damagesCalcul.js';
+import { toNumber,  getSafe, ATTACK_TIME_REDUC_CAP, calculateLvlMaxBaseEntite, calculateLvlMaxEntiteWithWill, calculateVitalityRegenPercent, calculateVitalityRegenAmount, calculateTotalRegenAmount,calculateMovementStartingCharges, weaponMasteryChargeStrenghtRatioBonus, calculateBloodThirstyPercent, calculateMovementMarathonChance, calculateMovementTrailerChance, calculateWeaponOrfevreWeaponMastery,calculateWeaponOrfevreStrength, calculateWeaponMasteryTrophyChance, calculateWeaponMasteryTrophyStrengthBonus, calculateHastePrepReduc, calculateHasteCDReduc, calculateHasteExecReduc, calculateHasteProjectilSpeed, calculateHasteRecupReduc,  calculateHpBattleRegenStrengthRatio,
+  calculateHpBattleRegenIndestructibilityRatio } from './damagesCalcul.js';
 import { saveEntityextraLifeToStorage } from './entityUpdatesStorage.js';
 import { isRegenKey, toNonNegInt } from './ui.js';
+
 // 📦 Données
 export let entites = [];          // ✅ export live-binding (tu peux le réassigner)
 export const removedEntities = []; // ✅ idem
@@ -34,6 +37,128 @@ function getGameDaySafe() {
 
 function pad3(i) {
   return String(i).padStart(3, "0");
+}
+
+export const ENTITY_ACQUISITION_COUNTER_KEY = 'entityAcquisitionCounter';
+export const ENTITY_ACQUISITION_SOURCES = Object.freeze([
+  'initial',
+  'loot',
+  'shop',
+  'quest',
+  'event',
+  'admin',
+  'legacy',
+  'unknown'
+]);
+
+function normalizeEntityAcquisitionSource(source) {
+  const normalized = String(source || 'unknown').trim().toLowerCase();
+  return normalized || 'unknown';
+}
+
+function normalizeEntityAcquisitionReference(value) {
+  return value == null || value === '' ? null : String(value);
+}
+
+function acquisitionOrder(value) {
+  const order = Number.parseInt(value, 10);
+  return Number.isInteger(order) && order > 0 ? order : 0;
+}
+
+function getStoredArmyAEntities() {
+  const stored = loadFromLocalStorage('selectedArmyA', []);
+  if (Array.isArray(stored)) return stored;
+  return Array.isArray(stored?.entities) ? stored.entities : [];
+}
+
+function getHighestEntityAcquisitionOrder() {
+  const gameData = loadFromLocalStorage('gameData', {});
+  const storedCounter = acquisitionOrder(
+    gameData?.[ENTITY_ACQUISITION_COUNTER_KEY]
+  );
+  const knownEntities = getStoredArmyAEntities();
+  const highestEntityOrder = knownEntities.reduce(
+    (highest, entity) => Math.max(
+      highest,
+      acquisitionOrder(entity?.acquisition?.order)
+    ),
+    0
+  );
+  return Math.max(storedCounter, highestEntityOrder);
+}
+
+function saveEntityAcquisitionCounter(order) {
+  const normalizedOrder = acquisitionOrder(order);
+  const gameData = loadFromLocalStorage('gameData', {});
+  const currentOrder = acquisitionOrder(
+    gameData?.[ENTITY_ACQUISITION_COUNTER_KEY]
+  );
+  if (currentOrder >= normalizedOrder) return currentOrder;
+
+  saveToLocalStorage('gameData', {
+    ...gameData,
+    [ENTITY_ACQUISITION_COUNTER_KEY]: normalizedOrder
+  });
+  return normalizedOrder;
+}
+
+/**
+ * Marque une instance au moment où elle rejoint l'armée A.
+ * Une acquisition déjà enregistrée est normalisée mais jamais remplacée.
+ */
+export function registerEntityAcquisition(entity, {
+  source = 'unknown',
+  sourceId = null,
+  eventId = null,
+  acquiredAt = null
+} = {}) {
+  if (!entity || typeof entity !== 'object') return null;
+
+  const previous = entity.acquisition && typeof entity.acquisition === 'object'
+    ? entity.acquisition
+    : null;
+  const previousOrder = acquisitionOrder(previous?.order);
+  const order = previousOrder || (getHighestEntityAcquisitionOrder() + 1);
+
+  entity.acquisition = {
+    ...(previous || {}),
+    order,
+    acquiredAt: typeof previous?.acquiredAt === 'string' && previous.acquiredAt
+      ? previous.acquiredAt
+      : typeof acquiredAt === 'string' && acquiredAt
+        ? acquiredAt
+        : new Date().toISOString(),
+    source: normalizeEntityAcquisitionSource(previous?.source || source),
+    sourceId: normalizeEntityAcquisitionReference(
+      previous?.sourceId ?? sourceId
+    ),
+    eventId: normalizeEntityAcquisitionReference(
+      previous?.eventId ?? eventId
+    )
+  };
+
+  saveEntityAcquisitionCounter(order);
+  return entity;
+}
+
+/**
+ * Migration idempotente des anciennes sauvegardes.
+ * Les entités sans historique suivent l'ordre actuel de selectedArmyA.
+ */
+export function migrateEntityAcquisitions(entities, {
+  source = 'legacy',
+  acquiredAt = new Date().toISOString()
+} = {}) {
+  if (!Array.isArray(entities)) return 0;
+  let changed = 0;
+
+  entities.forEach((entity) => {
+    const before = JSON.stringify(entity?.acquisition ?? null);
+    registerEntityAcquisition(entity, { source, acquiredAt });
+    if (JSON.stringify(entity?.acquisition ?? null) !== before) changed += 1;
+  });
+
+  return changed;
 }
 
 // Exemple : lecture stricte depuis entite.baseStats (aucun bonus, aucun preview)
@@ -511,12 +636,26 @@ function refreshDerivedDurable(entite, baseStats) {
   if (armorBonus > 0) entite.modifierStats.durable.derived.armor = armorBonus;
   else delete entite.modifierStats.durable.derived.armor;
 
-  // ✅ NEW : transcendence → extraLife (flat)
+  // transcendence → extraLife (flat)
   const transPts = getTranscendencePoints(primary);
   const extraLifeBonus = calculateTranscendenceExtraLife(transPts);
 
   if (extraLifeBonus > 0) entite.modifierStats.durable.derived.extraLife = extraLifeBonus;
   else delete entite.modifierStats.durable.derived.extraLife;
+  
+const weaponMasteryPts = Number(primary.weaponMastery ?? 0) || 0;
+const strengthPts = Number(primary.strength ?? 0) || 0;
+
+const chargeBonus = weaponMasteryPts > 0
+  ? calculateWeaponMasteryCharge(null, weaponMasteryPts) +
+    weaponMasteryChargeStrenghtRatioBonus(null, strengthPts)
+  : 0;
+
+if (chargeBonus > 0) {
+  entite.modifierStats.durable.derived.charge = chargeBonus;
+} else {
+  delete entite.modifierStats.durable.derived.charge;
+}
 }
 
 function normalizeEternalLifeSource(src) {
@@ -615,7 +754,61 @@ function computeFinalStats(
   } else {
     if (out.armor && typeof out.armor === "object") delete out.armor;
   }
+// --- MOVEMENT / SHIFT ---
+const hasMovementStat =
+  basePlusMods.movement !== undefined &&
+  basePlusMods.movement !== null &&
+  Number(basePlusMods.movement) > 0;
 
+const movementValue = hasMovementStat
+  ? Math.max(0, Math.round(Number(basePlusMods.movement) || 0))
+  : 0;
+
+const baseShift = basePlusMods.shift;
+
+const hasShiftObject =
+  baseShift &&
+  typeof baseShift === "object";
+
+const baseShiftCurrent = hasShiftObject
+  ? Math.max(0, Math.round(Number(baseShift.current) || 0))
+  : null;
+
+const baseShiftMax = hasShiftObject
+  ? Math.max(0, Math.round(Number(baseShift.max) || 0))
+  : null;
+
+out.movement = movementValue;
+
+if (hasMovementStat && hasShiftObject) {
+  out.shift = {
+    current: baseShiftCurrent + movementValue,
+    max: baseShiftMax + movementValue,
+  };
+} else if (hasMovementStat && !hasShiftObject) {
+  const autoShift = calculateMovementStartingCharges({
+    stats: {
+      ...out,
+      movement: movementValue,
+    },
+  });
+
+  out.shift = {
+    current: Math.min(autoShift, movementValue),
+    max: movementValue,
+  };
+} else if (!hasMovementStat && hasShiftObject) {
+  out.shift = {
+    current: baseShiftCurrent,
+    max: baseShiftMax,
+  };
+} else {
+  out.shift = {
+    current: 0,
+    max: 1,
+    baseDefault: true,
+  };
+}
   // --- EXTRA LIFE ---
   const hasOwn = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
 
@@ -729,6 +922,87 @@ export function recomputeEntityStats(entite) {
 
   // ✅ basePlusMods (HP inclut derived.HP via modifierStats.durable.derived)
   const basePlusMods = applyModifiers(baseStats, entite.modifierStats);
+  
+  const capAttackTimeReducStats = (stats) => {
+  [
+    "attackCooldownReduc",
+    "attackPreparationReduc",
+    "attackExecutionReduc",
+    "attackRecoveryReduc",
+  "attackProjectileSpeed"
+  ].forEach(key => {
+    if (stats[key] === undefined) return;
+    stats[key] = Math.min(ATTACK_TIME_REDUC_CAP, Math.max(0, Number(stats[key]) || 0));
+  });
+};
+
+capAttackTimeReducStats(basePlusMods);
+  
+  basePlusMods.weight =
+  calculateGeneratedWeight({ ...entite, stats: basePlusMods }) +
+  Number(basePlusMods.weight || 0);
+  
+  basePlusMods.marathon =
+  Number(basePlusMods.marathon || 0) +
+  Number(calculateMovementMarathonChance({ stats: basePlusMods }) || 0);
+
+basePlusMods.trailer =
+  Number(basePlusMods.trailer || 0) +
+  Number(calculateMovementTrailerChance({ stats: basePlusMods }) || 0);
+  
+const weaponMasteryValue = Number(basePlusMods.weaponMastery || 0);
+
+if (weaponMasteryValue > 0) {
+  basePlusMods.weaponOrfevre =
+    Number(basePlusMods.weaponOrfevre || 0) +
+    Number(calculateWeaponOrfevreWeaponMastery({ stats: basePlusMods }, weaponMasteryValue) || 0) +
+    Number(calculateWeaponOrfevreStrength({ stats: basePlusMods }) || 0);
+
+  basePlusMods.weaponCollector =
+    Number(basePlusMods.weaponCollector || 0) +
+    Number(calculateWeaponMasteryTrophyChance({ stats: basePlusMods }, weaponMasteryValue) || 0) +
+    Number(calculateWeaponMasteryTrophyStrengthBonus({ stats: basePlusMods }) || 0);
+}
+
+// const hasteValue = Number(basePlusMods.haste || 0);
+
+// if (hasteValue > 0) {
+  // basePlusMods.attackCooldownReduc =
+    // Number(basePlusMods.attackCooldownReduc || 0) +
+    // Number(calculateHasteCDReduc({ stats: basePlusMods }) || 0);
+
+  // basePlusMods.attackPreparationReduc =
+    // Number(basePlusMods.attackPreparationReduc || 0) +
+    // Number(calculateHastePrepReduc({ stats: basePlusMods }, hasteValue) || 0);
+
+  // basePlusMods.attackExecutionReduc =
+    // Number(basePlusMods.attackExecutionReduc || 0) +
+    // Number(calculateHasteExecReduc({ stats: basePlusMods }) || 0);
+
+  // basePlusMods.attackProjectileSpeed =
+    // Number(basePlusMods.attackProjectileSpeed || 0) +
+    // Number(calculateHasteProjectilSpeed({ stats: basePlusMods }) || 0);
+
+  // basePlusMods.attackRecoveryReduc =
+    // Number(basePlusMods.attackRecoveryReduc || 0) +
+    // Number(calculateHasteRecupReduc({ stats: basePlusMods }) || 0);
+// }
+
+const hpBattleRegenEntity = { ...entite, stats: basePlusMods };
+const nativeHpBattleRegen = Math.max(0, Number(basePlusMods.hpBattleRegen) || 0);
+const indestructibility = Math.max(0, Number(basePlusMods.indestructibility) || 0);
+let generatedHpBattleRegen = 0;
+
+if (indestructibility > 0) generatedHpBattleRegen = Math.max(0, Number(calculateHpBattleRegenStrengthRatio(hpBattleRegenEntity)) || 0) + Math.max(0, Number(calculateHpBattleRegenIndestructibilityRatio(hpBattleRegenEntity)) || 0);
+
+const finalHpBattleRegen = nativeHpBattleRegen + generatedHpBattleRegen;
+
+if (finalHpBattleRegen > 0) basePlusMods.hpBattleRegen = finalHpBattleRegen;
+else delete basePlusMods.hpBattleRegen;
+
+basePlusMods.bloodThirsty =
+  Number(basePlusMods.bloodThirsty || 0) +
+  calculateBloodThirstyFromBloodFury(basePlusMods);
 
   const prevCurrentHP    = entite?.stats?.HP?.current;
   const prevCurrentArmor = entite?.stats?.armor?.current;
@@ -858,6 +1132,140 @@ export function normalizeStuffSlots(entity, charge = 0, { preserve = true } = {}
   }
   entity.stuff = slots;
 }
+export function getMovementWeightConfig() {
+  return {
+    // Génération du weight 0–100
+    weightMultiplier: 20,
+    strengthRelayThreshold: 3,
+    strengthRelayRatio: 0.5,
+    intelligenceRatio: 1 / 3,
+    strengthPassiveRatio: 0,
+    minCarryingPower: 1,
+
+    // Paliers weight
+    featherLimit: 20,
+    lightLimit: 40,
+    middleLimit: 60,
+    heavyLimit: 80,
+
+    // Malus
+    middleMalus: 1,
+    heavyMalus: 2,
+    superHeavyMalus: 3,
+  };
+}
+export function calculateGeneratedWeight(entity, config = {}) {
+  const {
+    weightMultiplier = 20,
+
+    strengthRelayThreshold = 3,
+    strengthRelayRatio = 0.5,
+    intelligenceRatio = 1 / 3,
+
+    strengthPassiveRatio = 0,
+    minCarryingPower = 1,
+  } = config;
+
+  const hpMax = Math.max(
+    1,
+    Number(
+      entity?.stats?.HP?.max ??
+      entity?.stats?.HP ??
+      entity?.HP ??
+      entity?.maxHp ??
+      entity?.hpMax ??
+      entity?.hp ??
+      1
+    ) || 1
+  );
+
+  const level = Math.max(
+    1,
+    Number(entity?.level?.current ?? entity?.level ?? 1) || 1
+  );
+
+  const strength = Math.max(
+    1,
+    Number(entity?.stats?.strength ?? entity?.strength ?? entity?.force ?? 1) || 1
+  );
+
+  const agility = Math.max(
+    1,
+    Number(entity?.stats?.agility ?? entity?.agility ?? entity?.agilite ?? 1) || 1
+  );
+
+  const intelligence = Math.max(
+    0,
+    Number(entity?.stats?.intelligence ?? entity?.intelligence ?? 0) || 0
+  );
+
+  const hpPerLevel = hpMax / level;
+
+  const strengthCanRelayAgility = agility <= strength / strengthRelayThreshold;
+
+  const agilityFromStrength = strengthCanRelayAgility
+    ? strength * strengthRelayRatio
+    : 0;
+
+  const agilityFromIntelligence = intelligence * intelligenceRatio;
+
+  const effectiveAgility =
+    Math.max(agility, agilityFromStrength) +
+    agilityFromIntelligence +
+    strength * strengthPassiveRatio;
+
+  const carryingPower = Math.max(minCarryingPower, effectiveAgility);
+  const weightIndex = hpPerLevel / carryingPower;
+
+  return Math.max(0, Math.min(100, Math.round(weightIndex * weightMultiplier)));
+}
+export function getMovementWeightMalus(entity, config = {}) {
+  const cfg = {
+    ...getMovementWeightConfig(),
+    ...config,
+  };
+
+  const weight = Math.max(
+    0,
+    Math.min(
+      100,
+      Number(entity?.stats?.weight ?? entity?.weight ?? calculateGeneratedWeight(entity)) || 0
+    )
+  );
+
+  let weightClass = "feather-weight";
+  let label = "Poids plume";
+  let malus = 0;
+
+  if (weight >= cfg.heavyLimit) {
+    weightClass = "super-heavy-weight";
+    label = "Poids grotesque";
+    malus = cfg.superHeavyMalus;
+  } else if (weight >= cfg.middleLimit) {
+    weightClass = "heavy-weight";
+    label = "Poids lourd";
+    malus = cfg.heavyMalus;
+  } else if (weight >= cfg.lightLimit) {
+    weightClass = "middle-weight";
+    label = "Poids moyen";
+    malus = cfg.middleMalus;
+  } else if (weight >= cfg.featherLimit) {
+    weightClass = "light-weight";
+    label = "Poids léger";
+    malus = 0;
+  }
+
+  return {
+    weight,
+    weightClass,
+    label,
+    malus,
+    hasShiftWeightMalus: malus > 0,
+    shiftCostModifier: malus,
+  };
+}
+
+
 export function calculateResistances(target, totalDamageSources, attacker = null) {
     const RESISTANCE_CONSTANT = 70;
 
@@ -1110,6 +1518,36 @@ export function calculateTranscendenceExtraLife(points) {
   return value;
 }
 
+export function calculateWeaponMasteryCharge(entite, value) {
+  const weaponMastery = Math.max(
+    0,
+    Math.floor(Number(value ?? entite?.weaponMastery ?? entite?.stats?.weaponMastery ?? 0) || 0)
+  );
+
+  if (weaponMastery <= 0) return 0;
+
+  return Math.floor(weaponMastery / 10) + 1;
+}
+export function calculateBloodThirstyFromBloodFury(bloodFuryPoints) {
+  const points = Number(bloodFuryPoints || 0);
+
+  if (points <= 0) return 0;
+  if (points === 1) return 4;
+
+  const min = 4;
+  const max = 30;
+  const base = min + (max - min) * Math.sqrt((points - 1) / 150);
+
+  return Math.min(Math.ceil(base), max);
+}
+
+export function getBloodThirstyPercent(valueOrEntite) {
+  return Number(
+    typeof valueOrEntite === "number"
+      ? valueOrEntite
+      : valueOrEntite?.stats?.bloodThirsty ?? valueOrEntite?.bloodThirsty ?? 0
+  ) || 0;
+}
 export function calculateDodgePercent(points) {
   if (points <= 0) return 0;
   if (points === 1) return 5;
@@ -1207,20 +1645,6 @@ export function calculateAstralityPercent(points) {
   return Math.min(Math.round(base * 10) / 10, max);
 }
 
-
-export function calculateBloodFuryPercent(entite) {
-  const points = Number(entite?.bloodFury ?? entite?.stats?.bloodFury ?? 0) || 0;
-
-  if (points <= 0) return 0;
-  if (points === 1) return 4;
-
-  const min = 4;
-  const max = 30;
-  const base = min + (max - min) * Math.sqrt((points - 1) / 150);
-
-  return Math.min(Math.ceil(base), max);
-}
-
 // 📈 Courbe XP par niveau
 function calculateLevelCosts(baseValue, maxLevel, increaseRate) {
     let levels = [];
@@ -1316,6 +1740,17 @@ function EntitiesA() {
                 console.log(`✅ Entité "${ent.name}" déjà enrichie → aucun écrasement effectué.`);
             }
         });
+    }
+
+    const migratedAcquisitions = migrateEntityAcquisitions(selected, {
+        source: fromStorage ? 'legacy' : 'initial'
+    });
+    if (migratedAcquisitions > 0) {
+        saveToLocalStorage('selectedArmyA', selected);
+        console.log(
+            '🧾 ' + migratedAcquisitions
+            + " acquisition(s) d'entité enregistrée(s)."
+        );
     }
 
     console.groupEnd();

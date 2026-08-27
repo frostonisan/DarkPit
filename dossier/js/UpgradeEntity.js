@@ -1,11 +1,11 @@
 import { saveUpgradedEntity, saveToLocalStorage, purgeStatPreview } from './GameStorage.js';
 import { validateAndSetNickname } from './secure.js';
-import { levelDetails, calculateVitalityBonus, calculateVelocityReduction, calculateRobustnessBonus,  calculateTranscendenceExtraLife, recomputeEntityStats, maxLevel as MAX_LEVEL, BaseDayHpRegen } from '/js/entites.js';
+import { levelDetails, calculateVitalityBonus, calculateVelocityReduction, calculateRobustnessBonus,  calculateTranscendenceExtraLife, recomputeEntityStats, maxLevel as MAX_LEVEL, BaseDayHpRegen, calculateWeaponMasteryCharge } from '/js/entites.js';
 import { cyclesData } from './cycleData.js';
 import { stats as STATS_DATA } from './statsData.js';
 import { toRoman } from './ui.js';
 import { createUmbraBlock } from './GameInit.js';
-import { toNumber, calculatewillAwakeBonus,  calculateVitalityRegenPercent,  calculateVitalityRegenAmount,  calculateTotalRegenAmount } from './damagesCalcul.js';
+import { toNumber, calculatewillAwakeBonus,  calculateVitalityRegenPercent,  calculateVitalityRegenAmount,  calculateTotalRegenAmount, calculateHpBattleRegenStrengthRatio, calculateHpBattleRegenIndestructibilityRatio } from './damagesCalcul.js';
 import { startArchup } from './meteo.js';
 import { updateBonusLifeCounters, updateArmorCounter } from './entityAttributs.js';
 
@@ -786,10 +786,18 @@ export function LevelupSignal(
   });
 
   // ✅ si on a un parent cible + type icon => on mount ici (sans doublon)
-  if (type !== 'bouton' && parentEl) {
-    parentEl.querySelectorAll('.levelup-icon').forEach(n => n.remove());
+if (type !== 'bouton' && parentEl) {
+  parentEl.querySelectorAll('.levelup-icon').forEach(n => n.remove());
+
+  const soulPicto = parentEl.querySelector('.codex-soul');
+
+  if (soulPicto) {
+    soulPicto.insertAdjacentElement('afterend', el);
+    soulPicto.insertAdjacentText('afterend', ' ');
+  } else {
     parentEl.appendChild(el);
   }
+}
 
   return el;
 }
@@ -1731,7 +1739,7 @@ if (key === "speed") {
   const isNew = showPrev && isZero(permVal) && !isZero(prevVal);
 
   // ✅ ARMOR: suppression si 0/0 sans preview
-if (key === "armor" || key === "extraLife") {
+if (key === "armor" || key === "extraLife" || key === "charge") {
   const container =
     perm.closest(".stat-container") ||
     document.querySelector(`.stat-container[data-stat="${key}"][data-entity-id="${entite.id}"]`);
@@ -1743,7 +1751,7 @@ if (key === "armor" || key === "extraLife") {
 }
 
   // ✅ upgraded/reducted sur container pour HP/armor
-if (key === "HP" || key === "armor" || key === "extraLife") {
+if (key === "HP" || key === "armor" || key === "extraLife" || key === "charge") {
   const container = perm.closest(".stat-container");
   if (container) {
     const permMax = isObj(permVal) ? Number(permVal.max ?? 0) : Number(permVal ?? 0);
@@ -2036,7 +2044,30 @@ function syncPreviewExtraLifeFromTranscendence(entite) {
     max: deltaMax
   };
 }
+function syncPreviewChargeFromWeaponMastery(entite) {
+  const preview = entite?.modifierStats?.preview;
+  if (!preview?.statLeveled) return;
 
+  preview.meta ??= {};
+  preview.meta.derived ??= {};
+
+  const baseWM = Number(entite.stats?.weaponMastery ?? 0) || 0;
+  const dWM = Number(preview.statLeveled.weaponMastery ?? 0) || 0;
+
+  const beforeCharge = calculateWeaponMasteryCharge(baseWM);
+  const afterCharge = calculateWeaponMasteryCharge(baseWM + dWM);
+
+  const deltaCharge = afterCharge - beforeCharge;
+
+  if (!dWM || deltaCharge === 0) {
+    delete preview.statLeveled.charge;
+    delete preview.meta.derived.chargeFromWeaponMastery;
+    return;
+  }
+
+  preview.statLeveled.charge = deltaCharge;
+  preview.meta.derived.chargeFromWeaponMastery = true;
+}
 
 
 function recomputeSpeedFromVelocity(entite) {
@@ -2092,39 +2123,6 @@ function createArchetypeIcon(entite, archetypeKey, archetypeLevel, archetypeUid)
 
   container.appendChild(icon);
 }
-export function ComputeStatPreview(entite) {
-  if (!entite?.stats) return;
-
-  entite.modifierStats ??= {};
-  entite.modifierStats.preview ??= { statLeveled: {} };
-
-  // 1) Deltas dérivés (ils alimentent preview.statLeveled)
-  syncPreviewHPFromVitality(entite);
-  syncPreviewArmorFromRobustness(entite);
-  syncPreviewSpeedFromVelocity(entite);
-  syncPreviewExtraLifeFromTranscendence(entite);
-
-  const base   = entite.stats;
-  const deltas = entite.modifierStats.preview.statLeveled || {};
-  const total  = {};
-
-  // 2) Base -> total
-  for (const [k, v] of Object.entries(base)) {
-    total[k] = isObjStat(v) ? normObj(v) : v;
-  }
-
-  // 3) Deltas -> total
-  for (const [k, dv] of Object.entries(deltas)) {
-    if (isObjStat(dv)) total[k] = addObj(total[k], dv);
-    else total[k] = Number(total[k] ?? 0) + Number(dv ?? 0);
-  }
-
-  // 4) dayHpRegen doit être calculée avec les valeurs PREVIEW (donc total)
-  total.dayHpRegen = computeDayHpRegenFromTotals(entite, total, deltas);
-
-  entite.modifierStats.preview.total = total;
-  return total;
-}
 
 function computeDayHpRegenFromTotals(entite, total, deltas) {
   // vitality et HP.max = VALEURS PREVIEW (donc total)
@@ -2147,7 +2145,102 @@ function computeDayHpRegenFromTotals(entite, total, deltas) {
   return calculateTotalRegenAmount(baseRegen, bonus);
 }
 
+function computeHpBattleRegenFromTotals(entite, total, deltas) {
+  const nativeHpBattleRegen = Math.max(0, Number(entite?.stats?.hpBattleRegen) || 0);
+  const permanentIndestructibility = Math.max(0, Number(entite?.stats?.indestructibility) || 0);
+  const previewIndestructibility = Math.max(0, Number(total?.indestructibility) || 0);
+  const permanentStrength = Math.max(0, Number(entite?.stats?.strength) || 0);
+  const previewStrength = Math.max(0, Number(total?.strength) || 0);
 
+  /*
+   * On retire d'abord la génération permanente déjà incluse
+   * dans entite.stats.hpBattleRegen.
+   */
+  const permanentGenerated = permanentIndestructibility > 0 ? Math.max(0, Number(calculateHpBattleRegenStrengthRatio({ ...entite, stats: { ...entite.stats, strength: permanentStrength, indestructibility: permanentIndestructibility } })) || 0) + Math.max(0, Number(calculateHpBattleRegenIndestructibilityRatio({ ...entite, stats: { ...entite.stats, strength: permanentStrength, indestructibility: permanentIndestructibility } })) || 0) : 0;
+  const nativeOnly = Math.max(0, nativeHpBattleRegen - permanentGenerated);
+  const previewEntity = { ...entite, stats: { ...total, strength: previewStrength, indestructibility: previewIndestructibility } };
+  const previewGenerated = previewIndestructibility > 0 ? Math.max(0, Number(calculateHpBattleRegenStrengthRatio(previewEntity)) || 0) + Math.max(0, Number(calculateHpBattleRegenIndestructibilityRatio(previewEntity)) || 0) : 0;
+
+  const directHpBattleRegenDelta = Math.max(
+  0,
+  Number(deltas?.hpBattleRegen) || 0
+);
+
+return Math.max(
+  0,
+  nativeOnly +
+  directHpBattleRegenDelta +
+  previewGenerated
+);
+}
+export function ComputeStatPreview(entite) {
+  if (!entite?.stats) return;
+
+  entite.modifierStats ??= {};
+  entite.modifierStats.preview ??= {
+    statLeveled: {}
+  };
+
+  entite.modifierStats.preview.statLeveled ??= {};
+
+  // 1) Deltas dérivés
+  syncPreviewHPFromVitality(entite);
+  syncPreviewArmorFromRobustness(entite);
+  syncPreviewSpeedFromVelocity(entite);
+  syncPreviewExtraLifeFromTranscendence(entite);
+  syncPreviewChargeFromWeaponMastery(entite);
+
+  const base = entite.stats;
+  const deltas =
+    entite.modifierStats.preview.statLeveled || {};
+
+  const total = {};
+
+  // 2) Copie des stats permanentes.
+  for (const [k, v] of Object.entries(base)) {
+    total[k] = isObjStat(v)
+      ? normObj(v)
+      : v;
+  }
+
+  // 3) Application des deltas de level-up.
+  for (const [k, dv] of Object.entries(deltas)) {
+    if (isObjStat(dv)) {
+      total[k] = addObj(total[k], dv);
+    } else {
+      total[k] =
+        Number(total[k] ?? 0) +
+        Number(dv ?? 0);
+    }
+  }
+
+  // 4) Régénération journalière avec les valeurs preview.
+  total.dayHpRegen =
+    computeDayHpRegenFromTotals(
+      entite,
+      total,
+      deltas
+    );
+
+  // 5) Régénération de combat avec strength et indestructibility preview.
+  const previewHpBattleRegen =
+    computeHpBattleRegenFromTotals(
+      entite,
+      total,
+      deltas
+    );
+
+  if (previewHpBattleRegen > 0) {
+    total.hpBattleRegen =
+      previewHpBattleRegen;
+  } else {
+    delete total.hpBattleRegen;
+  }
+
+  entite.modifierStats.preview.total = total;
+
+  return total;
+}
 function getArchetypeUID() {
   return 'arch_' + Math.random().toString(36).slice(2, 10);
 }
@@ -3018,83 +3111,108 @@ let statParent =
   // -------------------------
   // 3) ✅ Cas spécial : armor n’existe pas MAIS armor.max existe en preview
   // -------------------------
-  const previewArmor =
-    entite?.modifierStats?.preview?.statLeveled?.armor ||
-    entite?.modifierStats?.preview?.total?.armor;
+ const previewArmor = entite?.modifierStats?.preview?.statLeveled?.armor;
 
-  const hasPreviewArmor =
-    previewArmor &&
-    typeof previewArmor === "object" &&
-    Number(previewArmor.max ?? 0) > 0;
-
-  const armorBlockMissing = !document.querySelector(
-    `.stat-container[data-stat="armor"][data-entity-id="${entite.id}"]`
+const hasArmorDelta =
+  previewArmor &&
+  typeof previewArmor === "object" &&
+  (
+    Number(previewArmor.current ?? 0) !== 0 ||
+    Number(previewArmor.max ?? 0) !== 0
   );
 
-  if (armorBlockMissing && hasPreviewArmor) {
-    const armorDef   = STATS_DATA.find(s => s.key === "armor");
-    const armorLabel = armorDef ? armorDef.name : "Armure";
+const armorBlockMissing = !document.querySelector(
+  `.stat-container[data-stat="armor"][data-entity-id="${entite.id}"]`
+);
 
-    // ✅ sécurité: armor doit être un objet current/max en base
-    if (!entite.stats.armor || typeof entite.stats.armor !== "object") {
-      entite.stats.armor = { current: 0, max: 0 };
-    }
+if (armorBlockMissing && hasArmorDelta) {
+  const armorDef = STATS_DATA.find(s => s.key === "armor");
+  const armorLabel = armorDef ? armorDef.name : "Armure";
 
-    // ✅ callback retourne l'objet brut => ton createUmbraBlock affichera "New!"
-    //    (forced + armor 0/0 => entite-stat new-stat + texte "New!")
-    createUmbraBlock(
-      statParent,
-      armorLabel,
-      () => entite.stats.armor,
-      entite,
-      "armor"
-    );
+  const permanentArmor =
+    entite.stats?.armor && typeof entite.stats.armor === "object"
+      ? entite.stats.armor
+      : { current: 0, max: 0 };
 
-    markStatUpgraded(entite, "armor");
+  createUmbraBlock(
+    statParent,
+    armorLabel,
+    () => permanentArmor,
+    entite,
+    "armor"
+  );
 
-    // ✅ force le rendu perm/preview (0/0 -> New! et preview 10/10)
-    renderStatPair(entite, "armor", statParent);
-  }
+  renderStatPair(entite, "armor", statParent);
+}
+// -------------------------
 // 3bis) ✅ Cas spécial : extraLife n’existe pas MAIS extraLife est présent en preview
 // -------------------------
-const previewExtraLife =
-  entite?.modifierStats?.preview?.statLeveled?.extraLife ||
-  entite?.modifierStats?.preview?.total?.extraLife;
+const previewExtraLife = entite?.modifierStats?.preview?.statLeveled?.extraLife;
 
-const extraMax =
-  (previewExtraLife && typeof previewExtraLife === "object")
-    ? Number(previewExtraLife.max ?? previewExtraLife.current ?? 0)
-    : Number(previewExtraLife ?? 0);
-
-const hasPreviewExtraLife = extraMax > 0;
+const hasExtraLifeDelta =
+  previewExtraLife &&
+  typeof previewExtraLife === "object" &&
+  (
+    Number(previewExtraLife.current ?? 0) !== 0 ||
+    Number(previewExtraLife.max ?? 0) !== 0
+  );
 
 const extraLifeBlockMissing = !document.querySelector(
   `.stat-container[data-stat="extraLife"][data-entity-id="${entite.id}"]`
 );
 
-if (extraLifeBlockMissing && hasPreviewExtraLife) {
-  const extraDef   = STATS_DATA.find(s => s.key === "extraLife");
+if (extraLifeBlockMissing && hasExtraLifeDelta) {
+  const extraDef = STATS_DATA.find(s => s.key === "extraLife");
   const extraLabel = extraDef ? extraDef.name : "Vie supplémentaire";
 
-  // ✅ sécurité: créer l'objet base même si max absent
-  ensureExtraLifeObj(entite);
+  const permanentExtraLife =
+    entite.stats?.extraLife && typeof entite.stats.extraLife === "object"
+      ? entite.stats.extraLife
+      : { current: 0, max: 0 };
 
   createUmbraBlock(
     statParent,
     extraLabel,
-    () => entite.stats.extraLife, // objet brut
+    () => permanentExtraLife,
     entite,
     "extraLife"
   );
 
-  markStatUpgraded(entite, "extraLife");
-
-  // force perm/preview (0/0 -> New! et preview +1/+1 par ex.)
   renderStatPair(entite, "extraLife", statParent);
+}
+
+// -------------------------
+// 3ter) ✅ Cas spécial : charge n’existe pas MAIS charge est présente en preview
+// -------------------------
+const previewCharge = entite?.modifierStats?.preview?.statLeveled?.charge;
+
+const hasChargeDelta = Number(previewCharge ?? 0) !== 0;
+
+const chargeBlockMissing = !document.querySelector(
+  `.stat-container[data-stat="charge"][data-entity-id="${entite.id}"]`
+);
+
+if (chargeBlockMissing && hasChargeDelta) {
+  const chargeDef = STATS_DATA.find(s => s.key === "charge");
+  const chargeLabel = chargeDef ? chargeDef.name : "Charge";
+
+  const permanentCharge = Number(entite.stats?.charge ?? 0) || 0;
+
+  createUmbraBlock(
+    statParent,
+    chargeLabel,
+    () => permanentCharge,
+    entite,
+    "charge"
+  );
+
+  renderStatPair(entite, "charge", statParent);
 }
 } else {
   console.warn(`[invest] Pas de sous-stat trouvée pour ${nextKey} (${stageName})`);
 }
+
+
     }
 
     // 🧾 Historique
@@ -3114,16 +3232,18 @@ if (extraLifeBlockMissing && hasPreviewExtraLife) {
   renderStatPair(entite, key, nodes.statsRoot);
 }
     if (pickKey) {
-  const pickBlock = document.querySelector(
-    `.stat-container[data-stat="${pickKey}"][data-entity-id="${entite.id}"]`
-  );
-  const pickRoot = (pickBlock && pickBlock.closest(".entity-stats-section"))
-    || nodes.statsRoot
-    || document.body;
-
+  const pickBlock = document.querySelector(`.stat-container[data-stat="${pickKey}"][data-entity-id="${entite.id}"]`);
+  const pickRoot = pickBlock?.closest(".entity-stats-section") || nodes.statsRoot || document.body;
   renderStatPair(entite, pickKey, pickRoot);
 }
-    if (typeof ComputeStatPreview === "function") ComputeStatPreview(entite);
+
+if (typeof ComputeStatPreview === "function") ComputeStatPreview(entite);
+
+/*
+ * Si strength ou indestructibility ont changé,
+ * hpBattleRegen doit être immédiatement recalculée et affichée.
+ */
+refreshPreviewHpBattleRegen(entite, nodes.statsRoot);
 
     // 👉 rendu avec gestion du délai :
     //    - si prevKey === nextKey → pas de délai
@@ -3271,7 +3391,14 @@ if (!isAttributeKey(key)) {
 
   renderStatPair(entite, last.subKey, subRoot);
 }
-    if (typeof ComputeStatPreview === "function") ComputeStatPreview(entite);
+   if (typeof ComputeStatPreview === "function") {
+  ComputeStatPreview(entite);
+}
+
+refreshPreviewHpBattleRegen(
+  entite,
+  nodes.statsRoot
+);
 
     // archetype APRÈS le désinvestissement
     const nextKey = getActiveArchetypeKey();
@@ -3372,63 +3499,152 @@ function unmarkStatUpgraded(entite, statKey) {
   const val = entite?.modifierStats?.preview?.statLeveled?.[statKey] ?? 0;
   if (el && val <= 0) el.classList.remove('upgraded');
 }
+function refreshPreviewHpBattleRegen(entite, fallbackRoot = null) {
+  if (!entite) return;
+  const total = entite?.modifierStats?.preview?.total;
+  const previewHpBattleRegen = Math.max(0, Number(total?.hpBattleRegen) || 0);
+  const permanentHpBattleRegen = Math.max(0, Number(entite?.stats?.hpBattleRegen) || 0);
+  let block = document.querySelector(`.stat-container[data-stat="hpBattleRegen"][data-entity-id="${entite.id}"]`);
+  const statParent = block?.closest(".entity-stats-section") || fallbackRoot || document.querySelector(`#codex-entity_${entite.id} .umbra-submenu.new.entity-stats-section`) || document.querySelector(`.umbra-submenu.new.entity-stats-section`) || nodes.statsRoot || document.body;
 
+  /*
+   * La stat peut apparaître pour la première fois parce que
+   * la preview vient de donner de l'indestructibilité.
+   */
+  if (!block && previewHpBattleRegen > 0) {
+    const statDef = STATS_DATA.find(stat => stat.key === "hpBattleRegen");
+    const statLabel = statDef?.name || "Régénération de combat";
+    createUmbraBlock(statParent, statLabel, () => permanentHpBattleRegen, entite, "hpBattleRegen", false, null, true);
+    block = document.querySelector(`.stat-container[data-stat="hpBattleRegen"][data-entity-id="${entite.id}"]`);
+  }
+
+  if (!block) return;
+  const root = block.closest(".entity-stats-section") || statParent;
+  renderStatPair(entite, "hpBattleRegen", root);
+
+  if (previewHpBattleRegen !== permanentHpBattleRegen) block.classList.add("upgraded");
+  else block.classList.remove("upgraded");
+
+  /*
+   * Si la stat n'existe ni en permanent ni en preview,
+   * on retire le bloc créé temporairement.
+   */
+  if (previewHpBattleRegen <= 0 && permanentHpBattleRegen <= 0) block.remove();
+}
 function refreshPreviewVitals(entite) {
   syncPreviewHPFromVitality(entite);
   syncPreviewArmorFromRobustness(entite);
   syncPreviewExtraLifeFromTranscendence(entite);
+  syncPreviewChargeFromWeaponMastery(entite);
 
   // dayHpRegen dérivée de HP.max + vitality
   syncPreviewDayHpRegenFromHPVitality(entite);
 
   ComputeStatPreview(entite);
 
-let b;
+  let b;
 
-b = document.querySelector(`.stat-container[data-stat="HP"][data-entity-id="${entite.id}"]`);
-renderStatPair(entite, "HP", (b && b.closest(".entity-stats-section")) || nodes.statsRoot || document.body);
+  b = document.querySelector(`.stat-container[data-stat="HP"][data-entity-id="${entite.id}"]`);
+  renderStatPair(entite, "HP", b?.closest(".entity-stats-section") || nodes.statsRoot || document.body);
 
-b = document.querySelector(`.stat-container[data-stat="armor"][data-entity-id="${entite.id}"]`);
-renderStatPair(entite, "armor", (b && b.closest(".entity-stats-section")) || nodes.statsRoot || document.body);
+  b = document.querySelector(`.stat-container[data-stat="armor"][data-entity-id="${entite.id}"]`);
+  renderStatPair(entite, "armor", b?.closest(".entity-stats-section") || nodes.statsRoot || document.body);
 
-b = document.querySelector(`.stat-container[data-stat="extraLife"][data-entity-id="${entite.id}"]`);
-renderStatPair(entite, "extraLife", (b && b.closest(".entity-stats-section")) || nodes.statsRoot || document.body);
+  b = document.querySelector(`.stat-container[data-stat="extraLife"][data-entity-id="${entite.id}"]`);
+  renderStatPair(entite, "extraLife", b?.closest(".entity-stats-section") || nodes.statsRoot || document.body);
 
-b = document.querySelector(`.stat-container[data-stat="dayHpRegen"][data-entity-id="${entite.id}"]`);
-renderStatPair(entite, "dayHpRegen", (b && b.closest(".entity-stats-section")) || nodes.statsRoot || document.body);
+  b = document.querySelector(`.stat-container[data-stat="charge"][data-entity-id="${entite.id}"]`);
+  renderStatPair(entite, "charge", b?.closest(".entity-stats-section") || nodes.statsRoot || document.body);
+
+  b = document.querySelector(`.stat-container[data-stat="dayHpRegen"][data-entity-id="${entite.id}"]`);
+  renderStatPair(entite, "dayHpRegen", b?.closest(".entity-stats-section") || nodes.statsRoot || document.body);
+
+  refreshPreviewHpBattleRegen(entite, nodes.statsRoot);
 }
 
-
 function addPreviewStat(entite, statKey, amount = 1) {
+  if (!entite || !statKey) return;
+
   entite.modifierStats ??= {};
-  entite.modifierStats.preview ??= { statLeveled: {} };
+  entite.modifierStats.preview ??= {
+    statLeveled: {}
+  };
+  entite.modifierStats.preview.statLeveled ??= {};
 
-  entite.modifierStats.preview.statLeveled[statKey] =
-    (entite.modifierStats.preview.statLeveled[statKey] ?? 0) + amount;
+  const currentValue =
+    Number(
+      entite.modifierStats.preview.statLeveled[statKey]
+    ) || 0;
 
- if (statKey === "vitality" || statKey === "robustness" || statKey === "transcendence") refreshPreviewVitals(entite);
-  else if (statKey === "velocity") refreshPreviewSpeed(entite);
-  else ComputeStatPreview(entite);
+  const nextValue =
+    currentValue +
+    (Number(amount) || 0);
+
+  if (nextValue !== 0) {
+    entite.modifierStats.preview.statLeveled[statKey] =
+      nextValue;
+  } else {
+    delete entite.modifierStats.preview.statLeveled[statKey];
+  }
+
+  if (
+    statKey === "vitality" ||
+    statKey === "robustness" ||
+    statKey === "transcendence" ||
+    statKey === "weaponMastery" ||
+    statKey === "strength" ||
+    statKey === "indestructibility" ||
+    statKey === "hpBattleRegen"
+  ) {
+    refreshPreviewVitals(entite);
+  } else if (statKey === "velocity") {
+    refreshPreviewSpeed(entite);
+  } else {
+    ComputeStatPreview(entite);
+  }
 
   markStatUpgraded(entite, statKey);
 }
 
-function removePreviewStat(entite, statKey) {
-  const sl = entite?.modifierStats?.preview?.statLeveled;
-  if (!sl) return;
+function removePreviewStat(entite, statKey, amount = 1) {
+  if (!entite || !statKey) return;
 
-  const current = sl[statKey] ?? 0;
-  if (current <= 1) delete sl[statKey];
-  else sl[statKey] = current - 1;
+  const statLeveled =
+    entite?.modifierStats?.preview?.statLeveled;
 
-   if (statKey === "vitality" || statKey === "robustness" || statKey === "transcendence") refreshPreviewVitals(entite);
-  else if (statKey === "velocity") refreshPreviewSpeed(entite);
-  else ComputeStatPreview(entite);
+  if (!statLeveled) return;
 
+  const currentValue =
+    Number(statLeveled[statKey]) || 0;
+
+  const nextValue =
+    currentValue -
+    Math.max(0, Number(amount) || 0);
+
+  if (nextValue > 0) {
+    statLeveled[statKey] = nextValue;
+  } else {
+    delete statLeveled[statKey];
+  }
+
+  if (
+    statKey === "vitality" ||
+    statKey === "robustness" ||
+    statKey === "transcendence" ||
+    statKey === "weaponMastery" ||
+    statKey === "strength" ||
+    statKey === "indestructibility" ||
+    statKey === "hpBattleRegen"
+  ) {
+    refreshPreviewVitals(entite);
+  } else if (statKey === "velocity") {
+    refreshPreviewSpeed(entite);
+  } else {
+    ComputeStatPreview(entite);
+  }
 
   unmarkStatUpgraded(entite, statKey);
 }
-
 function removeNewStatClasses(entite) {
   document.querySelectorAll('.entite-stat.new-stat').forEach(el => {
     const statKey = el.dataset.stat;
@@ -3476,6 +3692,7 @@ function confirmLevelUp() {
 
   // ✅ flags dérivés (une seule fois, plus propre)
   const isDerivedSpeed = !!entite?.modifierStats?.preview?.meta?.derived?.speedFromVelocity;
+  const isDerivedCharge = entite?.modifierStats?.preview?.meta?.derived?.chargeFromWeaponMastery === true;
   const isDerivedDayHpRegen = !!entite?.modifierStats?.preview?.meta?.derived?.dayHpRegenFromHPVitality;
 
   for (const [key, val] of Object.entries(previewStats)) {
@@ -3556,12 +3773,15 @@ function confirmLevelUp() {
 
       continue;
     }
+// ✅ CHARGE : si dérivée de weaponMastery => ne pas valider directement
+if (key === "charge") {
+  if (isDerivedCharge) continue;
+}
 
-    // ✅ dayHpRegen : si dérivée de HP.max + vitality => ne pas valider
+ // ✅ dayHpRegen : si dérivée de HP.max + vitality => ne pas valider
     if (key === "dayHpRegen") {
       if (isDerivedDayHpRegen) continue;
-      // sinon, si tu autorises une stat dayHpRegen “directe”, elle passe en numérique standard ci-dessous
-    }
+        }
 
     // ✅ cas numérique standard
     entite.modifierStats.durable.statLeveled[key] =

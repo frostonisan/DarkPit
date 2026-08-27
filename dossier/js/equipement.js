@@ -206,11 +206,6 @@ export function equip({ item, targetEntity, slotId }) {
   };
 
   // 4. Sauvegarde dans equippedItems
-  const equippedItems = loadFromLocalStorage('equippedItems', {});
-  equippedItems[equippedId] = fullEquippedItem;
-  saveToLocalStorage('equippedItems', equippedItems);
-
-  console.log(`🧩 ${equippedId} sauvegardé dans equippedItems`);
 
 // 5. Affichage visuel dans slot
 slotElement.innerHTML = '';
@@ -334,12 +329,6 @@ console.log(`💽 selectedArmyA mis à jour`);
 const cleanedItemId = removeFromEquippedItemsStorage(equippedId);
 console.log(`🧹 Nettoyage equippedItems via removeFromEquippedItemsStorage(${equippedId}) → ${cleanedItemId}`);
 
-const equippedObj = loadFromLocalStorage('equippedItems', {});
-if (equippedObj && typeof equippedObj === 'object') {
-  delete equippedObj[equippedId];
-  saveToLocalStorage('equippedItems', equippedObj);
-  console.log(`🧹 ${equippedId} supprimé de equippedItems (objet-clé)`);
-}
 
 // 🔁 Retrait du modifier du stuff puis recompute → sync DOM
 removeStuffModifier(targetEntity, equippedId);

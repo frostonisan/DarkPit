@@ -1,12 +1,14 @@
 import { createEntiteScanInDOM, createHeadUpInDom } from './createEntity.js';
 import { getOrCreateGameContainer } from './GameInit.js';
+import { renderCurrentBattleLog } from './battleLogs.js';
+import { getVisibleHexes, setVisibleHexes } from './GameStorage.js';
 
 let openWindows = [];
 export function goldTitle(text, tag = "p", opts = {}) {
   const {
     containerClass = "entity-stats-title statistiques",
     titleClass = "title",
-    lineClass = "gold-line",
+    lineClass = "separation-line golden",
   } = opts;
 
   const container = document.createElement("div");
@@ -198,7 +200,84 @@ export function toggleScanEntityListener() {
         }
     });
 }
+export function createBattleLogUi(boardUI) {
+    const GameUI = document.querySelector('.Game-UI');
+    if (!GameUI) return;
 
+    let viewControls = GameUI.querySelector(':scope > .view-controls');
+    if (!viewControls) {
+        viewControls = document.createElement('div');
+        viewControls.className = 'view-controls';
+        GameUI.appendChild(viewControls);
+    }
+
+    const existingBattleLogButton = document.querySelector('.battle-log-button');
+    if (existingBattleLogButton) {
+        if (existingBattleLogButton.parentElement !== viewControls) {
+            viewControls.appendChild(existingBattleLogButton);
+        }
+        return;
+    }
+
+    const battleLogButton = document.createElement('div');
+    battleLogButton.id = 'battle-log-button';
+    battleLogButton.className = 'battle-log-button';
+    battleLogButton.alt = 'rapport de bataille';
+
+    const battleLogIcon = document.createElement('div');
+    battleLogIcon.className = 'battleLogs picto-ui';
+
+    battleLogButton.appendChild(battleLogIcon);
+    viewControls.appendChild(battleLogButton);
+
+    battleLogButton.addEventListener('click', () => {
+        toggleBattleLogHelper();
+        battleLogButton.classList.toggle('active');
+    });
+}
+
+function toggleBattleLogHelper() {
+    const gameHelper = document.querySelector('.board-ui');
+
+    if (!gameHelper) {
+        console.warn('Aucune div .Game-helper trouvée pour le rapport de bataille.');
+        return;
+    }
+
+    let battleLogHelper = document.getElementById('battle-log-helper');
+
+    if (battleLogHelper) {
+        battleLogHelper.remove();
+        return;
+    }
+
+    battleLogHelper = document.createElement('div');
+    battleLogHelper.id = 'battle-log-helper';
+    battleLogHelper.className = 'battle-log-helper';
+
+battleLogHelper.innerHTML = `
+    <span class="close-helper" id="close-battlelog-button">X</span>
+
+    <div class="battle-log-header">
+        <span class="battle-log-title">Rapport de bataille</span>
+    </div>
+
+    <div class="battle-log-list"></div>
+`;
+
+    gameHelper.appendChild(battleLogHelper);
+	renderCurrentBattleLog();
+	const closeBattleLogButton = document.getElementById('close-battlelog-button');
+
+closeBattleLogButton.addEventListener('click', () => {
+    battleLogHelper.remove();
+
+    const battleLogButton = document.getElementById('battle-log-button');
+    if (battleLogButton) {
+        battleLogButton.classList.remove('active');
+    }
+});
+}
 let globalListingState = false;
 
 function updateGlobalListingState(newState) {
@@ -629,36 +708,35 @@ let globalFoundEntity = null; // Variable globale pour stocker foundEntity
 
 // HIDE SHOW HEX BUTTON
 export let soclesVisible = false;
-export function HexButtonVisibility() {
+export function HexButtonVisibility(initialVisible = getVisibleHexes()) {
     const seeHexButton = document.getElementById('see-hex');
     const hideHexButton = document.getElementById('hide-hex');
 
     if (seeHexButton && hideHexButton) {
-        function showSocles() {
-            seeHexButton.style.display = 'none';
-            hideHexButton.style.display = 'block';
-            let socles = document.querySelectorAll('.hex:not(.occupied) .socle');
-            socles.forEach(function(socle) {
-                socle.style.opacity = '1';
+        function applySoclesVisibility(visible, persist = false) {
+            soclesVisible = visible === true;
+            hideHexButton.style.display = soclesVisible ? 'block' : 'none';
+            seeHexButton.style.display = soclesVisible ? 'none' : 'block';
+
+            document.querySelectorAll('.hex:not(.occupied) .socle').forEach(socle => {
+                socle.style.opacity = soclesVisible ? '1' : '0';
             });
+
+            if (persist) {
+                setVisibleHexes(soclesVisible);
+            }
+        }
+
+        function showSocles() {
+            applySoclesVisibility(true, true);
         }
 
         function hideSocles() {
-            hideHexButton.style.display = 'none';
-            seeHexButton.style.display = 'block';
-            let socles = document.querySelectorAll('.hex:not(.occupied) .socle');
-            socles.forEach(function(socle) {
-                socle.style.opacity = '0';
-            });
+            applySoclesVisibility(false, true);
         }
 
         function initializeHexVisibility() {
-            seeHexButton.style.display = 'block';
-            hideHexButton.style.display = 'none';
-            let socles = document.querySelectorAll('.hex:not(.occupied) .socle');
-            socles.forEach(function(socle) {
-                socle.style.opacity = '0';
-            });
+            applySoclesVisibility(initialVisible);
         }
 
         // Associer les fonctions aux boutons
@@ -708,45 +786,110 @@ export function helperDisplay() {
     }
 }
 
-
 export function LevelUi(){   
-const gameContainer = getOrCreateGameContainer();
+    const gameContainer = getOrCreateGameContainer();
 
-      const boardUI = document.createElement('div');
-    boardUI.className = 'board-ui';
+    // Une seule `.board-ui`, toujours enfant direct de `#game-container`.
+    const boardUIs = [...document.querySelectorAll('.board-ui')];
+    let boardUI = boardUIs.find((element) => element.parentElement === gameContainer)
+        || boardUIs[0]
+        || null;
+    if (!boardUI) {
+        boardUI = document.createElement('div');
+        boardUI.className = 'board-ui';
+    }
+    if (boardUI.parentElement !== gameContainer || gameContainer.firstElementChild !== boardUI) {
+        gameContainer.insertBefore(boardUI, gameContainer.firstChild);
+    }
+    boardUIs.forEach((element) => {
+        if (element !== boardUI) element.remove();
+    });
 
-    const helpButton = document.createElement('span');
-    helpButton.className = 'help-button';
-    helpButton.id = 'help-display';
-    helpButton.textContent = '?';
-    boardUI.appendChild(helpButton);
+    document.querySelectorAll('#help-display').forEach((element) => {
+        if (element.parentElement !== boardUI) element.remove();
+    });
 
-  	gameContainer.appendChild(boardUI);
-  
-    const seeHexButton = document.createElement('div');
-    seeHexButton.id = 'see-hex';
-    seeHexButton.className = 'seehex-button';
-    seeHexButton.alt = 'voir les hexagones';
+    let helpButton = boardUI.querySelector(':scope > #help-display');
+    if (!helpButton) {
+        helpButton = document.createElement('span');
+        helpButton.className = 'help-button';
+        helpButton.id = 'help-display';
+        helpButton.textContent = '?';
+        boardUI.appendChild(helpButton);
+    }
 
-    const seeHexIcon = document.createElement('div');
-    seeHexIcon.className = 'seeHex picto-ui';
-    seeHexButton.appendChild(seeHexIcon);
+    // Un seul parent de contrôles de vue, toujours enfant direct de .Game-UI.
+    let gameUI = document.querySelector('.Game-UI');
+    if (!gameUI) {
+        gameUI = document.createElement('div');
+        gameUI.className = 'Game-UI';
+        gameContainer.appendChild(gameUI);
+    }
 
-    boardUI.appendChild(seeHexButton);
+    let viewControls = gameUI.querySelector(':scope > .view-controls');
+    if (!viewControls) {
+        viewControls = document.createElement('div');
+        viewControls.className = 'view-controls';
+        gameUI.appendChild(viewControls);
+    }
 
-    const hideHexButton = document.createElement('div');
-    hideHexButton.id = 'hide-hex';
-    hideHexButton.className = 'hidehex-button';
-    hideHexButton.alt = 'masquer les hexagones';
+    // Nettoyage défensif : aucun autre .view-controls ne doit survivre ailleurs.
+    document.querySelectorAll('.view-controls').forEach(other => {
+        if (other === viewControls) return;
 
-    const hideHexIcon = document.createElement('div');
-    hideHexIcon.className = 'hideHex picto-ui';
-    hideHexButton.appendChild(hideHexIcon);
+        other.querySelectorAll('.seehex-button, .hidehex-button, .reset-view-button')
+            .forEach(control => {
+                if (!viewControls.querySelector(`.${control.classList[0]}`)) {
+                    viewControls.appendChild(control);
+                }
+            });
 
-    boardUI.appendChild(hideHexButton);
-	
-	}
-	
+        other.remove();
+    });
+
+    if (!viewControls.querySelector('.seehex-button')) {
+        const seeHexButton = document.createElement('div');
+        seeHexButton.id = 'see-hex';
+        seeHexButton.className = 'seehex-button';
+        seeHexButton.alt = 'voir les hexagones';
+
+        const seeHexIcon = document.createElement('div');
+        seeHexIcon.className = 'seeHex picto-ui';
+        seeHexButton.appendChild(seeHexIcon);
+
+        viewControls.appendChild(seeHexButton);
+    }
+
+    if (!viewControls.querySelector('.hidehex-button')) {
+        const hideHexButton = document.createElement('div');
+        hideHexButton.id = 'hide-hex';
+        hideHexButton.className = 'hidehex-button';
+        hideHexButton.alt = 'masquer les hexagones';
+
+        const hideHexIcon = document.createElement('div');
+        hideHexIcon.className = 'hideHex picto-ui';
+        hideHexButton.appendChild(hideHexIcon);
+
+        viewControls.appendChild(hideHexButton);
+    }
+
+    createBattleLogUi(boardUI);
+
+    // Ordre fixe dans l'unique parent.
+    const seeHexControl = viewControls.querySelector('.seehex-button');
+    const hideHexControl = viewControls.querySelector('.hidehex-button');
+    const resetViewControl = viewControls.querySelector('.reset-view-button');
+    const battleLogControl = viewControls.querySelector('.battle-log-button');
+    if (seeHexControl) viewControls.appendChild(seeHexControl);
+    if (hideHexControl) viewControls.appendChild(hideHexControl);
+    if (battleLogControl) viewControls.appendChild(battleLogControl);
+    if (resetViewControl) viewControls.appendChild(resetViewControl);
+
+    // Une interface reconstruite doit retrouver exactement l'état normal
+    // persisté des socles et de ses contrôles de vue.
+    HexButtonVisibility(getVisibleHexes());
+    setResetViewButtonVisible(false);
+}
 function HelpText() {
     return `
   <!-- <div class="container-help-intro"> -->
@@ -927,6 +1070,9 @@ export function setInitialParallaxValues() {
 }
 
 export function loadStageAnimation() {
+    // La cinématique de chargement possède la priorité jusqu'à sa fin complète.
+    stageLoadingAnimationActive = true;
+
     // console.log("Déclenchement de l'animation vers les valeurs normales dans loadStageAnimation");
 
     const observer = new MutationObserver(() => {});
@@ -999,114 +1145,471 @@ setTimeout(() => {
         document.querySelectorAll('.hud-ingame, .hex.occupied .socle, .board-ui').forEach(element => {
             element.style.transition = ''; // Supprime la transition
             // console.log(`${element.className} : transition removed`);
-        });}, 3000);  // Supprimer l'effet de transition après 3 secondes
-}, 2000); // Délai de 4 secondes avant de commencer la transition d'opacité
+        });
+
+        // La cinématique de chargement du niveau est maintenant totalement terminée.
+        stageLoadingAnimationActive = false;
+
+        // Si un event a démarré pendant le chargement, sa vue cinématique
+        // n'est appliquée que maintenant, jamais avant.
+        if (pendingCinematicViewAfterStageLoad) {
+            pendingCinematicViewAfterStageLoad = false;
+            requestAnimationFrame(() => cinematicView());
+        }
+    }, 3000);  // Supprimer l'effet de transition après 3 secondes
+}, 2000); // Délai avant de commencer la transition d'opacité
     }, 1000);
 }
 
 
 
 
-export function parallaxEffect() {
-    // console.log("Initialisation de parallaxEffect");
 
+let parallaxResetHandler = null;
+let parallaxIntermediateHandler = null;
+let parallaxWheelTarget = null;
+let parallaxWheelHandler = null;
+let parallaxEnableTimer = null;
+
+// La cinématique de chargement du niveau reste prioritaire sur cinematicView().
+let stageLoadingAnimationActive = false;
+let pendingCinematicViewAfterStageLoad = false;
+
+const INTERMEDIATE_PARALLAX = Object.freeze({
+    hudRotation: -55,
+    dragRotation: -55,
+    hexRotation: 55,
+    consommablesRotation: -55,
+    backgroundTop: 70,
+    boardTop: '1%',
+    boardScale: 0.675,
+    foregroundScale: 1.05
+});
+
+function setResetViewButtonVisible(visible) {
+    document.querySelectorAll('.reset-view-button').forEach(button => {
+        button.style.opacity = visible ? '1' : '0';
+        button.style.pointerEvents = visible ? 'auto' : 'none';
+    });
+}
+
+
+/**
+ * Applique une légère perspective intermédiaire.
+ * Le palier de base reste à 50° ; ce palier léger est à 55°.
+ *
+ * Aucun élément du DOM n'est créé, déplacé ou supprimé ici.
+ */
+export function cinematicView() {
+    if (document.getElementById('loadingScreen') || stageLoadingAnimationActive) {
+        pendingCinematicViewAfterStageLoad = true;
+        return { deferred: true, reason: 'stage-loading-cinematic' };
+    }
+
+    pendingCinematicViewAfterStageLoad = false;
+
+    document.querySelectorAll('.hud-ingame').forEach(element => {
+        element.style.transition = 'transform 2s ease';
+    });
+
+    document.querySelectorAll('.drag-box, .chest-container').forEach(element => {
+        element.style.transition = 'transform 2s ease';
+    });
+
+    document.querySelectorAll('.consommable-container').forEach(element => {
+        element.style.transition = 'transform 2s ease';
+    });
+
+    const hexGrid = document.querySelector('#hexGrid');
+    const backgroundBas = document.querySelector('.foreground');
+    const board = document.querySelector('.board');
+
+    if (hexGrid) hexGrid.style.transition = 'transform 2s ease';
+    if (backgroundBas) backgroundBas.style.transition = 'top 2s ease, transform 2s ease';
+    if (board) board.style.transition = 'top 2s ease, transform 2s ease';
+
+    if (typeof parallaxIntermediateHandler === 'function') {
+        return parallaxIntermediateHandler();
+    }
+
+    document.querySelectorAll('.hud-ingame').forEach(element => {
+        element.style.transform = `rotateX(${INTERMEDIATE_PARALLAX.hudRotation}deg) scale(0.8)`;
+    });
+
+    document.querySelectorAll('.drag-box, .chest-container').forEach(element => {
+        element.style.transform = `rotateX(${INTERMEDIATE_PARALLAX.dragRotation}deg)`;
+    });
+
+    document.querySelectorAll('.consommable-container').forEach(element => {
+        element.style.transform = `rotateX(${INTERMEDIATE_PARALLAX.consommablesRotation}deg)`;
+    });
+
+    if (hexGrid) {
+        hexGrid.style.transform = `perspective(2000px) rotateX(${INTERMEDIATE_PARALLAX.hexRotation}deg)`;
+    }
+
+    if (backgroundBas) {
+        backgroundBas.style.top = `${INTERMEDIATE_PARALLAX.backgroundTop}%`;
+        backgroundBas.style.transform = `scale(${INTERMEDIATE_PARALLAX.foregroundScale})`;
+        backgroundBas.style.transformOrigin = 'center';
+    }
+
+    if (board) {
+        board.style.top = INTERMEDIATE_PARALLAX.boardTop;
+        board.style.transform = `scale(${INTERMEDIATE_PARALLAX.boardScale})`;
+    }
+
+    const gameContainer = document.querySelector('#game-container');
+
+    if (gameContainer) {
+        gameContainer.style.transform = 'scale(1)';
+        gameContainer.style.transformOrigin = 'initial';
+    }
+
+    setResetViewButtonVisible(true);
+    return true;
+}
+/**
+ * Restaure la vue de jeu au palier de perspective normal.
+ *
+ * Valeurs de base :
+ * - HUD / drag / consommables : rotateX(-50deg)
+ * - hexGrid : perspective(2000px) rotateX(50deg)
+ * - foreground : top 75%, scale(1)
+ * - board : top -8%, scale(0.7)
+ * - game-container : scale(1)
+ *
+ * Si parallaxEffect() est déjà actif, ses variables internes sont également
+ * remises à zéro afin que la molette reparte exactement de ce palier.
+ */
+export function resetParallaxView({ force = false } = {}) {
+    if (!force && (document.getElementById('loadingScreen') || stageLoadingAnimationActive)) {
+        // L'event s'est terminé avant la fin du chargement :
+        // on laisse la cinématique de stage finir normalement à 50°.
+        pendingCinematicViewAfterStageLoad = false;
+        return {
+            deferred: true,
+            reason: 'stage-loading-cinematic'
+        };
+    }
+
+    pendingCinematicViewAfterStageLoad = false;
+
+    if (typeof parallaxResetHandler === 'function') {
+        return parallaxResetHandler();
+    }
+
+    // Fallback : permet au bouton de restaurer la vue même si
+    // parallaxEffect() n'a pas encore installé son handler interne.
+    document.querySelectorAll('.hud-ingame').forEach(element => {
+        element.style.transform = 'rotateX(-50deg) scale(0.8)';
+    });
+
+    document
+        .querySelectorAll('.drag-box, .chest-container')
+        .forEach(element => {
+            element.style.transform = 'rotateX(-50deg)';
+        });
+
+    document
+        .querySelectorAll('.consommable-container')
+        .forEach(element => {
+            element.style.transform = 'rotateX(-50deg)';
+        });
+
+    const hexGrid = document.querySelector('#hexGrid');
+    if (hexGrid) {
+        hexGrid.style.transform = 'perspective(2000px) rotateX(50deg)';
+    }
+
+    const backgroundBas = document.querySelector('.foreground');
+    if (backgroundBas) {
+        backgroundBas.style.top = '75%';
+        backgroundBas.style.transform = 'scale(1)';
+        backgroundBas.style.transformOrigin = 'center';
+    }
+
+    const board = document.querySelector('.board');
+    if (board) {
+        board.style.top = '-8%';
+        board.style.transform = 'scale(0.7)';
+    }
+
+    const gameContainer = document.querySelector('#game-container');
+    if (gameContainer) {
+        gameContainer.style.transform = 'scale(1)';
+        gameContainer.style.transformOrigin = 'initial';
+    }
+
+    setResetViewButtonVisible(false);
+    return true;
+}
+
+export function parallaxEffect({ applyInitialState = true, enableDelay = 6000 } = {}) {
     const hexGrid = document.querySelector('#hexGrid');
     const board = document.querySelector('.board');
     const backgroundBas = document.querySelector('.foreground');
 
     if (hexGrid && board && backgroundBas) {
-        // console.log("Appel de setInitialParallaxValues pour définir les valeurs de base");
-        setInitialParallaxValues();
+        if (parallaxWheelTarget && parallaxWheelHandler) {
+            parallaxWheelTarget.removeEventListener('wheel', parallaxWheelHandler);
+        }
+        clearTimeout(parallaxEnableTimer);
+        parallaxEnableTimer = null;
+        if (applyInitialState) setInitialParallaxValues();
 
-        // Valeurs normales pour les effets de parallaxe
-        let hudIngameRotation = -50;
-        let dragBoxRotation = -50;
-        let hexGridRotation = 50;
-        let consommablesRotation = -50;
+        const BASE_HUD_ROTATION = -50;
+        const BASE_DRAG_ROTATION = -50;
+        const BASE_HEX_ROTATION = 50;
+        const BASE_CONSUMMABLE_ROTATION = -50;
+        const BASE_BACKGROUND_TOP = 75;
+
+        let hudIngameRotation = BASE_HUD_ROTATION;
+        let dragBoxRotation = BASE_DRAG_ROTATION;
+        let hexGridRotation = BASE_HEX_ROTATION;
+        let consommablesRotation = BASE_CONSUMMABLE_ROTATION;
+
         const minRotation = -75;
         const maxRotation = -10;
         const minHexGridRotation = 10;
         const maxHexGridRotation = 75;
-        let backgroundBasTop = 75;
+
+        let backgroundBasTop = BASE_BACKGROUND_TOP;
 
         const applyTransformations = () => {
-            console.log("Application des transformations dans applyTransformations");
+            document.querySelectorAll('.hud-ingame').forEach(element => {
+                element.style.transform =
+                    `rotateX(${hudIngameRotation}deg) scale(0.8)`;
+            });
 
-            document.querySelectorAll('.hud-ingame').forEach(element => 
-                element.style.transform = `rotateX(${hudIngameRotation}deg) scale(0.8)`
-            );
-            document.querySelectorAll('.drag-box').forEach(box => 
-                box.style.transform = `rotateX(${dragBoxRotation}deg)`
-            );
-            document.querySelectorAll('.consommable-container').forEach(box => 
-                box.style.transform = `rotateX(${consommablesRotation}deg)`
-            );
-            hexGrid.style.transform = `perspective(2000px) rotateX(${hexGridRotation}deg)`;
+            document
+                .querySelectorAll('.drag-box, .chest-container')
+                .forEach(element => {
+                    element.style.transform =
+                        `rotateX(${dragBoxRotation}deg)`;
+                });
+
+            document
+                .querySelectorAll('.consommable-container')
+                .forEach(element => {
+                    element.style.transform =
+                        `rotateX(${consommablesRotation}deg)`;
+                });
+
+            hexGrid.style.transform =
+                `perspective(2000px) rotateX(${hexGridRotation}deg)`;
+
             backgroundBas.style.top = `${backgroundBasTop}%`;
 
             if (backgroundBasTop > 90) {
                 board.style.top = '-20%';
                 backgroundBas.style.transform = 'scale(1.1)';
-                console.log("board et foreground ajustés pour >90%");
             } else if (backgroundBasTop >= 75) {
                 backgroundBas.style.transform = 'scale(1)';
                 board.style.transform = 'scale(0.7)';
                 board.style.top = '-8%';
-                console.log("board et foreground ajustés pour >=75%");
             } else {
                 backgroundBas.style.transform = 'scale(1.1)';
                 board.style.transform = 'scale(0.65)';
                 board.style.top = '10%';
-                console.log("board et foreground ajustés pour <75%");
             }
+
             backgroundBas.style.transformOrigin = 'center';
         };
 
-        board.style.transition = 'top 2s ease, transform 2s ease';
-        backgroundBas.style.transition = 'top 2s ease, transform 2s ease';
+        // Palier léger : 55°. Les variables internes de la molette
+        // sont synchronisées avec la vue affichée.
+        parallaxIntermediateHandler = () => {
+            hudIngameRotation = INTERMEDIATE_PARALLAX.hudRotation;
+            dragBoxRotation = INTERMEDIATE_PARALLAX.dragRotation;
+            hexGridRotation = INTERMEDIATE_PARALLAX.hexRotation;
+            consommablesRotation = INTERMEDIATE_PARALLAX.consommablesRotation;
+            backgroundBasTop = INTERMEDIATE_PARALLAX.backgroundTop;
 
-        // Désactiver l'effet de parallaxe pendant 5 secondes
+            document.querySelectorAll('.hud-ingame').forEach(element => {
+                element.style.transform =
+                    `rotateX(${hudIngameRotation}deg) scale(0.8)`;
+            });
+
+            document
+                .querySelectorAll('.drag-box, .chest-container')
+                .forEach(element => {
+                    element.style.transform =
+                        `rotateX(${dragBoxRotation}deg)`;
+                });
+
+            document
+                .querySelectorAll('.consommable-container')
+                .forEach(element => {
+                    element.style.transform =
+                        `rotateX(${consommablesRotation}deg)`;
+                });
+
+            hexGrid.style.transform =
+                `perspective(2000px) rotateX(${hexGridRotation}deg)`;
+
+            backgroundBas.style.top = `${backgroundBasTop}%`;
+            backgroundBas.style.transform =
+                `scale(${INTERMEDIATE_PARALLAX.foregroundScale})`;
+            backgroundBas.style.transformOrigin = 'center';
+
+            board.style.top = INTERMEDIATE_PARALLAX.boardTop;
+            board.style.transform =
+                `scale(${INTERMEDIATE_PARALLAX.boardScale})`;
+
+            const gameContainer = document.querySelector('#game-container');
+            if (gameContainer) {
+                gameContainer.style.transform = 'scale(1)';
+                gameContainer.style.transformOrigin = 'initial';
+            }
+
+            setResetViewButtonVisible(true);
+            return true;
+        };
+
+        // Reset réel du palier : on remet à la fois le DOM et les variables
+        // utilisées ensuite par la molette.
+        parallaxResetHandler = () => {
+            hudIngameRotation = BASE_HUD_ROTATION;
+            dragBoxRotation = BASE_DRAG_ROTATION;
+            hexGridRotation = BASE_HEX_ROTATION;
+            consommablesRotation = BASE_CONSUMMABLE_ROTATION;
+            backgroundBasTop = BASE_BACKGROUND_TOP;
+
+            applyTransformations();
+
+            const gameContainer = document.querySelector('#game-container');
+            if (gameContainer) {
+                gameContainer.style.transform = 'scale(1)';
+                gameContainer.style.transformOrigin = 'initial';
+            }
+
+            setResetViewButtonVisible(false);
+            return true;
+        };
+
+        board.style.transition =
+            'top 2s ease, transform 2s ease';
+
+        backgroundBas.style.transition =
+            'top 2s ease, transform 2s ease';
+
         let parallaxEnabled = false;
 
-        const handleWheelEvent = (event) => {
+        const handleWheelEvent = event => {
             if (!parallaxEnabled) return;
 
-            if (event.deltaY > 0) { // Scroll down
-                if (hudIngameRotation > minRotation && dragBoxRotation > minRotation && hexGridRotation < maxHexGridRotation) {
-                    hudIngameRotation = Math.max(hudIngameRotation - 1, minRotation);
-                    consommablesRotation = Math.max(consommablesRotation - 1, minRotation);
-                    dragBoxRotation = Math.max(dragBoxRotation - 1, minRotation);
-                    hexGridRotation = Math.min(hexGridRotation + 1, maxHexGridRotation);
-                    backgroundBasTop = Math.max(backgroundBasTop - 1, 45);
-                    console.log("Scroll down : ajustement des rotations et top");
+            // La perspective ne réagit que lorsque la molette est utilisée
+            // directement sur la zone #hexGrid (ou l'un de ses enfants).
+            event.preventDefault();
+
+            if (event.deltaY > 0) {
+                if (
+                    hudIngameRotation > minRotation &&
+                    dragBoxRotation > minRotation &&
+                    hexGridRotation < maxHexGridRotation
+                ) {
+                    hudIngameRotation = Math.max(
+                        hudIngameRotation - 1,
+                        minRotation
+                    );
+
+                    consommablesRotation = Math.max(
+                        consommablesRotation - 1,
+                        minRotation
+                    );
+
+                    dragBoxRotation = Math.max(
+                        dragBoxRotation - 1,
+                        minRotation
+                    );
+
+                    hexGridRotation = Math.min(
+                        hexGridRotation + 1,
+                        maxHexGridRotation
+                    );
+
+                    backgroundBasTop = Math.max(
+                        backgroundBasTop - 1,
+                        45
+                    );
                 }
-            } else if (event.deltaY < 0) { // Scroll up
-                if (hudIngameRotation < maxRotation && dragBoxRotation < maxRotation && hexGridRotation > minHexGridRotation) {
-                    hudIngameRotation = Math.min(hudIngameRotation + 1, maxRotation);
-                    consommablesRotation = Math.min(consommablesRotation + 1, maxRotation);
-                    dragBoxRotation = Math.min(dragBoxRotation + 1, maxRotation);
-                    hexGridRotation = Math.max(hexGridRotation - 1, minHexGridRotation);
-                    backgroundBasTop = Math.min(backgroundBasTop + 1, 100);
-                    console.log("Scroll up : ajustement des rotations et top");
+            } else if (event.deltaY < 0) {
+                if (
+                    hudIngameRotation < maxRotation &&
+                    dragBoxRotation < maxRotation &&
+                    hexGridRotation > minHexGridRotation
+                ) {
+                    hudIngameRotation = Math.min(
+                        hudIngameRotation + 1,
+                        maxRotation
+                    );
+
+                    consommablesRotation = Math.min(
+                        consommablesRotation + 1,
+                        maxRotation
+                    );
+
+                    dragBoxRotation = Math.min(
+                        dragBoxRotation + 1,
+                        maxRotation
+                    );
+
+                    hexGridRotation = Math.max(
+                        hexGridRotation - 1,
+                        minHexGridRotation
+                    );
+
+                    backgroundBasTop = Math.min(
+                        backgroundBasTop + 1,
+                        100
+                    );
                 }
             }
 
+            // 50° définit le palier de base. Quand on y revient à la molette,
+            // on resynchronise toutes les autres valeurs du palier normal.
+            if (hexGridRotation === BASE_HEX_ROTATION) {
+                hudIngameRotation = BASE_HUD_ROTATION;
+                dragBoxRotation = BASE_DRAG_ROTATION;
+                consommablesRotation = BASE_CONSUMMABLE_ROTATION;
+                backgroundBasTop = BASE_BACKGROUND_TOP;
+            }
+
             applyTransformations();
+            setResetViewButtonVisible(hexGridRotation !== BASE_HEX_ROTATION);
         };
 
-        document.addEventListener('wheel', handleWheelEvent);
+        parallaxWheelTarget = hexGrid;
+        parallaxWheelHandler = handleWheelEvent;
+        hexGrid.addEventListener('wheel', parallaxWheelHandler, { passive: false });
 
-        // Activer l'effet de parallaxe après 4,5 secondes
-        setTimeout(() => {
+        parallaxEnableTimer = setTimeout(() => {
+            document
+                .querySelectorAll('.drag-box, .chest-container')
+                .forEach(element => {
+                    element.style.transition = 'none';
+                });
+
             parallaxEnabled = true;
-          
-        }, 6000); 
+            setResetViewButtonVisible(false);
+            parallaxEnableTimer = null;
+        }, Math.max(0, Number(enableDelay) || 0));
     } else {
-        console.error('One or more elements could not be found in the DOM.');
+        console.error(
+            'One or more elements could not be found in the DOM.'
+        );
     }
 }
 
-
+/**
+ * Réinstalle la molette sur la grille actuellement présente dans le DOM et
+ * restaure immédiatement le palier normal, sans rejouer l'animation de stage.
+ */
+export function restoreParallaxViewAndControls() {
+    parallaxEffect({ applyInitialState: false, enableDelay: 0 });
+    return resetParallaxView({ force: true });
+}
 
 
 export function adjustFontSize(element, minFontSize = 6) {
@@ -1138,4 +1641,3 @@ export function toNonNegInt(v) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
 }
-

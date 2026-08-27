@@ -1,13 +1,316 @@
 import { entitesNestUp, entites } from './entites.js';
 import { entiteCamp } from './fight.js';
-import { resetFullGame, saveToLocalStorage, loadFromLocalStorage, armyAConfig } from './GameStorage.js';
-import { rewardPlayerA } from './loot.js';
-import { createQuitButton  } from './game.js';
+import { resetFullGame, saveToLocalStorage, loadFromLocalStorage, armyAConfig, registerStageVictory } from './GameStorage.js';
+import { createChestLoot, rewardPlayerA } from './loot.js';
 import { fledEntities } from './BattleOrder.js';
+import { battleLogs } from './battleLogs.js';
+
+function normalizeStoredExperience(value) {
+    if (value && typeof value === 'object') {
+        return Math.max(0, Number.parseInt(value.experience, 10) || 0);
+    }
+    return Math.max(0, Number.parseInt(value, 10) || 0);
+}
+
+export function addPlayerExperience(amount, options = {}) {
+    const gain = Math.max(0, Math.floor(Number(amount) || 0));
+    if (gain <= 0) return 0;
+
+    const hasDedicatedExperience = localStorage.getItem('playerExperience') !== null;
+    const storedExperience = loadFromLocalStorage('playerExperience', { experience: 0 });
+    const currentGameData = loadFromLocalStorage('currentGameData', {});
+    const playerInfo = loadFromLocalStorage('playerInfo.json', {});
+    const currentExperience = hasDedicatedExperience
+        ? normalizeStoredExperience(storedExperience)
+        : Math.max(
+            normalizeStoredExperience(currentGameData?.experience),
+            normalizeStoredExperience(playerInfo?.experience),
+            normalizeStoredExperience(armyAConfig?.experience)
+        );
+    const nextExperience = currentExperience + gain;
+
+    saveToLocalStorage('playerExperience', { experience: nextExperience });
+
+    if (currentGameData && typeof currentGameData === 'object' && !Array.isArray(currentGameData)) {
+        currentGameData.experience = nextExperience;
+        currentGameData.lastUpdated = new Date().toISOString();
+        saveToLocalStorage('currentGameData', currentGameData);
+    }
+
+    if (playerInfo && typeof playerInfo === 'object' && !Array.isArray(playerInfo)) {
+        playerInfo.experience = nextExperience;
+        playerInfo.lastUpdated = new Date().toISOString();
+        saveToLocalStorage('playerInfo.json', playerInfo);
+    }
+
+    if (armyAConfig && typeof armyAConfig === 'object') {
+        armyAConfig.experience = nextExperience;
+        saveToLocalStorage('armyAConfig', armyAConfig);
+    }
+
+    const score = document.getElementById('score');
+    if (score) score.textContent = `Experience : ${nextExperience}`;
+
+    window.dispatchEvent(new CustomEvent('playerExperienceUpdated', {
+        detail: {
+            gained: gain,
+            experience: nextExperience,
+            source: options.source || 'unknown'
+        }
+    }));
+
+    return nextExperience;
+}
+
+window.addEventListener('playerExperienceRequested', event => {
+    addPlayerExperience(event?.detail?.amount, {
+        source: event?.detail?.source
+    });
+});
+
+window.addEventListener('beforeunload', () => {
+    if (sessionStorage.getItem('globalGameOverScreen') === 'true') {
+        localStorage.removeItem('BattleLogsIndex');
+
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('BattleLog_')) {
+                localStorage.removeItem(key);
+            }
+        });
+
+        resetFullGame();
+        sessionStorage.removeItem('globalGameOverScreen');
+    }
+});
 
 function isDead(entite) {
     return entite?.isDEAD === true || entite?.statut?.includes("dead") || entite?.stats?.HP?.current <= 0;
 }
+
+// === DIRECTION UNIQUE DES ACTIONS DE COMBAT ================================
+
+export const BATTLE_ACTION_MODE = Object.freeze({
+    AUTO: 'auto',
+    HIDDEN: 'hidden',
+    START: 'start',
+    QUIT: 'quit',
+    FLEE: 'flee',
+    ORDERS: 'orders'
+});
+
+const battleActionFactories = {
+    start: null,
+    flee: null,
+    quit: null
+};
+
+export function configureBattleActionManager({
+    createStartButton,
+    createFleeButton,
+    createQuitButton
+} = {}) {
+    if (typeof createStartButton === 'function') {
+        battleActionFactories.start = createStartButton;
+    }
+
+    if (typeof createQuitButton === 'function') {
+        battleActionFactories.quit = createQuitButton;
+    }
+
+    if (typeof createFleeButton === 'function') {
+        battleActionFactories.flee = createFleeButton;
+    }
+}
+
+function isExplicitlyRemovedEnemy(entity) {
+    const status = entity?.statut;
+    const markedDead = Array.isArray(status)
+        ? status.includes('dead')
+        : status === 'dead';
+
+    return (
+        entity?.hasFled === true ||
+        entity?.isDEAD === true ||
+        markedDead
+    );
+}
+
+/**
+ * Détermine la menace qui interdit de quitter gratuitement.
+ *
+ * HP.current n'est volontairement pas utilisé ici : après un F5, une armée B
+ * restaurée peut conserver temporairement un ancien HP à 0 avant sa remise en
+ * état. Tant que l'entité B existe dans le niveau et n'est pas explicitement
+ * morte ou en fuite, elle représente une menace et autorise le combat.
+ */
+export function hasSideBThreat(entityList = null) {
+    const list = Array.isArray(entityList) ? entityList : entites;
+
+    return list.some(entity => (
+        entity?.side === 'B' &&
+        !isExplicitlyRemovedEnemy(entity)
+    ));
+}
+
+function removeStartAndQuitButtons() {
+    document.querySelectorAll([
+        '#startButton',
+        '.launch-combat-button',
+        '.quit-level-button'
+    ].join(',')).forEach(element => element.remove());
+}
+
+function removeFleeButtons() {
+    document.querySelectorAll([
+        '.flee-button',
+        '.escape-button',
+        '.runaway-button',
+        '.run-away-button',
+        '.cancelrunaway-button',
+        '[data-action="flee"]',
+        '[data-order="flee"]',
+        '[data-order="escape"]',
+        '[data-order="runaway"]',
+        '[data-order="cancelrunaway"]'
+    ].join(',')).forEach(element => element.remove());
+}
+
+function getOrCreateBattleActions() {
+    const gameUi = document.querySelector('.Game-UI');
+    if (!gameUi) {
+        console.warn('[BattleActions] Élément .Game-UI introuvable.');
+        return null;
+    }
+
+    let container = gameUi.querySelector(':scope > .battle-actions');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'battle-actions';
+        gameUi.appendChild(container);
+    }
+
+    return container;
+}
+
+export function isBattleDialogueVisible() {
+    const dialogue = document.querySelector(
+        '#game-windows > .dialogue-window.active'
+    );
+
+    if (!dialogue || dialogue.hidden) return false;
+
+    const style = window.getComputedStyle(dialogue);
+    return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        Number(style.opacity || 1) > 0 &&
+        dialogue.getClientRects().length > 0
+    );
+}
+
+/**
+ * Point d'entrée unique pour décider, nettoyer et préparer .battle-actions.
+ *
+ * Priorité du mode AUTO :
+ * 1. dialogue actif -> rien ;
+ * 2. aucun ennemi B vivant -> quitter le niveau ;
+ * 3. ennemi B vivant + combat lancé -> fuir ;
+ * 4. ennemi B vivant + combat non lancé -> démarrer le combat.
+ *
+ * Le statut historique du niveau (inexploré, en cours, terminé, échoué)
+ * n'accorde jamais à lui seul le droit de quitter.
+ */
+export function manageBattleActions({
+    mode = BATTLE_ACTION_MODE.AUTO,
+    dialogueActive = null,
+    entityList = null
+} = {}) {
+    const activeDialogue = dialogueActive == null
+        ? isBattleDialogueVisible()
+        : dialogueActive;
+    let resolvedMode = mode;
+    const livingEnemyB = hasSideBThreat(entityList);
+
+    if (activeDialogue || mode === BATTLE_ACTION_MODE.HIDDEN) {
+        resolvedMode = BATTLE_ACTION_MODE.HIDDEN;
+    } else if (mode === BATTLE_ACTION_MODE.AUTO) {
+        if (!livingEnemyB) {
+            resolvedMode = BATTLE_ACTION_MODE.QUIT;
+        } else {
+            resolvedMode = gameStarted
+                ? BATTLE_ACTION_MODE.FLEE
+                : BATTLE_ACTION_MODE.START;
+        }
+    }
+
+    // Protection d'autorisation : même un appel direct à QUIT ne permet pas
+    // de quitter gratuitement sous la menace. Seule une fuite déjà résolue
+    // peut ouvrir cette sortie malgré des ennemis encore présents.
+    if (
+        resolvedMode === BATTLE_ACTION_MODE.QUIT &&
+        livingEnemyB &&
+        battleOutcome !== 'escape'
+    ) {
+        resolvedMode = gameStarted
+            ? BATTLE_ACTION_MODE.FLEE
+            : BATTLE_ACTION_MODE.START;
+    }
+
+    if (resolvedMode === BATTLE_ACTION_MODE.HIDDEN) {
+        removeStartAndQuitButtons();
+        removeFleeButtons();
+        document.querySelectorAll('.battle-actions')
+            .forEach(container => container.remove());
+        return { mode: resolvedMode, container: null };
+    }
+
+    if (
+        resolvedMode === BATTLE_ACTION_MODE.FLEE ||
+        resolvedMode === BATTLE_ACTION_MODE.ORDERS
+    ) {
+        // Les contrôles de fuite et d'annulation peuvent coexister entre eux,
+        // mais jamais avec Démarrer ou Quitter.
+        removeStartAndQuitButtons();
+    } else {
+        removeStartAndQuitButtons();
+        removeFleeButtons();
+    }
+
+    const container = getOrCreateBattleActions();
+    if (!container) return { mode: resolvedMode, container: null };
+
+    let actionElement = null;
+
+    if (resolvedMode === BATTLE_ACTION_MODE.START) {
+        actionElement = battleActionFactories.start?.(container) || null;
+    } else if (resolvedMode === BATTLE_ACTION_MODE.FLEE) {
+        actionElement = battleActionFactories.flee?.(container) || null;
+    } else if (resolvedMode === BATTLE_ACTION_MODE.QUIT) {
+        actionElement = battleActionFactories.quit?.(container) || null;
+    }
+
+    if (
+        [BATTLE_ACTION_MODE.START, BATTLE_ACTION_MODE.FLEE, BATTLE_ACTION_MODE.QUIT]
+            .includes(resolvedMode) &&
+        !actionElement
+    ) {
+        console.error(
+            `[BattleActions] Échec de création de l'action "${resolvedMode}".`,
+            { factories: { ...battleActionFactories }, container }
+        );
+    }
+
+    return { mode: resolvedMode, container, actionElement };
+}
+
+window.addEventListener('battleActionContextChanged', event => {
+    manageBattleActions({
+        mode: event?.detail?.dialogueActive === true
+            ? BATTLE_ACTION_MODE.HIDDEN
+            : BATTLE_ACTION_MODE.AUTO,
+        dialogueActive: event?.detail?.dialogueActive === true
+    });
+});
 
 let GameWon = false;
 let GameLost = false;
@@ -61,11 +364,10 @@ export function startGame() {
             console.log("Le jeu est déjà en cours.");
             return;
         }
+        resetBattleResolution();
         gameStarted = true;
-        const startButton = document.getElementById('startButton');
-        if (startButton) {
-            startButton.style.display = 'none';
-        }
+        // Une menace B est présente : AUTO remplace Démarrer par Fuir.
+        manageBattleActions({ mode: BATTLE_ACTION_MODE.AUTO });
         console.log("Jeu démarré.");
         entiteCamp(entites); // Assurez-vous que 'entites' est défini ou accessible
     } catch (error) {
@@ -113,83 +415,152 @@ export function stopAllIntervals() {
 
 // GAME OVER
 export let gameOver = false;
-export let isGameOverHandled = false; 
+export let isGameOverHandled = false;
+export let battleOutcome = null; // null | "victory" | "defeat" | "escape"
+let battleResolutionInProgress = false;
+
+export function isBattleFinished() {
+    return battleOutcome !== null || gameOver === true;
+}
+
+function removeFleeControls() {
+    document.querySelectorAll(
+        '.flee-button, .escape-button, .run-away-button, [data-action="flee"], [data-order="flee"], [data-order="escape"]'
+    ).forEach(element => element.remove());
+}
+
+function freezeBattleEntities() {
+    entites.forEach(entity => {
+        if (!entity) return;
+        entity.speedTimer = 0;
+        entity.preparationTime = 0;
+        entity.executionTime = 0;
+        entity.recoveryTime = 0;
+        entity.cooldownTimer = 0;
+        entity.turnCount = 0;
+        entity.status = 'inactive';
+        entity.battleStopped = true;
+    });
+
+    window.dispatchEvent(new CustomEvent('battleResolved', {
+        detail: { outcome: battleOutcome }
+    }));
+}
+
+function lockBattle(outcome) {
+    if (battleOutcome) return false;
+    battleOutcome = outcome;
+    gameOver = true;
+    isGameOverHandled = true;
+    gameStarted = false;
+    stopAllIntervals();
+    freezeBattleEntities();
+    return true;
+}
+
  
 export function setGameOver(value) {
     gameOver = value;
-}
-
-function handleVictory() {
-    console.log('Victoire !');
-    displayGameOverMessage('Victoire !');
-    createChestLoot();
-    stopAllIntervals();
-	createQuitButton();
-    gameOver = true;
-    isGameOverHandled = false;
-
-    const stageId = window.currentStageId;
-    if (stageId) MarkFinishedStage(stageId);
-
-    GameStatut();
-}
-
-function handleDefeat() {
-    console.log('Défaite !');
-    displayGameOverMessage('Défaite !');
-    stopAllIntervals();
-    gameOver = true;
-    isGameOverHandled = false;
-	createQuitButton();
-    GameStatut();
-}
-
-export function checkGameOver(entites) {
-    try {
-        if (gameOver || isGameOverHandled) {
-            console.log("Le Game Over a déjà été traité. Ignorer cet appel.");
-            return true;
-        }
-
-        const sideAAlive = entites.filter(e => e.side === 'A' && !isDead(e) && !e.hasFled).length;
-        const sideAFled = fledEntities.filter(e => e.side === 'A').length;
-        const sideBAlive = entites.filter(e => e.side === 'B' && !isDead(e)).length;
-
-        console.log(`🧮 Vivants côté A (hors morts et fuyards) : ${sideAAlive}`);
-        console.log(`🧮 Vivants côté B : ${sideBAlive}`);
-        console.log(`🏃‍♀️ Entités ayant fui :`, fledEntities.map(e => e.name));
-
-        // ✅ Vérifier la VICTOIRE en premier
-        if (sideBAlive === 0) {
-            handleVictory();
-            return true;
-        }
-
-        if (sideAAlive === 0 && sideAFled === 0) {
-            handleDefeat();
-            return true;
-        }
-
-        if (sideAAlive === 0 && sideAFled > 0 && sideBAlive > 0) {
-            displayGameOverMessage("Au moins une Entité a pu fuir. Vous avez survécu... Pour l’instant.");
-            stopAllIntervals();
-            gameOver = true;
-            return true;
-        }
-
-        if (sideAAlive > 0) {
-            console.log("↩️ Encore des entités valides côté A, pas de Game Over.");
-            return false;
-        }
-
-        return false;
-    } catch (error) {
-        console.error("Erreur lors de la vérification du Game Over :", error);
-        return false;
+    if (value === false) {
+        battleOutcome = null;
+        isGameOverHandled = false;
+        battleResolutionInProgress = false;
     }
 }
 
+export function resetBattleResolution() {
+    battleOutcome = null;
+    gameOver = false;
+    isGameOverHandled = false;
+    battleResolutionInProgress = false;
+}
 
+function handleVictory({ skipGlobalStatus = false } = {}) {
+    if (!lockBattle("victory")) return false;
+
+    console.log('Victoire !');
+    displayGameOverMessage('Victoire !');
+    battleLogs("battle_victory");
+    removeFleeControls();
+    manageBattleActions({ mode: BATTLE_ACTION_MODE.QUIT });
+
+    const stageId = window.currentStageId || localStorage.getItem('currentStageId');
+    if (stageId) {
+        const victory = registerStageVictory(stageId);
+        if (victory.isNewVictory) {
+            console.log(`🏆 Première victoire du stage ${stageId}. Coffre créé : ${victory.chest?.id}`);
+            window.dispatchEvent(new CustomEvent('stageVictoryChestCreated', { detail: victory }));
+        } else {
+            console.log(`ℹ️ Victoire du stage ${stageId} déjà enregistrée : aucun nouveau coffre.`);
+        }
+        MarkFinishedStage(stageId);
+    }
+
+    if (!skipGlobalStatus) GameStatut();
+    return true;
+}
+
+export function triggerAdminStageVictory() {
+    if (window.levelRunning !== 'admin') {
+        throw new Error('La victoire forcée est réservée au niveau administrateur.');
+    }
+    resetBattleResolution();
+    return handleVictory({ skipGlobalStatus: true });
+}
+
+function handleDefeat() {
+    if (!lockBattle("defeat")) return false;
+
+    console.log('Défaite !');
+    battleLogs("battle_defeat");
+    displayGameOverMessage('Défaite !');
+    removeFleeControls();
+    // La défaite ne donne jamais un droit gratuit de quitter sous la menace.
+    manageBattleActions({ mode: BATTLE_ACTION_MODE.HIDDEN });
+    GameStatut();
+    return true;
+}
+
+export function resolveBattleOutcome(entityList = entites) {
+    if (battleResolutionInProgress) return isBattleFinished();
+
+    battleResolutionInProgress = true;
+    try {
+        const list = Array.isArray(entityList) ? entityList : entites;
+        const sideA = list.filter(entity => entity?.side === 'A' && !entity.hasFled);
+        const sideB = list.filter(entity => entity?.side === 'B' && !entity.hasFled);
+        const sideAAlive = sideA.filter(entity => !isDead(entity)).length;
+        const sideBAlive = sideB.filter(entity => !isDead(entity)).length;
+        const sideAFled = fledEntities.filter(entity => entity?.side === 'A').length;
+
+        console.log(`🧮 Résolution combat — A vivants: ${sideAAlive}, B vivants: ${sideBAlive}, A fuyards: ${sideAFled}`);
+
+        // La victoire du stage est prioritaire si le dernier membre de B vient de mourir.
+        if (sideB.length > 0 && sideBAlive === 0) return handleVictory();
+
+        // Une armée A entièrement morte est toujours une défaite.
+        if (sideA.length > 0 && sideAAlive === 0 && sideAFled === 0) return handleDefeat();
+
+        if (sideA.length > 0 && sideAAlive === 0 && sideAFled > 0 && sideBAlive > 0) {
+            if (!lockBattle("escape")) return true;
+            displayGameOverMessage("Au moins une Entité a pu fuir. Vous avez survécu... Pour l’instant.");
+            battleLogs("battle_escape");
+            removeFleeControls();
+            manageBattleActions({ mode: BATTLE_ACTION_MODE.QUIT });
+            return true;
+        }
+
+        return false;
+    } finally {
+        battleResolutionInProgress = false;
+    }
+}
+
+export function checkGameOver(entityList = entites) {
+    // Ne jamais laisser un ancien verrou masquer une condition terminale réelle.
+    if (battleOutcome) return true;
+    return resolveBattleOutcome(entityList);
+}
 
 function MarkFinishedStage(stageId) {
     const gameStages = loadFromLocalStorage('GameStages', { stages: [] });
@@ -210,18 +581,18 @@ function MarkFinishedStage(stageId) {
 }
 
 function GameStatut() {
-    const allDead = entites.filter(e => e.side === 'A' && !e.isDEAD).length === 0;
+    const allDead = entites.filter(e => e.side === 'A' && !isDead(e) && !e.hasFled).length === 0;
     const playerXP = armyAConfig?.experience || 0;
 
     const allStages = loadFromLocalStorage('GameStages', { stages: [] });
     const allStagesFinished = allStages.stages.every(stage => stage.statut === 'finished');
 
-    if (allDead && playerXP === 0) {
+    if (allDead) {
         GameWon = false;
         GameLost = true;
         isGameOverHandled = true;
 		afficherEchecGlobal(); 
-		resetFullGame();
+		
 		
     }
     else if (!allDead && allStagesFinished) {
@@ -249,133 +620,227 @@ function afficherVictoireGlobale() {
     });
 }
 
-function afficherEchecGlobal() {
+function closeAdminGlobalGameOver(overlay, source = 'admin-event') {
+    sessionStorage.removeItem('globalGameOverScreen');
+    resetBattleResolution();
+    GameWon = false;
+    GameLost = false;
+
+    overlay.classList.remove('visible');
+    const removeOverlay = () => overlay.remove();
+    overlay.addEventListener('transitionend', removeOverlay, { once: true });
+    window.setTimeout(removeOverlay, 700);
+
+    manageBattleActions({ mode: BATTLE_ACTION_MODE.AUTO });
+    window.dispatchEvent(new CustomEvent('adminStageGameOverClosed', {
+        detail: {
+            source,
+            savePreserved: true
+        }
+    }));
+}
+
+function afficherEchecGlobal({
+    preserveSave = false,
+    dismissible = false,
+    source = 'game'
+} = {}) {
     StopGame();
+
+    if (preserveSave) {
+        // L’événement admin utilise le vrai Game Over, mais ne doit jamais
+        // armer le nettoyage de sauvegarde exécuté dans beforeunload.
+        sessionStorage.removeItem('globalGameOverScreen');
+    } else {
+        sessionStorage.setItem('globalGameOverScreen', 'true');
+    }
+
+    document.querySelectorAll('.overlay-end-screen.overlay-defeat')
+        .forEach(existingOverlay => existingOverlay.remove());
 
     const overlay = document.createElement('div');
     overlay.classList.add('overlay-end-screen', 'overlay-defeat');
-
+    overlay.dataset.savePreserved = preserveSave ? 'true' : 'false';
+    overlay.dataset.source = source;
+	overlay.appendChild(gameOverScreenDesign());
     const message = document.createElement('div');
-    message.innerText = "Game Over. Vous avez échoué.\nVous n'êtes même pas un souvenir.";
+   message.innerHTML = "Game Over.<br>Vous avez échoué.<br>Vous n'êtes même pas un souvenir.";
+ message.classList.add('game-over-msg');
+    const reportButton = document.createElement('button');
+    reportButton.classList.add('end-button');
+    reportButton.innerText = "Voir le dernier rapport de bataille";
 
-    const retryButton = document.createElement('button');
-    retryButton.classList.add('end-button');
-	retryButton.id = 'restartEndButton';
-    retryButton.innerText = "Recommencer";
+    reportButton.addEventListener('click', () => {
+        const battleBookIcon = document.getElementById('battle-book-display');
 
-    retryButton.addEventListener('click', () => {
-        window.location.reload();
+        if (!battleBookIcon) {
+            console.warn("Icône BattleBook introuvable.");
+            return;
+        }
+
+        battleBookIcon.click();
     });
 
+    const actionButton = document.createElement('button');
+    actionButton.classList.add('end-button');
+
+    if (dismissible) {
+        actionButton.id = 'admin-stage-game-over-exit';
+        actionButton.innerText = "Quitter l’écran Game Over";
+        actionButton.addEventListener('click', () => {
+            closeAdminGlobalGameOver(overlay, source);
+        });
+    } else {
+        actionButton.id = 'restartEndButton';
+        actionButton.innerText = "Recommencer";
+        actionButton.addEventListener('click', restartAfterGlobalGameOver);
+    }
+
     overlay.appendChild(message);
-    overlay.appendChild(retryButton);
+    overlay.appendChild(reportButton);
+    overlay.appendChild(actionButton);
     document.body.appendChild(overlay);
 
-    // Déclencher le fondu noir après une frame
     requestAnimationFrame(() => {
         overlay.classList.add('visible');
     });
+
+    return {
+        overlay,
+        message,
+        reportButton,
+        actionButton,
+        dismissButton: dismissible ? actionButton : null,
+        savePreserved: preserveSave,
+        dismissible
+    };
 }
 
+export function triggerAdminStageGameOver({ source = 'admin-event' } = {}) {
+    if (window.levelRunning !== 'admin') {
+        throw new Error('Le Game Over forcé est réservé au niveau administrateur.');
+    }
+    resetBattleResolution();
+    lockBattle('defeat');
 
+    GameWon = false;
+    GameLost = true;
+    isGameOverHandled = true;
 
+    console.log('Défaite administrateur : affichage du véritable Game Over.');
+    battleLogs('battle_defeat');
+    removeFleeControls();
+    manageBattleActions({ mode: BATTLE_ACTION_MODE.HIDDEN });
+
+    return afficherEchecGlobal({
+        preserveSave: true,
+        dismissible: true,
+        source
+    });
+}
+
+function gameOverScreenDesign() {
+    const decorContainer = document.createElement('div');
+    decorContainer.classList.add('game-over-decor-container');
+
+    const decorLeft = document.createElement('div');
+    decorLeft.classList.add('game-over-decor', 'game-over-decor-top');
+
+    const decorRight = document.createElement('div');
+    decorRight.classList.add('game-over-decor', 'game-over-decor-bot');
+
+    decorContainer.appendChild(decorLeft);
+    decorContainer.appendChild(decorRight);
+
+    return decorContainer;
+}
+
+function restartAfterGlobalGameOver() {
+    sessionStorage.removeItem('globalGameOverScreen');
+
+    localStorage.removeItem('BattleLogsIndex');
+
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('BattleLog_')) {
+            localStorage.removeItem(key);
+        }
+    });
+
+    resetFullGame();
+    window.location.reload();
+}
 // Afficher le message de Game Over dans une div dynamique
 function displayGameOverMessage(message) {
     const existingDiv = document.getElementById('gameOverMessage');
-    
+
     if (existingDiv) {
         existingDiv.innerText = message;
+
+        const existingContainer = existingDiv.closest('.GameOverMessage');
+        if (existingContainer && !existingContainer.querySelector('.open-last-battle-report-button')) {
+            addLastBattleReportButton(existingContainer);
+        }
+
         return;
     }
 
-    // Vérifier si l'élément Game-UI existe
-    let gameUI = document.querySelector(".Game-UI");
+    const gameUI = document.querySelector(".Game-UI");
     if (!gameUI) {
         console.error("Erreur : Élément .Game-UI introuvable.");
         return;
     }
 
-    // Vérifier si la div GameOverMessage existe déjà
-    let existingGameOverContainer = document.querySelector(".GameOverMessage");
+    const existingGameOverContainer = document.querySelector(".GameOverMessage");
     if (existingGameOverContainer) {
-        existingGameOverContainer.remove(); // Supprimer l'ancienne avant d'en ajouter une nouvelle
+        existingGameOverContainer.remove();
     }
 
-    // Créer la div principale
     const GameOverMsgDiv = document.createElement('div');
     GameOverMsgDiv.className = 'GameOverMessage';
 
-    // Créer la div du message
     const gameOverDiv = document.createElement('div');
     gameOverDiv.id = 'gameOverMessage';
     gameOverDiv.className = 'IngameAlert';
     gameOverDiv.innerText = message;
 
-    // Créer le bouton de fermeture
     const closeButton = document.createElement('div');
     closeButton.className = 'close-button';
     closeButton.id = 'close-battle-report';
     closeButton.innerText = '×';
 
-    // Ajouter un événement au bouton de fermeture
     closeButton.addEventListener('click', () => {
-        GameOverMsgDiv.remove(); // Supprime toute la boîte de message
+        GameOverMsgDiv.remove();
     });
 
-    // Ajouter les éléments dans la div principale
     GameOverMsgDiv.appendChild(closeButton);
     GameOverMsgDiv.appendChild(gameOverDiv);
+
+    addLastBattleReportButton(GameOverMsgDiv);
+
     gameUI.appendChild(GameOverMsgDiv);
 }
 
+function addLastBattleReportButton(container) {
+    const button = document.createElement('button');
+    button.className = 'open-last-battle-report-button';
+    button.innerText = 'Voir le dernier rapport de bataille';
 
-export function createChestLoot() {
-    // Création du conteneur principal pour le coffre
-    const chestContainer = document.createElement('div');
-    chestContainer.classList.add('chest-container', 'entrance');
-    chestContainer.id = `chest-${Date.now()}`; // Génère un ID unique pour chaque coffre
+    button.addEventListener('click', () => {
+        const existingBattleBook = document.getElementById('battle-book-window');
 
-    // Création de l'élément du coffre
-    const chestDiv = document.createElement('div');
-    chestDiv.classList.add('chest-loot');
-    chestContainer.appendChild(chestDiv);
+        if (existingBattleBook) {
+            existingBattleBook.remove();
+        }
 
-    // Création de la modale pour afficher la confirmation du loot
-    const chestLootModal = document.createElement('div');
-    chestLootModal.classList.add('confirmation-Modal', 'loot');
+        const battleBookIcon = document.getElementById('battle-book-display');
 
-    // Ajout d'un gestionnaire de clic pour le coffre
-    chestDiv.addEventListener('click', function () {
-        console.log("Coffre cliqué, ouverture en cours...");
-        OpeningChest(chestContainer.id); // Appelle OpeningChest avec l'ID du coffre
-        rewardPlayerA(); // Appelle rewardPlayerA après avoir ouvert le coffre
+        if (!battleBookIcon) {
+            console.warn("Icône BattleBook introuvable.");
+            return;
+        }
+
+        battleBookIcon.click();
     });
 
-    // Retirer la classe 'entrance' après 4 secondes
-    setTimeout(() => {
-        chestContainer.classList.remove('entrance');
-    }, 2000);
-
-    // Sélection du conteneur principal dans le DOM
-    const container = document.querySelector('#game-container'); // Modifiez le sélecteur si nécessaire
-
-    if (container) {
-        // Ajout du conteneur du coffre dans le DOM
-        container.appendChild(chestContainer);
-        container.appendChild(chestLootModal);
-    } else {
-        console.error("Le conteneur 'game-container' est introuvable dans le DOM.");
-    }
+    container.appendChild(button);
 }
-
-// Fonction pour ouvrir le coffre et supprimer le conteneur
-function OpeningChest(chestId) {
-    const chest = document.getElementById(chestId);
-    if (chest) {
-        chest.remove(); // Supprime le coffre du DOM
-        console.log(`Coffre avec l'ID ${chestId} supprimé.`);
-    } else {
-        console.error(`Coffre avec l'ID ${chestId} introuvable.`);
-    }
-}
-

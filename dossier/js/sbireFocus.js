@@ -1,57 +1,41 @@
 import { AttackerSbireTargetPriority, AllySbireTargetPriority } from './role-rule.js';
+import { calculateOccultismTargetableChanceDisplay, calculateEquilibreInvisibleDetection } from './damagesCalcul.js';
+import { EffectMessage } from './attackEffectMecanics.js';
 
 export function sbireFocusEnemy(attacker, validTargets, attackerRole, defenserRole) {
-    let validTargetsFiltered = [];
-    let attackerName = attacker.name || 'Attaquant inconnu';
+  let availableTargets = validTargets.filter(target => target && !target.isDEAD);
+  let selectedTarget = null;
 
-    // Obtenir les priorités de cibles pour le rôle de l'attaquant
-    const priorities = AttackerSbireTargetPriority[attackerRole] || [];
+  while (availableTargets.length > 0) {
+    selectedTarget = selectSbireFocusEnemyCandidate(
+      attacker,
+      availableTargets,
+      attackerRole,
+      defenserRole
+    );
 
-    // Filtrer les cibles valides selon les priorités
-    for (let role of priorities) {
-        validTargetsFiltered = validTargets.filter(target => {
-            if (Array.isArray(target.role)) {
-                return target.role.includes(role) && !target.isDEAD;
-            } else {
-                return target.role === role && !target.isDEAD;
-            }
-        });
-
-        // console.log(`${attackerName} est un ${attackerRole}. ${role} en vie : ${validTargetsFiltered.length}`);
-        // console.log('Cibles filtrées:', validTargetsFiltered); // Journal des cibles filtrées
-        if (validTargetsFiltered.length > 0) {
-            break;
-        }
-    }
-
-    // Si aucune des cibles spécifiques n'est trouvée, utiliser les cibles initiales
-    if (validTargetsFiltered.length === 0) {
-        validTargetsFiltered = validTargets.filter(target => !target.isDEAD);
-        // console.log(`Utilisation des cibles initiales. Cibles valides : ${validTargetsFiltered.length}`);
-    }
-
-    // Logique de sélection aléatoire parmi les cibles valides
-    let selectedTarget;
-
-    // Vérifier si la cible choisie est un "gueux"
-    if (defenserRole === 'gueux') {
-        // Filtrer les cibles valides pour ne prendre que les "gueux"
-        const gueuxTargets = validTargetsFiltered.filter(target => Array.isArray(target.role) ? target.role.includes('gueux') : target.role === 'gueux');
-        if (gueuxTargets.length > 0) {
-            // Trouver le "gueux" avec le moins de points de vie
-            let weakestGueux = gueuxTargets.reduce((weakest, current) => weakest.stats.HP < current.stats.HP ? weakest : current, gueuxTargets[0]);
-            // console.log(`${attackerName} est un ${attackerRole}. Il choisit d'attaquer ${weakestGueux.name}, qui est un gueux avec le moins de points de vie : ${weakestGueux.stats.HP}.`);
-            selectedTarget = weakestGueux;
-        }
-    }
-
-    // Si la cible choisie n'est pas un "gueux" ou si aucun "gueux" n'a été trouvé, sélectionner aléatoirement parmi les cibles valides restantes
     if (!selectedTarget) {
-        selectedTarget = validTargetsFiltered[Math.floor(Math.random() * validTargetsFiltered.length)];
-        // console.log(`${attackerName} est un ${attackerRole}. Il choisit d'attaquer ${selectedTarget.name}, qui est un ${selectedTarget.role}.`);
+      return null;
     }
 
-    return selectedTarget;
+    const occultismTargetEscape = attemptOccultismTargetEscape(
+      attacker,
+      selectedTarget,
+      availableTargets
+    );
+
+    if (!occultismTargetEscape.escaped) {
+      console.log(
+        `🎯 ${attacker?.name || "Attaquant"} cible ${selectedTarget.name}`
+      );
+
+      return selectedTarget;
+    }
+
+    availableTargets = occultismTargetEscape.alternatives;
+  }
+
+  return selectedTarget;
 }
 
 export function sbireFocusAlly(attacker, allies, attackerRole) {
@@ -136,4 +120,139 @@ export function sbireFocusDeadEnemy(attacker, deadEnemies, attackerRole) {
     console.log(`${attackerName} est un ${attackerRole}. Il choisit de profanner ${selectedEnemy.name}, qui est un ${selectedEnemy.role}.`);
 
     return selectedEnemy;
+}
+
+function isOccultismInvisibleTarget(target) {
+  return (
+    Boolean(target?.flags?.occultismInvisible) ||
+    Boolean(target?.isInvisible) ||
+    Boolean(target?.invisible)
+  );
+}
+
+function getTargetHpCurrent(target) {
+  return Number(target?.stats?.HP?.current ?? target?.stats?.HP ?? Infinity);
+}
+
+function getRoles(target) {
+  return Array.isArray(target?.role)
+    ? target.role
+    : [target?.role].filter(Boolean);
+}
+
+function attemptOccultismTargetEscape(attacker, target, availableTargets) {
+  if (!target || !isOccultismInvisibleTarget(target)) {
+    return {
+      escaped: false,
+      alternatives: availableTargets,
+    };
+  }
+
+  const alternatives = availableTargets.filter(candidate =>
+    candidate &&
+    !candidate.isDEAD &&
+    candidate.id !== target.id
+  );
+
+  if (alternatives.length === 0) {
+    console.log(
+      `🌑 ${target.name} est invisible, mais reste ciblée car elle est seule.`
+    );
+
+    return {
+      escaped: false,
+      alternatives,
+    };
+  }
+
+  const baseEscapeChance = Math.max(
+    0,
+    Math.min(100, Number(calculateOccultismTargetableChanceDisplay(target)) || 0)
+  );
+
+  const detectionChance = Math.max(
+    0,
+    Math.min(100, Number(calculateEquilibreInvisibleDetection(attacker)) || 0)
+  );
+
+  const escapeChance = Math.max(
+    0,
+    Math.min(100, baseEscapeChance - detectionChance)
+  );
+
+  if (escapeChance <= 0) {
+    if (detectionChance > 0) {
+      EffectMessage(attacker, "Perseption équilibrée !");
+    }
+
+    return {
+      escaped: false,
+      alternatives,
+    };
+  }
+
+  const roll = Math.random() * 100;
+  const escaped = roll < escapeChance;
+
+  console.log(
+    `🌑 Ciblage occulte : ${attacker?.name || "Attaquant"} tente de cibler ${target.name} ` +
+    `| invisibilité ${baseEscapeChance}% - détection ${detectionChance}% = évitement ${escapeChance}% ` +
+    `| roll ${roll.toFixed(2)} → ` +
+    `${escaped ? "✅ cible perdue" : "❌ cible conservée"}`
+  );
+
+  if (!escaped && detectionChance > 0) {
+    EffectMessage(attacker, "Perseption équilibrée !");
+  }
+
+  return {
+    escaped,
+    alternatives,
+    roll: Number(roll.toFixed(2)),
+    escapeChance,
+  };
+}
+function selectSbireFocusEnemyCandidate(attacker, validTargets, attackerRole, defenserRole) {
+  let validTargetsFiltered = [];
+  const priorities = AttackerSbireTargetPriority[attackerRole] || [];
+
+  for (let role of priorities) {
+    validTargetsFiltered = validTargets.filter(target => {
+      const roles = getRoles(target);
+      return roles.includes(role) && !target.isDEAD;
+    });
+
+    if (validTargetsFiltered.length > 0) {
+      break;
+    }
+  }
+
+  if (validTargetsFiltered.length === 0) {
+    validTargetsFiltered = validTargets.filter(target => !target.isDEAD);
+  }
+
+  let selectedTarget = null;
+
+  if (defenserRole === "gueux") {
+    const gueuxTargets = validTargetsFiltered.filter(target => {
+      const roles = getRoles(target);
+      return roles.includes("gueux") && !target.isDEAD;
+    });
+
+    if (gueuxTargets.length > 0) {
+      selectedTarget = gueuxTargets.reduce((weakest, current) => {
+        return getTargetHpCurrent(weakest) < getTargetHpCurrent(current)
+          ? weakest
+          : current;
+      }, gueuxTargets[0]);
+    }
+  }
+
+  if (!selectedTarget && validTargetsFiltered.length > 0) {
+    selectedTarget = validTargetsFiltered[
+      Math.floor(Math.random() * validTargetsFiltered.length)
+    ];
+  }
+
+  return selectedTarget;
 }

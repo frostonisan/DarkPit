@@ -55,7 +55,7 @@ export function generateDecor(gameContainer, board, hexGrid) {
     const foreGroundImage = document.createElement('img');
     foreGroundImage.className = `foreground-img ${matchingBiome.classe}`;  // Corriger la classe CSS dynamique
     // Utiliser la valeur de matchingBiome.foreground
-    foreGroundImage.src = matchingBiome.foreground || 'media/decors/prison/foreground.png';
+    foreGroundImage.src = matchingBiome.foreground || 'media/decors/prison/Bas.png';
     foreGround.appendChild(foreGroundImage);
 
     const foreGroundColor = document.createElement('div');
@@ -124,7 +124,8 @@ export function StageLoading() {
     addBackground(board);
 
     const hexGrid = document.createElement('div');
-    hexGrid.id = 'hexGrid';
+	 hexGrid.id = 'hexGrid';
+    hexGrid.className = 'hex-grid';
     board.appendChild(hexGrid); // hexGrid est ajouté après le background
 
     boardGlobal.appendChild(board);
@@ -168,6 +169,10 @@ export function createHexGrid() {
             const hex = document.createElement('div');
             hex.classList.add('hex');
             hex.setAttribute('data-position', `hex_${hexIdCounter}`);
+            // Coordonnées logiques conservées sur le DOM pour les sélections spatiales.
+            hex.dataset.coordinate = hexCoordinate;
+            hex.dataset.row = String(row);
+            hex.dataset.col = String(col);
 
             const { role, span: roleSpan } = hexRoles(row, col, rows, cols, hexIdCounter, hex);
             hex.innerHTML = `<div class="socle ${role}"><div class="image-role-hex-info" ></div><div class="hex-details">${roleSpan}<span class="hex-number">${hexIdCounter}</span> - <span class="hex-coordinate">${hexCoordinate}</span></div></div>`;
@@ -203,7 +208,16 @@ export function createHexGrid() {
     // Appeler generateDecor pour ajouter le ground
     generateDecor(null, null, hexGrid);
 
+    // Les hex existent désormais, mais les entités ne sont pas encore replacées.
+    // createEntity.js utilise ce hook pour corriger une position sauvegardée
+    // devenue inexistante (rôle du même side, puis neutre du même side).
+    document.dispatchEvent(new Event('hexGridReadyForEntityPlacement'));
+
     positionnerEntites(); 
+
+    // Une reconstruction peut déplacer plusieurs cibles d'un seul coup.
+    // Une notification unique recalcule seulement les projectiles encore actifs.
+    document.dispatchEvent(new Event('projectileTargetsMoved'));
 
     const event = new Event('hexGridCreated');
     document.dispatchEvent(event);
@@ -359,5 +373,152 @@ export function calculateHexes(side) {
     });
 
     return { availableHexes, availableHexTypes };
+}
+
+/**
+ * Retourne les positions des hexagones disponibles les plus pertinentes pour
+ * une zone donnée du plateau. Le résultat utilise le format interne `hex_N`,
+ * directement compatible avec `createEntityIngame({ position })`.
+ *
+ * @param {'A'|'B'|'sideA'|'sideB'|'neutral'|'neutre'} side
+ * @param {'top'|'middle'|'bottom'|'start'|'center'|'end'|'all'} line
+ * @param {'start'|'middle'|'center'|'end'|'all'} column
+ * @param {number} count
+ * @returns {string[]} positions `hex_N`, triées de la plus pertinente à la moins pertinente
+ */
+export function hexCoordonne(
+    side,
+    line = 'middle',
+    column = 'center',
+    count = 1
+) {
+    const normalizedSide = String(side ?? '').trim().toLowerCase();
+    const sideClass = (() => {
+        if (['a', 'sidea', 'armya'].includes(normalizedSide)) return 'SideA';
+        if (['b', 'sideb', 'armyb'].includes(normalizedSide)) return 'SideB';
+        if (['neutral', 'neutre', 'n'].includes(normalizedSide)) return 'Neutral';
+        return null;
+    })();
+
+    if (!sideClass) {
+        console.warn(`[board] hexCoordonne : side invalide "${side}".`);
+        return [];
+    }
+
+    const requestedCount = Math.max(0, Math.floor(Number(count) || 0));
+    if (requestedCount === 0) return [];
+
+    const allSideHexes = [...document.querySelectorAll(`#hexGrid .hex.${sideClass}[data-position]`)];
+    const candidates = allSideHexes.filter((hex) => !hex.classList.contains('occupied'));
+    if (candidates.length === 0) return [];
+
+    // Compatibilité avec une grille déjà créée avant l'ajout des datasets row/col.
+    // On peut reconstruire row/col depuis le texte A1, B2... si nécessaire.
+    const readCoordinate = (hex) => {
+        let row = Number(hex.dataset.row);
+        let col = Number(hex.dataset.col);
+
+        if (!Number.isFinite(row) || !Number.isFinite(col)) {
+            const label = hex.dataset.coordinate
+                || hex.querySelector('.hex-coordinate')?.textContent?.trim()
+                || '';
+            const match = /^([A-Z]+)(\\d+)$/i.exec(label);
+            if (match) {
+                const letters = match[1].toUpperCase();
+                col = [...letters].reduce((value, letter) => value * 26 + letter.charCodeAt(0) - 64, 0) - 1;
+                row = Number(match[2]) - 1;
+            }
+        }
+
+        return { row, col };
+    };
+
+    const sideGeometry = allSideHexes
+        .map((hex) => ({ hex, ...readCoordinate(hex) }))
+        .filter(({ row, col }) => Number.isFinite(row) && Number.isFinite(col));
+
+    const candidateGeometry = candidates
+        .map((hex) => ({ hex, ...readCoordinate(hex) }))
+        .filter(({ row, col }) => Number.isFinite(row) && Number.isFinite(col));
+
+    if (candidateGeometry.length === 0 || sideGeometry.length === 0) return [];
+
+    const boardHexes = [...document.querySelectorAll('#hexGrid .hex[data-position]')]
+        .map((hex) => ({ hex, ...readCoordinate(hex) }))
+        .filter(({ row, col }) => Number.isFinite(row) && Number.isFinite(col));
+
+    const rows = boardHexes.length
+        ? Math.max(...boardHexes.map(({ row }) => row)) + 1
+        : Math.max(...sideGeometry.map(({ row }) => row)) + 1;
+    const cols = boardHexes.length
+        ? Math.max(...boardHexes.map(({ col }) => col)) + 1
+        : Math.max(...sideGeometry.map(({ col }) => col)) + 1;
+
+    const sideMinCol = Math.min(...sideGeometry.map(({ col }) => col));
+    const sideMaxCol = Math.max(...sideGeometry.map(({ col }) => col));
+    const boardCenterRow = (rows - 1) / 2;
+    const boardCenterCol = (cols - 1) / 2;
+
+    const normalizedLine = String(line ?? 'middle').trim().toLowerCase();
+    const normalizedColumn = String(column ?? 'center').trim().toLowerCase();
+
+    const targetRow = (() => {
+        if (['top', 'start'].includes(normalizedLine)) return 0;
+        if (['bottom', 'end'].includes(normalizedLine)) return rows - 1;
+        // `all` utilise le milieu comme point de tri sans exclure aucune ligne.
+        return boardCenterRow;
+    })();
+
+    const targetCol = (() => {
+        if (normalizedColumn === 'start') return sideMinCol;
+        if (normalizedColumn === 'end') return sideMaxCol;
+        // middle / center / all : centre horizontal du side demandé.
+        return (sideMinCol + sideMaxCol) / 2;
+    })();
+
+    // Coordonnées 2D normalisées conformes au placement visuel de createHexGrid :
+    // une ligne sur deux est décalée de 1/2 case et l'écart vertical vaut 0.75.
+    const toPoint = (row, col) => ({
+        x: col + (Math.round(row) % 2 ? 0.5 : 0),
+        y: row * 0.75
+    });
+
+    const targetPoint = toPoint(targetRow, targetCol);
+    const boardCenterPoint = toPoint(boardCenterRow, boardCenterCol);
+
+    const scored = candidateGeometry.map(({ hex, row, col }) => {
+        const point = toPoint(row, col);
+        const distanceTarget = Math.hypot(point.x - targetPoint.x, point.y - targetPoint.y);
+        const distanceBoardCenter = Math.hypot(
+            point.x - boardCenterPoint.x,
+            point.y - boardCenterPoint.y
+        );
+
+        return {
+            hex,
+            row,
+            col,
+            distanceTarget,
+            distanceBoardCenter
+        };
+    });
+
+    scored.sort((a, b) => {
+        const targetDelta = a.distanceTarget - b.distanceTarget;
+        if (Math.abs(targetDelta) > 1e-9) return targetDelta;
+
+        // À pertinence égale, favoriser la case la plus proche du centre global.
+        const centerDelta = a.distanceBoardCenter - b.distanceBoardCenter;
+        if (Math.abs(centerDelta) > 1e-9) return centerDelta;
+
+        // Départage stable et déterministe.
+        if (a.row !== b.row) return a.row - b.row;
+        return a.col - b.col;
+    });
+
+    return scored
+        .slice(0, requestedCount)
+        .map(({ hex }) => hex.dataset.position)
+        .filter(Boolean);
 }
 

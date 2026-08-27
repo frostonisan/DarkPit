@@ -7,6 +7,57 @@ import { waitForCooldown , runPhaseTimer, updateCooldownDisplay, updateCurrentAt
 import { sbireEnemyTarget, sbireAllyTarget, sbireHexTarget, sbireAttackEnemy, sbireAttackAlly, sbireAttackHex } from './sbireFight.js';
 import { lordEnemyTarget, lordAttackEnemy } from './lordFight.js';
 import { calculateHexes } from './board.js';
+import { refillEntityMovement } from './damagesCalcul.js';
+import { saveEntityMovementState, saveEntityHPToStorage, applyHpBattleRegenAtTurnStart } from './entityUpdatesStorage.js';
+import { battleLogs } from './battleLogs.js';
+import { orderAnimation } from './entitesAnimation.js';
+import { ORDER_DECISION_DURATION } from './BattleOrder.js';
+import { getSurprisedSide, releaseSurprisedSide } from './events.js';
+
+function getSideImageContainers(side) {
+    return Array.from(
+        document.querySelectorAll(`.img-container.img-side-${side}`)
+    );
+}
+
+async function wakeSurprisedArmy(target) {
+    const currentSurprisedSide = getSurprisedSide();
+    if (!target || target.nodeType === 1 || target.side !== currentSurprisedSide) {
+        return;
+    }
+
+    const awakenedSide = releaseSurprisedSide(target.side);
+    if (!awakenedSide) return;
+    // On libère l'état avant de démarrer les tours pour empêcher deux attaques
+    // simultanées de lancer deux fois la même armée.
+    getSideImageContainers(awakenedSide)
+        .forEach(container => container.classList.remove('surprised'));
+
+    const awakenedEntites = entites.filter(entite => entite.side === awakenedSide);
+    awakenedEntites.forEach(entite => {
+        entite.isSurprised = false;
+    });
+
+    const defendingEntites = entites.filter(
+        entite => entite.side !== awakenedSide && !entite.isDEAD
+    );
+
+    const awakenedLivingEntites = awakenedEntites.filter(entite => !entite.isDEAD);
+
+    // La durée vient de BattleOrder : une seule modification règle les deux
+    // réactions visuelles.
+    awakenedLivingEntites.forEach(entite => orderAnimation(entite));
+    await new Promise(resolve => {
+        window.setTimeout(resolve, ORDER_DECISION_DURATION);
+    });
+
+    awakenedLivingEntites
+        .filter(entite => !entite.isDEAD)
+        .forEach(entite => entiteTurn(entite, defendingEntites));
+
+    console.log(`Le camp ${awakenedSide} n'est plus surpris et entre dans le combat.`);
+}
+
 
 export function initFightEntites() {
     entites.forEach(entite => {
@@ -40,16 +91,23 @@ export function entiteSide(entites) {
 
 // ENTITE CAMP
 export function entiteCamp(entites) {
-    if (!gameStarted) {
-        console.log("Les entités se préparent aux combats...");
-        // Vérification (optionnelle) : s'assurer que chaque entité a bien HP.current et HP.max
-        entites.forEach(entite => {
-            if (!entite.stats.HP || typeof entite.stats.HP.current !== 'number' || typeof entite.stats.HP.max !== 'number') {
-                console.warn(`Entité "${entite.name}" n'a pas le nouveau format d'HP attendu (HP.current / HP.max).`);
-            }
-        });
-        return;
-    }
+   if (!gameStarted) {
+    console.log("Les entités se préparent aux combats...");
+
+    battleLogs("level_loaded");
+
+    entites.forEach(entite => {
+        if (
+            !entite.stats.HP ||
+            typeof entite.stats.HP.current !== 'number' ||
+            typeof entite.stats.HP.max !== 'number'
+        ) {
+            console.warn(`Entité "${entite.name}" n'a pas le nouveau format d'HP attendu (HP.current / HP.max).`);
+        }
+    });
+
+    return;
+}
 
     const entitesA = entites.filter(entite => entite.side === 'A');
     const entitesB = entites.filter(entite => entite.side === 'B');
@@ -68,8 +126,13 @@ export function entiteCamp(entites) {
     entiteSide(entites);
 
     // Déclenche les tours de combat
-    entitesA.forEach(entiteA => entiteTurn(entiteA, entitesB));
-    entitesB.forEach(entiteB => entiteTurn(entiteB, entitesA));
+    const surprisedSide = getSurprisedSide();
+    if (surprisedSide !== 'A') {
+        entitesA.forEach(entiteA => entiteTurn(entiteA, entitesB));
+    }
+    if (surprisedSide !== 'B') {
+        entitesB.forEach(entiteB => entiteTurn(entiteB, entitesA));
+    }
 
     // Calcul et affichage des hexagones disponibles pour chaque camp
     const hexesForA = calculateHexes('A');
@@ -86,18 +149,29 @@ export function entiteCamp(entites) {
 
 // ENTITE TURN
 export async function entiteTurn(attacker, defendingEntites) {
-	attacker.currentPhase = 'Entite Turn';
-
     if (!attacker || attacker.isDEAD) {
         checkGameOver(entites);
         return;
-    } else if (attacker.turnCount === undefined) {
-        attacker.turnCount = 1;
-    } else {
-        attacker.turnCount++;
     }
 
+    attacker.currentPhase = 'Entite Turn';
+
+    if (attacker.turnCount === undefined) {
+    attacker.turnCount = 1;
+} else {
+    attacker.turnCount++;
+}
+
+refillEntityMovement(attacker, 1);
+saveEntityMovementState(attacker);
+
+// Pas de régénération lors du premier tour.
+// Elle commence après un premier cycle complet.
+if (attacker.turnCount > 1) {
+    applyHpBattleRegenAtTurnStart(attacker);
+}
     entiteSide(entites);
+
     console.log(`${attacker.name} commence son tour ${attacker.turnCount}.`);
 
     entites.forEach(entite => {
@@ -116,7 +190,9 @@ if (attacker && !attacker.isDEAD) {
     stopAllIntervals();
     return;
 }
-    const allEnemiesDead = defendingEntites.every(entite => entite.isDEAD);
+    const allEnemiesDead =
+    Array.isArray(defendingEntites) &&
+    defendingEntites.every(entite => entite.isDEAD);
 
     if (attacker && !attacker.isDEAD && defendingEntites) {
         try {
@@ -212,14 +288,13 @@ export function entiteTarget(attacker, defendingEntites) {
                     if (deadEnemies.length > 0) {
                         console.log('Cibles ennemies mortes :', deadEnemies);
                     }
-                    lordEnemyTarget(defendingEntites, deadEnemies, (target) => {
-                        if (target) {
-                            target.targetStatut = 'newTarget'; // Ajout du statut newTarget
-							  updateTargetStatut(attacker, target); // Mise à jour des classes CSS
-                            // console.log(` TARGET-STATUT : ${target.name} est la new-target de ${attacker.name}`); // Log d'info
-                        }
-                        resolve(target);
-                    }, attacker.name, attacker.id);
+                lordEnemyTarget(defendingEntites, deadEnemies, (target) => {
+  if (target) {
+    target.targetStatut = 'newTarget';
+    updateTargetStatut(attacker, target);
+  }
+  resolve(target);
+}, attacker);
                 }
             }
             // Gérer les attaques ciblant les alliés
@@ -320,6 +395,16 @@ export async function entiteAttack(attacker, target) {
 
 		try {
 			await attackFunction(attacker, target);
+			if (isEnemy && !isHex) {
+				await wakeSurprisedArmy(target);
+			}
+			document.dispatchEvent(new CustomEvent('entityTurnCompleted', {
+				detail: {
+					entityId: attacker.id,
+					side: attacker.side,
+					turnCount: attacker.turnCount
+				}
+			}));
 			entiteLoop(attacker);
 		} catch (error) {
 			console.error(`Échec de l'attaque de ${attacker.name} sur ${isHex ? 'hexagone' : target.name} : ${error}`);
@@ -396,3 +481,4 @@ export function updateTargetStatut(attacker, targetEntity) {
         console.warn(`L'élément avec l'id 'role-img_${attacker.id}' n'a pas été trouvé dans le DOM.`);
     }
 }
+

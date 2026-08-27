@@ -1,8 +1,99 @@
-import { saveStageConfig, loadFromLocalStorage, saveToLocalStorage, getOrCreateGameData,getOrCreateGameID, setCurrentLevel } from './GameStorage.js';
+import { saveStageConfig, loadFromLocalStorage, saveToLocalStorage, getOrCreateGameData,getOrCreateGameID, setCurrentLevel, getStageChests, getOrCreateStageChest, stageHasRewardChest } from './GameStorage.js';
 import { PlayerArmyCodex } from './GameInit.js';
 import { generateUniqueID, entitesNestUp } from './entites.js';
-import { launchLevel } from './game.js';
-import { selectAdminEntitiesForSideB, enableDeleteKeyForFocusedEntity, spawnEntiteIngame } from './ArmyBFactory.js';
+import { launchLevel, createQuitButton } from './game.js';
+import { spawnEntiteIngame } from './createEntity.js';
+import { cleanupAdminLevel, initializeAdminLevel } from './admin.js?catalog=20260823i';
+
+function syncStageReward(stageId, reward) {
+    const gameStages = JSON.parse(localStorage.getItem('GameStages')) || { stages: [] };
+    const storedStage = gameStages.stages.find(stage => String(stage.id) === String(stageId));
+    if (!storedStage) return;
+
+    if (reward === 'chest') storedStage.reward = 'chest';
+    else delete storedStage.reward;
+
+    localStorage.setItem('GameStages', JSON.stringify(gameStages));
+}
+
+function syncStageSurpriseAttack(stageId, surpriseAttack) {
+    const gameStages = JSON.parse(localStorage.getItem('GameStages')) || { stages: [] };
+    const storedStage = gameStages.stages.find(stage => String(stage.id) === String(stageId));
+    if (!storedStage) return;
+
+    if (surpriseAttack === 'sideA' || surpriseAttack === 'sideB') {
+        storedStage.surpriseAttack = surpriseAttack;
+    } else {
+        delete storedStage.surpriseAttack;
+    }
+
+    localStorage.setItem('GameStages', JSON.stringify(gameStages));
+}
+
+
+function dispatchPersistentStageChests(stageId) {
+    const persistentChests = getStageChests(stageId, {
+        includeDestroyed: true,
+    });
+    const detail = {
+        stageId: String(stageId),
+        chests: persistentChests,
+        // Un coffre restauré ne doit jamais rejouer sa chute initiale.
+        spawnMode: 'in-place',
+    };
+
+    // Le DOM du niveau est créé de façon asynchrone par launchLevel.
+    // Plusieurs émissions garantissent la restauration sans F5, tandis que loot.js
+    // déduplique les coffres par leur identifiant persistant.
+    [0, 50, 150, 300, 600, 1000, 1500, 2200, 3200].forEach(delay => {
+        setTimeout(() => {
+            const activeStageId = String(
+                window.currentStageId ??
+                localStorage.getItem('currentStageId') ??
+                ''
+            );
+
+            // Un callback retardé d'un ancien niveau ne doit jamais injecter
+            // ses coffres dans le niveau actuellement affiché.
+            if (activeStageId !== String(stageId)) return;
+
+            window.dispatchEvent(new CustomEvent('stageChestsLoaded', { detail }));
+        }, delay);
+    });
+}
+
+function configureFinishedLevelControls(stage) {
+    if (!stage?.victory) return;
+
+    const removeCombatControls = () => {
+        const selectors = [
+            '#startButton',
+            '#fleeButton',
+            '#escapeButton',
+            '.start-button',
+            '.fight-button',
+            '.launch-fight-button',
+            '.battle-start-button',
+            '.flee-button',
+            '.escape-button',
+            '.run-away-button',
+            '[data-action="start-fight"]',
+            '[data-action="launch-combat"]',
+            '[data-action="flee"]',
+            '[data-action="escape"]'
+        ];
+        document.querySelectorAll(selectors.join(',')).forEach(control => control.remove());
+    };
+
+    removeCombatControls();
+    createQuitButton();
+
+    if (typeof MutationObserver !== 'undefined') {
+        const observer = new MutationObserver(removeCombatControls);
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(() => observer.disconnect(), 3000);
+    }
+}
 
 export function launchCurrentLevelFromStorage() {
     const stageId = localStorage.getItem('currentStageId');
@@ -23,15 +114,12 @@ export function launchCurrentLevelFromStorage() {
         biome_serial: biome,
         level_type,
         difficulty,
-        scripted_entites
+        scripted_entites,
+        surpriseAttack
     } = stage;
 
     // --- Met à jour le niveau courant ---
     setLevelRunning(level_type || 'randomized');
-		if (window.levelRunning === 'admin') {
-    enableDeleteKeyForFocusedEntity();
-	selectAdminEntitiesForSideB(entitesNestUp);
-}
     window.currentStageId = stageId;
     localStorage.setItem('currentStageId', stageId);
     setCurrentLevel(stageId);
@@ -41,7 +129,7 @@ export function launchCurrentLevelFromStorage() {
     const stageIndex = gameStageData.stages.findIndex(s => String(s.id) === String(stageId));
 
     if (stageIndex !== -1) {
-        gameStageData.stages[stageIndex].statut = 'visited';
+        if (!gameStageData.stages[stageIndex].victory) gameStageData.stages[stageIndex].statut = 'visited';
         gameStageData.stages[stageIndex].level_type = level_type || 'randomized';
         localStorage.setItem('GameStages', JSON.stringify(gameStageData));
     } else {
@@ -63,8 +151,26 @@ export function launchCurrentLevelFromStorage() {
             difficulte: null,
             lord: null
         },
-        scripted_entites: level_type === 'scripted' ? scripted_entites : undefined
+        scripted_entites: level_type === 'scripted' ? scripted_entites : undefined,
+        surpriseAttack
     });
+
+    if (window.levelRunning === 'admin') {
+        initializeAdminLevel(entitesNestUp);
+    }
+
+    if (stageHasRewardChest(stage)) {
+        getOrCreateStageChest(stage);
+        dispatchPersistentStageChests(stageId);
+    }
+    configureFinishedLevelControls(stage);
+
+    const persistentChests = stageHasRewardChest(stage)
+        ? getStageChests(stageId, { includeDestroyed: true })
+        : [];
+    if (persistentChests.length) {
+        console.log(`📦 ${persistentChests.length} coffre(s) persistant(s) chargé(s) pour le stage ${stageId}.`);
+    }
 
     console.log(`🚀 Niveau ${stageId} lancé automatiquement avec succès (type : ${window.levelRunning})`);
 }
@@ -75,6 +181,7 @@ function setLevelRunning(type) {
     } else {
         window.levelRunning = 'randomized';
     }
+    if (window.levelRunning !== 'admin') cleanupAdminLevel();
     console.log(`🔄 Niveau en cours : levelRunning = ${window.levelRunning}`);
 }
 
@@ -122,6 +229,13 @@ function createStageButtonDOM(stage, container, storageId) {
 
     buttonDiv.setAttribute('data-biome', stage.biome);
     buttonDiv.setAttribute('data-storageid', finalStorageId);
+    if (Array.isArray(stage.adminTabs) && stage.adminTabs.length > 0) {
+        buttonDiv.setAttribute('data-admintabs', JSON.stringify(stage.adminTabs));
+    }
+    if (stage.reward) buttonDiv.setAttribute('data-reward', stage.reward);
+    if (stage.surpriseAttack) {
+        buttonDiv.setAttribute('data-surpriseattack', stage.surpriseAttack);
+    }
 
     const levelNameSpan = document.createElement('span');
     levelNameSpan.className = 'IngameAlert levelname';
@@ -144,6 +258,7 @@ export function initializeTooltips() {
             const storageId = levelButton.dataset.storageid || 'Inconnu';
             const biome = levelButton.dataset.biome || 'Inconnu';
             const statut = levelButton.dataset.statut || 'unknown';
+            const reward = levelButton.dataset.reward || null;
 
             const totalpoints = levelButton.dataset.totalpoints;
             const moyennepower = levelButton.dataset.moyennepower;
@@ -163,7 +278,8 @@ export function initializeTooltips() {
                 <strong>Infos du niveau :</strong><br>
                 Type : ${levelType}<br>
                 Biome : ${biome}<br>
-                Statut : ${statut}<br>`; 
+                Statut : ${statut}<br>
+                ${reward ? `Récompense : ${reward}<br>` : ''}`; 
 
             if (infosDisponibles) {
                 tooltipHTML += `
@@ -211,7 +327,7 @@ export function determineAndGenerateButtons() {
             lords: [],
             levelName: "Le Marécage Scripté",
             position: { top: "50%", left: "68%" },
-            type: "scripted"
+            type: "scripted", reward: "chest"
         }
     ];
 
@@ -219,12 +335,18 @@ export function determineAndGenerateButtons() {
         { biome: "marecage", totalpoints: 25, moyennepower: 3, maxutilisation: 4, variation: 15, difficulte: 1, lord: 1, levelName: "Le Marécage", position: { top: "54%", left: "52%" }, type: "randomized" },
         { biome: "prison", totalpoints: 15, moyennepower: 3, maxutilisation: 3, variation: 10, difficulte: 1, lord: 0, levelName: "La Prison", position: { top: "50%", left: "26%" }, type: "randomized" },
         { biome: "prison", totalpoints: 5, moyennepower: 5, maxutilisation: 3, variation: 1, difficulte: 0, lord: 0, levelName: "Admin", position: { top: "20%", left: "56%" }, type: "randomized" },
-        { biome: "desert", totalpoints: 40, moyennepower: 7, maxutilisation: 2, variation: 20, difficulte: 0, lord: 2, levelName: "Le Désert", position: { top: "80%", left: "61%" }, type: "randomized" },
-        { biome: "glacier", totalpoints: 60, moyennepower: 15, maxutilisation: 1, variation: 25, difficulte: 5, lord: 1, levelName: "Le Glacier", position: { top: "14%", right: "73%" }, type: "randomized" }
+        { biome: "desert", totalpoints: 40, moyennepower: 7, maxutilisation: 2, variation: 20, difficulte: 0, lord: 2, levelName: "Le Désert", position: { top: "80%", left: "61%" }, type: "randomized", surpriseAttack: "sideA" },
+        { biome: "glacier", totalpoints: 60, moyennepower: 15, maxutilisation: 1, variation: 25, difficulte: 5, lord: 1, levelName: "Le Glacier", position: { top: "14%", right: "73%" }, type: "randomized", reward: "chest", surpriseAttack: "sideB" }
     ];
 
     const AdminStagesData = [
-        { biome: "marecage", levelName: "admin island", position: { top: "6%", left: "89%" }, type: "admin" }
+        {
+            biome: "marecage",
+            levelName: "admin island",
+            position: { top: "6%", left: "89%" },
+            type: "admin",
+            adminTabs: ["entities", "events"]
+        }
     ];
 
     const container = document.getElementById('game-windows');
@@ -261,7 +383,9 @@ ScriptedStagesData.forEach((stage, index) => {
         difficulty,
         ArmyB_id: `ArmyB_${storageId}`,
         level_type: 'scripted',
-        scripted_entites
+        scripted_entites,
+        ...(stage.surpriseAttack ? { surpriseAttack: stage.surpriseAttack } : {}),
+        ...(stage.reward === 'chest' ? { reward: 'chest' } : {})
     };
 
     // Charger l'existant
@@ -279,6 +403,8 @@ ScriptedStagesData.forEach((stage, index) => {
         // console.log(`ℹ️ Stage scripted déjà présent : ${storageId}`);
     }
 
+    syncStageReward(storageId, stage.reward);
+    syncStageSurpriseAttack(storageId, stage.surpriseAttack);
     createStageButtonDOM(stage, container, storageId);
 });
 
@@ -302,6 +428,8 @@ ScriptedStagesData.forEach((stage, index) => {
         };
 
         saveStageConfig(stage.biome, difficulty, id, null, 'randomized');
+        syncStageReward(id, stage.reward);
+        syncStageSurpriseAttack(id, stage.surpriseAttack);
         createStageButtonDOM(stage, container, id);
     });
 
@@ -320,9 +448,20 @@ export function initializeButtonClicks() {
 
             // Vérifie si l'ID du niveau existe ou le génère
             let storageId = button.getAttribute('data-storageid') || generateUniqueID();
+			const levelWrapper = button.closest('.LevelButton');
+const levelName = levelWrapper?.querySelector('.levelname')?.textContent?.trim() || "Stage inconnu";
             const levelType = button.classList.contains('scripted') ? 'scripted' 
                 : button.classList.contains('admin') ? 'admin' 
                 : 'randomized';
+            const reward = button.dataset.reward || null;
+            const buttonSurpriseAttack = button.dataset.surpriseattack || null;
+            let adminTabs = [];
+            try {
+                const parsedAdminTabs = JSON.parse(button.dataset.admintabs || '[]');
+                adminTabs = Array.isArray(parsedAdminTabs) ? parsedAdminTabs : [];
+            } catch (error) {
+                console.warn('Configuration des onglets admin invalide :', error);
+            }
 
             setLevelRunning(levelType);
 
@@ -336,12 +475,19 @@ export function initializeButtonClicks() {
 
             // Variables à remplir
             let biome, totalpoints, moyennepower, maxutilisation, variation, difficulte, lord;
+            let surpriseAttack = buttonSurpriseAttack;
             let sbires = [], lords = [];
 
 if (stageIndex !== -1) {
     console.log(`Stage existant trouvé (ID : ${storageId}). Chargement des paramètres existants.`);
     let existingStage = gameStageData.stages[stageIndex];
-
+existingStage.levelName = levelName;
+    if (levelType === 'admin') existingStage.adminTabs = adminTabs;
+    if (reward === 'chest') existingStage.reward = 'chest';
+    else delete existingStage.reward;
+    surpriseAttack = existingStage.surpriseAttack || buttonSurpriseAttack;
+    if (surpriseAttack) existingStage.surpriseAttack = surpriseAttack;
+    else delete existingStage.surpriseAttack;
     biome = existingStage.biome_serial;
 
     if (existingStage.level_type === 'scripted') {
@@ -356,8 +502,8 @@ if (stageIndex !== -1) {
     localStorage.setItem('currentStageId', storageId);
 
     // ✅ Mise à jour du statut
-  existingStage.statut = 'visited';
-button.setAttribute('data-statut', 'visited');
+  if (!existingStage.victory) existingStage.statut = 'visited';
+button.setAttribute('data-statut', existingStage.victory ? 'finished' : 'visited');
 localStorage.setItem('GameStages', JSON.stringify(gameStageData));
 
     button.setAttribute('data-statut', 'visited');
@@ -386,14 +532,18 @@ localStorage.setItem('GameStages', JSON.stringify(gameStageData));
 
                 let difficulty = { totalpoints, moyennepower, maxutilisation, variation, difficulte, lord };
 
-                let newStage = {
-                    id: storageId,
-                    biome_serial: biome,
-					statut: 'unknown',
-                    difficulty,
-                    ArmyB_id: `ArmyB_${storageId}`,
-                    level_type: levelType
-                };
+          let newStage = {
+    id: storageId,
+    biome_serial: biome,
+    levelName,
+    statut: 'unknown',
+    difficulty,
+    ArmyB_id: `ArmyB_${storageId}`,
+    level_type: levelType,
+    ...(levelType === 'admin' && adminTabs.length > 0 ? { adminTabs } : {}),
+    ...(surpriseAttack ? { surpriseAttack } : {}),
+    ...(reward === 'chest' ? { reward: 'chest' } : {})
+};
 
                 if (levelType === 'scripted') {
                     newStage.scripted_entites = { sbires, lords };
@@ -411,8 +561,20 @@ setCurrentLevel(storageId);
             // Charge ou actualise le script game.js avec les paramètres appropriés
 launchLevel({
   biome,
-  difficulty: { totalpoints, moyennepower, maxutilisation, variation, difficulte, lord }
+  difficulty: { totalpoints, moyennepower, maxutilisation, variation, difficulte, lord },
+  surpriseAttack
 });
+
+if (levelType === 'admin') {
+    initializeAdminLevel(entitesNestUp);
+}
+
+const launchedStage = gameStageData.stages.find(stage => String(stage.id) === String(storageId));
+if (stageHasRewardChest(launchedStage)) {
+    getOrCreateStageChest(launchedStage);
+    dispatchPersistentStageChests(storageId);
+}
+configureFinishedLevelControls(launchedStage);
 
         });
     });
@@ -436,17 +598,15 @@ export function applyLevelStatusClasses() {
 
 
 
-window.addEventListener('load', () => {
+window.onload = function () {
 	determineAndGenerateButtons();
 	initializeTooltips();
     initializeButtonClicks();
 	applyLevelStatusClasses();
     PlayerArmyCodex();
-	enableDeleteKeyForFocusedEntity();
-	selectAdminEntitiesForSideB(entitesNestUp);
   const gameId = getOrCreateGameID();
     const displayElement = document.getElementById('game-id-display');
     if (displayElement) {
         displayElement.textContent = `ID de la partie : ${gameId}`;
     }
-});
+};

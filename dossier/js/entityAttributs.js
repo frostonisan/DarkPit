@@ -1,19 +1,23 @@
 import { checkGameOver, stopAllIntervals, OrderEntity} from './gameState.js';
-import { entites, calculateResistances, calculateBloodFuryPercent,updateEternalLifeRegenOrders, updateExtraLifeRegenOrders, syncEternalLifeCurrentFromRegen, syncExtraLifeCurrentFromRegen } from './entites.js'; 
+import { entites, calculateResistances, getBloodThirstyPercent,updateEternalLifeRegenOrders, updateExtraLifeRegenOrders, syncEternalLifeCurrentFromRegen, syncExtraLifeCurrentFromRegen } from './entites.js'; 
 import { updateTimerDisplay, updateKillsCounter, updateTotalDamageCounter, PopUpDamages, updateTotalHealCounter, updateScore, deductScore } from './dom.js';
 import { updateHealthBar, updateHPCounters } from './UpgradeEntity.js';
-import { toggleEffectClass, poison, brulure, heal, rez, lifesteal, LifestealBloodFury } from './attackEffectMecanics.js';
+import { EffectMessage, toggleEffectClass, poison, brulure, heal, rez, lifesteal, LifestealBloodFury } from './attackEffectMecanics.js';
 import { summonJarret, summonProfanation } from './summonsMecanics.js';
 import { attackEffects } from './attackEffects.js';
 import { attackDetails } from './attackList.js'; 
 import { updateGlobalRoleSbire, TraitementRolesSbires } from './load-entity.js'; 
 import { entiteCamp } from './fight.js'; 
 import { saveToLocalStorage, loadFromLocalStorage } from './GameStorage.js';
-import { updateEntityStatusInStorage, saveEntityHPToStorage, saveEntityextraLifeToStorage, saveEntityfadedLifeToStorage, saveEntityEternalLifeToStorage, saveEntityEternalLifeRegenToStorage, saveEntityExtraLifeRegenToStorage } from './entityUpdatesStorage.js';
-import { updateSpriteUI, damageImpact, damageArmorImpact, shakeImpact } from './entitesAnimation.js';
-import { toNumber, attemptAttackerDamages, attemptIndestructibility, attemptEsoterism, attemptAstrality, attemptBloodFuryExec, calculateBloodFuryExecChanceBonus, attemptCriticalHit, attemptResilience, attemptResilienceCancel, attemptResilienceCritReduction, calculateExtraLifeResurrect, attemptTranscendenceConsoProtection, calculateRangeRatio, caluclateIndestructibilityReductionTotal, calculateEsoterismtotalReduction } from './damagesCalcul.js';
-import { createExtraLifeCounter, createArmorCounter, createFadedLifeCounter, syncEntityAuras } from './createEntity.js';
+import { updateEntityStatusInStorage, saveEntityHPToStorage, saveEntityextraLifeToStorage, saveEntityfadedLifeToStorage, saveEntityEternalLifeToStorage, saveEntityEternalLifeRegenToStorage, saveEntityExtraLifeRegenToStorage, saveEntityArmorState } from './entityUpdatesStorage.js';
+import { updateSpriteUI, damageImpact, damageArmorImpact, shakeImpact,  brokenMagicImpact, applyEntityTint, releaseEntityTint, renderEntityTint } from './entitesAnimation.js';
+import { toNumber, attemptAttackerDamages, attemptIndestructibility, attemptEsoterism, attemptAstrality, attemptBloodFuryExec, calculateBloodFuryExecChanceBonus, calculateBloodFuryExecutionPercent, attemptCriticalHit, attemptResilience, attemptResilienceCancel, attemptResilienceCritReduction, calculateExtraLifeResurrect, attemptTranscendenceConsoProtection, calculateRangeRatio, caluclateIndestructibilityReductionTotal, calculateEsoterismtotalReduction, calculateMysticismTotalDamageBonus, calculateOccultismShadowFragilityPercent } from './damagesCalcul.js';
+import { createExtraLifeCounter, createArmorCounter, createFadedLifeCounter, stabilizeDeadEntityVisual } from './createEntity.js';
 import { isRegenKey, toNonNegInt } from './ui.js';
+import { getAttackResolutionFlags } from './attackResolution.js';
+import { battleLogs } from './battleLogs.js';
+import { syncEntityAuras, cleanupEntityAuras } from "./entitesAura.js";
+import { createCorpseLoot } from './loot.js';
 // LIFE AND DEATH
 // Intégrez l'appel de cette fonction dans votre fonction LifeandDeath
 export function LifeandDeath(entite, attacker = null) {
@@ -22,26 +26,11 @@ export function LifeandDeath(entite, attacker = null) {
   const statutArr = Array.isArray(entite.statut) ? entite.statut : [];
   const wasDead  = statutArr.includes("dead");
   const wasAlive = statutArr.includes("alive");
-
-  // 0) Sécurité : statut déjà mort
-  if (wasDead) {
-    entite.isDEAD = true;
-    entite.stats.HP.current = 0;
-
-    console.log(`Correction: ${entite.name} était déjà mort selon son statut.`);
-    updateEntityStatusInStorage(entite);
-
-    // UI
-    updateHPCounters(entite.id, 0, entite.stats.HP.max ?? 0);
-    updateBonusLifeCounters(entite);
-
-    CreateDeadSprite(entite);
-    return;
-  }
-
-  // 1) Si HP <= 0 : on tente les mécaniques de survie
   const hpCur = Number(entite.stats.HP.current ?? 0) || 0;
 
+  // Si HP <= 0, les mécaniques de survie passent TOUJOURS avant la mort.
+  // Ne jamais retourner sur la seule base de statut/isDEAD/ancien log : ces
+  // marqueurs peuvent avoir été posés avant cet appel ou provenir du stockage.
   if (hpCur <= 0) {
     const targetElement = document.getElementById(`sbire_${entite.id}`);
 
@@ -51,6 +40,10 @@ export function LifeandDeath(entite, attacker = null) {
       entiteCamp(entites);
       targetElement.classList.remove("resurrected");
 
+      // Une résurrection ouvre un nouveau cycle de vie/mort.
+      entite.hasDeathBeenLogged = false;
+      entite.hasAlreadyDeadBeenLogged = false;
+
       // UI (le rez peut déjà le faire, mais là tu garantis la synchro)
       updateBonusLifeCounters(entite);
       updateHPCounters(entite.id, entite.stats.HP.current ?? 0, entite.stats.HP.max ?? 0);
@@ -59,26 +52,65 @@ export function LifeandDeath(entite, attacker = null) {
     }
 
     // 1.b) fadedLife (prioritaire, détruite définitivement)
-    if (attemptExtraLife(entite, { pool: "fadedLife", destroyOnUse: true })) {
-      updateBonusLifeCounters(entite);
-      return;
-    }
+if (attemptExtraLife(entite, { pool: "fadedLife", destroyOnUse: true })) {
+  battleLogs("extra_life_used", {
+    entity: entite,
+    lifeType: "fadedLife",
+    hpRestored: entite.stats.HP.current
+  });
 
-    // 1.c) extraLife (réutilisable, max ne bouge pas)
-    if (attemptExtraLife(entite, { pool: "extraLife", destroyOnUse: false })) {
-      updateBonusLifeCounters(entite);
-      return;
-    }
-// 1.d) eternalLife (unique)
-if (attemptExtraLife(entite, { pool: "eternalLife", destroyOnUse: false })) {
   updateBonusLifeCounters(entite);
   return;
 }
-    // 1.e) Mort définitive
-    entite.isDEAD = true;
-    entite.statut = ["dead"];
-    entite.stats.HP.current = 0;
+    // 1.c) extraLife (réutilisable, max ne bouge pas)
+if (attemptExtraLife(entite, { pool: "extraLife", destroyOnUse: false })) {
+  battleLogs("extra_life_used", {
+    entity: entite,
+    lifeType: "extraLife",
+    hpRestored: entite.stats.HP.current
+  });
 
+  updateBonusLifeCounters(entite);
+  return;
+}
+// 1.d) eternalLife (unique)
+if (attemptExtraLife(entite, { pool: "eternalLife", destroyOnUse: false })) {
+  battleLogs("extra_life_used", {
+    entity: entite,
+    lifeType: "eternalLife",
+    hpRestored: entite.stats.HP.current
+  });
+
+  updateBonusLifeCounters(entite);
+  return;
+}
+
+// L'entité était déjà un cadavre finalisé et aucune nouvelle vie n'est prête.
+// On garde l'appel idempotent, mais seulement APRÈS les tentatives de survie.
+if (wasDead && entite.isDEAD === true && entite.hasDeathBeenLogged === true) {
+  entite.stats.HP.current = 0;
+  updateHPCounters(entite.id, 0, entite.stats.HP.max ?? 0);
+  updateBonusLifeCounters(entite);
+  const deadCanvas = document.getElementById(`spriteCanvas_${entite.id}`);
+  if (!deadCanvas?.classList.contains("dead-sprite")) {
+    CreateDeadSprite(entite, { playDeathBlood: false });
+  }
+  createCorpseLoot(entite);
+  return;
+}
+
+// Mort définitive : aucune réserve de vie n'a pu être consommée.
+if (entite.flags?.bloodCrazyNextExecution) {
+  consumeBloodCrazy(entite);
+}
+
+entite.isDEAD = true;
+entite.statut = ["dead"];
+entite.stats.HP.current = 0;
+if (!entite.hasDeathBeenLogged) {
+  battleLogs("entity_death", { entity: entite });
+  entite.hasDeathBeenLogged = true;
+}
     console.log(`${entite.name} est mort pour de bon (plus de vies).`);
     updateEntityStatusInStorage(entite);
 
@@ -90,9 +122,12 @@ if (attemptExtraLife(entite, { pool: "eternalLife", destroyOnUse: false })) {
     updateHPCounters(entite.id, 0, entite.stats.HP.max ?? 0);
     updateBonusLifeCounters(entite);
 
+    cleanupEntityAuras(entite);
     CreateDeadSprite(entite);
+    createCorpseLoot(entite);
 
-    stopAllIntervals();
+    // Une mort individuelle ne stoppe pas le combat. La résolution centrale décide
+    // immédiatement si cette mort termine réellement le combat.
     checkGameOver(entites);
     updateGlobalRoleSbire();
     TraitementRolesSbires();
@@ -123,9 +158,11 @@ if (attemptExtraLife(entite, { pool: "eternalLife", destroyOnUse: false })) {
     sbire.classList.remove("dead", "hbox");
   }
 }
-export function getPoolCurrent(raw) {
-  if (raw && typeof raw === "object") return Math.max(0, toNumber(raw.current, 0));
-  return Math.max(0, toNumber(raw, 0));
+
+
+function getLifePoolCurrent(raw) {
+  const value = raw && typeof raw === "object" ? raw.current : raw;
+  return Math.max(0, Number(value ?? 0) || 0);
 }
 
 function consumeLifePool(entite, key, { destroyOnUse = false } = {}) {
@@ -133,12 +170,11 @@ function consumeLifePool(entite, key, { destroyOnUse = false } = {}) {
 
   if (key === "fadedLife") {
     const raw = entite.stats.fadedLife;
-    const cur = getPoolCurrent(raw);
+    const cur = getLifePoolCurrent(raw);
     if (cur <= 0) return false;
 
     // ✅ Protection Transcendance : résurrection OK, pas de conso (avec FX)
     if (attemptTranscendenceConsoProtection(entite)) {
-      syncEntityAuras(entite, "battle");
       return true;
     }
 
@@ -154,48 +190,33 @@ function consumeLifePool(entite, key, { destroyOnUse = false } = {}) {
 
     saveEntityfadedLifeToStorage(entite);
 
-    // ✅ Aura update après conso
-   syncEntityAuras(entite, "battle");
-
     return true;
   }
 
   if (key === "extraLife") {
-    const cur = getPoolCurrent(entite.stats.extraLife);
+    const cur = getLifePoolCurrent(entite.stats.extraLife);
     if (cur <= 0) return false;
 
     // ✅ Protection Transcendance : résurrection OK, pas de conso (avec FX)
     if (attemptTranscendenceConsoProtection(entite)) {
-      syncEntityAuras(entite, "battle");
       return true;
     }
 
     const ok = extraLifeConsumption(entite);
 
-    // ✅ Aura update après conso (si ok)
-    if (ok) {
-     syncEntityAuras(entite, "battle");
-    }
-
     return ok;
   }
 
   if (key === "eternalLife") {
-    const cur = getPoolCurrent(entite.stats.eternalLife);
+    const cur = getLifePoolCurrent(entite.stats.eternalLife);
     if (cur <= 0) return false;
 
     // ✅ Protection Transcendance : résurrection OK, pas de conso (avec FX)
     if (attemptTranscendenceConsoProtection(entite)) {
-     syncEntityAuras(entite, "battle");
       return true;
     }
 
     const ok = eternalLifeConsumption(entite);
-
-    // ✅ Aura update après conso (si ok)
-    if (ok) {
-      syncEntityAuras(entite, "battle");
-    }
 
     return ok;
   }
@@ -278,7 +299,16 @@ export function attemptExtraLife(entite, {
 
   entite.isDEAD = false;
   entite.statut = ["alive"];
+  // Si une vie a été obtenue après une mort finalisée, la prochaine mort doit
+  // pouvoir être journalisée normalement.
+  entite.hasDeathBeenLogged = false;
+  entite.hasAlreadyDeadBeenLogged = false;
   updateEntityStatusInStorage(entite);
+
+  // Synchroniser seulement APRÈS avoir restauré HP/isDEAD/statut.
+  // Avant, syncEntityAuras voyait HP=0 et supprimait toutes les auras.
+  syncEntityAuras(entite, "battle");
+  syncEntityAuras(entite, "codex");
 
   // Log
   if (pool === "fadedLife") {
@@ -413,19 +443,75 @@ function getLifeCounterContainer(entite) {
 
 // ---- ARMOR ----
 function ensureArmorCounter(entite) {
-  const wrap = getLifeCounterContainer(entite);
-  if (!wrap) return;
+  if (!entite?.id) return null;
 
   const id = entite.id;
-  if (wrap.querySelector(`.armor-counter[data-entity-id="${id}"]`)) return;
 
-  const node = createArmorCounter(entite);
-  if (!node) return;
+  // Si le counter existe déjà, on le récupère.
+  // Attention : il peut être au mauvais endroit, donc on ne return pas tout de suite.
+  let node = document.querySelector(`.armor-counter[data-entity-id="${id}"]`);
+
+  // ✅ Exception Codex :
+  // Dans le codex, armor-counter doit être enfant direct de .codex-entite-infos,
+  // placé avant .headsup-HP-container.
+  const codexInfos = document
+    .querySelector(
+      `.codex-entite-infos #headsup-HP-container_${id},
+       .codex-entite-infos .headsup-HP-container[data-entity-id="${id}"]`
+    )
+    ?.closest(".codex-entite-infos");
+
+  if (codexInfos) {
+    if (!node) {
+      node = createArmorCounter(entite);
+      if (!node) return null;
+    }
+
+    node.classList.add("hu");
+    node.dataset.stat = "armor";
+    node.dataset.entityId = id;
+
+    const hpContainer = codexInfos.querySelector(
+      `#headsup-HP-container_${id},
+       .headsup-HP-container[data-entity-id="${id}"]`
+    );
+
+    if (node.parentElement !== codexInfos) {
+      if (hpContainer) codexInfos.insertBefore(node, hpContainer);
+      else codexInfos.appendChild(node);
+    }
+
+    return node;
+  }
+
+  // ✅ Cas normal : combat / HUD
+  const wrap = getLifeCounterContainer(entite);
+  if (!wrap) return node;
+
+  // Si déjà dans le bon wrap, rien à faire
+  if (wrap.querySelector(`.armor-counter[data-entity-id="${id}"]`)) {
+    return wrap.querySelector(`.armor-counter[data-entity-id="${id}"]`);
+  }
+
+  if (!node) {
+    node = createArmorCounter(entite);
+    if (!node) return null;
+  }
+
+  node.classList.add("hu");
+  node.dataset.stat = "armor";
+  node.dataset.entityId = id;
 
   // insertion après HP si possible
   const hpNode = wrap.querySelector(`.HP-counter[data-entity-id="${id}"]`);
-  if (hpNode) hpNode.insertAdjacentElement("afterend", node);
-  else wrap.prepend(node);
+
+  if (hpNode) {
+    hpNode.insertAdjacentElement("afterend", node);
+  } else {
+    wrap.prepend(node);
+  }
+
+  return node;
 }
 
 export function updateArmorCounter(entite) {
@@ -445,7 +531,17 @@ export function updateArmorCounter(entite) {
 }
 export function extraLifeConsumption(entite) {
   const extra = entite?.stats?.extraLife;
-  if (!extra || typeof extra !== "object") return false;
+  if (!extra) return false;
+
+  // Anciennes sauvegardes : extraLife pouvait être stockée comme un nombre.
+  if (typeof extra !== "object") {
+    const cur = toNonNegInt(extra);
+    if (cur <= 0) return false;
+
+    entite.stats.extraLife = Math.max(0, cur - 1);
+    saveEntityextraLifeToStorage(entite);
+    return true;
+  }
 
   const max = toNonNegInt(extra.max);
   const cur = toNonNegInt(extra.current);
@@ -514,7 +610,16 @@ export function extraLifeConsumption(entite) {
 }
 export function eternalLifeConsumption(entite) {
   const life = entite?.stats?.eternalLife;
-  if (!life || typeof life !== "object") return false;
+  if (!life) return false;
+
+  // Tolérance pour les sauvegardes legacy au format 0/1.
+  if (typeof life !== "object") {
+    if (toNonNegInt(life) <= 0) return false;
+
+    entite.stats.eternalLife = 0;
+    saveEntityEternalLifeToStorage(entite);
+    return true;
+  }
 
   // ✅ Unicité : max=1 si présent, sinon 0
   const max = toNonNegInt(life.max) > 0 ? 1 : 0;
@@ -610,77 +715,8 @@ export function loadEntitiesStatus() {
 
     console.log(`✅ Statut des entités rechargé.`);
 }
-export function CreateDeadSprite(entite) {
-    const container = document.getElementById(`DragSprite_${entite.id}`);
-    if (!container) {
-        console.warn(`⚠️ Aucun conteneur trouvé pour l'entité ${entite.id}`);
-        return;
-    }
-
-    // 🔥 Suppression classe 'hb'
-    container.classList.remove('hb');
-
-    // 🧹 Nettoyage
-    const spriteImg = document.getElementById(`sprite_${entite.id}`);
-    if (spriteImg) spriteImg.remove();
-
-    const spriteCanvas = document.getElementById(`spriteCanvas_${entite.id}`);
-    if (spriteCanvas) spriteCanvas.remove();
-
-    const previousBlood = document.getElementById(`bloodEffect_${entite.id}`);
-    if (previousBlood) previousBlood.remove();
-
-    // 🧟 Ajout canvas du sprite mort
-    const canvas = document.createElement('canvas');
-    canvas.id = `spriteCanvas_${entite.id}`;
-    canvas.className = `dead-sprite ${entite.class} side-${entite.side} dead hbox`;
-    canvas.width = 603;
-    canvas.height = 328;
-    container.appendChild(canvas);
-
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    img.src = entite.deadsprite || "/media/sprites/0-dead.png";
-    img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-
-    // 🩸 Animation sang
-    let effectsContainer = document.getElementById(`effectsContainer_${entite.id}`);
-    if (!effectsContainer) {
-        effectsContainer = document.createElement('div');
-        effectsContainer.id = `effectsContainer_${entite.id}`;
-        effectsContainer.className = 'effects-container';
-        container.appendChild(effectsContainer);
-    }
-
-    const bloodGif = document.createElement('img');
-    bloodGif.src = "/media/assets/effects/death-blood.gif";
-    bloodGif.className = 'effect-vfx blood';
-    bloodGif.id = `bloodEffect_${entite.id}`;
-    effectsContainer.appendChild(bloodGif);
-
-    setTimeout(() => {
-        bloodGif.remove();
-    }, 1000);
-
-    // ❌ Pas de classes 'dead hbox' sur les conteneurs
-    const sbire = document.getElementById(`sbire_${entite.id}`);
-    if (sbire) {
-        sbire.classList.remove('dead', 'hbox');
-    }
-
-    const lord = document.getElementById(`lord_${entite.id}`);
-    if (lord) {
-        lord.classList.remove('dead', 'hbox');
-    }
-
-    // ☠️ Ajout classe .dead à Animationsprite_
-    const animationSprite = document.getElementById(`Animationsprite_${entite.id}`);
-    if (animationSprite) {
-        animationSprite.classList.add('dead');
-    }
+export function CreateDeadSprite(entite, { playDeathBlood = true } = {}) {
+    return stabilizeDeadEntityVisual(entite, { playDeathBlood });
 }
 
 
@@ -885,6 +921,44 @@ function logResilienceReduction(target, percent, before, after, tickCtx) {
   console.log(`   • Total: ${totB} → ${totA} (−${totD})`);
 }
 
+function applyMysticismBonusToSources(sources, attacker, currentAttack) {
+    if (!currentAttack?.isLaunchedUnderMysticism) {
+        return {
+            sources,
+            applied: false,
+            bonusPercent: 0,
+        };
+    }
+
+    const bonusPercent = calculateMysticismTotalDamageBonus(attacker);
+
+    if (bonusPercent <= 0) {
+        return {
+            sources,
+            applied: false,
+            bonusPercent: 0,
+        };
+    }
+
+    const bonusSources = {
+        piercingDamage: Math.round((sources.piercingDamage || 0) * bonusPercent / 100),
+        physical: Math.round((sources.physical || 0) * bonusPercent / 100),
+        magical: Math.round((sources.magical || 0) * bonusPercent / 100),
+        hybridalDamage: Math.round((sources.hybridalDamage || 0) * bonusPercent / 100),
+    };
+
+    return {
+        sources: {
+            piercingDamage: (sources.piercingDamage || 0) + bonusSources.piercingDamage,
+            physical: (sources.physical || 0) + bonusSources.physical,
+            magical: (sources.magical || 0) + bonusSources.magical,
+            hybridalDamage: (sources.hybridalDamage || 0) + bonusSources.hybridalDamage,
+        },
+        applied: true,
+        bonusPercent,
+        bonusSources,
+    };
+}
 // APPLYDAMAGES
 //Éxécution → Armure → indestructibilité → Dégats Bruts + Résistances → Ésotérisme → Blood Fury → Dégâts appliqués sur HP → Astralité
 export const normArr = v => Array.isArray(v) ? v : (v == null ? [] : [v]);
@@ -898,7 +972,33 @@ const snapSources = (s) => ({
 
 const sumSources = (s) =>
   (s?.piercingDamage || 0) + (s?.physical || 0) + (s?.magical || 0) + (s?.hybridalDamage || 0);
+function buildDamageResolutionBattleLog(ctx) {
+  return {
+    attacker: ctx.attackerFull || ctx.attacker,
+    target: ctx.targetFull || ctx.target,
+    attack: ctx.attack,
 
+    damage: ctx.totals?.finalDamagePreAstrality ?? ctx.hp?.delta ?? 0,
+    damageSources:
+      ctx.sources?.afterOccultismFragility ||
+      ctx.sources?.afterEsoterism ||
+      ctx.sources?.afterResistances ||
+      {},
+
+    armorAbsorbed: ctx.armor?.absorbedByArmor || 0,
+
+    armor: {
+      absorbed: ctx.armor?.absorbedByArmor || 0,
+    },
+
+    modifiers: ctx.attackModifiers || {},
+
+    effects: {
+      applied: ctx.effectsApplied || [],
+      self: ctx.selfEffects || [],
+    },
+  };
+}
 function logFinalDamageResolution(ctx) {
   const title =
     `📌 [FINAL] ${ctx.attacker?.name || "?"} → ${ctx.target?.name || "?"}` +
@@ -933,10 +1033,24 @@ function logFinalDamageResolution(ctx) {
   console.log("PopUp", { popupType: ctx.popupType, popupContent: ctx.popupContent });
   console.log("Effets appliqués", ctx.effectsApplied || []);
   console.log("SelfEffects", ctx.selfEffects || []);
+const hpDamage = ctx.hp?.delta || 0;
+const armorAbsorbed = ctx.armor?.absorbedByArmor || 0;
 
+const modifiers = ctx.attackModifiers || {};
+
+const damageResolutionLog = buildDamageResolutionBattleLog(ctx);
+
+if (
+  damageResolutionLog.damage > 0 ||
+  damageResolutionLog.armor.absorbed > 0 ||
+  damageResolutionLog.modifiers.indestructible
+) {
+  battleLogs("damage_resolution", damageResolutionLog);
+}
   console.groupEnd();
 }
-// -----------------------------------------------------------
+// ---------------APPLY DAMAGE----------------------
+
 export function applyDamage(
   target,
   totalDamage,
@@ -969,11 +1083,12 @@ export function applyDamage(
     attackDetail = currentAttack || {};
   }
 
+  const flags = getAttackResolutionFlags(attackDetail);
+
   const attackTargets = normArr(attackDetail?.attackTarget);
   let isAllyTarget = attackTargets.includes("ally");
   let isEnemyTarget = attackTargets.includes("enemy");
 
-  // 🟢 SOINS
   if (isAllyTarget) {
     if (!target.isDEAD) {
       if (!attacker.totalHeal) attacker.totalHeal = 0;
@@ -982,6 +1097,7 @@ export function applyDamage(
       target.stats.HP.current = Math.min(target.stats.HP.current + totalDamage, target.stats.HP.max);
       saveEntityHPToStorage(target);
       updateTotalHealCounter(`TotalHeal_${attacker.id}`, attacker.totalHeal);
+
       updateHealthBar(
         target.stats.HP.current,
         target.stats.HP.max,
@@ -989,59 +1105,81 @@ export function applyDamage(
         target.stats.armor?.max || 0,
         target.id
       );
+
       updateScore(attacker, totalDamage);
       if (attackDetail.effets) attackDetail.effets.forEach((e) => applyEffect(target, e, attacker));
     }
     return;
   }
 
-  // 🔴 ATTAQUE ENNEMIE
   if (!isEnemyTarget || target.isDEAD) {
     console.error("❌ Erreur : Cible invalide ou morte.");
     return;
   }
 
-  // 🎯 Impact visuel
-  if (hasActiveArmor(target)) damageArmorImpact(target.id);
-  else damageImpact(target.id);
-  shakeImpact(target.id);
+const isBrokenMagicAttack =
+  Boolean(attackDetail?.isBrokenSpell || currentAttack?.isBrokenSpell) &&
+  (
+    normArr(attackDetail?.attacknature).includes("magicalDamage") ||
+    Number(totalDamageSources?.magical || 0) > 0
+  );
+
+if (isBrokenMagicAttack) {
+  brokenMagicImpact(target.id);
+} else if (hasActiveArmor(target)) {
+  damageArmorImpact(target.id);
+} else {
+  damageImpact(target.id);
+}
+
+if (isBrokenMagicAttack) {
+  brokenMagicImpact(target.id);
+}
+
+shakeImpact(target.id);
 
   if (!attacker.totalDamage) attacker.totalDamage = 0;
+if (!attacker.totalAggroDamage) attacker.totalAggroDamage = 0;
 
-  // Snapshot HP/Armor avant toute résolution dégâts HP
   const hpBefore = target.stats.HP.current;
   const armorBeforeGlobal = target.stats?.armor?.current || 0;
 
-  // ⚔️ ÉTAPE 0 — EXECUTION BLOOD FURY (pré-dégâts)
   let totalExecutionDamage = 0;
 
-  const attackRangeSrc =
-    attackDetail?.attackRange ??
-    currentAttack?.attackRange ??
-    attacker?.currentAttack?.attackRange;
+  const attackRangeArr = flags.ranges;
+  const isMelee = flags.isMelee;
+  const isRanged = flags.isRange;
 
-  const attackRangeArr = normArr(attackRangeSrc);
-  const isMelee = attackRangeArr.includes("melee");
-
-  const isRanged =
-    attackRangeArr.includes("range") ||
-    attackRangeArr.includes("ranged") ||
-    attackRangeArr.includes("distance");
-
-  // ✅ FINAL LOG — contexte
   const finalLog = {
+	  attackerFull: attacker,
+		targetFull: target,
+attackModifiers: {
+  critical: false,
+  execution: false,
+  bloodCrazy: false,
+  mysticism: false,
+  esoterism: false,
+  occultismFragility: false,
+  armorAbsorbed: 0,
+  armorBypass: false,
+  indestructible: false,
+  astrality: false,
+  lifesteal: 0
+},
     attacker: { id: attacker?.id, name: attacker?.name },
     target: { id: target?.id, name: target?.name },
 
-    attack: {
-      functionName: attackDetail?.functionName || (typeof currentAttack === "string" ? currentAttack : undefined),
-      nature: attackDetail?.attacknature,
-      types: attackTypes,
-      label: currentAttack?.dotname || currentAttack?.name || attackDetail?.dotname || attackDetail?.name || "",
-      range: attackRangeArr,
-      isMelee,
-      isRanged,
-    },
+attack: {
+  functionName: attackDetail?.functionName || (typeof currentAttack === "string" ? currentAttack : undefined),
+  nature: attackDetail?.attacknature,
+  types: attackTypes,
+  label: currentAttack?.dotname || currentAttack?.name || attackDetail?.dotname || attackDetail?.name || "",
+  range: attackRangeArr,
+  isMelee,
+  isRanged,
+  logVariant: currentAttack?.logVariant || "normal",
+  ambidextryHitIndex: currentAttack?.ambidextryHitIndex || null,
+},
 
     input: {
       totalDamageArg: totalDamage,
@@ -1056,22 +1194,25 @@ export function applyDamage(
     armorGate: { attempted: false },
     indestructible: { attempted: false },
 
-    sources: {
-      base: null,
-      afterExecutionBonus: null,
-      afterArmorGate: null,
-      afterRangeRatio: null,
-      afterResilience: null,
-      afterResistances: null,
-      afterEsoterism: null,
-    },
+sources: {
+  base: null,
+  afterMysticism: null,
+  afterExecutionBonus: null,
+  afterArmorGate: null,
+  afterRangeRatio: null,
+  afterResilience: null,
+  afterResistances: null,
+  afterEsoterism: null,
+afterOccultismFragility: null,
+},
 
     rangeRatio: { attempted: !!isRanged, applied: false },
     resilience: { attempted: attackTypes.includes("alteration"), applied: false },
 
     resistances: {},
     esoterism: { attempted: false, applied: false },
-    critical: { attempted: false },
+	occultismFragility: { attempted: false, applied: false },
+	critical: { attempted: false },
 
     out: {
       pipelineOut: 0,
@@ -1090,73 +1231,178 @@ export function applyDamage(
     effectsApplied: [],
     selfEffects: normArr(selfEffects),
   };
+const hasBloodCrazy = Boolean(attacker.flags?.bloodCrazyNextExecution);
 
-  if (isMelee) {
-    finalLog.execution.attempted = true;
+finalLog.execution.bloodCrazy = hasBloodCrazy;
 
-    const strength = attacker?.stats?.strength || 0;
-    const bloodFuryExecChanceBonus = calculateBloodFuryExecChanceBonus(strength);
-    const hpPercent = (target.stats.HP.current / target.stats.HP.max) * 100;
-
-    finalLog.execution.targetHpPercent = Number(hpPercent.toFixed(1));
-    finalLog.execution.thresholdPercent = bloodFuryExecChanceBonus;
-
-    if (hpPercent <= bloodFuryExecChanceBonus) {
-      totalExecutionDamage = attemptBloodFuryExec(attacker, target);
-
-      finalLog.execution.triggered = true;
-      finalLog.execution.damage = totalExecutionDamage || 0;
-    } else {
-      finalLog.execution.triggered = false;
-      finalLog.execution.damage = 0;
-    }
-  }
-
-// ⚔️ ÉTAPE 1 — ARMURE (absorbe du BRUT, AUCUNE résistance)
-let remainingDamage = totalDamage; // brut reçu (argument)
-let absorbedByArmor = 0;           // ✅ à réutiliser pour popup armorGate + logs
-
-if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.current > 0) {
-  finalLog.armor.attempted = true;
-
-  const armorBefore = Number(target.stats.armor.current) || 0;
-
-  // ✅ l'armure absorbe le BRUT (sans résistances, sans indestructibilité réduction)
-  const newArmor = Math.max(0, armorBefore - remainingDamage);
-  absorbedByArmor = Math.max(0, armorBefore - newArmor);
-
-  target.stats.armor.current = newArmor;
-
-  // ✅ ce qui passe vers le pipeline HP
-  remainingDamage = Math.max(0, remainingDamage - armorBefore);
-
-  finalLog.armor.armorBefore = armorBefore;
-  finalLog.armor.armorAfter  = target.stats.armor.current;
-  finalLog.armor.absorbedByArmor = absorbedByArmor;
-  finalLog.armor.remainingAfterArmorStep = remainingDamage;
-
-  console.log(
-    `🛡️ ${target.name} perd ${absorbedByArmor} points d'armure (${target.stats.armor.current}/${target.stats.armor.max}).`
-  );
-
-  updateHealthBar(
-    target.stats.HP.current,
-    target.stats.HP.max,
-    target.stats.armor.current,
-    target.stats.armor.max,
-    target.id
-  );
-} else {
-  finalLog.armor.attempted = false;
-  finalLog.armor.absorbedByArmor = 0;
-  finalLog.armor.remainingAfterArmorStep = remainingDamage;
+if (hasBloodCrazy) {
+  finalLog.attackModifiers.bloodCrazy = true;
+  finalLog.attackModifiers.bloodCrazyConsumed = true;
 }
 
+if (flags.canBloodFuryExec) {
+  finalLog.execution.attempted = true;
 
-  // ⚔️ ÉTAPE 2 — INDESTRUCTIBILITÉ (PROC ANNULATION) seulement si armure détruite
+  const strength = attacker?.stats?.strength || 0;
+  const bloodFuryExecChanceBonus = calculateBloodFuryExecChanceBonus(strength);
+  const hpPercent = (target.stats.HP.current / target.stats.HP.max) * 100;
+
+  finalLog.execution.targetHpPercent = Number(hpPercent.toFixed(1));
+  finalLog.execution.thresholdPercent = bloodFuryExecChanceBonus;
+
+  const canTryByHp = hpPercent <= bloodFuryExecChanceBonus;
+  const canTryByBloodCrazy = hasBloodCrazy;
+
+  if (canTryByHp || canTryByBloodCrazy) {
+    totalExecutionDamage = attemptBloodFuryExec(attacker, target, {
+      ignoreHpThreshold: canTryByBloodCrazy
+    });
+
+    finalLog.execution.triggered = totalExecutionDamage > 0;
+    finalLog.execution.damage = totalExecutionDamage || 0;
+
+    if (hasBloodCrazy) {
+      if (totalExecutionDamage > 0) {
+        finalLog.attackModifiers.bloodCrazySuccess = true;
+      } else {
+        finalLog.attackModifiers.bloodCrazyFail = true;
+        finalLog.attackModifiers.bloodCrazyFailReason = "proc_failed";
+      }
+    }
+  } else {
+    finalLog.execution.triggered = false;
+    finalLog.execution.damage = 0;
+  }
+} else {
+  finalLog.execution.attempted = hasBloodCrazy;
+  finalLog.execution.triggered = false;
+  finalLog.execution.damage = 0;
+  finalLog.execution.skippedByAttackRules = true;
+
+  if (hasBloodCrazy) {
+    finalLog.attackModifiers.bloodCrazyFail = true;
+    finalLog.attackModifiers.bloodCrazyFailReason = "incompatible_attack";
+  }
+}
+
+if (hasBloodCrazy) {
+  consumeBloodCrazy(attacker);
+}
+  const readIncomingSourcesForArmorGate = () => {
+    if (currentAttack?.forceDamageSources) {
+      const f = currentAttack.forceDamageSources;
+      return {
+        piercingDamage: Math.max(0, Math.floor(f.piercingDamage || 0)),
+        physical: Math.max(0, Math.floor(f.physical || 0)),
+        magical: Math.max(0, Math.floor(f.magical || 0)),
+        hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
+      };
+    }
+
+    if (
+      totalDamageSources &&
+      typeof totalDamageSources === "object" &&
+      (
+        Number(totalDamageSources.piercingDamage || 0) > 0 ||
+        Number(totalDamageSources.physical || 0) > 0 ||
+        Number(totalDamageSources.magical || 0) > 0 ||
+        Number(totalDamageSources.hybridalDamage || 0) > 0
+      )
+    ) {
+      return {
+        piercingDamage: Math.max(0, Math.floor(totalDamageSources.piercingDamage || 0)),
+        physical: Math.max(0, Math.floor(totalDamageSources.physical || 0)),
+        magical: Math.max(0, Math.floor(totalDamageSources.magical || 0)),
+        hybridalDamage: Math.max(0, Math.floor(totalDamageSources.hybridalDamage || 0)),
+      };
+    }
+
+    if (
+      !flags.hasPhysical &&
+      !flags.hasMagical &&
+      !flags.hasHybridal &&
+      (flags.hasPiercing || Number(attacker?.stats?.piercingDamage || 0) > 0)
+    ) {
+      return {
+        piercingDamage: Math.max(0, Math.floor(totalDamage || 0)),
+        physical: 0,
+        magical: 0,
+        hybridalDamage: 0,
+      };
+    }
+
+    return { piercingDamage: 0, physical: 0, magical: 0, hybridalDamage: 0 };
+  };
+
+  const incomingArmorSources = readIncomingSourcesForArmorGate();
+
+  const isPurePiercingIncoming =
+    incomingArmorSources.piercingDamage > 0 &&
+    incomingArmorSources.physical <= 0 &&
+    incomingArmorSources.magical <= 0 &&
+    incomingArmorSources.hybridalDamage <= 0;
+
+const purePiercingArmorBypass =
+  isPurePiercingIncoming &&
+  (flags.canBypassArmorGate || (!flags.hasPhysical && !flags.hasMagical && !flags.hasHybridal))
+    ? incomingArmorSources.piercingDamage
+    : 0;
+  let remainingDamage = Math.max(0, totalDamage - purePiercingArmorBypass);
+
+  if (purePiercingArmorBypass > 0) {
+	  finalLog.attackModifiers.armorBypass = true;
+    console.log(
+      `🗡️ TRANSPERÇANTE : ${purePiercingArmorBypass} dégâts piercing traversent l'armor gate.`
+    );
+
+    finalLog.armorGate.bypass = {
+      enabled: true,
+      type: "purePiercing",
+      amount: purePiercingArmorBypass,
+    };
+  }
+
+  let absorbedByArmor = 0;
+
+  if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.current > 0) {
+    finalLog.armor.attempted = true;
+
+    const armorBefore = Number(target.stats.armor.current) || 0;
+
+    const newArmor = Math.max(0, armorBefore - remainingDamage);
+    absorbedByArmor = Math.max(0, armorBefore - newArmor);
+
+    target.stats.armor.current = newArmor;
+saveEntityArmorState(target);
+
+    remainingDamage = Math.max(0, remainingDamage - armorBefore);
+
+    finalLog.armor.armorBefore = armorBefore;
+    finalLog.armor.armorAfter = target.stats.armor.current;
+    finalLog.armor.absorbedByArmor = absorbedByArmor;
+    finalLog.armor.remainingAfterArmorStep = remainingDamage;
+finalLog.attackModifiers.armorAbsorbed = absorbedByArmor;
+    console.log(
+      `🛡️ ${target.name} perd ${absorbedByArmor} points d'armure (${target.stats.armor.current}/${target.stats.armor.max}).`
+    );
+
+    updateHealthBar(
+      target.stats.HP.current,
+      target.stats.HP.max,
+      target.stats.armor.current,
+      target.stats.armor.max,
+      target.id
+    );
+  } else {
+    finalLog.armor.attempted = false;
+    finalLog.armor.absorbedByArmor = 0;
+    finalLog.armor.remainingAfterArmorStep = remainingDamage;
+  }
+
   if ((target.stats.armor?.current || 0) <= 0) {
     const isIndestructible = attemptIndestructibility(attacker, target);
     if (isIndestructible) {
+		finalLog.attackModifiers.indestructible = true;
       finalLog.indestructible.attempted = true;
       finalLog.indestructible.triggered = true;
       finalLog.indestructible.note = "Dégâts annulés (altérations/effets appliqués).";
@@ -1175,7 +1421,6 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
         target.id
       );
 
-      // FINAL LOG (sortie anticipée)
       finalLog.effectsApplied = [...(attackDetail.effets || [])];
       finalLog.popupType = popupType || "";
       finalLog.totals = {
@@ -1195,22 +1440,44 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
     }
   }
 
-  // ⚔️ ÉTAPE 3 — CALCUL DES DÉGÂTS BRUTS (SOURCES)
   let sources;
   let rawTotal;
 
   const hasProvidedSources =
     totalDamageSources &&
     typeof totalDamageSources === "object" &&
-    (Number(totalDamageSources.piercingDamage || 0) > 0 ||
+    (
+      Number(totalDamageSources.piercingDamage || 0) > 0 ||
       Number(totalDamageSources.physical || 0) > 0 ||
       Number(totalDamageSources.magical || 0) > 0 ||
-      Number(totalDamageSources.hybridalDamage || 0) > 0);
+      Number(totalDamageSources.hybridalDamage || 0) > 0
+    );
 
   if (currentAttack?.isAmbidextry) {
-    sources = { piercingDamage: 0, physical: totalDamage, magical: 0, hybridalDamage: 0 };
-    rawTotal = totalDamage;
-    console.log(`🌀 Ambidextrie : dégâts forcés à ${rawTotal}`);
+    if (currentAttack?.forceDamageSources) {
+      const f = currentAttack.forceDamageSources;
+      sources = {
+        piercingDamage: Math.max(0, Math.floor(f.piercingDamage || 0)),
+        physical: Math.max(0, Math.floor(f.physical || 0)),
+        magical: Math.max(0, Math.floor(f.magical || 0)),
+        hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
+      };
+    } else {
+      sources = {
+        piercingDamage: 0,
+        physical: Math.max(0, Math.floor(totalDamage || 0)),
+        magical: 0,
+        hybridalDamage: 0,
+      };
+    }
+
+    rawTotal =
+      (sources.piercingDamage || 0) +
+      (sources.physical || 0) +
+      (sources.magical || 0) +
+      (sources.hybridalDamage || 0);
+
+    console.log(`🌀 Ambidextrie : sources forcées`, sources, `total=${rawTotal}`);
   } else if (currentAttack?.forceDamageSources) {
     const f = currentAttack.forceDamageSources;
     sources = {
@@ -1219,41 +1486,173 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
       magical: Math.max(0, Math.floor(f.magical || 0)),
       hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
     };
-    rawTotal = sources.piercingDamage + sources.physical + sources.magical + sources.hybridalDamage;
-    console.log(`🧪 ForceDamageSources →`, sources, `total=${rawTotal}`);
-  } else if (hasProvidedSources) {
-    // ✅ On utilise les sources déjà calculées à l'appel (évite divergence)
-    sources = {
-      piercingDamage: Math.max(0, Math.floor(totalDamageSources.piercingDamage || 0)),
-      physical: Math.max(0, Math.floor(totalDamageSources.physical || 0)),
-      magical: Math.max(0, Math.floor(totalDamageSources.magical || 0)),
-      hybridalDamage: Math.max(0, Math.floor(totalDamageSources.hybridalDamage || 0)),
-    };
-    rawTotal = sources.piercingDamage + sources.physical + sources.magical + sources.hybridalDamage;
-  } else {
-    ({ totalDamageSources: sources, totalDamage: rawTotal } = attemptAttackerDamages(attacker, attackDetail));
-  }
 
-  finalLog.sources.base = snapSources(sources);
-  finalLog.totals.rawTotalBase = rawTotal;
-  finalLog.totals.sumSourcesBase = sumSources(sources);
-
-  // ✅ Bonus d’exécution (ajout aux dégâts physiques)
-  if (totalExecutionDamage > 0) {
-    sources.physical = (sources.physical || 0) + totalExecutionDamage;
     rawTotal =
       (sources.piercingDamage || 0) +
       (sources.physical || 0) +
       (sources.magical || 0) +
       (sources.hybridalDamage || 0);
 
-    finalLog.sources.afterExecutionBonus = snapSources(sources);
+    console.log(`🧪 ForceDamageSources → total=${rawTotal}`, sources);
+  } else if (hasProvidedSources) {
+    sources = {
+      piercingDamage: Math.max(0, Math.floor(totalDamageSources.piercingDamage || 0)),
+      physical: Math.max(0, Math.floor(totalDamageSources.physical || 0)),
+      magical: Math.max(0, Math.floor(totalDamageSources.magical || 0)),
+      hybridalDamage: Math.max(0, Math.floor(totalDamageSources.hybridalDamage || 0)),
+    };
+
+    rawTotal =
+      (sources.piercingDamage || 0) +
+      (sources.physical || 0) +
+      (sources.magical || 0) +
+      (sources.hybridalDamage || 0);
   } else {
+    ({ totalDamageSources: sources, totalDamage: rawTotal } = attemptAttackerDamages(attacker, attackDetail));
+  }
+
+finalLog.sources.base = snapSources(sources);
+finalLog.totals.rawTotalBase = rawTotal;
+finalLog.totals.sumSourcesBase = sumSources(sources);
+
+const mysticismBonusResult = applyMysticismBonusToSources(
+  sources,
+  attacker,
+  currentAttack
+);
+
+if (mysticismBonusResult.applied) {
+	finalLog.attackModifiers.mysticism = true;
+  sources = mysticismBonusResult.sources;
+
+  rawTotal =
+    (sources.piercingDamage || 0) +
+    (sources.physical || 0) +
+    (sources.magical || 0) +
+    (sources.hybridalDamage || 0);
+
+  const rawTotalBeforeMysticism = finalLog.totals.rawTotalBase || 0;
+  const extraMysticismDamage = Math.max(0, rawTotal - rawTotalBeforeMysticism);
+
+  if (
+    extraMysticismDamage > 0 &&
+    purePiercingArmorBypass <= 0 &&
+    target.stats?.armor?.current > 0
+  ) {
+    const armorBeforeMysticismExtra = Number(target.stats.armor.current) || 0;
+
+    const extraAbsorbedByArmor = Math.min(
+      armorBeforeMysticismExtra,
+      extraMysticismDamage
+    );
+
+    target.stats.armor.current = Math.max(
+      0,
+      armorBeforeMysticismExtra - extraAbsorbedByArmor
+    );
+
+saveEntityArmorState(target);
+    absorbedByArmor += extraAbsorbedByArmor;
+    remainingDamage += Math.max(0, extraMysticismDamage - extraAbsorbedByArmor);
+
+    finalLog.armor.mysticismExtra = {
+      extraMysticismDamage,
+      ignoredArmor: false,
+      armorBefore: armorBeforeMysticismExtra,
+      absorbedByArmor: extraAbsorbedByArmor,
+      armorAfter: target.stats.armor.current,
+      remainingDamageAfterExtra: remainingDamage,
+    };
+  } else {
+    remainingDamage += extraMysticismDamage;
+
+    finalLog.armor.mysticismExtra = {
+      extraMysticismDamage,
+      ignoredArmor: purePiercingArmorBypass > 0,
+      absorbedByArmor: 0,
+      armorAfter: target.stats?.armor?.current || 0,
+      remainingDamageAfterExtra: remainingDamage,
+    };
+  }
+
+  finalLog.mysticism = {
+    attempted: true,
+    applied: true,
+    bonusPercent: mysticismBonusResult.bonusPercent,
+    bonusSources: mysticismBonusResult.bonusSources,
+    after: snapSources(sources),
+  };
+
+  finalLog.sources.afterMysticism = snapSources(sources);
+  finalLog.totals.rawTotalAfterMysticism = rawTotal;
+  finalLog.totals.sumSourcesAfterMysticism = sumSources(sources);
+  finalLog.totals.extraMysticismDamage = extraMysticismDamage;
+  finalLog.totals.remainingDamageAfterMysticism = remainingDamage;
+
+  console.log(
+    `🔮 Mysticisme dégâts : +${mysticismBonusResult.bonusPercent}%`,
+    {
+      bonusSources: mysticismBonusResult.bonusSources,
+      afterMysticism: finalLog.sources.afterMysticism,
+      rawTotalAfterMysticism: rawTotal,
+      extraMysticismDamage,
+      armorMysticismExtra: finalLog.armor.mysticismExtra,
+      remainingDamageAfterMysticism: remainingDamage,
+    }
+  );
+} else {
+  finalLog.mysticism = {
+    attempted: !!currentAttack?.isLaunchedUnderMysticism,
+    applied: false,
+    bonusPercent: mysticismBonusResult.bonusPercent || 0,
+  };
+
+  finalLog.sources.afterMysticism = snapSources(sources);
+  finalLog.totals.rawTotalAfterMysticism = rawTotal;
+  finalLog.totals.sumSourcesAfterMysticism = sumSources(sources);
+  finalLog.totals.extraMysticismDamage = 0;
+  finalLog.totals.remainingDamageAfterMysticism = remainingDamage;
+}
+
+if (totalExecutionDamage > 0) {
+  finalLog.attackModifiers.execution = true;
+
+  sources.physical = (sources.physical || 0) + totalExecutionDamage;
+
+  // IMPORTANT : sinon l'armorGate ratio écrase le bonus
+  remainingDamage += totalExecutionDamage;
+
+  rawTotal =
+    (sources.piercingDamage || 0) +
+    (sources.physical || 0) +
+    (sources.magical || 0) +
+    (sources.hybridalDamage || 0);
+
+  finalLog.sources.afterExecutionBonus = snapSources(sources);
+  finalLog.totals.remainingDamageAfterExecutionBonus = remainingDamage;
+} else {
     finalLog.sources.afterExecutionBonus = snapSources(sources);
   }
 
-  // ✅ PATCH ARMOR GATE : le pipeline ne traite QUE ce qui reste après l'armure
-  // (armure = brut sans résistances)
+  if (purePiercingArmorBypass > 0) {
+    sources.piercingDamage = Math.max(
+      0,
+      (sources.piercingDamage || 0) - purePiercingArmorBypass
+    );
+
+    rawTotal =
+      (sources.piercingDamage || 0) +
+      (sources.physical || 0) +
+      (sources.magical || 0) +
+      (sources.hybridalDamage || 0);
+
+    finalLog.armorGate.beforeBypassExtraction = snapSources(sources);
+
+    console.log(
+      `🗡️ TRANSPERÇANTE : extraction avant armor gate (${purePiercingArmorBypass})`
+    );
+  }
+
   finalLog.armorGate.attempted = true;
 
   if (rawTotal > 0) {
@@ -1272,6 +1671,7 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
         magical: Math.round((sources.magical || 0) * ratio),
         hybridalDamage: Math.round((sources.hybridalDamage || 0) * ratio),
       };
+
       rawTotal =
         (sources.piercingDamage || 0) +
         (sources.physical || 0) +
@@ -1289,9 +1689,22 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
     finalLog.totals.rawTotalAfterArmorGate = 0;
   }
 
-  // 🏹 ÉTAPE 3.5 — RANGE RATIO (sur la partie qui arrive aux HP)
-  if (isRanged) {
-    const rr = calculateRangeRatio(attacker); // 0..100
+  if (purePiercingArmorBypass > 0) {
+    sources.piercingDamage = (sources.piercingDamage || 0) + purePiercingArmorBypass;
+
+    rawTotal =
+      (sources.piercingDamage || 0) +
+      (sources.physical || 0) +
+      (sources.magical || 0) +
+      (sources.hybridalDamage || 0);
+
+    finalLog.armorGate.afterBypassReinject = snapSources(sources);
+    finalLog.sources.afterArmorGate = snapSources(sources);
+    finalLog.totals.rawTotalAfterArmorGate = rawTotal;
+  }
+
+  if (flags.applyRangeRatio) {
+    const rr = calculateRangeRatio(attacker);
 
     finalLog.rangeRatio.rrPercent = rr;
 
@@ -1302,19 +1715,23 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
       finalLog.rangeRatio.factor = factor;
       finalLog.rangeRatio.before = snapSources(sources);
 
-      const beforeRaw = sources.piercingDamage || 0;
-      const beforePhy = sources.physical || 0;
+      if (flags.applyRangeRatioToPiercing) {
+        sources.piercingDamage = Math.round((sources.piercingDamage || 0) * factor);
+      }
 
-      sources.piercingDamage = Math.round(beforeRaw * factor);
-      sources.physical = Math.round(beforePhy * factor);
+      if (flags.applyRangeRatioToPhysical) {
+        sources.physical = Math.round((sources.physical || 0) * factor);
+      }
 
-      // hybride : réduire uniquement moitié physique
-      const beforeHybrid = sources.hybridalDamage || 0;
-      if (beforeHybrid > 0) {
-        const physHalf = beforeHybrid / 2;
-        const magHalf = beforeHybrid - physHalf;
-        const physHalfReduced = Math.round(physHalf * factor);
-        sources.hybridalDamage = Math.round(physHalfReduced + magHalf);
+      if (flags.applyRangeRatioToHybridPhysicalHalf) {
+        const beforeHybrid = sources.hybridalDamage || 0;
+
+        if (beforeHybrid > 0) {
+          const physHalf = beforeHybrid / 2;
+          const magHalf = beforeHybrid - physHalf;
+          const physHalfReduced = Math.round(physHalf * factor);
+          sources.hybridalDamage = Math.round(physHalfReduced + magHalf);
+        }
       }
 
       rawTotal =
@@ -1334,7 +1751,6 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
     finalLog.sources.afterRangeRatio = snapSources(sources);
   }
 
-  // ⛨ ÉTAPE 4 — RÉSILIENCE (avant résistances) uniquement altérations
   if (attackTypes.includes("alteration")) {
     const resAttempt = attemptResilience(attacker, target, attackDetail) || {};
     const { enabled, percent } = resAttempt;
@@ -1375,9 +1791,12 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
     finalLog.sources.afterResilience = snapSources(sources);
   }
 
-  // ⚔️ ÉTAPE 5 — RÉSISTANCES (sur la partie HP uniquement)
-  const { reducedpiercingDamage, reducedPhysicalDamage, reducedMagicalDamage, reducedHybridalDamage } =
-    calculateResistances(target, sources, attacker);
+  const {
+    reducedpiercingDamage,
+    reducedPhysicalDamage,
+    reducedMagicalDamage,
+    reducedHybridalDamage,
+  } = calculateResistances(target, sources, attacker);
 
   let totalDamageSourcesReduced = {
     piercingDamage: reducedpiercingDamage,
@@ -1402,66 +1821,108 @@ if (target.stats?.armor && target.stats.armor.max > 0 && target.stats.armor.curr
   finalLog.sources.afterResistances = { ...finalLog.resistances.after };
   finalLog.totals.totalAfterResistances = totalReducedDamage;
 
-// ⚔️ ÉTAPE 6 — ÉSOTÉRISME
-const hasMagicalPart =
-  (totalDamageSourcesReduced.magical || 0) > 0 ||
-  (totalDamageSourcesReduced.hybridalDamage || 0) > 0;
+  const hasMagicalPart =
+    (totalDamageSourcesReduced.magical || 0) > 0 ||
+    (totalDamageSourcesReduced.hybridalDamage || 0) > 0;
 
-if (target.stats?.esoterism && hasMagicalPart) {
-  const beforeEso = { ...totalDamageSourcesReduced };
+  if (target.stats?.esoterism && hasMagicalPart) {
+    const beforeEso = { ...totalDamageSourcesReduced };
 
-  const success = attemptEsoterism(attacker, target);
-  finalLog.esoterism.attempted = true;
-  finalLog.esoterism.success = !!success;
-  finalLog.esoterism.before = { ...beforeEso };
+    const success = attemptEsoterism(attacker, target);
+    finalLog.esoterism.attempted = true;
+    finalLog.esoterism.success = !!success;
+    finalLog.esoterism.before = { ...beforeEso };
 
-  if (success) {
-    const reductionPercent = calculateEsoterismtotalReduction(target); // ex: 40..95
-    const multiplier = (100 - reductionPercent) / 100;
+    if (success) {
+	finalLog.attackModifiers.esoterism = true;	
+      const reductionPercent = calculateEsoterismtotalReduction(target);
+      const multiplier = (100 - reductionPercent) / 100;
 
-    // ✅ Réduction sur le magique pur
-    totalDamageSourcesReduced.magical = Math.ceil((totalDamageSourcesReduced.magical || 0) * multiplier);
+      totalDamageSourcesReduced.magical = Math.ceil((totalDamageSourcesReduced.magical || 0) * multiplier);
 
-    // ✅ Réduction sur la partie magique de l'hybride (moitié magique uniquement)
-    const beforeHybrid = totalDamageSourcesReduced.hybridalDamage || 0;
-    if (beforeHybrid > 0) {
-      const physHalf = beforeHybrid / 2;
-      const magHalf  = beforeHybrid - physHalf;
+      const beforeHybrid = totalDamageSourcesReduced.hybridalDamage || 0;
+      if (beforeHybrid > 0) {
+        const physHalf = beforeHybrid / 2;
+        const magHalf = beforeHybrid - physHalf;
 
-      const magHalfReduced = Math.ceil(magHalf * multiplier);
-      totalDamageSourcesReduced.hybridalDamage = Math.round(physHalf + magHalfReduced);
+        const magHalfReduced = Math.ceil(magHalf * multiplier);
+        totalDamageSourcesReduced.hybridalDamage = Math.round(physHalf + magHalfReduced);
+      }
+
+      totalReducedDamage =
+        (totalDamageSourcesReduced.piercingDamage || 0) +
+        (totalDamageSourcesReduced.physical || 0) +
+        (totalDamageSourcesReduced.magical || 0) +
+        (totalDamageSourcesReduced.hybridalDamage || 0);
+
+      console.log(`🪄 Ésotérisme : réduction de ${reductionPercent}% sur la part magique.`);
+
+      finalLog.esoterism.applied = true;
+      finalLog.esoterism.reductionPercent = reductionPercent;
+      finalLog.esoterism.after = { ...totalDamageSourcesReduced };
+      finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
+      finalLog.totals.totalAfterEsoterism = totalReducedDamage;
+    } else {
+      finalLog.esoterism.applied = false;
+      finalLog.esoterism.after = { ...totalDamageSourcesReduced };
+      finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
     }
+  } else {
+    finalLog.esoterism.attempted = false;
+    finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
+  }
+  
+  const targetIsOccultismInvisible =
+    Boolean(target.flags?.occultismInvisible) ||
+    Boolean(target.isInvisible) ||
+    Boolean(target.invisible);
 
-    // ✅ Recalcul APRÈS toutes les modifs
+  const occultismFragilityPercent = targetIsOccultismInvisible
+    ? Number(calculateOccultismShadowFragilityPercent(target)) || 0
+    : 0;
+
+  if (targetIsOccultismInvisible && occultismFragilityPercent > 0) {
+	  finalLog.attackModifiers.occultismFragility = true;
+    const multiplier = 1 + occultismFragilityPercent / 100;
+    const beforeOccultismFragility = { ...totalDamageSourcesReduced };
+    const beforeOccultismFragilityTotal = totalReducedDamage;
+
+    totalDamageSourcesReduced = {
+      piercingDamage: Math.round((totalDamageSourcesReduced.piercingDamage || 0) * multiplier),
+      physical: Math.round((totalDamageSourcesReduced.physical || 0) * multiplier),
+      magical: Math.round((totalDamageSourcesReduced.magical || 0) * multiplier),
+      hybridalDamage: Math.round((totalDamageSourcesReduced.hybridalDamage || 0) * multiplier),
+    };
+
     totalReducedDamage =
       (totalDamageSourcesReduced.piercingDamage || 0) +
       (totalDamageSourcesReduced.physical || 0) +
       (totalDamageSourcesReduced.magical || 0) +
       (totalDamageSourcesReduced.hybridalDamage || 0);
 
-    console.log(`🪄 Ésotérisme : réduction de ${reductionPercent}% sur la part magique.`);
+    finalLog.occultismFragility.attempted = true;
+    finalLog.occultismFragility.applied = true;
+    finalLog.occultismFragility.percent = occultismFragilityPercent;
+    finalLog.occultismFragility.multiplier = multiplier;
+    finalLog.occultismFragility.before = beforeOccultismFragility;
+    finalLog.occultismFragility.after = { ...totalDamageSourcesReduced };
+    finalLog.occultismFragility.beforeTotal = beforeOccultismFragilityTotal;
+    finalLog.occultismFragility.afterTotal = totalReducedDamage;
 
-    finalLog.esoterism.applied = true;
-    finalLog.esoterism.reductionPercent = reductionPercent;
-    finalLog.esoterism.after = { ...totalDamageSourcesReduced };
-    finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
-    finalLog.totals.totalAfterEsoterism = totalReducedDamage;
+    finalLog.sources.afterOccultismFragility = { ...totalDamageSourcesReduced };
+    finalLog.totals.totalAfterOccultismFragility = totalReducedDamage;
+
+    console.log(
+      `🌑 Fragilité des ombres : ${target.name} est invisible → dégâts reçus +${occultismFragilityPercent}% (${beforeOccultismFragilityTotal} → ${totalReducedDamage}).`
+    );
+	EffectMessage(target, "Fragilité !");
   } else {
-    finalLog.esoterism.applied = false;
-    finalLog.esoterism.after = { ...totalDamageSourcesReduced };
-    finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
+    finalLog.occultismFragility.attempted = targetIsOccultismInvisible;
+    finalLog.occultismFragility.applied = false;
+    finalLog.occultismFragility.percent = occultismFragilityPercent;
+    finalLog.sources.afterOccultismFragility = { ...totalDamageSourcesReduced };
   }
-} else {
-  finalLog.esoterism.attempted = false;
-  finalLog.sources.afterEsoterism = { ...totalDamageSourcesReduced };
-}
-
-
-  // 🎯 ÉTAPE 7 — CRITICAL HIT (pas si attaque magique pure)
-  const isPureMagicalAttack =
-    Array.isArray(attackDetail.attacknature) && attackDetail.attacknature.includes("magicalDamage");
-
-  if (!isPureMagicalAttack) {
+  if (flags.canCrit) {
     finalLog.critical.attempted = true;
 
     const critResult = attemptCriticalHit(attacker, target, totalReducedDamage);
@@ -1471,9 +1932,12 @@ if (target.stats?.esoterism && hasMagicalPart) {
     finalLog.critical.before = totalReducedDamage;
 
     if (critResult.isCritical) {
+		 finalLog.attackModifiers.critical = true;
       popupType = "critical";
       attackDetail.effets = attackDetail.effets || [];
-      if (!attackDetail.effets.includes("criticalHit")) attackDetail.effets.push("criticalHit");
+      if (!attackDetail.effets.includes("criticalHit")) {
+        attackDetail.effets.push("criticalHit");
+      }
 
       totalReducedDamage = critResult.finalDamage;
       finalLog.critical.afterCrit = totalReducedDamage;
@@ -1488,14 +1952,12 @@ if (target.stats?.esoterism && hasMagicalPart) {
       finalLog.critical.resilienceCritReductionDelta = 0;
     }
   } else {
-    finalLog.critical.attempted = true;
-    finalLog.critical.skippedBecauseMagicalAttack = true;
+    finalLog.critical.attempted = false;
+    finalLog.critical.skippedByAttackRules = true;
   }
 
-  // ❤️ ÉTAPE 9 — SORTIE PIPELINE : appliquer la réduction indestructibilité (HP ONLY), puis retirer les HP
   const pipelineOut = Number(totalReducedDamage) || 0;
 
-  // ✅ Indestructibilité-réduction uniquement si armure = 0 (et de toute façon elle ne doit jamais réduire l'armure)
   const indReduc =
     (target.stats?.armor?.current || 0) <= 0
       ? (Number(caluclateIndestructibilityReductionTotal(target)) || 0)
@@ -1506,7 +1968,6 @@ if (target.stats?.esoterism && hasMagicalPart) {
   const finalDamagePreAstrality = Math.max(0, Math.round(afterInd));
   target.stats.HP.current = Math.max(0, hpBefore - finalDamagePreAstrality);
 
-  // ✨ ÉTAPE 10 — ASTRALITÉ (peut remonter à 1)
   let astralityTriggered = false;
   if (target.stats.HP.current <= 0 && attemptAstrality(attacker, target)) {
     target.stats.HP.current = 1;
@@ -1518,52 +1979,176 @@ if (target.stats?.esoterism && hasMagicalPart) {
     } catch {}
   }
 
-  // ✅ DÉGÂTS RÉELLEMENT SUBIS (vérité terrain, après astralité)
   const hpAfter = target.stats.HP.current;
-  const hpLoss = hpBefore - hpAfter; // entier, capé par HP
-  const damageApplied = hpLoss;      // ✅ valeur unique à utiliser pour popup/score/lifesteal
+  const hpLoss = hpBefore - hpAfter;
+  const damageApplied = hpLoss;
 
-  // Debug compact
+const overkillDamage = finalDamagePreAstrality - damageApplied;
+
+if (
+  target.stats.HP.current <= 0 &&
+  overkillDamage > 0 &&
+  overkillDamage >= hpBefore * 1.5
+) {
+  finalLog.attackModifiers.overkill = {
+    excess: overkillDamage,
+    hpBefore,
+  };
+   EffectMessage(target, "OVERKILL !");
+} if (
+  finalLog.attackModifiers.execution &&
+  target.stats.HP.current <= 0
+) {
+  attacker.flags = attacker.flags || {};
+  attacker.flags.bloodCrazyNextExecution = true;
+  finalLog.attackModifiers.bloodCrazyGain = true;
+
+  syncEntityAuras(attacker, "battle");
+
+  const attackerCanvas = document.getElementById(`spriteCanvas_${attacker.id}`);
+
+  if (attackerCanvas) {
+    applyEntityTint(attackerCanvas, "bloodCrazy", 0.65);
+  }
+
+  const auraContainer = document.querySelector(`#auraContainer_${attacker.id}`);
+
+  if (auraContainer && !auraContainer.querySelector(".picto-stat.bloodCrazy")) {
+    const bloodCrazyAura = document.createElement("div");
+    bloodCrazyAura.className = "picto-stat bloodCrazy";
+    auraContainer.appendChild(bloodCrazyAura);
+  }
+}
+// Voracité sanguinaire
+if (
+  finalLog.attackModifiers.execution &&
+  finalLog.attackModifiers.overkill
+) {
+  const hp = attacker?.stats?.HP;
+
+  if (hp && typeof hp === "object") {
+    const hpBeforeGlutony = Number(hp.current) || 0;
+    const hpMaxGlutony = Number(hp.max) || 0;
+
+    hp.current = hpMaxGlutony;
+
+    const healGlutony = Math.max(0, hpMaxGlutony - hpBeforeGlutony);
+
+    finalLog.attackModifiers.bloodGlutony = true;
+    finalLog.attackModifiers.bloodGlutonyHeal = healGlutony;
+
+    saveEntityHPToStorage(attacker);
+
+    updateHealthBar(
+      attacker.stats.HP.current,
+      attacker.stats.HP.max,
+      attacker.stats.armor?.current || 0,
+      attacker.stats.armor?.max || 0,
+      attacker.id
+    );
+
+    updateHPCounters(
+      attacker.id,
+      attacker.stats.HP.current,
+      attacker.stats.HP.max
+    );
+
+    if (healGlutony > 0) {
+      PopUpDamages(
+        attacker,
+        healGlutony,
+        "blood-glutony",
+        null,
+        {},
+        "blood-glutony"
+      );
+    }
+  }
+}
   finalLog.out.pipelineOut = pipelineOut;
   finalLog.out.indReducPercent = indReduc;
   finalLog.out.afterInd = afterInd;
   finalLog.out.finalDamage = finalDamagePreAstrality;
   finalLog.out.hpLoss = hpLoss;
   finalLog.out.astralityTriggered = astralityTriggered;
+finalLog.attackModifiers.astrality = astralityTriggered;
 
-  // ❤️ ÉTAPE 8 — BLOODFURY (lifesteal) basé sur dégâts effectifs
-  if (isMelee) {
-    const points = attacker?.stats?.bloodFury || 0;
-    if (points > 0) {
-      const bloodFuryPercent = calculateBloodFuryPercent(points);
-      if (bloodFuryPercent > 0 && damageApplied > 0) {
-        LifestealBloodFury(attacker, target, damageApplied, bloodFuryPercent);
+if (flags.canBloodThirsty) {
+  const bloodThirstyPoints = Number(attacker?.stats?.bloodThirsty || 0);
+
+  if (bloodThirstyPoints > 0 && damageApplied > 0) {
+    const bloodThirstyPercent = getBloodThirstyPercent(bloodThirstyPoints);
+
+    if (bloodThirstyPercent > 0) {
+      const hpBeforeBloodThirsty =
+        attacker?.stats?.HP?.current ?? attacker?.stats?.HP ?? 0;
+
+      LifestealBloodFury(
+        attacker,
+        target,
+        damageApplied,
+        bloodThirstyPercent
+      );
+
+      const hpAfterBloodThirsty =
+        attacker?.stats?.HP?.current ?? attacker?.stats?.HP ?? 0;
+
+      const bloodThirstyHeal = Math.max(
+        0,
+        hpAfterBloodThirsty - hpBeforeBloodThirsty
+      );
+
+      if (bloodThirstyHeal > 0) {
+        finalLog.attackModifiers.bloodThirstyHeal = bloodThirstyHeal;
       }
     }
   }
-
-  // ✅ Compteurs dégâts : basés sur damageApplied (pas totalReducedDamage)
+}
   attacker.totalDamage += damageApplied;
-  updateTotalDamageCounter(`TotalDamages_${attacker.id}`, attacker.totalDamage);
+
+const balancedNoAggro =
+  Boolean(attacker.attackBalancedNoAggro) ||
+  Boolean(attacker.currentAttack?.isBalancedNoAggro);
+
+const aggroDamageApplied = balancedNoAggro ? 0 : damageApplied;
+
+attacker.totalAggroDamage += aggroDamageApplied;
+
+if (balancedNoAggro && damageApplied > 0) {
+  console.log(
+    `⚖️ ${attacker.name} génère 0 aggro avec Attaque équilibrée (${damageApplied} dégâts ignorés pour l'aggro).`
+  );
+}
+
+updateTotalDamageCounter(`TotalDamages_${attacker.id}`, attacker.totalDamage);
 
   console.log(`❤️ ${target.name} perd ${damageApplied} HP (${target.stats.HP.current}/${target.stats.HP.max}).`);
 
-  // ⚙️ FINAL — UI & effets
   saveEntityHPToStorage(target);
-const armorGate = Math.max(0, Math.round(absorbedByArmor));
-  // ✅ PATCH POPUP : afficher dégâts réellement subis
-  PopUpDamages(
+
+  const armorGate = Math.max(0, Math.round(absorbedByArmor));
+const isExecutionCritical =
+  finalLog.attackModifiers.execution &&
+  finalLog.attackModifiers.critical;
+
+const finalPopupType = isExecutionCritical
+  ? "execution-critical"
+  : popupType;
+  
+PopUpDamages(
   target,
-  damageApplied,
+  finalDamagePreAstrality,
   attackDetail.effets,
   popupContent,
   totalDamageSourcesReduced,
-  popupType,
+  finalPopupType,
   armorGate
 );
-  if (attackDetail.effets) attackDetail.effets.forEach((effectName) => applyEffect(target, effectName, attacker));
 
-  // ✅ PATCH SCORE/SELF : utiliser damageApplied
+  if (attackDetail.effets) {
+    attackDetail.effets.forEach((effectName) => applyEffect(target, effectName, attacker));
+  }
+
   updateScore(attacker, damageApplied);
   deductScore(target, damageApplied);
   applySelfEffects(attacker, damageApplied, selfEffects);
@@ -1576,9 +2161,8 @@ const armorGate = Math.max(0, Math.round(absorbedByArmor));
     target.id
   );
 
-  LifeandDeath(target);
+  LifeandDeath(target, attacker);
 
-  // ✅ FINAL LOG (résolution complète)
   finalLog.popupType = popupType;
   finalLog.effectsApplied = [...(attackDetail.effets || [])];
 
@@ -1609,11 +2193,103 @@ const armorGate = Math.max(0, Math.round(absorbedByArmor));
     astralityTriggered,
   };
 
+console.log(`
+==============================
+⚔️ RÉSUMÉ FINAL DÉGÂTS
+==============================
+👤 Attaquant : ${attacker.name}
+🎯 Cible : ${target.name}
+🗡️ Sources finales HP :→ Piercing : ${totalDamageSourcesReduced.piercingDamage || 0}
+→ Physique : ${totalDamageSourcesReduced.physical || 0}
+→ Magique : ${totalDamageSourcesReduced.magical || 0}
+→ Hybride : ${totalDamageSourcesReduced.hybridalDamage || 0}
+
+🛡️ Armor absorbée :
+→ ${absorbedByArmor || 0}
+
+🗡️ Armor bypass :
+→ ${purePiercingArmorBypass || 0}
+
+❤️ HP perdus :
+→ ${damageApplied || 0}
+
+🧱 Armor restante :
+→ ${target.stats?.armor?.current || 0}/${target.stats?.armor?.max || 0}
+
+💀 HP restants :
+→ ${target.stats?.HP?.current || 0}/${target.stats?.HP?.max || 0}
+==============================
+`);
+
+
   logFinalDamageResolution(finalLog);
 
-  if (target.isDEAD) console.log(`${target.name} est mort suite aux dégâts infligés.`);
+  if (target.isDEAD) {
+    console.log(`${target.name} est mort suite aux dégâts infligés.`);
+  }
 }
 
+function consumeBloodCrazy(attacker) {
+  if (!attacker) {
+    return;
+  }
+
+  attacker.flags = attacker.flags || {};
+
+  if (!attacker.flags.bloodCrazyNextExecution) {
+    return;
+  }
+
+  attacker.flags.bloodCrazyNextExecution = false;
+
+  // Le module centralisé nettoie les FX, timers et glow de combat.
+  syncEntityAuras(
+    attacker,
+    "battle"
+  );
+
+  // Mise à jour immédiate du Codex lorsqu’il est ouvert.
+  const codexAuraContainer =
+    document.getElementById(
+      `auraContainer_codex_${attacker.id}`
+    );
+
+  if (codexAuraContainer) {
+    syncEntityAuras(
+      attacker,
+      codexAuraContainer
+    );
+  }
+
+  // Le pictogramme est encore créé manuellement :
+  // il reste donc nettoyé ici.
+  document
+    .querySelectorAll(
+      `#auraContainer_${attacker.id}
+       .picto-stat.bloodCrazy,
+       #auraContainer_codex_${attacker.id}
+       .picto-stat.bloodCrazy`
+    )
+    .forEach((element) => {
+      element.classList.add("consumed");
+
+      setTimeout(() => {
+        element.remove();
+      }, 450);
+    });
+
+  const attackerCanvas =
+    document.getElementById(
+      `spriteCanvas_${attacker.id}`
+    );
+
+  if (attackerCanvas) {
+    releaseEntityTint(
+      attackerCanvas,
+      "bloodCrazy"
+    );
+  }
+}
 export function applySelfEffects(attacker, totalReducedDamage, selfEffects = []) {
   if (!selfEffects || selfEffects.length === 0) return;
 
@@ -1864,10 +2540,13 @@ export function updateCurrentAttackDisplay(entite) {
     const attack = attackDetails.find(a => a.attackId === entite.currentAttackId);
 
     if (attack) {
-        img.src = attack.attackAsset || '/media/assets/ui/picto-default.svg';
+        img.src = attack.attackAsset
+            ? `${attack.attackAsset}-ld.jpg`
+            : '';
+
         img.alt = attack.displayName || 'Attaque en cours';
     } else {
-        img.src = '/media/assets/ui/picto-default.svg';
+        img.src = '';
         img.alt = 'Attaque inconnue';
     }
 }

@@ -2,7 +2,12 @@ import { generateUniqueID, entites, enrichEntityStats } from './entites.js';
 import { updateRoleInDOM } from './load-entity.js';
 import { calculateHexes } from './board.js';
 import { soclesVisible } from './ui.js';
-import { spawnEntiteIngame } from './ArmyBFactory.js';
+import { spawnEntiteIngame } from './createEntity.js';
+import { consumeEntityMovement, ensureMovementState, updateMovementDisplay } from './damagesCalcul.js';
+import { EffectMessage } from './attackEffectMecanics.js';
+import { applyEntityTint, releaseEntityTint, notifyProjectileTargetMoved } from './entitesAnimation.js';
+import { saveEntityMovementState, saveEntityPositionState } from './entityUpdatesStorage.js';
+import { battleLogs } from './battleLogs.js';
 
 let selectedEntitiesB = [];
 let lastHoveredHexPosition = null;
@@ -75,50 +80,67 @@ export function hexRoles(hexElement) {
 function DragnDrop(hex) {
 	
 hex.addEventListener('dragstart', event => {
-	
-	if (!soclesVisible) {
-    document.querySelectorAll('.hex:not(.occupied) .socle').forEach(socle => {
-        socle.style.opacity = '1';
-    });
-}
+    const draggedBox = event.target.closest('.sprite');
 
-	
-    document.querySelectorAll('.sprite').forEach(sprite => {
-    if (!sprite.classList.contains('dragged')) {
-        sprite.style.opacity = '0.4';
-        sprite.style.pointerEvents = 'none';
+    if (!draggedBox) return;
+
+    // Le payload est posé par le gestionnaire du plateau lui-même : le drag
+    // reste donc fonctionnel même si l'entité a été recréée pendant un event.
+    const entityBox = draggedBox.closest('[id^="Box_Entite_"]');
+    if (!entityBox) return;
+    event.dataTransfer?.setData('text', entityBox.id);
+
+    const entiteId = parseInt(entityBox.id.replace('Box_Entite_', ''), 10);
+    const entiteData = entites.find(e => e.id === entiteId);
+
+  const shift = ensureMovementState(entiteData);
+const movementImpossible =
+    !shift ||
+    shift.current == null ||
+    Number(shift.current) < 1;
+
+    const canvas = draggedBox.querySelector('canvas');
+
+    if (movementImpossible && canvas) {
+        applyEntityTint(canvas, 'movementImpossible', 0.75);
+
+        setTimeout(() => {
+            releaseEntityTint(canvas, 'movementImpossible');
+        }, 0);
     }
-});
 
-    // Vérifier s'il y a déjà une entité en train d'être déplacée
-    if (document.querySelector('.dragged')) {
-        console.warn('🚫 Un autre Drag & Drop est déjà en cours.');
-        return;
-    }
-
-    // Ne modifier que les autres sprites qui ne sont pas déjà affectés
-    document.querySelectorAll('.sprite').forEach(sprite => {
-        if (!sprite.classList.contains('dragged') && sprite.style.opacity !== '0.4') {
-            sprite.style.opacity = '0.4';  
-            sprite.style.pointerEvents = 'none';
-        }
-    });
-
-    // Afficher les socles des hexagones non occupés si `soclesVisible` est faux
     if (!soclesVisible) {
         document.querySelectorAll('.hex:not(.occupied) .socle').forEach(socle => {
             socle.style.opacity = '1';
         });
     }
 
-    // 🎯 **CLEAR TARGET ZONE BOARD - RESET FOCUS & TARGETS**
-    document.querySelectorAll('.hex.focused, .sprite-container.focused').forEach(el => el.classList.remove('focused'));
-    document.querySelectorAll('.hex.targetable, .hex.supportable, .sprite-container.targetable, .sprite-container.supportable')
-        .forEach(el => el.classList.remove('targetable', 'supportable'));
+    if (document.querySelector('.dragged')) {
+        console.warn('🚫 Un autre Drag & Drop est déjà en cours.');
+        return;
+    }
 
-    console.log(`🚀 Dragstart sur ${event.target.id}, nettoyage des anciennes cibles.`);
+    draggedBox.classList.add('dragged');
+
+    document.querySelectorAll('.sprite').forEach(sprite => {
+        if (!sprite.classList.contains('dragged')) {
+            sprite.style.opacity = '0.4';
+            sprite.style.pointerEvents = 'none';
+        }
+    });
+
+    document.querySelectorAll('.hex.focused, .sprite-container.focused').forEach(el => {
+        el.classList.remove('focused');
+    });
+
+    document
+        .querySelectorAll('.hex.targetable, .hex.supportable, .sprite-container.targetable, .sprite-container.supportable')
+        .forEach(el => {
+            el.classList.remove('targetable', 'supportable');
+        });
+
+    console.log(`🚀 Dragstart sur ${draggedBox.id}, nettoyage des anciennes cibles.`);
 });
-
 hex.addEventListener('dragend', event => {
     event.target.classList.remove('dragged');
 
@@ -211,44 +233,79 @@ hex.addEventListener('drop', event => {
     if (!isNewEntity && draggedElement) {
         originalParent = draggedElement.closest('.hex');
     }
+const originalHexPosition = originalParent?.dataset?.position || null;
 
-    if (!isNewEntity && draggedElement) {
-        if (draggedElement.classList.contains('side-B') && !isAdminMode) {
-            console.error(`🚫 Drop interdit pour ${draggedElement.id} (côté B bloqué, mode normal)`);
-            return;
-        }
-
-        if (dropHex.classList.contains('SideB') && !isAdminMode) {
-            console.error(`🚫 Drop interdit sur hex SideB pour ${draggedElement.id} (Mode Normal)`);
-            return;
-        }
-
-        console.log(`✅ Drop autorisé pour ${draggedElement.id} (Mode Admin: ${isAdminMode})`);
-
-        let targetHexPosition = dropHex.dataset.position;
-        draggedElement.dataset.position = targetHexPosition;
-        dropHex.appendChild(draggedElement);
+if (!isNewEntity && draggedElement) {
+    if (draggedElement.classList.contains('side-B') && !isAdminMode) {
+        console.error(`🚫 Drop interdit pour ${draggedElement.id} (côté B bloqué, mode normal)`);
+        return;
     }
 
-    let entite = null;
-    if (!isNewEntity && draggedElement) {
-        let entiteId = parseInt(draggedElement.id.replace('Box_Entite_', ''));
-        entite = entites.find(e => e.id === entiteId);
-        
-        if (!entite) {
-            console.error(`❌ Aucune entité trouvée avec l'ID: ${entiteId}`);
-            return;
-        }
+    if (dropHex.classList.contains('SideB') && !isAdminMode) {
+        console.error(`🚫 Drop interdit sur hex SideB pour ${draggedElement.id} (Mode Normal)`);
+        return;
     }
 
-    let targetHexPosition = dropHex.dataset.position;
-    let existingElement = dropHex.querySelector('.entite-box');
+    console.log(`✅ Drop autorisé pour ${draggedElement.id} (Mode Admin: ${isAdminMode})`);
+}
+
+let entite = null;
+
+if (!isNewEntity && draggedElement) {
+    let entiteId = parseInt(draggedElement.id.replace('Box_Entite_', ''));
+    entite = entites.find(e => e.id === entiteId);
+
+    if (!entite) {
+        console.error(`❌ Aucune entité trouvée avec l'ID: ${entiteId}`);
+        return;
+    }
+}
+
+let targetHexPosition = dropHex.dataset.position;
+const previousRole = entite?.role || "gueux";
+let hasLoggedSwapMove = false;
+
+const isEffectiveHexMove =
+    !isNewEntity &&
+    entite &&
+    originalHexPosition &&
+    targetHexPosition &&
+    originalHexPosition !== targetHexPosition;
+
+if (isEffectiveHexMove && !isAdminMode) {
+  const shift = ensureMovementState(entite);
+
+  if (
+    !shift ||
+    shift.current == null ||
+    Number(shift.current) < 1
+  ) {
+    console.warn(`🚫 Déplacement annulé : ${entite.name} n'a pas assez de mouvement.`);
+    EffectMessage(entite, "Déplacement impossible !");
+    return;
+  }
+}
+
+const existingElementBeforeDrop = dropHex.querySelector('.entite-box');
+let existingElement = existingElementBeforeDrop;
+let swappedEntite = null;
+
+const isSwapMove =
+  isEffectiveHexMove &&
+  existingElementBeforeDrop &&
+  existingElementBeforeDrop !== draggedElement;
+
+if (!isSwapMove) {
+  draggedElement.dataset.position = targetHexPosition;
+  dropHex.appendChild(draggedElement);
+}
 
     let sideClass = entite ? `Side${entite.side}` : '';
 
     if (existingElement) {
         let existingEntiteId = parseInt(existingElement.id.replace('Box_Entite_', ''));
         let existingEntite = entites.find(e => e.id === existingEntiteId);
+        swappedEntite = existingEntite || null;
 
         if (entite.side !== existingEntite.side) {
             return;
@@ -299,10 +356,27 @@ hex.addEventListener('drop', event => {
                 existingElement.classList.add(`role-${existingEntite.role}`);
             }
 
-            updateRoleInDOM(entite);
-            updateRoleInDOM(existingEntite);
+           updateRoleInDOM(entite);
+updateRoleInDOM(existingEntite);
 
-            console.log('Positions après l\'échange - Élément glissé:', draggedElement.dataset.position, 'Élément existant:', existingElement.dataset.position);
+if (isEffectiveHexMove && !isAdminMode) {
+  battleLogs("entity_swap_move", {
+    entity: entite,
+    target: existingEntite,
+    to: targetHexPosition,
+    previousRole,
+    newRole: entite.role,
+  });
+
+  hasLoggedSwapMove = true;
+}
+console.log(
+  "Positions après l'échange - Élément glissé:",
+  draggedElement.dataset.position,
+  "Élément existant:",
+  existingElement.dataset.position
+);
+
         } else {
             console.error('Parent container not found for one or both elements.');
         }
@@ -343,6 +417,56 @@ hex.addEventListener('drop', event => {
             }
         }
     }
+if (isEffectiveHexMove && !isAdminMode && entite) {
+    const movementCheck = consumeEntityMovement(entite, 1);
+
+if (!movementCheck.allowed) {
+    console.warn(`🚫 Consommation mouvement impossible après drop validé : ${entite.name}`);
+    EffectMessage(entite, "Déplacement impossible !");
+    return;
+}
+
+if (!hasLoggedSwapMove) {
+ battleLogs("entity_move", {
+  entity: entite,
+  from: originalHexPosition,
+  to: targetHexPosition,
+  previousRole,
+  newRole: entite.role,
+  movementCheck,
+});
+}
+
+if (movementCheck.reason === "marathon") {
+  EffectMessage(entite, "Marathon !");
+
+  battleLogs("entity_move_marathon", {
+    entity: entite,
+  });
+} else {
+  EffectMessage(entite, "Déplacement !");
+  saveEntityMovementState(entite);
+}
+
+updateMovementDisplay(entite);
+}
+
+if (isEffectiveHexMove && entite) {
+    entite.position = targetHexPosition;
+    saveEntityPositionState(entite);
+
+    if (isSwapMove && swappedEntite && swappedEntite !== entite) {
+        swappedEntite.position = originalHexPosition;
+        saveEntityPositionState(swappedEntite);
+        updateMovementDisplay(swappedEntite);
+    }
+
+    updateMovementDisplay(entite);
+    notifyProjectileTargetMoved(entite);
+    if (isSwapMove && swappedEntite && swappedEntite !== entite) {
+        notifyProjectileTargetMoved(swappedEntite);
+    }
+}
 
     if (dropHex.classList.contains('occupied')) {
         const hexOccupiedEvent = new Event('hexOccupied');
@@ -411,3 +535,22 @@ droppableElements.forEach(element => {
     element.addEventListener('dragenter', handleDragEnter);
     element.addEventListener('dragleave', handleDragLeave);
 });
+
+export function restoreEntityDragAndDrop() {
+    if (lastHoveredHex) lastHoveredHex.classList.remove('hovered');
+    lastHoveredHex = null;
+    lastHoveredHexPosition = null;
+
+    document.querySelectorAll('.dragged').forEach(element => {
+        element.classList.remove('dragged');
+    });
+
+    document.querySelectorAll('.sprite').forEach(sprite => {
+        sprite.style.removeProperty('opacity');
+        sprite.style.removeProperty('pointer-events');
+
+        if (!sprite.classList.contains('side-B') || window.levelRunning === 'admin') {
+            sprite.draggable = true;
+        }
+    });
+}

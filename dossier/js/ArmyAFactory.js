@@ -1,7 +1,12 @@
 import { loadFromLocalStorage, saveToLocalStorage, armyAConfig } from './GameStorage.js';
-import { entitesNestUp, generateUniqueID, enrichEntityStats } from './entites.js';
+import {
+    entitesNestUp,
+    generateUniqueID,
+    enrichEntityStats,
+    registerEntityAcquisition
+} from './entites.js';
 
-export function addEntityToArmyA(entity, level = 1) {
+export function addEntityToArmyA(entity, level = 1, acquisition = {}) {
     const selectedArmyA = loadFromLocalStorage('selectedArmyA', []);
 
     const newEntity = {
@@ -14,14 +19,20 @@ export function addEntityToArmyA(entity, level = 1) {
 
     // Assurer que HP et autres stats sont enrichies
     const enriched = enrichEntityStats(newEntity);
+    registerEntityAcquisition(enriched, acquisition);
 
     selectedArmyA.push(enriched);
     saveToLocalStorage('selectedArmyA', selectedArmyA);
 
     console.log(`✅ Entité ajoutée à l'Armée A : ${enriched.name}, ID : ${enriched.id}`);
+    return enriched;
 }
 
-export function generateArmyA(armyConfig, entitesNestUp) {
+export function generateArmyA(
+    armyConfig,
+    entitesNestUp,
+    acquisition = { source: 'initial' }
+) {
     const providedLordId = armyConfig.lordId;
     const providedLordNickname = armyConfig.lordNickname || null; // Permet de fournir un surnom pour le Lord
     const providedSquireIds = armyConfig.squireIds;
@@ -43,6 +54,7 @@ export function generateArmyA(armyConfig, entitesNestUp) {
 
             // Application du bonus de vitalité aux HP
             newLordEntity = enrichEntityStats(newLordEntity);
+            registerEntityAcquisition(newLordEntity, acquisition);
 
             selectedEntitiesA.push(newLordEntity);
             console.log(`Utilisé LORD pour Côté A : ${newLordEntity.name}, Nickname : ${newLordEntity.nickname}, Level : ${newLordEntity.level}, Power : ${newLordEntity.power}, HP : ${newLordEntity.stats.HP}, ID : ${newLordEntity.id}`);
@@ -67,6 +79,7 @@ export function generateArmyA(armyConfig, entitesNestUp) {
 
             // Application du bonus de vitalité aux HP
             newSquireEntity = enrichEntityStats(newSquireEntity);
+            registerEntityAcquisition(newSquireEntity, acquisition);
 
             selectedEntitiesA.push(newSquireEntity);
             console.log(`Utilisé SBIRE pour Côté A : ${newSquireEntity.name}, Nickname : ${newSquireEntity.nickname}, Level : ${newSquireEntity.level}, Power : ${newSquireEntity.power}, HP : ${newSquireEntity.stats.HP}, ID : ${newSquireEntity.id}`);

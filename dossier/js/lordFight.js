@@ -1,110 +1,256 @@
 import { listingFocusLord } from './role-rule.js'; 
+import { calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateOccultismTargetableChanceDisplay } from './damagesCalcul.js';
+import { EffectMessage } from './attackEffectMecanics.js';
 
 export let globalTargetName = null;
-
-// LORD TARGET
-export function lordEnemyTarget(defendingEntities, deadEnemies, resolve, attackerName, attackerId) {
-    let highestAggroScore = 0;
-    let targetWithHighestAggro = null;
-    let lowestHP = Infinity;
-    let targetWithLowestHP = null;
-
-    // Prépare un tableau pour conserver les scores d'aggro de toutes les entités
-    let allEntitiesAggro = defendingEntities.map(entity => {
-        let totalDamage = entity.totalDamage || 0;
-        let totalHeal = entity.totalHeal || 0;
-        let totalKills = entity.kills || 0;
-
-        let aggroDamage = totalDamage;
-        let aggroHeal = totalHeal * 1.1;
-        let aggroRole = 1.0; // Initialisation par défaut
-        let aggroKills = totalKills * 2;
-
-        if (Array.isArray(entity.role) && entity.role.includes('tank')) {
-            aggroRole = 1.6;
-        } else if (Array.isArray(entity.role) && entity.role.includes('gueux')) {
-            aggroRole = 1.2;
-        }
-
-        let aggroScore = (aggroDamage + aggroHeal + aggroKills) * aggroRole;
-
-        return {
-            name: entity.name,
-			id:entity.id,
-			portrait: entity.portrait,
-            totalDamage: totalDamage,
-            totalHeal: totalHeal,
-            kills: totalKills,
-            aggroScore: aggroScore,
-            role: entity.role,
-            isDEAD: entity.isDEAD
-        };
-    }).filter(entity => !entity.isDEAD); // Filtre pour éliminer les entités mortes
-
-    // Trouve la cible avec le plus de score d'aggro et les plus faibles HP parmi les entités vivantes
-    allEntitiesAggro.forEach(entity => {
-        if (entity.aggroScore > highestAggroScore) {
-            highestAggroScore = entity.aggroScore;
-            targetWithHighestAggro = entity;
-        }
-        let entityHP = defendingEntities.find(e => e.name === entity.name).stats.HP;
-        if (entityHP < lowestHP) {
-            lowestHP = entityHP;
-            targetWithLowestHP = entity;
-        }
-    });
-
-    let selectedTarget = targetWithHighestAggro || targetWithLowestHP;
-
-    // Stocke le nom de la cible sélectionnée dans la variable globale
-    globalTargetName = selectedTarget ? selectedTarget.name : null;
-
-    // **Ajout du statut 'new-target' à la cible sélectionnée**
-    if (selectedTarget) {
-        let targetEntityInDefendingEntities = defendingEntities.find(e => e.name === selectedTarget.name);
-        if (targetEntityInDefendingEntities) {
-            targetEntityInDefendingEntities.status = 'new-target';
-            // **Console.log les informations sur la nouvelle cible**
-                     console.log(`NEW TARGET : Nom: ${targetEntityInDefendingEntities.name} Statut: ${targetEntityInDefendingEntities.status}`);     
-        }
-    }
-
-    // Trie le tableau des scores d'aggro pour l'affichage
-    allEntitiesAggro.sort((a, b) => b.aggroScore - a.aggroScore);
-
-    // Affichage des informations dans la console
-    if (selectedTarget) {
-        console.log(`${attackerName} commence son attaque sur ${selectedTarget.name} (car ${selectedTarget.name} a le plus gros score d'aggro : ${selectedTarget.aggroScore}pts)`);
-
-        // Recherche de l'entité complète pour obtenir le portrait
-        const targetEntity = defendingEntities.find(e => e.name === selectedTarget.name);
-        if (targetEntity && targetEntity.portrait) {
-            // console.log(`Portrait de la cible: ${targetEntity.portrait}`);
-        } else {
-            // console.log(`Portrait non disponible pour la cible: ${selectedTarget.name}`);
-        }
-
-        allEntitiesAggro.forEach(entity => {
-            console.log(`Score d'aggro de ${entity.name} (Role: ${entity.role}) : Dégâts - ${entity.totalDamage}pts, Soins - ${entity.totalHeal}pts, Kills - ${entity.kills}, Score d'aggro - ${entity.aggroScore}pts`);
-        });
-
-        // Appel à la fonction pour mettre à jour le background-image
-        updateLordRoleImg(attackerId, targetEntity);
-		allEntitiesAggro.sort((a, b) => b.aggroScore - a.aggroScore);
-
-// Mise à jour du classement d'aggro du lord en temps réel
-listingFocusLord(attackerId, allEntitiesAggro);
-    } else {
-        console.log(`${attackerName} n'a trouvé aucune cible valide pour l'attaque.`);
-        
-        // Réinitialise le background-image si aucune cible valide n'est trouvée
-        updateLordRoleImg(null);
-    }
-
-    // Résout avec la cible sélectionnée, ou null si aucune cible valide
-    resolve(defendingEntities.find(e => e.name === (selectedTarget ? selectedTarget.name : null)));
+function isOccultismInvisibleTarget(target) {
+  return (
+    Boolean(target?.flags?.occultismInvisible) ||
+    Boolean(target?.isInvisible) ||
+    Boolean(target?.invisible)
+  );
 }
 
+function getHpCurrent(entity) {
+  return Number(entity?.stats?.HP?.current ?? entity?.stats?.HP ?? Infinity);
+}
+
+function calculateLordAggroEntry(entity) {
+  const totalDamage = entity.totalAggroDamage ?? entity.totalDamage ?? 0;
+  const totalHeal = entity.totalHeal || 0;
+  const totalKills = entity.kills || 0;
+
+  const aggroReduction = Math.max(
+    0,
+    Math.min(100, Number(calculateEquilibreAggroReduction(entity)) || 0)
+  );
+
+  const aggroDamage = totalDamage * (1 - aggroReduction / 100);
+  const aggroHeal = totalHeal * 1.1;
+  const aggroKills = totalKills * 2;
+
+  const roles = Array.isArray(entity.role)
+    ? entity.role
+    : [entity.role].filter(Boolean);
+
+  let aggroRole = 1.0;
+
+  if (roles.includes('tank')) {
+    aggroRole = 1.6;
+  } else if (roles.includes('gueux')) {
+    aggroRole = 1.2;
+  }
+
+  const aggroScore = (aggroDamage + aggroHeal + aggroKills) * aggroRole;
+
+  return {
+    name: entity.name,
+    id: entity.id,
+    portrait: entity.portrait,
+    totalDamage,
+    totalHeal,
+    kills: totalKills,
+    aggroDamage,
+    rawDamageAggro: totalDamage,
+    aggroReduction,
+    aggroScore,
+    aggroRole,
+    role: roles,
+    isDEAD: entity.isDEAD,
+    entity,
+  };
+}
+
+function selectLordTargetCandidate(defendingEntities) {
+  const livingEntries = defendingEntities
+    .filter(entity => entity && !entity.isDEAD)
+    .map(calculateLordAggroEntry);
+
+  if (livingEntries.length === 0) {
+    return {
+      selectedEntry: null,
+      allEntitiesAggro: [],
+    };
+  }
+
+  let selectedEntry = livingEntries.reduce((best, current) => {
+    if (current.aggroScore > best.aggroScore) return current;
+    if (current.aggroScore < best.aggroScore) return best;
+
+    return getHpCurrent(current.entity) < getHpCurrent(best.entity)
+      ? current
+      : best;
+  }, livingEntries[0]);
+
+  const allEntitiesAggro = [...livingEntries].sort(
+    (a, b) => b.aggroScore - a.aggroScore
+  );
+
+  return {
+    selectedEntry,
+    allEntitiesAggro,
+  };
+}
+
+function attemptLordOccultismTargetEscape(attacker, selectedEntry, availableEntities) {
+  const target = selectedEntry?.entity;
+
+  if (!target || !isOccultismInvisibleTarget(target)) {
+    return {
+      escaped: false,
+      alternatives: availableEntities,
+    };
+  }
+
+  const alternatives = availableEntities.filter(entity =>
+    entity &&
+    !entity.isDEAD &&
+    entity.id !== target.id
+  );
+
+  if (alternatives.length === 0) {
+    console.log(
+      `🌑 ${target.name} est invisible, mais reste ciblée par le lord car elle est seule.`
+    );
+
+    return {
+      escaped: false,
+      alternatives,
+    };
+  }
+
+  const baseEscapeChance = Math.max(
+    0,
+    Math.min(100, Number(calculateOccultismTargetableChanceDisplay(target)) || 0)
+  );
+
+  const detectionChance = Math.max(
+    0,
+    Math.min(100, Number(calculateEquilibreInvisibleDetection(attacker)) || 0)
+  );
+
+  const escapeChance = Math.max(
+    0,
+    Math.min(100, baseEscapeChance - detectionChance)
+  );
+
+  if (escapeChance <= 0) {
+    console.log(
+      `🌑 Ciblage occulte lord : ${attacker?.name || "Lord"} détecte ${target.name} ` +
+      `| invisibilité ${baseEscapeChance}% - détection ${detectionChance}% = 0% d’évitement`
+    );
+
+    if (detectionChance > 0) {
+      EffectMessage(attacker, "Perseption équilibrée !");
+    }
+
+    return {
+      escaped: false,
+      alternatives,
+    };
+  }
+
+  const roll = Math.random() * 100;
+  const escaped = roll < escapeChance;
+
+  console.log(
+    `🌑 Ciblage occulte lord : ${attacker?.name || "Lord"} tente de cibler ${target.name} ` +
+    `| invisibilité ${baseEscapeChance}% - détection ${detectionChance}% = évitement ${escapeChance}% ` +
+    `| roll ${roll.toFixed(2)} → ` +
+    `${escaped ? "✅ cible perdue" : "❌ cible conservée"}`
+  );
+
+  if (!escaped && detectionChance > 0) {
+    EffectMessage(attacker, "Perseption équilibrée !");
+  }
+
+  return {
+    escaped,
+    alternatives,
+    roll: Number(roll.toFixed(2)),
+    escapeChance,
+  };
+}
+// LORD TARGET
+export function lordEnemyTarget(defendingEntities, deadEnemies, resolve, attacker) {
+  const attackerName = attacker?.name || "Lord inconnu";
+  const attackerId = attacker?.id;
+
+  let availableEntities = defendingEntities.filter(entity => entity && !entity.isDEAD);
+
+  let selectedEntry = null;
+  let allEntitiesAggro = [];
+
+  while (availableEntities.length > 0) {
+    const selection = selectLordTargetCandidate(availableEntities);
+
+    selectedEntry = selection.selectedEntry;
+    allEntitiesAggro = selection.allEntitiesAggro;
+
+    if (!selectedEntry) {
+      break;
+    }
+
+    const occultismTargetEscape = attemptLordOccultismTargetEscape(
+      attacker,
+      selectedEntry,
+      availableEntities
+    );
+
+    if (!occultismTargetEscape.escaped) {
+      break;
+    }
+
+    availableEntities = occultismTargetEscape.alternatives;
+  }
+
+  const selectedTarget = selectedEntry;
+  globalTargetName = selectedTarget ? selectedTarget.name : null;
+
+  if (selectedTarget) {
+    const targetEntityInDefendingEntities = defendingEntities.find(
+      e => e.id === selectedTarget.id
+    );
+
+    if (targetEntityInDefendingEntities) {
+      targetEntityInDefendingEntities.status = 'new-target';
+      console.log(
+        `NEW TARGET : Nom: ${targetEntityInDefendingEntities.name} Statut: ${targetEntityInDefendingEntities.status}`
+      );
+    }
+  }
+
+  allEntitiesAggro.sort((a, b) => b.aggroScore - a.aggroScore);
+
+  if (selectedTarget) {
+    console.log(
+      `${attackerName} commence son attaque sur ${selectedTarget.name} ` +
+      `(car ${selectedTarget.name} a le plus gros score d'aggro : ${selectedTarget.aggroScore.toFixed(2)}pts)`
+    );
+
+    const targetEntity = defendingEntities.find(e => e.id === selectedTarget.id);
+
+    allEntitiesAggro.forEach(entity => {
+      console.log(
+        `Score d'aggro de ${entity.name} (Role: ${Array.isArray(entity.role) ? entity.role.join(', ') : entity.role}) : ` +
+        `Dégâts - ${entity.aggroDamage.toFixed(2)}pts ` +
+        `(base ${entity.rawDamageAggro}pts, réduction ${entity.aggroReduction}%), ` +
+        `Soins - ${entity.totalHeal}pts, ` +
+        `Kills - ${entity.kills}, ` +
+        `Multiplicateur rôle - x${entity.aggroRole}, ` +
+        `Score d'aggro - ${entity.aggroScore.toFixed(2)}pts`
+      );
+    });
+
+    updateLordRoleImg(attackerId, targetEntity);
+    listingFocusLord(attackerId, allEntitiesAggro);
+  } else {
+    console.log(`${attackerName} n'a trouvé aucune cible valide pour l'attaque.`);
+    updateLordRoleImg(null);
+  }
+
+  resolve(defendingEntities.find(e => e.id === (selectedTarget ? selectedTarget.id : null)));
+}
 
 // LORD ATTACK
 export function lordAttackEnemy(attacker) {
