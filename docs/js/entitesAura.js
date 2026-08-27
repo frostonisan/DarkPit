@@ -94,9 +94,9 @@ const RANDOM_AURA_FX = {
     randomRotation: true,
 
     paths: [
-      "/media/assets/effects/hypercognition-01.gif",
-      "/media/assets/effects/hypercognition-02.gif",
-      "/media/assets/effects/hypercognition-03.gif"
+      "./media/assets/effects/hypercognition-01.gif",
+      "./media/assets/effects/hypercognition-02.gif",
+      "./media/assets/effects/hypercognition-03.gif"
     ]
   },
 
@@ -119,7 +119,7 @@ const RANDOM_AURA_FX = {
     randomRotation: false,
 
     paths: [
-      "/media/assets/effects/hp-battle-regen.gif"
+      "./media/assets/effects/hp-battle-regen.gif"
     ]
   },
 
@@ -142,9 +142,9 @@ const RANDOM_AURA_FX = {
     randomRotation: true,
 
     paths: [
-      "/media/assets/effects/hypercognition-01.gif",
-      "/media/assets/effects/hypercognition-02.gif",
-      "/media/assets/effects/hypercognition-03.gif"
+      "./media/assets/effects/hypercognition-01.gif",
+      "./media/assets/effects/hypercognition-02.gif",
+      "./media/assets/effects/hypercognition-03.gif"
     ]
   }
 };
@@ -468,9 +468,9 @@ function syncConfiguredRandomAuras(
 // ============================================================
 
 const LIFE_AURA_MAP = {
-  eternalLife: { icon:"/media/assets/effects/picto-aura-eternallife.svg", sizeR:0.55, offsetR:0.00, ampR:0.05, floatDur:1800, z:7 },
-  extraLife:   { icon:"/media/assets/effects/picto-aura-extralife.svg",   sizeR:0.45, offsetR:0.06, ampR:0.045,floatDur:1900, z:6 },
-  fadedLife:   { icon:"/media/assets/effects/picto-aura-fadedlife.svg",   sizeR:0.35, offsetR:0.12, ampR:0.04, floatDur:2000, z:5 }
+  eternalLife: { icon:"./media/assets/effects/picto-aura-eternallife.svg", sizeR:0.55, offsetR:0.00, ampR:0.05, floatDur:1800, z:7 },
+  extraLife:   { icon:"./media/assets/effects/picto-aura-extralife.svg",   sizeR:0.45, offsetR:0.06, ampR:0.045,floatDur:1900, z:6 },
+  fadedLife:   { icon:"./media/assets/effects/picto-aura-fadedlife.svg",   sizeR:0.35, offsetR:0.12, ampR:0.04, floatDur:2000, z:5 }
 };
 
 

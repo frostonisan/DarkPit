@@ -25,7 +25,7 @@ width: 100%;}
   left: 50%;
   width: 400px;
   height: 400px;
-  background: url('/media/assets/ui/skull-pic.svg') no-repeat center center;
+  background: url('./skull-pic.svg') no-repeat center center;
   background-size: contain;
   opacity: 0; 
   transform: translate(-50%, -50%);
@@ -93,12 +93,12 @@ width: 100%;}
 .entitesContainer{transform: scale(0.85);}
 @font-face {
   font-family: 'EB Garamond';
-  src: url('/media/typo/EBGaramond-Regular.ttf') format('truetype');
+  src: url('../../typo/EBGaramond-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
 body, html {
-  /* cursor: url('/media/assets/ui/cursor.png') 0 0, auto !important; */
+  /* cursor: url('./cursor.png') 0 0, auto !important; */
     user-select: none;
     margin: 0;
     height: 100%;
@@ -155,10 +155,10 @@ opacity: 0.9;
  left: 30px;
 }
 .seeHex{
-  background-image: url('/media/assets/ui/hex-see.svg');
+  background-image: url('./hex-see.svg');
 }
 .hideHex{
-  background-image: url('/media/assets/ui/hex-hide.svg');
+  background-image: url('./hex-hide.svg');
 }
 .board-ui{position: absolute;
   height: 100%;
@@ -170,7 +170,7 @@ position: relative;
   height: 45px;
   cursor: pointer;
   text-align: center;
-  background-image: url('/media/assets/ui/reset.svg');
+  background-image: url('./reset.svg');
   background-repeat: no-repeat;
   background-position: center;
 } 
@@ -404,19 +404,19 @@ p{margin : 3px;}
 }
 
   .entite-details.gueux, .entite-details.gueux .flisting-sbire, .codex-entity-scan.gueux{
-  background-image: url('../media/assets/ui/scroll-texture-gueux.jpg');
+  background-image: url('./scroll-texture-gueux.jpg');
 }
  .entite-details.tank, .entite-details.tank .flisting-sbire, .codex-entity-scan.tank{
-  background-image: url('../media/assets/ui/scroll-texture-tank.jpg');
+  background-image: url('./scroll-texture-tank.jpg');
 }
  .entite-details.fantassin, .entite-details.fantassin .flisting-sbire, .codex-entity-scan.fantassin{
-  background-image: url('../media/assets/ui/scroll-texture-fantassin.jpg');
+  background-image: url('./scroll-texture-fantassin.jpg');
 }
  .entite-details.mage, .entite-details.mage .flisting-sbire, .codex-entity-scan.mage{
-  background-image: url('../media/assets/ui/scroll-texture-mage.jpg');
+  background-image: url('./scroll-texture-mage.jpg');
 }
  .entite-details.lord, .entite-details.lord .flisting-sbire, .codex-entity-scan.lord{
-  background-image: url('../media/assets/ui/scroll-texture-lord.jpg');
+  background-image: url('./scroll-texture-lord.jpg');
 }
 .entite-details::after, .flisting-sbire::after, .codex-entity-scan::after{  border: 5px double #ffa800;
             margin: 0px;    content: '';
@@ -753,7 +753,7 @@ width: 170px;
   
   
 .role-img-container.lord{
-	background-image: url("../../media/portrait/lord-cadre.png");
+	background-image: url("../../portrait/lord-cadre.png");
   background-position: unset;
   background-size: 50px;
   background-repeat: no-repeat;
@@ -773,25 +773,25 @@ left: -1px;
   place-items: center;
 }
 .invocateur-hex-pic{width: 60px;height: 60px;background-repeat: no-repeat;}
-.invocateur-hex-pic.neutre{background-image: url('/media/assets/board/picto-hex-target-invocateur-neutral.svg');}
-.invocateur-hex-pic.tank{background-image: url('/media/assets/board/picto-hex-target-invocateur-tank.svg');}
-.invocateur-hex-pic.fantassin{background-image: url('/media/assets/board/picto-hex-target-invocateur-fantassin.svg');}
-.invocateur-hex-pic.mage{background-image: url('/media/assets/board/picto-hex-target-invocateur-mage.svg');}
+.invocateur-hex-pic.neutre{background-image: url('../board/picto-hex-target-invocateur-neutral.svg');}
+.invocateur-hex-pic.tank{background-image: url('../board/picto-hex-target-invocateur-tank.svg');}
+.invocateur-hex-pic.fantassin{background-image: url('../board/picto-hex-target-invocateur-fantassin.svg');}
+.invocateur-hex-pic.mage{background-image: url('../board/picto-hex-target-invocateur-mage.svg');}
 .target-picto-hud{width: 38px;
   position: absolute;
   background-position: center;
   background-repeat: no-repeat;
   height: 38px;
-  background-image: url("../../media/assets/ui/picto-target-general.svg");
+  background-image: url("./picto-target-general.svg");
   z-index: 3;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);}
-.target-picto-hud.Attaquant{background-image: url("../../media/assets/ui/picto-target-general.svg");}
-.target-picto-hud.Support{background-image: url("../../media/assets/ui/picto-target-support.svg");width:47px; height:47px;}
-.target-picto-hud.Invocateur{background-image: url("../../media/assets/ui/picto-target-invocateur.svg");}
+.target-picto-hud.Attaquant{background-image: url("./picto-target-general.svg");}
+.target-picto-hud.Support{background-image: url("./picto-target-support.svg");width:47px; height:47px;}
+.target-picto-hud.Invocateur{background-image: url("./picto-target-invocateur.svg");}
 .role-img-container.lord .target-picto-hud {
- background-image: url("../../media/assets/ui/picto-target-general-lord.svg");width: 52px;z-index: 10;height: 52px;
+ background-image: url("./picto-target-general-lord.svg");width: 52px;z-index: 10;height: 52px;
 }
   .entity-role-picto{
   background-size: 45px;
@@ -825,12 +825,12 @@ width: 23px;
 .Invocateur-txt-color{color:#53DE5D;;}
 .target-role-img-container.Attaquant .role-img::not(.role-img.lord){border: 3px double #ff1717;}
 .target-role-img-container.Support .role-img{border: 3px double #2844CE;}
-.role-img.sbire.role-lord{background-image: url('../media/assets/ui/picto-lord.svg');
+.role-img.sbire.role-lord{background-image: url('./picto-lord.svg');
   width: 30px;
   height: 30px;
   background-size: 25px;
   background-position-y: 3px;}
-.role-img-hud.lord{background-image: url("../../media/portrait/lord-cadre.png");
+.role-img-hud.lord{background-image: url("../../portrait/lord-cadre.png");
   background-position: unset;
   background-size: 55px;
   background-repeat: no-repeat;
@@ -843,7 +843,7 @@ width: 23px;
   border: none;
 }
 .role-img-hud.sbire{
-background-image: url("../../media/assets/ui/hexastone.png");
+background-image: url("./hexastone.png");
   background-size: 30px;
   background-repeat: no-repeat;
   width: 41px;
@@ -858,7 +858,7 @@ background-image: url("../../media/assets/ui/hexastone.png");
 .targetrole-img-hud{  z-index: 1;
   pointer-events: none;position: absolute;background-repeat: no-repeat;background-position:unset;}
   .targetrole-img-hud.sbire{
-  background-image: url("../../media/assets/ui/hexastone.png");
+  background-image: url("./hexastone.png");
   background-size: 31px;
   width: 40px;
   height: 40px;
@@ -871,7 +871,7 @@ background-image: url("../../media/assets/ui/hexastone.png");
   width: 50px;
   height: 50px;border: 3px double #FFB933;}
 .lord-focuslisting-target{
- background-image: url("../../media/assets/ui/picto-target-general-lord.svg");
+ background-image: url("./picto-target-general-lord.svg");
   width: 75px;
   z-index: 10;
   height: 75px;
@@ -900,11 +900,11 @@ background-image: url("../../media/assets/ui/hexastone.png");
 .listing-focus-lord-no-target{text-align: -webkit-center;}
 .target-role-img-container .role-img.role-lord.lord{ background-size: 27px;}
 .lord-target-pic.no-target{ background-size: 45px;}
-.lord-target-pic.no-target, .target-role-img-container .role-img.role-lord.lord{background-image: url('../media/assets/ui/picto-none.svg');
+.lord-target-pic.no-target, .target-role-img-container .role-img.role-lord.lord{background-image: url('./picto-none.svg');
   background-repeat: no-repeat;
   background-position: center;}
 .role-img.lord{
-background-image: url('../media/assets/ui/picto-lord.svg');
+background-image: url('./picto-lord.svg');
   border: 3px double #FFB933;
   width: 30px;
   height: 30px;
@@ -933,7 +933,7 @@ background-image: url('../media/assets/ui/picto-lord.svg');
 }
 .focus-listing.Attaquant .hexastone{  filter: drop-shadow(0px 0px 10px rgba(255, 0, 0, 0.41));}
 .focus-listing.Support .hexastone{  filter: drop-shadow(0px 0px 10px rgba(0, 0, 255, 0.41));}
-.RoleHexastone, .hexastone{background-image: url('../media/assets/ui/hexastone.png');
+.RoleHexastone, .hexastone{background-image: url('./hexastone.png');
   width: 70px;
   height: 80px;
   background-size: 70px;
@@ -949,7 +949,7 @@ background-image: url('../media/assets/ui/picto-lord.svg');
    .Invocateur .RoleHexastone{
    filter: drop-shadow(0px 0px 10px rgb(0, 255, 0, 0.75));}
  .hexastone-transition{
-background-image: url('../media/assets/ui/target-zone-link.png');
+background-image: url('./target-zone-link.png');
   width: 20px;
   height: 20px;
   background-size: 20px;
@@ -962,7 +962,7 @@ background-image: url('../media/assets/ui/target-zone-link.png');
   margin-top: -10px;
   margin-bottom: -10px;filter: drop-shadow(0px 0px 10px rgb(0, 0, 0));
  }
- .entity-role-container::before{background-image: url('../media/assets/ui/hexastone.png');
+ .entity-role-container::before{background-image: url('./hexastone.png');
   width: 70px;
   height: 80px;
   background-size: 70px;
@@ -1004,22 +1004,22 @@ background-image: url('../media/assets/ui/target-zone-link.png');
   height: 80px;
   align-items: inherit;}
 .entity-role-picto.role-gueux, .role-img.role-gueux, .entity-role-listing.role-gueux, .hud-portrait-role.role-gueux {
-    background-image: url("../../media/assets/ui/picto-gueux.svg");
+    background-image: url("./picto-gueux.svg");
 }
 .entity-role-picto.role-mage, .role-img.role-mage, .entity-role-listing.role-mage, .hud-portrait-role.role-mage {
-    background-image: url("../../media/assets/ui/picto-mage.svg");
+    background-image: url("./picto-mage.svg");
 }
 .entity-role-picto.role-fantassin, .role-img.role-fantassin, .entity-role-listing.role-fantassin, .hud-portrait-role.role-fantassin {
-    background-image: url("../../media/assets/ui/picto-fantassin.svg");
+    background-image: url("./picto-fantassin.svg");
 }
-.role-img.role-Invocateur{background-image: url("../../media/assets/ui/picto-invocateur.svg");background-size: 30px;
+.role-img.role-Invocateur{background-image: url("./picto-invocateur.svg");background-size: 30px;
   background-position-y: -7px;}
 .entity-role-picto.role-tank, .role-img.role-tank, .entity-role-listing.role-tank, .hud-portrait-role.role-tank {
-    background-image: url("../../media/assets/ui/picto-tank.svg");
+    background-image: url("./picto-tank.svg");
 }
 
 .entity-role-listing.role-lord{
-background-image: url('../media/assets/ui/picto-lord.svg');
+background-image: url('./picto-lord.svg');
   width: 50px;
   height: 50px;
   opacity: 1;
@@ -1039,14 +1039,14 @@ background-image: url('../media/assets/ui/picto-lord.svg');
   height: 100px;
   margin-top: 10px;
 }
-.entity-role-container.Invocateur{background-image: url("../../media/assets/ui/picto-invocateur.svg");
+.entity-role-container.Invocateur{background-image: url("./picto-invocateur.svg");
   background-repeat: no-repeat;
   background-size: 70px;
   background-position-x: center;
   background-position-y: 15px;
 }
 .entity-role-container.Invocateur .entity-role-picto{margin-top: -1px;margin-bottom: 15px;}
-.entity-role-container.Attaquant{background-image: url("../../media/assets/ui/picto-attaquant.svg");
+.entity-role-container.Attaquant{background-image: url("./picto-attaquant.svg");
   background-repeat: no-repeat;
   background-size: 70px;
   background-position-x: center;
@@ -1080,7 +1080,7 @@ background-repeat: no-repeat;
   top: -120px;
   position: absolute; animation: floatingBuff 4s ease-in-out infinite;filter: drop-shadow(0 0 1rem #000);}
 
- .attack-timings-picto{background-image: url("../../media/assets/ui/picto-attack-timings.svg");
+ .attack-timings-picto{background-image: url("./picto-attack-timings.svg");
 background-repeat: no-repeat;
 background-size: 27px;
   width: 30px;
@@ -1088,20 +1088,20 @@ background-size: 27px;
   margin-top: auto;
   margin-right: 5px;
   margin-bottom: auto;}
-.TargetInfos.Attaquant.focused{background-image: url("../../media/assets/ui/picto-attaquant.svg");}
-.TargetInfos.Support.focused{background-image: url("../../media/assets/ui/picto-support.svg");}
-.TargetInfos.Invocateur.focused{ background-image: url("../../media/assets/ui/picto-invocateur.svg");}
-.picto-target-attack-detail.ally{background-image: url("../../media/assets/ui/picto-support.svg");border: 3px outset #2844CE;}
-.picto-target-attack-detail.enemy{background-image: url("../../media/assets/ui/picto-attaquant.svg");border: 3px outset #d00000;}
-.picto-target-attack-detail.hexa{background-image: url("../../media/assets/ui/picto-invocateur.svg");border: 3px outset #53DE5D;}
-.entity-role-container.Support{ background-image: url("../../media/assets/ui/picto-support.svg");background-repeat: no-repeat;
+.TargetInfos.Attaquant.focused{background-image: url("./picto-attaquant.svg");}
+.TargetInfos.Support.focused{background-image: url("./picto-support.svg");}
+.TargetInfos.Invocateur.focused{ background-image: url("./picto-invocateur.svg");}
+.picto-target-attack-detail.ally{background-image: url("./picto-support.svg");border: 3px outset #2844CE;}
+.picto-target-attack-detail.enemy{background-image: url("./picto-attaquant.svg");border: 3px outset #d00000;}
+.picto-target-attack-detail.hexa{background-image: url("./picto-invocateur.svg");border: 3px outset #53DE5D;}
+.entity-role-container.Support{ background-image: url("./picto-support.svg");background-repeat: no-repeat;
   background-origin: initial;
   background-size: 72px;
   background-position: top;}
   .entity-Necro-picto{width: 23px;
   height: 23px;
   background-size: 25px;
-  background-image: url("../../media/assets/ui/picto-necro.svg");
+  background-image: url("./picto-necro.svg");
   filter: drop-shadow(0px 1px 5px white);
   position: absolute;
   padding: 3px;
@@ -1122,7 +1122,7 @@ background-size: 27px;
     transform: scale(1);
 }
 .entity-role-picto.role-lord{
-background-image: url('../media/assets/ui/picto-lord.svg');
+background-image: url('./picto-lord.svg');
   width: 50px;
   background-size: 50px;
   background-position-y: 3px;
@@ -1137,7 +1137,7 @@ background-image: url('../media/assets/ui/picto-lord.svg');
  .entity-type-info.entity-camp{position: absolute;
   top: -5px;
   left: -5px;
-  background-image: url('../media/assets/ui/scroll-texture-mage.jpg');
+  background-image: url('./scroll-texture-mage.jpg');
   padding-left: 15px;
   padding-right: 15px;
   padding-top: 5px;
@@ -1158,7 +1158,7 @@ background-image: url('../media/assets/ui/picto-lord.svg');
   margin-left: 5%;display:none;}
  .SpeedShowPicto{width: 25px;
 height: 25px;
- background-image: url("../../media/assets/picto-speed-infos.svg");background-repeat: no-repeat;
+ background-image: url("../picto-speed-infos.svg");background-repeat: no-repeat;
 transition: transform 1s ease-out;;
  }
  .SpeedShowPicto:hover{cursor:pointer;transform: scale(1.1);}
@@ -1189,7 +1189,7 @@ transition: transform 1s ease-out;;
   .projectile.profanation-fx{background-color: inherit;
   background-color: none;
   background-repeat: no-repeat;
-  background-image: url('/media/assets/projectiles/projectile-profanation.gif');
+  background-image: url('../projectiles/projectile-profanation.gif');
   border-radius: 0%;
   width: 90px;
   height: 90px;
@@ -1204,7 +1204,7 @@ transition: transform 1s ease-out;;
 background-color: inherit;
   background-color: none;
   background-repeat: no-repeat;
-  background-image: url('/media/assets/projectiles/projectile-deadshot.png');
+  background-image: url('../projectiles/projectile-deadshot.png');
   border-radius: 0%;
 
   background-size: 150px;
@@ -1216,7 +1216,7 @@ background-color: inherit;
 .projectile.jarret-fx{background-color: inherit;
   background-color: none;
   background-repeat: no-repeat;
-  background-image: url('/media/assets/projectiles/projectile-jarret.png');
+  background-image: url('../projectiles/projectile-jarret.png');
   border-radius: 0%;
 width: 40px;
   height: 40px;
@@ -1230,7 +1230,7 @@ width: 40px;
 .projectile.jarret-fx{background-color: inherit;
   background-color: none;
   background-repeat: no-repeat;
-  background-image: url('/media/assets/projectiles/projectile-jarret.png');
+  background-image: url('../projectiles/projectile-jarret.png');
   border-radius: 0%;
 width: 40px;
   height: 40px;
@@ -1263,7 +1263,7 @@ background-color: #white;
   position: absolute;
   top: -30px;pointer-events: none;}
 
-.projectile-impacte.jarret-fx{background-image: url('/media/assets/projectiles/impact-jarret.gif');
+.projectile-impacte.jarret-fx{background-image: url('../projectiles/impact-jarret.gif');
   width: 120px;
   height: 120px;
   background-size: 120px;
@@ -1272,7 +1272,7 @@ background-color: #white;
   background-position: center;filter: drop-shadow(0px 0 10px #A2A2A2BF);pointer-events:none;
   
 }	
-.projectile-impacte.profanation-fx{background-image: url('/media/assets/projectiles/impact-profanation.gif');
+.projectile-impacte.profanation-fx{background-image: url('../projectiles/impact-profanation.gif');
   width: 230px;
   height: 230px;
   background-size: 230px;pointer-events:none;
@@ -1409,19 +1409,19 @@ background-repeat: no-repeat;
   filter: drop-shadow(0px 0px 3px #343434);
         }
 .focus-listing.Support .entite-role-detail-listing .entity-role-listing.target-zone {border: 5px double #2844CE;background-color: #2844CE26;}
- .focus-listing.Support .entite-role-detail-listing .entity-role-listing.target-zone::before {background-image: url("../../media/assets/ui/picto-target-support.svg");
+ .focus-listing.Support .entite-role-detail-listing .entity-role-listing.target-zone::before {background-image: url("./picto-target-support.svg");
    display: inline-block;
   transform-origin: center;
   animation: SoftPulsation 2.5s infinite ease-in-out;
   position: absolute;
   left: -12px;top:-12px;}
-	 .focus-listing.Attaquant .entite-role-detail-listing .entity-role-listing.target-zone::before {background-image: url("../../media/assets/ui/picto-target-attaquant.svg");
+	 .focus-listing.Attaquant .entite-role-detail-listing .entity-role-listing.target-zone::before {background-image: url("./picto-target-attaquant.svg");
 	  display: inline-block;
   transform-origin: center;
   animation: SoftPulsation 2.5s infinite ease-in-out;
   position: absolute;
   left: -12px;top:-12px;}
-	  .focus-no-target{background-image: url("../../media/assets/ui/picto-notarget.svg");width: 65px;
+	  .focus-no-target{background-image: url("./picto-notarget.svg");width: 65px;
   height: 65px;
   background-repeat: no-repeat;display:none;}
   .stuff-battle{justify-content: center;
@@ -1469,7 +1469,7 @@ transition: width 0.5s ease, background-color 0.5s ease;}
   object-fit: cover;
   margin-top: 14px;
   margin-left: 10px;}
-.portrait-cadre.sbire{background-image: url("../../media/portrait/sbire-cadre.png");
+.portrait-cadre.sbire{background-image: url("../../portrait/sbire-cadre.png");
   background-position: unset;
   background-size: 115px;
   background-repeat: no-repeat;
@@ -1478,7 +1478,7 @@ transition: width 0.5s ease, background-color 0.5s ease;}
   height: 120px;}
  .portrait-cadre.A:not(.portrait-cadre.lord){filter: hue-rotate(-150deg);}
 .portrait-cadre{pointer-events: none;}
-  .portrait-cadre.lord{background-image: url("../../media/portrait/lord-cadre.png");
+  .portrait-cadre.lord{background-image: url("../../portrait/lord-cadre.png");
   background-position: unset;
   background-size: 135px;
   background-repeat: no-repeat;
@@ -1538,16 +1538,16 @@ position: absolute;
   margin-left: 8px;
 }
 .detail-scanentity{
-background-image: url("../../media/assets/ui/picto-scan-character.svg");
+background-image: url("./picto-scan-character.svg");
 background-size: 26px;
  }
 .lore-scanentity{
-background-image: url("../../media/assets/ui/picto-scan-lore.svg");
+background-image: url("./picto-scan-lore.svg");
   background-size: 23px;
 
 }
 .target-scanentity{
-background-image: url("../../media/assets/ui/picto-scan-target.svg");
+background-image: url("./picto-scan-target.svg");
   background-size: 23px;
 
 }
@@ -1572,9 +1572,9 @@ background-image: url("../../media/assets/ui/picto-scan-target.svg");
 .entite-lore-Container.active {
     opacity: 1;z-index: 5;
 }
-.lore-scanentity.active{background-image: url("../../media/assets/ui/picto-scan-lore-active.svg");background-color: #935a00;}
-.detail-scanentity.active{background-image: url("../../media/assets/ui/picto-scan-character-active.svg");background-color: #935a00;}
-.target-scanentity.active{background-image: url("../../media/assets/ui/picto-scan-target-active.svg");background-color: #935a00;}
+.lore-scanentity.active{background-image: url("./picto-scan-lore-active.svg");background-color: #935a00;}
+.detail-scanentity.active{background-image: url("./picto-scan-character-active.svg");background-color: #935a00;}
+.target-scanentity.active{background-image: url("./picto-scan-target-active.svg");background-color: #935a00;}
 .scan-control .active:not(.target-scanentity) {
    cursor: default;
 }
@@ -1842,7 +1842,7 @@ height: 100%;
   text-align: center;
   margin: auto;
   background-color: #0000008c;}
-  .entity-loot{background-image: url('../media/assets/ui/scroll-texture-gueux.jpg');
+  .entity-loot{background-image: url('./scroll-texture-gueux.jpg');
 padding: 5%;
   cursor: pointer;
   background-size: contain;
@@ -1878,9 +1878,9 @@ padding: 5%;
   background-position: top left, top right, bottom left, bottom right;
   pointer-events: none;
     margin: 0px;}
-  .entity-loot.tank{background-image: url('../media/assets/ui/scroll-texture-tank.jpg');}
-  .entity-loot.fantassin{background-image: url('../media/assets/ui/scroll-texture-fantassin.jpg');}
-  .entity-loot.mage{background-image: url('../media/assets/ui/scroll-texture-mage.jpg');}
+  .entity-loot.tank{background-image: url('./scroll-texture-tank.jpg');}
+  .entity-loot.fantassin{background-image: url('./scroll-texture-fantassin.jpg');}
+  .entity-loot.mage{background-image: url('./scroll-texture-mage.jpg');}
   /* .entite-loot-img{ */
   /* width: 320px; */
   /* height: 320px; */
@@ -2009,7 +2009,7 @@ width: 100%;
   top: 30px;
 }
 .settings-icon{  
- background-image: url("/media/assets/ui/picto-setting.svg");
+ background-image: url("./picto-setting.svg");
   background-size: 20px;
   background-repeat: no-repeat;
   top: 9px;
@@ -2195,7 +2195,7 @@ height: 75px;}
   justify-content: space-around;
   margin: auto;}
  .two-menus .codex-colomn-1 .entity-equipement{max-width: 700px;}
-.stuff-slot{background-image: url("../../media/assets/ui/hexastone.png");
+.stuff-slot{background-image: url("./hexastone.png");
   background-size: 80px;
   background-repeat: no-repeat;
   width: 100px;
@@ -2259,13 +2259,13 @@ filter: drop-shadow(0 0px 21px rgba(0, 0, 0, 0.4));
   background-repeat: no-repeat;
   background-position: center;
   margin-right: 3px;}
-  .codex-profil{background-image: url("../../media/assets/ui/picto-scan-character-active.svg");
+  .codex-profil{background-image: url("./picto-scan-character-active.svg");
   background-size: 25px;}
-  .codex-lore{background-image: url("../../media/assets/ui/picto-scan-lore-active.svg");
+  .codex-lore{background-image: url("./picto-scan-lore-active.svg");
   background-size: 23px;}
-    .codex-stat{background-image: url("../../media/assets/ui/picto-stats.svg");
+    .codex-stat{background-image: url("./picto-stats.svg");
   background-size: 23px;}
-    .codex-target{background-image: url("../../media/assets/ui/picto-scan-target-active.svg");
+    .codex-target{background-image: url("./picto-scan-target-active.svg");
   background-size: 23px;}
   .sound-control-button {
     width: 24px;
@@ -2275,7 +2275,7 @@ filter: drop-shadow(0 0px 21px rgba(0, 0, 0, 0.4));
 	transition: opacity 0.3s ease-in-out;margin-right: 20px;}
 
 .sound-control-button.mute {
-    background-image: url('/media/assets/ui/picto-mute.svg');
+    background-image: url('./picto-mute.svg');
 }
 .sound-controls{display: flex;
   margin: 2%;
@@ -2284,10 +2284,10 @@ filter: drop-shadow(0 0px 21px rgba(0, 0, 0, 0.4));
   padding-top: 15px;
   padding-bottom: 15px;}
 .sound-control-button.unmute {
-    background-image: url('/media/assets/ui/picto-unmute.svg');
+    background-image: url('./picto-unmute.svg');
 }
 .sound-volume{transition: opacity 0.3s ease-in-out;}
-.chest-loot{background-image: url("/media/assets/misc/chest-closed.png");
+.chest-loot{background-image: url("../misc/chest-closed.png");
   background-size: cover;
   width: 220px;
   height: 200px;
@@ -2335,7 +2335,7 @@ height: 200px;z-index: 99999;}
 
 
 .chest-loot.opening {
-    background-image: url('../../media/assets/misc/chest-opened.png');
+    background-image: url('../misc/chest-opened.png');
     animation: chest-opening-animation 0.5s forwards;
 }
 
@@ -2408,55 +2408,55 @@ width: 95%;}
   margin-right: 5px;
   transform: translateY(5px);
   margin-top: -5px;cursor:pointer;}
-  .picto-stat.strenght {background-image: url('../media/assets/ui/picto-strenght.svg');
+  .picto-stat.strenght {background-image: url('./picto-strenght.svg');
   width: 52px;
   height: 52px;}
-    .picto-stat.agility {background-image: url('../media/assets/ui/picto-agility.svg');
+    .picto-stat.agility {background-image: url('./picto-agility.svg');
   width: 52px;
   height: 52px;}
-    .picto-stat.intelligence {background-image: url('../media/assets/ui/picto-intel.svg');
+    .picto-stat.intelligence {background-image: url('./picto-intel.svg');
   width: 52px;
   height: 52px;}
-  .picto-stat.speed {background-image: url('../media/assets/ui/picto-speed.svg');
+  .picto-stat.speed {background-image: url('./picto-speed.svg');
   width: 22px;
   height: 22px;}
-  .picto-stat.extraLife {background-image: url('../media/assets/ui/picto-Extralife.svg');
+  .picto-stat.extraLife {background-image: url('./picto-Extralife.svg');
   width: 20px;
   height: 20px;}
-    .picto-stat.dodge {background-image: url('../media/assets/ui/picto-dodge.svg');
+    .picto-stat.dodge {background-image: url('./picto-dodge.svg');
   width: 22px;
   height: 22px;}
-      .picto-stat.precision {background-image: url('../media/assets/ui/picto-precision.svg');
+      .picto-stat.precision {background-image: url('./picto-precision.svg');
   width: 22px;
   height: 22px;}
-    .picto-stat.HP {background-image: url('../media/assets/ui/picto-hp.svg');
+    .picto-stat.HP {background-image: url('./picto-hp.svg');
   width: 22px;
   height: 22px;}
-  .picto-stat.vitality {background-image: url('../media/assets/ui/picto-vitality.svg');
+  .picto-stat.vitality {background-image: url('./picto-vitality.svg');
   width: 22px;
   height: 22px;}
-    .picto-stat.velocity {background-image: url('../media/assets/ui/picto-velocity.svg');
+    .picto-stat.velocity {background-image: url('./picto-velocity.svg');
   width: 22px;
   height: 22px;}
-    .picto-stat.speed {background-image: url('../media/assets/ui/picto-speed.svg');
+    .picto-stat.speed {background-image: url('./picto-speed.svg');
   width: 22px;
   height: 22px;}
-.picto-stat.magicalDamage{background-image: url('../media/assets/ui/picto-magic-damage.svg');width: 20px;
+.picto-stat.magicalDamage{background-image: url('./picto-magic-damage.svg');width: 20px;
   height: 20px;}
-.picto-stat.physicalDamage{background-image: url('../media/assets/ui/picto-physic-damage.svg');width: 22px;
+.picto-stat.physicalDamage{background-image: url('./picto-physic-damage.svg');width: 22px;
   height: 22px;}
-.picto-stat.hybridDamage{background-image: url('../media/assets/ui/picto-hybrid-damage.svg');width: 25px;
+.picto-stat.hybridDamage{background-image: url('./picto-hybrid-damage.svg');width: 25px;
   height: 25px;
   transform: translateY(8px);}
-  .picto-stat.healing{background-image: url('../media/assets/ui/picto-heal.svg');width: 25px;
+  .picto-stat.healing{background-image: url('./picto-heal.svg');width: 25px;
   height: 25px;}
-  .picto-stat.rawDamage{background-image: url('../media/assets/ui/picto-raw-damage.svg');width: 23px;
+  .picto-stat.rawDamage{background-image: url('./picto-raw-damage.svg');width: 23px;
   height: 23px;}
-.picto-stat.physicalResistance{background-image: url('../media/assets/ui/picto-physic-resistance.svg');width: 25px;
+.picto-stat.physicalResistance{background-image: url('./picto-physic-resistance.svg');width: 25px;
   height: 25px;}
-.picto-stat.magicalResistance{background-image: url('../media/assets/ui/picto-magic-resistance.svg');width: 21px;
+.picto-stat.magicalResistance{background-image: url('./picto-magic-resistance.svg');width: 21px;
   height: 21px;}
-.picto-stat.charge{background-image: url('../media/assets/ui/picto-charge.svg');width: 25px;
+.picto-stat.charge{background-image: url('./picto-charge.svg');width: 25px;
   height: 25px;}
 .codex-detailStats{display: flex;}
 .codex-attributStats{width:50%;}
@@ -2793,18 +2793,18 @@ content: "!";
 /* === TYPE : Préparation === */
 .runaway-info.preparation {
 
-  background-image: url('/media/assets/ui/picto-runaway-preparation.svg');
+  background-image: url('./picto-runaway-preparation.svg');
 }
 
 /* === TYPE : Succès === */
 .runaway-info.success {
 
-  background-image: url('/media/assets/ui/picto-runaway-success.svg');
+  background-image: url('./picto-runaway-success.svg');
 }
 
 /* === TYPE : Échec === */
 .runaway-info.fail {
- background-image: url('/media/assets/ui/picto-runaway-fail.svg');
+ background-image: url('./picto-runaway-fail.svg');
 }
 .overlay-end-screen {
     position: fixed;
@@ -3135,7 +3135,7 @@ background: linear-gradient(to right, transparent, #7df5fb, transparent);}
       position: absolute;
       width: 20px;
       height: 20px;
-      background-image: url('/media/assets/ui/picto-glitter.svg');
+      background-image: url('./picto-glitter.svg');
       background-size: contain;
       background-repeat: no-repeat;
       opacity: 0;

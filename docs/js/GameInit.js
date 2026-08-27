@@ -1,6 +1,6 @@
-import { attackDetails } from '/js/attackList.js';
+import { attackDetails } from './attackList.js';
 import { resetFullGame, loadFromLocalStorage, saveToLocalStorage, armyAConfig, getOrCreateGameID, loadCurrentGameData, saveCurrentGameData, setCurrentLevel, purgeStatPreview } from './GameStorage.js';
-import { createSoundManager, createSoundControls } from '/js/soundManager.js';
+import { createSoundManager, createSoundControls } from './soundManager.js';
 import { selectRandomEntitiesForSideB } from './ArmyBFactory.js';
 import { generateArmyA } from './ArmyAFactory.js';
 import { createNicknameForm, updateNickname, createLevelUpForm, playerExperience, updateExperienceDisplay, LevelupSignal, getClassLabel,  getCycleForKey,  getCycleLenFor,  getArchetypeMilestones } from './UpgradeEntity.js';
@@ -246,11 +246,11 @@ export function GameUi() {
     xpPic.className = 'scoring-experience';
 
     const xpimg1 = document.createElement('img');
-    xpimg1.src = '/media/assets/ui/experience-01.png';
+    xpimg1.src = './media/assets/ui/experience-01.png';
     xpimg1.className = 'experience-01';
 
     const xpimg2 = document.createElement('img');
-    xpimg2.src = '/media/assets/ui/experience-02.png';
+    xpimg2.src = './media/assets/ui/experience-02.png';
     xpimg2.className = 'experience-02';
 
     const scoringDiv = document.createElement('div');
@@ -356,7 +356,7 @@ export function createBattleBook(menuIcons) {
       const battleBookIcon = document.createElement('img');
     battleBookIcon.className = 'battle-book-icon';
     battleBookIcon.id = 'battle-book-display';
-    battleBookIcon.src = '/media/assets/ui/picto-battle-book.svg';
+    battleBookIcon.src = './media/assets/ui/picto-battle-book.svg';
     battleBookIcon.alt = 'journal des combats';
 
     menuIcons.appendChild(battleBookIcon);
@@ -1257,7 +1257,7 @@ export function MultiAttackDisplay(entite) {
         attackImgComplete.className = 'attack-img-complete';
 
         const img = document.createElement('img');
-        img.src = attack.attackAsset || '/media/assets/spells/auto-attack-spell-art.jpg';
+        img.src = attack.attackAsset || './media/assets/spells/auto-attack-spell-art.jpg';
         img.className = `attackElement-asset-spell ${attack.attackTarget.join(' ')} attack-image`;
         img.alt = attack.displayName;
 
@@ -1514,7 +1514,7 @@ if (Number(level) === 3) {
       `${Math.random() * 1800}ms`
     );
 
-    img.src = `../media/assets/misc/umbra-ornement-lvl-3.apng?seed=${Date.now()}-${Math.random()}`;
+    img.src = `./media/assets/misc/umbra-ornement-lvl-3.apng?seed=${Date.now()}-${Math.random()}`;
 
     umbraOrnement.appendChild(img);
     umbraOrnement.classList.add("umbra-visible");
@@ -2887,7 +2887,7 @@ export function PlayerInventory(menuIcons) {
     if (!menuIcons.querySelector('.player-inventory-icon')) {
         const inventoryIconImg = document.createElement('img');
         inventoryIconImg.className = 'player-inventory-icon';
-        inventoryIconImg.src = '/media/assets/ui/picto-inventory.svg';
+        inventoryIconImg.src = './media/assets/ui/picto-inventory.svg';
         inventoryIconImg.alt = 'Inventaire';
        inventoryIconImg.addEventListener('click', () => {
     toggleWindowInMenuMap('inventory-interface', (MenuMapContainer) => {
@@ -2931,7 +2931,7 @@ export function createInventory() {
 
 	const inventoryMenuImg = document.createElement('img');
     inventoryMenuImg.className = 'player-inventory-icon-menu';
-    inventoryMenuImg.src = '/media/assets/ui/picto-inventory.svg';
+    inventoryMenuImg.src = './media/assets/ui/picto-inventory.svg';
     inventoryMenuImg.alt = 'Inventaire';
 
     const closeButton = document.createElement('div');
@@ -3036,7 +3036,7 @@ export function MapShop(menuIcons) {
     if (!menuIcons.querySelector('.shop-icon')) {
         const shopIconImg = document.createElement('img');
         shopIconImg.className = 'shop-icon';
-        shopIconImg.src = '/media/assets/ui/picto-shop.svg';
+        shopIconImg.src = './media/assets/ui/picto-shop.svg';
         shopIconImg.alt = 'Boutique';
 		
       shopIconImg.addEventListener('click', () => {
@@ -3081,7 +3081,7 @@ export function openShopInterface() {
 
 	const shopPicto = document.createElement('img');
     shopPicto.classList.add('shop-picto');
-	shopPicto.src = '/media/assets/ui/picto-shop.svg';
+	shopPicto.src = './media/assets/ui/picto-shop.svg';
     shopPicto.alt = 'Boutique';
 
     const closeButton = document.createElement('div');
@@ -3130,7 +3130,7 @@ const imgContainer = document.createElement('div');
 imgContainer.classList.add('sellerimg-container');
 
 const sellerImg = document.createElement('img');
-sellerImg.src = '/media/sprites/seller-coquin.png';
+sellerImg.src = './media/sprites/seller-coquin.png';
 sellerImg.alt = 'seller';
 sellerImg.classList.add('iddle', 'seller');
 
@@ -3346,7 +3346,7 @@ requestAnimationFrame(() => {
 
    
     const spriteImg = document.createElement('img');
-    spriteImg.src = entite.sprite || '/media/assets/misc/default-entity.png';
+    spriteImg.src = entite.sprite || './media/assets/misc/default-entity.png';
     spriteImg.alt = entite.name;
     spriteImg.classList.add('codex-entity-sprite');
     spriteImgContainer.appendChild(spriteImg);
@@ -7163,7 +7163,7 @@ export function PlayerArmyCodex(menuIcons) {
 
     // Création de l'icône
     const pictogram = document.createElement('img');
-    pictogram.src = '/media/assets/ui/picto-banner.svg';
+    pictogram.src = './media/assets/ui/picto-banner.svg';
     pictogram.alt = 'Codex de l’armée';
     pictogram.classList.add('army-codex-icon');
 
@@ -7466,9 +7466,9 @@ function initStatRadar(canvas, graphValues, legendRoot) {
   const axisColors = ["#AC0000", "#0098FF", "#FFAE00"]; // couleurs du TEXTE uniquement
 
   const axisIcons = [
-    { src: "/media/assets/ui/picto-strength.svg" },
-    { src: "/media/assets/ui/picto-intel.svg" },
-    { src: "/media/assets/ui/picto-agility.svg" },
+    { src: "./media/assets/ui/picto-strength.svg" },
+    { src: "./media/assets/ui/picto-intel.svg" },
+    { src: "./media/assets/ui/picto-agility.svg" },
   ];
 
   const axisAngles = [
@@ -7756,7 +7756,7 @@ function initStatRadar(canvas, graphValues, legendRoot) {
 
 function createEntityLore(entite) {
   const DEFAULT_LORE = "Données manquantes sur l'entité...";
-  const DEFAULT_IMAGE = "../../media/lore/entites/lore-unknown.jpg";
+  const DEFAULT_IMAGE = "./media/lore/entites/lore-unknown.jpg";
 
   const entityClass = entite?.class;
 

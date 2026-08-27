@@ -2697,7 +2697,7 @@ export function attemptIndestructibility(attacker, target) {
     const effectsContainer = document.getElementById(`effectsContainer_${target.id}`);
     if (effectsContainer) {
       const indestructVFX = document.createElement("img");
-      indestructVFX.src = `../../media/assets/effects/indestructibility.gif?t=${Date.now()}`;
+      indestructVFX.src = `./media/assets/effects/indestructibility.gif?t=${Date.now()}`;
       indestructVFX.className = "effect-vfx indestructibility";
       indestructVFX.alt = `${target.name} est indestructible !`;
       indestructVFX.style.position = "absolute";
@@ -2816,7 +2816,7 @@ export function attemptEsoterism(attacker, target) {
     const effectsContainer = document.getElementById(`effectsContainer_${target.id}`);
     if (effectsContainer) {
       const esoterismVFX = document.createElement("img");
-      esoterismVFX.src = `../../media/assets/effects/esoterism.gif?t=${Date.now()}`;
+      esoterismVFX.src = `./media/assets/effects/esoterism.gif?t=${Date.now()}`;
       esoterismVFX.className = "effect-vfx esoterism";
       esoterismVFX.alt = `${target.name} réduit les dégâts magiques !`;
       esoterismVFX.style.position = "absolute";
@@ -2846,7 +2846,7 @@ export function attemptTranscendenceConsoProtection(entite, rng = Math.random, c
     const effectsContainer = document.getElementById(`effectsContainer_${entite.id}`);
     if (effectsContainer) {
       const vfx = document.createElement("img");
-      vfx.src = `../../media/assets/effects/transcendence.gif?t=${Date.now()}`;
+      vfx.src = `./media/assets/effects/transcendence.gif?t=${Date.now()}`;
       vfx.className = "effect-vfx transcendence";
       vfx.style.opacity = "1";
       vfx.style.transition = "opacity 0.7s linear"; // 4.5 - 3.8 = 0.7
@@ -2943,7 +2943,7 @@ export function attemptAstrality(attacker, target) {
     const effectsContainer = document.getElementById(`effectsContainer_${target.id}`);
     if (effectsContainer) {
       const astralityVFX = document.createElement("img");
-      astralityVFX.src = `../../media/assets/effects/astrality.gif?t=${Date.now()}`;
+      astralityVFX.src = `./media/assets/effects/astrality.gif?t=${Date.now()}`;
       astralityVFX.className = "effect-vfx astrality";
       astralityVFX.alt = `${target.name} déclenche l'Astralité !`;
       astralityVFX.style.position = "absolute";
@@ -2997,7 +2997,7 @@ export function attemptBloodFuryExec(attacker, target, options = {}) {
 
     if (effectsContainer) {
       const procVFX = document.createElement("img");
-      procVFX.src = `../../media/assets/effects/bloodFuryExec.gif?t=${Date.now()}`;
+      procVFX.src = `./media/assets/effects/bloodFuryExec.gif?t=${Date.now()}`;
       procVFX.className = "effect-vfx bloodfuryexec";
       procVFX.style.position = "absolute";
       procVFX.style.zIndex = "20";
@@ -3008,7 +3008,7 @@ export function attemptBloodFuryExec(attacker, target, options = {}) {
 
     damageImpact(target.id, {
       effectName: "damage-explode",
-      src: "/media/assets/effects/damage-execution.gif",
+      src: "./media/assets/effects/damage-execution.gif",
       className: "blood-impact damage-explode",
       lifetime: 2000,
       offsetY: "10px",
@@ -3317,7 +3317,7 @@ export function AmbidextryVFX(target) {
 		if (!effectsContainer) return;
 
 		const ambiVFX = document.createElement("img");
-		ambiVFX.src = `../../media/assets/effects/ambidextry.gif?t=${Date.now()}`;
+		ambiVFX.src = `./media/assets/effects/ambidextry.gif?t=${Date.now()}`;
 		ambiVFX.className = "effect-vfx ambidextry";
 		Object.assign(ambiVFX.style, {
 			position: "absolute",
@@ -3676,7 +3676,7 @@ export function attemptResilienceCancel(attacker, target, effect) {
     const effectsContainer = document.getElementById(`effectsContainer_${target.id}`);
     if (effectsContainer) {
       const resilienceVFX = document.createElement("img");
-      resilienceVFX.src = `../../media/assets/effects/resilience-cancel.gif?t=${Date.now()}`;
+      resilienceVFX.src = `./media/assets/effects/resilience-cancel.gif?t=${Date.now()}`;
       resilienceVFX.className = "effect-vfx resilience";
       resilienceVFX.style.position = "absolute";
       resilienceVFX.style.pointerEvents = "none";
@@ -4530,7 +4530,7 @@ export function attemptRangeBrokenSpell(attacker, target, attack) {
       const brokenVFX = document.createElement("img");
 
       // ⚠️ adapte le nom/chemin du gif à ton projet
-      brokenVFX.src = `../../media/assets/effects/broken-spell.gif?t=${Date.now()}`;
+      brokenVFX.src = `./media/assets/effects/broken-spell.gif?t=${Date.now()}`;
       brokenVFX.className = "effect-vfx broken-spell";
       brokenVFX.style.position = "absolute";
       brokenVFX.style.pointerEvents = "none";
@@ -4582,7 +4582,7 @@ export function attemptMeleeBrokenSpell(attacker, target, attack) {
     const effectsContainer = document.getElementById(`effectsContainer_${entite.id}`);
     if (effectsContainer) {
       const brokenVFX = document.createElement("img");
-      brokenVFX.src = `../../media/assets/effects/broken-spell.gif?t=${Date.now()}`;
+      brokenVFX.src = `./media/assets/effects/broken-spell.gif?t=${Date.now()}`;
       brokenVFX.className = "effect-vfx broken-spell";
       brokenVFX.style.position = "absolute";
       brokenVFX.style.pointerEvents = "none";
@@ -5840,7 +5840,7 @@ export function attemptBattleRegen(target, hpRestored) {
   vfx.className = "battle-regen-hp-vfx";
 
   vfx.innerHTML = `
-    <img src="../../media/assets/ui/picto-battle-regen-hp.svg" alt="">
+    <img src="./media/assets/ui/picto-battle-regen-hp.svg" alt="">
     <span class="healthPoint">+${hpRestored} HP</span>
   `;
 

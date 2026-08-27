@@ -29,7 +29,7 @@ const wanderingTheatreSessions = new Map();
 
 const DESTROYED_CORPSE_STORAGE_KEY = 'EventDestroyedCorpseMarkers';
 const PERSISTENT_CORPSE_LOOT_STORAGE_KEY = 'PersistentCorpseLootSources';
-const DESTROYED_CORPSE_SPRITE_URL = '/media/assets/misc/corspe-destroyed.png';
+const DESTROYED_CORPSE_SPRITE_URL = './media/assets/misc/corspe-destroyed.png';
 
 export function registerEventDefinition(eventDefinition) {
   if (!eventDefinition?.key || !eventDefinition?.id || !eventDefinition?.nodes) {
@@ -5672,7 +5672,7 @@ function destroyCorpseAnimationBloodGif(
   effectsContainer,
   entityId,
   {
-    src = '/media/assets/effects/death-blood.gif',
+    src = './media/assets/effects/death-blood.gif',
     className = 'effect-vfx death-blood destroy-corpse-blood',
     lifetime = 850
   } = {}
@@ -5729,7 +5729,7 @@ export async function destroyCorpseAnimation({
     impactDuration
   });
   destroyCorpseAnimationBloodGif(effectsContainer, entityId, {
-    src: '/media/assets/effects/death-blood.gif',
+    src: './media/assets/effects/death-blood.gif',
     lifetime: Math.max(850, safeTransitionDuration + 250)
   });
   for (let index = 0; index < safeBloodImpactCount; index += 1) {

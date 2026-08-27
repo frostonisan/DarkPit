@@ -2,10 +2,10 @@ const EVENT_KEY = 'cockRoachHunt';
 const EVENT_ID = '78954';
 const COCKROACH_KING_SERIAL = 666;
 
-const ARRIVAL_IMAGE = '/media/lore/events/cockroachking-arrival.jpg';
-const BARRICADE_SUCCESS_IMAGE = '/media/lore/events/cockroachking-barricade-success.jpg';
-const BARRICADE_IMAGE = '/media/lore/events/cockroachking-barricade.jpg';
-const BARRICADE_CHARGE_IMAGE = '/media/lore/events/cockroachking-charge-barricade.jpg';
+const ARRIVAL_IMAGE = './media/lore/events/cockroachking-arrival.jpg';
+const BARRICADE_SUCCESS_IMAGE = './media/lore/events/cockroachking-barricade-success.jpg';
+const BARRICADE_IMAGE = './media/lore/events/cockroachking-barricade.jpg';
+const BARRICADE_CHARGE_IMAGE = './media/lore/events/cockroachking-charge-barricade.jpg';
 
 const BARRICADE_DAMAGE_PERCENT = 25;
 const C1_FAIL_DAMAGE_PERCENT = 30;

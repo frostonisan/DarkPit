@@ -1208,7 +1208,7 @@ export function damageArmorImpact(targetId) {
     const effectsContainer = document.getElementById(`effectsContainer_${targetId}`);
     spawnEffectGif(effectsContainer, {
         className: "armorImpactGif",
-        src: "/media/assets/effects/armor-impact.gif",
+        src: "./media/assets/effects/armor-impact.gif",
         lifetime: 800,
     });
 

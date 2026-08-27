@@ -375,14 +375,14 @@ function swampFog() {
     // Créer le premier élément div
     const groundMisc1 = document.createElement('div');
     groundMisc1.classList.add('ground-fx', 'swampFog');
-    groundMisc1.style.backgroundImage = 'url("../../media/assets/meteo/swampFog-01.png")';
+    groundMisc1.style.backgroundImage = 'url("./media/assets/meteo/swampFog-01.png")';
     // groundMisc1.style.maskImage = fadeMaskStyle; // Appliquer le dégradé inverse pour l'opacité
     // groundMisc1.style.webkitMaskImage = fadeMaskStyle; // Compatibilité avec Webkit
 
     // Créer le deuxième élément div
     const groundMisc2 = document.createElement('div');
     groundMisc2.classList.add('ground-fx', 'swampFog2');
-    groundMisc2.style.backgroundImage = 'url("../../media/assets/meteo/swampFog-02.png")';
+    groundMisc2.style.backgroundImage = 'url("./media/assets/meteo/swampFog-02.png")';
     // groundMisc2.style.maskImage = fadeMaskStyle; // Appliquer le dégradé inverse pour l'opacité
     // groundMisc2.style.webkitMaskImage = fadeMaskStyle; // Compatibilité avec Webkit
 
@@ -579,7 +579,7 @@ export function glitterLoot(selector, maxGlitters = 15) {
 
       Object.assign(glitter, {
         className: 'glitter-loot',
-        src: '/media/assets/misc/glitter-loot.svg',
+        src: './media/assets/misc/glitter-loot.svg',
         alt: '',
         draggable: false
       });

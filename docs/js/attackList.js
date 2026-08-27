@@ -13,8 +13,8 @@ export const attackDetails = [
 	physicalRatio: 2, // 80 % des dégâts viennent de physicalDamage
     cooldown: 1000,
 	effets:	['none'],
-	attackAsset: '/media/assets/spells/sneeze',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/sneeze',
+	castingAsset: './media/assets/effects/1.gif',
   },  {
     attackId: 'a1',
     displayName: 'Auto-attaque',
@@ -28,10 +28,10 @@ export const attackDetails = [
     recoveryTime: 500,
     cooldown: 500, 
 	effets:	['none'],
-	attackAsset: '/media/assets/spells/auto-attack',
+	attackAsset: './media/assets/spells/auto-attack',
 	physicalRatio: 0.8, // 80 % des dégâts viennent de physicalDamage
 	magicalRatio: 0,
-	castingAsset: '../../media/assets/effects/1.gif',
+	castingAsset: './media/assets/effects/1.gif',
   },{
     attackId: 'a2',
     displayName: 'Quick Attack',
@@ -45,7 +45,7 @@ export const attackDetails = [
     recoveryTime: 500,
     cooldown: 3000, 
 	effets:	['none'],
-	attackAsset: '/media/assets/spells/quick-attack',
+	attackAsset: './media/assets/spells/quick-attack',
   }, {
 	attackId: 'a3',
     displayName: 'Asticoterie', 
@@ -59,7 +59,7 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 20000, 
 	effets:	['none'],
-	attackAsset: '/media/assets/spells/asticoterie',
+	attackAsset: './media/assets/spells/asticoterie',
    },{
 	attackId: 'a4',
     displayName: 'Venin', 
@@ -73,10 +73,10 @@ export const attackDetails = [
     recoveryTime: 2000,
     cooldown: 6000,
 	effets:	['poison'],
-	attackAsset: '../media/assets/spells/venin',
+	attackAsset: './media/assets/spells/venin',
 	physicalRatio: 0, // 0 % des dégâts viennent de physicalDamage
 	magicalRatio: 1.2, // 120 % des dégâts viennent de magicalDamage
-	castingAsset: '../../media/assets/effects/1.gif',
+	castingAsset: './media/assets/effects/1.gif',
   },{
 	attackId: 'a5',
     displayName: 'Incinération', 
@@ -91,8 +91,8 @@ export const attackDetails = [
     recoveryTime: 2000,
     cooldown: 6000, 
 	effets:	['brulure'],
-	attackAsset: '../media/assets/spells/burnt',
-	castingAsset: '../../media/assets/effects/magic-circle.png',
+	attackAsset: './media/assets/spells/burnt',
+	castingAsset: './media/assets/effects/magic-circle.png',
   },{
 	attackId: 'a6',
     displayName: 'Soin', 
@@ -106,7 +106,7 @@ export const attackDetails = [
     recoveryTime: 2000,
     cooldown: 6000, 
 	effets:	['heal'],
-	attackAsset: '../media/assets/spells/heal-spell',
+	attackAsset: './media/assets/spells/heal-spell',
   },{
 	attackId: 'a7',
     displayName: 'Résurrection', 
@@ -121,7 +121,7 @@ export const attackDetails = [
     recoveryTime: 2000,
     cooldown: 6000, 
 	effets:	['rez'],
-	attackAsset: '../media/assets/spells/resurrection',
+	attackAsset: './media/assets/spells/resurrection',
  },{
 	attackId: 'a8',
     displayName: 'Lancé de jarret', 
@@ -135,7 +135,7 @@ export const attackDetails = [
     recoveryTime: 4000,
     cooldown: 6000, 
 	effets:	['summonJarret'],
-	attackAsset: '../media/assets/spells/lance-de-jarret',
+	attackAsset: './media/assets/spells/lance-de-jarret',
 	 },{
 	attackId: 'a9',
     displayName: 'Profanation', 
@@ -150,7 +150,7 @@ export const attackDetails = [
     recoveryTime: 4000,
     cooldown: 6000, 
 	effets:	['summonProfanation'],
-	attackAsset: '../media/assets/spells/profanation',
+	attackAsset: './media/assets/spells/profanation',
 	 },{
 	attackId: 'a10',
     displayName: 'Dead-shot', 
@@ -164,7 +164,7 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 6000, 
 	effets:	['deadshotfx'],
-	attackAsset: '../media/assets/spells/deadshot',
+	attackAsset: './media/assets/spells/deadshot',
 	}, {
 	attackId: 'a11',
     displayName: 'Morsure goulue',
@@ -178,8 +178,8 @@ export const attackDetails = [
     cooldown: 500,
     effets: ['none'],
     selfEffects: ['lifesteal'], 
-    attackAsset: '../media/assets/spells/morsure-goulue',
-	castingAsset: '../../media/assets/effects/1.gif',
+    attackAsset: './media/assets/spells/morsure-goulue',
+	castingAsset: './media/assets/effects/1.gif',
 	attacknature: ['hybridalDamage'],
 	physicalRatio: 0.2, 
 	magicalRatio: 0.3,
@@ -197,8 +197,8 @@ export const attackDetails = [
     recoveryTime: 3000,
     cooldown: 7000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/flamme',
-	castingAsset: '../../media/assets/effects/magic-circle.png',
+	attackAsset: './media/assets/spells/flamme',
+	castingAsset: './media/assets/effects/magic-circle.png',
 	physicalRatio: 0, 
 	magicalRatio: 0.5,
 	
@@ -215,8 +215,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 		},{
@@ -232,8 +232,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 			},{
@@ -249,8 +249,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 			},{
@@ -266,8 +266,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 	},{
@@ -283,8 +283,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 		},{
@@ -300,8 +300,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 	
@@ -318,8 +318,8 @@ export const attackDetails = [
     recoveryTime: 1000,
     cooldown: 2000, 
 	effets:	['none'],
-	attackAsset: '../media/assets/spells/tir',
-	castingAsset: '../../media/assets/effects/1.gif',
+	attackAsset: './media/assets/spells/tir',
+	castingAsset: './media/assets/effects/1.gif',
 	physicalRatio: 0.5, 
 	magicalRatio: 0.5,
 	

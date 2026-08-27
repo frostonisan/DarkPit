@@ -919,25 +919,25 @@ function HelpText() {
 			<div class="helper-bloc-images"> 
 				<!-- Case neutre -->
 					<div class="helper-block-picto">
-						<img class="helper-hex" alt="case fantassin" src="/media/assets/board/hex-helper-neutral.svg">
+						<img class="helper-hex" alt="case fantassin" src="./media/assets/board/hex-helper-neutral.svg">
 							<span class="helper-block-title">Case Neutre</span>
 							<p>Elles composent la plupart du board. Toute entité positionnée dessus aura pour rôle <strong>Gueux</strong>.</p>
 					</div>
 					<!-- Case tank-->
 					<div class="helper-block-picto">
-						<img class="helper-hex" alt="case tank" src="/media/assets/board/hex-helper-tank.svg">
+						<img class="helper-hex" alt="case tank" src="./media/assets/board/hex-helper-tank.svg">
 							<span class="helper-block-title">Case Tank</span>
 							<p>En première ligne de votre armée. Toute entité positionnée dessus aura pour rôle <strong>Tank</strong>.</p>
 					</div>
 					<!-- Case fantassin-->
 					<div class="helper-block-picto">
-						<img class="helper-hex" alt="case fantassin" src="/media/assets/board/hex-helper-fantassin.svg">
+						<img class="helper-hex" alt="case fantassin" src="./media/assets/board/hex-helper-fantassin.svg">
 							<span class="helper-block-title">Case Fantassin</span>
 							<p>Au milieu de votre armée. Toute entité positionnée dessus aura pour rôle <strong>Fantassin</strong>.</p>
 					</div>
 					<!-- Case mage -->
 					<div class="helper-block-picto">
-						<img class="helper-hex" alt="case mage" src="/media/assets/board/hex-helper-mage.svg">
+						<img class="helper-hex" alt="case mage" src="./media/assets/board/hex-helper-mage.svg">
 							<span class="helper-block-title">Case Mage</span>
 							<p>À l'arrière votre armée. Toute entité positionnée dessus aura pour rôle <strong>Mage</strong>.</p>
 					</div>
@@ -945,29 +945,29 @@ function HelpText() {
  <span class="title-3"> V - LES RÔLES</span>
   
 	  			<div class="helper-bloc-role"> 
-				<div style="display: flex; margin-bottom: 5%;"><p style="width: 63%;margin-right: 3%;">Le rôle du Sbire détermine son  <strong>ciblage</strong> : Quel <strong>Sbire</strong> il pourra  <strong>prendre pour cible</strong>, et quel <strong>Sbire</strong> pourra <strong>le prendre pour cible </strong>.<br><i class="helper-legend">La bare de vie indique en temps réél le  Role de l'Entité (1) et ce qu'elle cible (2).<br></i></p><img src="/media/assets/ui/tuto-hud.jpg" class="image-tuto-role" alt="image explicative du hu" style="width: 25%;"></div>
+				<div style="display: flex; margin-bottom: 5%;"><p style="width: 63%;margin-right: 3%;">Le rôle du Sbire détermine son  <strong>ciblage</strong> : Quel <strong>Sbire</strong> il pourra  <strong>prendre pour cible</strong>, et quel <strong>Sbire</strong> pourra <strong>le prendre pour cible </strong>.<br><i class="helper-legend">La bare de vie indique en temps réél le  Role de l'Entité (1) et ce qu'elle cible (2).<br></i></p><img src="./media/assets/ui/tuto-hud.jpg" class="image-tuto-role" alt="image explicative du hu" style="width: 25%;"></div>
 				<!-- Case neutre -->
 				<p>Il existe 4 rôles :</p>
 					<div class="helper-part-role">
-						<img class="helper-roles" alt="case fantassin" src="/media/assets/ui/picto-gueux.svg">
+						<img class="helper-roles" alt="case fantassin" src="./media/assets/ui/picto-gueux.svg">
 							
 							<p><span class="helper-block-title">Le Gueux :</span> Il est le rôle misérable par excellence. Il sera la <strong>cible prioritaire</strong> de tous les Sbires adverses, et ses alliés Supports rechigneront à l'aider.</p>
 					</div>
 					<!-- Case tank-->
 					<div class="helper-part-role">
-						<img class="helper-roles" alt="case tank" src="/media/assets/ui/picto-tank.svg">
+						<img class="helper-roles" alt="case tank" src="./media/assets/ui/picto-tank.svg">
 							
 							<p><span class="helper-block-title">Le Tank :</span> Il sera <strong>pris pour cible par le plus grand nombre d'Entité</strong>. Il est la première ligne de votre armée et se doit d'être <strong>robuste</strong>.</p>
 					</div>
 					<!-- Case fantassin-->
 					<div class="helper-part-role">
-						<img class="helper-roles" alt="case fantassin" src="/media/assets/ui/picto-fantassin.svg">
+						<img class="helper-roles" alt="case fantassin" src="./media/assets/ui/picto-fantassin.svg">
 							
 							<p><span class="helper-block-title">Le Fantassin :</span> Il est l'armée régulière. Il ciblera d'abord <strong>les premières lignes</strong>, puis les <strong>arrières lignes</strong>.</p>
 					</div>
 					<!-- Case mage -->
 					<div class="helper-part-role">
-						<img class="helper-roles" alt="case mage" src="/media/assets/ui/picto-mage.svg">
+						<img class="helper-roles" alt="case mage" src="./media/assets/ui/picto-mage.svg">
 							
 							<p> <span class="helper-block-title">Le Mage :</span> Il se bat <strong>loin</strong> des zones de conflits. <strong>Protégé</strong> par ses premières lignes, il cible les <strong>Fantassins</strong>.</p>
 					</div>
@@ -976,13 +976,13 @@ function HelpText() {
  <span class="title-3"> VI - LES CLASSES</span>
 	<div class="help"><p>En plus des rôles, les Entités <strong>peuvent avoir différentes classes</strong> : Attaquant, Support, ou Invocateur.</p></div>
 <div><div class="helper-part-role">
-		<img class="helper-roles" alt="classe support" src="/media/assets/ui/picto-support.svg" style="height: 40px;">			
+		<img class="helper-roles" alt="classe support" src="./media/assets/ui/picto-support.svg" style="height: 40px;">
 	  <p><span class="helper-block-title">Le Support : </span>Il cible les Entités alliées. Souvent pour leur venir en aide. Et parfois même quand elle sont mortes...</p></div>
 <div class="helper-part-role">
-		<img class="helper-roles" alt="classe attaquant" src="/media/assets/ui/picto-attaquant.svg" style="height: 40px;">
+		<img class="helper-roles" alt="classe attaquant" src="./media/assets/ui/picto-attaquant.svg" style="height: 40px;">
 	  <p><span class="helper-block-title">L'Attaquant :</span> Il cible les Entités ennemies</strong>, et il ne leur veut pas du bien...</p>
 </div><div class="helper-part-role">
-		<img class="helper-roles" alt="classe invocateur" src="/media/assets/ui/picto-invocateur.svg" style="height: 40px;">
+		<img class="helper-roles" alt="classe invocateur" src="./media/assets/ui/picto-invocateur.svg" style="height: 40px;">
 	  <p><span class="helper-block-title">L'Invocateur :</span> Il cible les cases du board</strong>, et fait apparaitre de nouveaux éléments.</p>
 </div></div></div>
   
@@ -995,7 +995,7 @@ function HelpText() {
       <div class="help"><p>• Attribuer le <strong>bon rôle</strong> à la <strong>bonne Entité</strong>, au <strong>bon moment</strong> est la clef pour gagner la partie.<br>N'hésitez pas à <strong>déplacer</strong> vos troupes <strong>pendant la bataille</strong>. Vous pouvez également échanger la place de deux Entités (swap).</p></div>
 	   <div class="help"><p>• Il n'est pas possible de controler directement le ciblage d'une Entité, mais avec un <strong>placement astucieux</strong>, il est possible de l'influencer, voire de le <strong>prévoir</strong>.</p></div>
 	   <div class="help"><p>• Vous pouvez voir les cibles en temps réel de chaque Entité en clicant dessus. Si c'est un attaquant, ses cibles apparaitront en rouge si c'est un support, elles apparaitrons en bleux, si c'est un invocateur, vous verrez les cases qu'il peut cibler. </p></div>
-	   <img src="/media/assets/ui/tuto-cible.jpg" class="image-tuto-role" alt="image explicative de la selection du ciblage">
+	   <img src="./media/assets/ui/tuto-cible.jpg" class="image-tuto-role" alt="image explicative de la selection du ciblage">
 	   <div class="help"><p>• N'oubliez pas que le Lord est un véritable électron libre, qui pourra potentiellement <strong>changer de cible à chaque tour</strong>, pour attaquer l'Entité adverse <strong>la plus dangereuse</strong> pour son équipe.</p></div>
 	   <div class="help"><p>• Certaines Entités, comme les Invocateurs, necessiteront des actions en temps réel de votre part (comme récolter des ressources) <strong> alors soyez réactif.</p></div>
     </div>

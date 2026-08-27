@@ -225,9 +225,9 @@ function consumeLifePool(entite, key, { destroyOnUse = false } = {}) {
 }
 
 const DEFAULT_VFX_BY_POOL = {
-  extraLife: "/media/assets/effects/life.gif",
-  fadedLife: "/media/assets/effects/fadedlife.gif",
-  eternalLife: "/media/assets/effects/eternallife.gif", 
+  extraLife: "./media/assets/effects/life.gif",
+  fadedLife: "./media/assets/effects/fadedlife.gif",
+  eternalLife: "./media/assets/effects/eternallife.gif",
 };
 
 // ✅ Par défaut : extraLife est dynamique (20% + INT%) via calculateExtraLifeResurrect()

@@ -382,7 +382,7 @@ export function poison(target, effect, attacker, onEffectEnd) {
     poisonVFX.id = `poisonVFX_${target.id}`;
     poisonVFX.alt = `${target.name} est empoisonné !`;
     poisonVFX.className = 'effect-vfx poison';
-    poisonVFX.src = '../../media/assets/effects/poison.gif';
+    poisonVFX.src = './media/assets/effects/poison.gif';
     effectsContainer.appendChild(poisonVFX);
   }
 
@@ -504,7 +504,7 @@ export function brulure(target, effect, attacker, onEffectEnd) {
     brulureVFX.id = `brulureVFX_${target.id}_${stacks}`;
     brulureVFX.alt = `${target.name} brûle !`;
     brulureVFX.className = 'effect-vfx burn';
-    brulureVFX.src = '../../media/assets/effects/burn.gif';
+    brulureVFX.src = './media/assets/effects/burn.gif';
 
     // Position aléatoire en pixels : left 0..100, top 80..30
     const leftPx = Math.floor(Math.random() * 101);    // 0..100 px
@@ -599,7 +599,7 @@ export function heal(target) {
 
     // Créer et configurer l'élément VFX de guérison.
     let healVFX = document.createElement('img');
-    healVFX.src = '../../media/assets/effects/heal.gif'; // Assurez-vous que le chemin est correct.
+    healVFX.src = './media/assets/effects/heal.gif'; // Assurez-vous que le chemin est correct.
     healVFX.className = 'effect-vfx heal';
     healVFX.alt = `${target.name} est soigné !`;
 
@@ -637,7 +637,7 @@ export function rez(target) {
     const spriteImg = document.createElement('img');
     spriteImg.id = `sprite_${target.id}`;
     spriteImg.className = 'hb';
-    spriteImg.src = target.originalSprite || target.sprite || "/media/sprites/default.png";
+    spriteImg.src = target.originalSprite || target.sprite || "./media/sprites/default.png";
     spriteImg.alt = target.name;
     container.appendChild(spriteImg);
 
@@ -651,7 +651,7 @@ export function rez(target) {
     }
 
     const rezVFX = document.createElement('img');
-    rezVFX.src = '../../media/assets/effects/rez.gif';
+    rezVFX.src = './media/assets/effects/rez.gif';
     rezVFX.className = 'effect-vfx extraLife';
     rezVFX.alt = `${target.name} est ressuscité !`;
     effectsContainer.appendChild(rezVFX);
@@ -708,7 +708,7 @@ export function lifesteal(attacker, totalReducedDamage, attackEffects) {
   const effectsContainer = document.getElementById(`effectsContainer_${attacker.id}`);
   if (effectsContainer && attackEffects.effectProjectile) {
     const lifestealVFX = document.createElement('img');
-    lifestealVFX.src = `../../media/assets/effects/heal.gif?t=${Date.now()}`;
+    lifestealVFX.src = `./media/assets/effects/heal.gif?t=${Date.now()}`;
     lifestealVFX.className = 'effect-vfx lifesteal';
     lifestealVFX.alt = `${attacker.name} bénéficie du vol de vie !`;
     effectsContainer.appendChild(lifestealVFX);
@@ -748,7 +748,7 @@ export function LifestealBloodFury(attacker, target, hpLoss, bloodFuryPercent) {
   const effectsContainer = document.getElementById(`effectsContainer_${attacker.id}`);
   if (effectsContainer) {
     const lifestealVFX = document.createElement('img');
-    lifestealVFX.src = `../media/assets/effects/heal.gif?t=${Date.now()}`;
+    lifestealVFX.src = `./media/assets/effects/heal.gif?t=${Date.now()}`;
     lifestealVFX.className = 'effect-vfx lifesteal';
     lifestealVFX.style.position = 'absolute';
     effectsContainer.appendChild(lifestealVFX);

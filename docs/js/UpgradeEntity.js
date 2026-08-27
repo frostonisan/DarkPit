@@ -1,6 +1,6 @@
 import { saveUpgradedEntity, saveToLocalStorage, purgeStatPreview } from './GameStorage.js';
 import { validateAndSetNickname } from './secure.js';
-import { levelDetails, calculateVitalityBonus, calculateVelocityReduction, calculateRobustnessBonus,  calculateTranscendenceExtraLife, recomputeEntityStats, maxLevel as MAX_LEVEL, BaseDayHpRegen, calculateWeaponMasteryCharge } from '/js/entites.js';
+import { levelDetails, calculateVitalityBonus, calculateVelocityReduction, calculateRobustnessBonus,  calculateTranscendenceExtraLife, recomputeEntityStats, maxLevel as MAX_LEVEL, BaseDayHpRegen, calculateWeaponMasteryCharge } from './entites.js';
 import { cyclesData } from './cycleData.js';
 import { stats as STATS_DATA } from './statsData.js';
 import { toRoman } from './ui.js';
@@ -898,7 +898,7 @@ function createLevelElements(entite) {
 	graphCanvas.className = 'attribut-graph';
 
 	const eclipseCanvas = document.createElement('img');
-	eclipseCanvas.src = '/media/assets/misc/soul-eclipsaura.webp';
+	eclipseCanvas.src = './media/assets/misc/soul-eclipsaura.webp';
 	eclipseCanvas.className = 'attribut-eclipse';
 	eclipseCanvas.id = 'eclipse';
 
@@ -909,11 +909,11 @@ function createLevelElements(entite) {
 	soulEntity.className = 'attribut-entitySoul';
 
 	const entitySoulImg1 = document.createElement('img');
-	entitySoulImg1.src = '/media/assets/misc/soul-entity-01.png';
+	entitySoulImg1.src = './media/assets/misc/soul-entity-01.png';
 	entitySoulImg1.className = 'attribut-entitySoul one';
 
 	const entitySoulImg2 = document.createElement('img');
-	entitySoulImg2.src = '/media/assets/misc/soul-entity-02.png';
+	entitySoulImg2.src = './media/assets/misc/soul-entity-02.png';
 	entitySoulImg2.className = 'attribut-entitySoul two';
 
 	const entitySoulBg = document.createElement('div');
@@ -4323,7 +4323,7 @@ export function playAwakeningExtasis(entite) {
 
   // 1) Premier GIF immédiatement (avec anti-cache)
   const gif1 = document.createElement('img');
-  gif1.src = noCacheSrc('/media/assets/effects/extase-01.gif');
+  gif1.src = noCacheSrc('./media/assets/effects/extase-01.gif');
   gif1.className = 'extasis intro';
   wrapper.appendChild(gif1);
 
@@ -4332,7 +4332,7 @@ export function playAwakeningExtasis(entite) {
     if (!wrapper.isConnected) return;
 
     const gif2 = document.createElement('img');
-    gif2.src = noCacheSrc('/media/assets/effects/extase-02.gif');
+    gif2.src = noCacheSrc('./media/assets/effects/extase-02.gif');
     gif2.className = 'extasis end';
     wrapper.appendChild(gif2);
   }, 1);

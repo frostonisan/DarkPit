@@ -2,80 +2,80 @@ export const entitesLore = [
 {
        	class: 'mouche-asticoteuse',
 		lore: 'Créature boursoufflée et agaçante, la Mouche Asticoteuse est un nuisible de taille moyenne, au corps gras recouvert d\'un pelage noirâtre.<br>Ses yeux globuleux, d\'un rouge sinistre, semblent capter la lumière la plus faible, lui offrant une vision parfaite dans l\'obscurité. Elle émet un bourdonnement agaçant qui peut mettre mal à l\'aise les esprits les plus solides. Ses pattes crochues et robustes s\'accrochent solidement aux surfaces, tandis que sa bouche dégouline d\'une substance acide, capable de dissoudre les tissus mous. Mais rien de plus.<br>Dotées d\'un groin massif, les Mouches Asticoteuses adultes sont souvent attirées par la chair en décomposition et infestent les marais, les cryptes et autres lieux lugubres.<br>Mais durant leur jeune age, période durant laquelle elle ne font que quelques centimétre, elles peuple les habitations, et lieux clos, se mouvant maladroitement dans les airs, allant jusqu\'à entrer en collision avec tout et n\'importe quoi.<br>Pour se défendre, les mouches asticoteuses molardent leur sécrétion nasale, qui ronge lentement ses victimes, leur causant des douleurs atroces.<br>Elles se déplacent seules ou en petits groupes, les individus les plus gras, espérant devenir des pondeuses.',
-		ambiance:"../../media/lore/entites/lore-mouche-asticoteuse.jpg",
+		ambiance:"./media/lore/entites/lore-mouche-asticoteuse.jpg",
 },{
 		class: 'porc-bas-fond',
 		lore: 'Ne vous laissez pas tromper par l\'apparence grotesque d\'un Porc des Bas-Fonds. Avec sa silhouette grassouillette et son air un peu sale, ces Entités cachent bien des qualités.<br>Sous leur couenne dodue se trouve un esprit aiguisé, vif et audacieux, quoique, un peu simplet, éprouvant un goût prononcé pour la boue, et, surtout, pour la haute gastronomie.<br>Ces Entités sont même connues pour leur coquetterie, veillant à maintenir une certaine élégance, à leur manière.<br>Lourds et robustes, les Porcs des Bas-Fonds restent néanmoins d\'importantes masses de chair, encaissant les coups avec une endurance remarquable.<br>Leur instinct protecteur et leur sens de la loyauté en font en outre des alliés sûrs, des compagnons fidèles qui ne vous décevront jamais. Certains apprécieront chez eux cette sophistication discrète, et cette grande valeur en tant qu\'amis qui fait leur plus grande vertu. D\'autres, vous diront que leur plus grande qualité réside plutôt dans le goût raffiné de leur chair, grasse et juteuse, quand elle est bien grillée. Dans un cas comme dans l\'autre, il est certain que vous ne regretterez jamais d\'avoir un Porc des Bas-Fonds à vos côtés.',
-		ambiance:"../../media/lore/entites/lore-porc-bas-fond.jpg",
+		ambiance:"./media/lore/entites/lore-porc-bas-fond.jpg",
 },{
         class: 'cloporte-commun',
-		ambiance:"../../media/lore/entites/lore-cloporte-commun.jpg",
+		ambiance:"./media/lore/entites/lore-cloporte-commun.jpg",
 },{
       	class: 'grouille-doigt',
-		ambiance:"../../media/lore/entites/lore-grouille-doigt.jpg",
+		ambiance:"./media/lore/entites/lore-grouille-doigt.jpg",
 		lore:'Le Grouille-Doigt est un petit nuisible à l\'apparence pitoyable, molle, plissée et vaguement honteuse, qui grouille comme un ver mal décidé.<br>Les Grouille-Doigts n\'arrivent jamais seuls. Lorsqu\'on en aperçoit un, dix autres sont probablement déjà dans les combles, sous le parquet, ou occupés à chercher un endroit chaud où se faufiler. Leur refuge préféré reste cependant le nez ou les oreilles des dormeurs, dont ils disparaissent toujours avant le réveil. Parfois même, ils se glissent ailleurs, entraînant des disputes conjugales au réveil… ou des réconciliations inattendues, cela dépend.<br><br>Les anciens disent aux enfants : « si tu mets trop souvent ton doigt dans ton nez, un jour tu te réveilleras sans, et il deviendra un Grouille-Doigt ! »<br><br>En réalité, ces nuisibles seraient issus de créatures bien plus imposantes : les Main-Mères, gigantesques et dotées de quinze doigts, qui ne sont jamais très loin de leur grouillure.<br>Longtemps, les villages ont tenté de les chasser sans brutalité, afin d\'éviter la fureur des Main-Mères. Après des années d’essais infructueux, une méthode douce fut trouvée : déposer de longues coupures d’ongles près des lits. À la simple idée d\'être taillé trop court, le Grouille-Doigt fuit de terreur.<br>Depuis, la collecte d\'ongles longs est devenue un commerce sérieux : ongles jeunes, vieux, nobles, douteux, locaux ou importés. Et naturellement, les prix grimpent',
 },{	
   		class: 'poisson-macabe',
-		ambiance:"../../media/lore/entites/lore-poisson-macabe.jpg",
+		ambiance:"./media/lore/entites/lore-poisson-macabe.jpg",
 },{
       	class: 'alpha-poulet',
-		ambiance:"../../media/lore/entites/lore-alpha-poulet.jpg",
+		ambiance:"./media/lore/entites/lore-alpha-poulet.jpg",
 },{
      	class: 'escargot-coulissant',
-		ambiance:"../../media/lore/entites/lore-escargot-coulissant.jpg",
+		ambiance:"./media/lore/entites/lore-escargot-coulissant.jpg",
 },{
 		class: 'torche-noire',
-		ambiance:"../../media/lore/entites/lore-torche-noire.jpg",
+		ambiance:"./media/lore/entites/lore-torche-noire.jpg",
 		lore:"Les Torches Noires naissent au cœur des éruptions volcaniques les plus cataclysmiques, lorsque la montagne en fusion semble céder à sa propre colère.<br>Dans les profondeurs, certains blocs de magma s\'agglomèrent sous l\'effet d\'une violence brute, aveugle et meurtrière. La roche fondue se compacte, se tord, puis s\'anime, jusqu\'à prendre une forme presque humaine, sans rien conserver d\'humain.<br>À leur naissance, les Torches Noires héritent de la flamme noire : une combustion impure, dense, presque vivante, qui s\'enroule autour de leur bras droit et s\'insinue dans les fissures de leur corps calciné. Cette flamme n\'est pas un simple feu. Elle est leur souffle, leur force vitale, leur colère et leur arme.<br>Tant qu\'elle brûle, la Torche Noire bondit, frappe et hurle, portée par une rage sans fatigue, sans doute et sans pitié. Son corps de roche carbonisée, de lave figée et de flammes instables se meut avec une agilité terrifiante. Elle ne marche pas : elle jaillit, virevolte, retombe en gerbes d\'étincelles, puis repart aussitôt, comme si l\'éruption continuait de battre en elle.<br>Rencontrer une Torche Noire, c\'est généralement comprendre deux choses : vous n\'avez vraiment pas de chance, et vous n\'êtes absolument pas au bon endroit.",
 },{
         class: 'lezard-louzeux',
-		ambiance:"../../media/lore/entites/lore-lezard-louzeux.jpg",
+		ambiance:"./media/lore/entites/lore-lezard-louzeux.jpg",
 		lore:"Malgré son nom, le Lézard Louzeux n\'est pas un véritable lézard. Les naturalistes s\'accordent au moins sur un point : il a le sang chaud. Pour le reste, nul ne sait vraiment ce qu\'il est, et cette incertitude lui convient parfaitement.<br>Il vit surtout dans les grottes obscures, les carrières abandonnées, les égouts et les décharges. Son alimentation est aussi variée que répugnante : déchets, carcasses, restes moisis, os rongés et tout ce qui traîne assez longtemps pour ne plus intéresser personne.<br>Mesquin par nature, il rôde près des villages pour voler provisions, outils, linge ou objets brillants dont il ne sait que faire. Trop lent pour bien chasser, il préfère laisser les autres travailler avant de récupérer ce qui reste.<br>Robuste, massif et atrocement puant, il encaisse les coups avec une endurance inquiétante. Mais les plus redoutés sont ceux qui ont goûté à la chair humaine. Lorsqu’un Louzeux y prend goût, les villages éliminent tous ses congénères alentour.<br>",
 },{
        	class: 'sangogne-viperine',
-		ambiance:"../../media/lore/entites/lore-sangogne-viperine.jpg",
+		ambiance:"./media/lore/entites/lore-sangogne-viperine.jpg",
 },{
         class: 'versa-soufle',
-		ambiance:"../../media/lore/entites/lore-versa-soufle.jpg",
+		ambiance:"./media/lore/entites/lore-versa-soufle.jpg",
 		lore:"Le Versa-Soufflé est un charognard nerveux, sec et extrêmement rapide. Sa silhouette maigre lui permet de traverser les landes en quelques bonds, toujours en quête d\'une carcasse fraîche ou d’un cadavre disputé par des créatures moins vives que lui.<br>Sa particularité la plus dérangeante se trouve sur son crâne. À cet endroit, il ne possède presque aucune chair. Un exosquelette pâle recouvre sa tête comme un masque osseux trop long, percé d\'un museau étroit. Plus le Versa-Soufflé se nourrit, plus la peau repousse autour de son crâne.<br>Mais ce miracle a un prix : son corps grossit, s\'alourdit, et sa vélocité diminue. Les plus vieux spécimens ressemblent à des sacs de viande essoufflés, encore dangereux, mais beaucoup moins dignes dans la fuite.<br>Ils vivent généralement en meute, bien que certains solitaires rôdent loin des autres, capables de suivre l\'odeur de la mort sur plusieurs lieues.<br>En temps ordinaire, ils évitent les proies vivantes. Ils préfèrent attendre que le monde fasse le travail à leur place.Lors des grandes famines, les Versa-Soufflés changent de nature. La faim les rend hardis, puis franchement agressifs.<br>Leur nom vient du seul avertissement qu\'ils laissent avant l\'attaque : un souffle bref et sifflant, expulsé par leur long nez.<br>Ce nez garde d\'ailleurs une certaine valeur. Une fois évidé, il donne un sifflet sec, perçant et insupportable, prisé des arbitres, des gardes et de tous ceux qui préfèrent s\'attaquer aux tympans plutôt qu\'aux problèmes.",
 },{
         class: 'domingo-lacte',
-		ambiance:"../../media/lore/entites/lore-domingo-lacte.jpg",
+		ambiance:"./media/lore/entites/lore-domingo-lacte.jpg",
 },{
         class: 'diarrheux-immortel',
 		lore:'Le Diarheux immortel est une entité née de l\'accumulation durable et régulière de déchets organiques et d\'immondices. Dans de rares cas, il peut arriver qu\'un agglomérat d\'ordures finisse par se coaliser en une masse unitaire, presque organique, aboutissant à la formation d\'une forme de vie rudimentaire : la naissance d\'un Diarheux.<br>Ne vous laissez pas tromper par leur nom : les Diarheux immortel ne sont pas véritablement immortels. Ils tirent ce qualificatif de leur ténacité à persister, tout comme le désordre dans l\'appartement d\'un trentenaire célibataire. Une fois apparus, ils sont extrêmement difficiles à éliminer, revenant sans cesse, même après des efforts colossaux pour s\'en débarrasser.<br>Répandant une odeur nauséabonde, dense et persistante, ils laissent dans leur sillage une puanteur qui imprègne tout ce qui les entoure.<br>Bien que leur constitution ne soit pas faite de matières fécales (quoique…), leur odeur fétide justifie pleinement leur nom.<br>Contre toute attente, et malgré leur apparence repoussante, les Diarheux immortel peuvent, devenir de fidèles compagnons. Ils se montrent extrêmement attachés et affectueux envers ceux qui les tolèrent. Toutefois, pour leur rendre cet amour, il faut une affinité certaine avec la saleté.<br>Rassurez vous, ils arrivent toujours à se faire adopter...',
-		ambiance:"../../media/lore/entites/lore-diarrheux-immortel.jpg",
+		ambiance:"./media/lore/entites/lore-diarrheux-immortel.jpg",
 },{
         class: 'vers-basique',
-		ambiance:"../../media/lore/entites/lore-vers-basique.jpg",
+		ambiance:"./media/lore/entites/lore-vers-basique.jpg",
 },{
         class: 'pleureuse-transcandee',
-		ambiance:"../../media/lore/entites/lore-pleureuse-transcandee.jpg",
+		ambiance:"./media/lore/entites/lore-pleureuse-transcandee.jpg",
 },{
 	   	class: 'precheur-eteint',
-		ambiance:"../../media/lore/entites/lore-precheur-eteint.jpg", 
+		ambiance:"./media/lore/entites/lore-precheur-eteint.jpg",
 },{
 		class: 'lance-jarret',
-		ambiance:"../../media/lore/entites/lore-lance-jarret.jpg",
+		ambiance:"./media/lore/entites/lore-lance-jarret.jpg",
 },{
 		class: 'profanateur-engoulmort',
-		ambiance:"../../media/lore/entites/lore-profanateur-engoulmort.jpg",
+		ambiance:"./media/lore/entites/lore-profanateur-engoulmort.jpg",
 },{
 		class: 'fireling',
-		ambiance:"../../media/lore/entites/lore-fireling.jpg",
+		ambiance:"./media/lore/entites/lore-fireling.jpg",
 		lore: '<p>Alors que la fête bat son plein, et que le feu de camp virevolte de ses flammes, nous entendons un sifflement, doux, réconfortant, mélodique...</p><p>Gorgonzole regarde Flacustier son bien aimé, en le complimentant sur sa manière de siffler. Mais celui-ci l\'arrête immédiatement.</p><p><q>Ce n\'est pas moi.</q></p><p>Cela provient du feu de camp...</p><p>Nous regardons. Au centre du brasier, on distingue une braise intense qui luit d\'une lumière différente des autres. Elle est jaune, douce, et elle siffle.</p><p>En la fixant, je croirais distinguer un visage. Un sourire. Des mimiques se forment. Nous ne rêvons pas. Cette braise si particulière nous sourit, nous fait des clins d’œil et semble nous chanter quelque chose.</p><p>Mais le temps passe et le feu se meurt. Gorgonsole presse Flacustier d\'aller vite chercher du bois.</p><p>Vite, il faut nourrir ce feu pour ne pas perdre cette braise si particulière !</p><p>Flacustier s\'exécute et remet du bois dans le feu.</p><p>Aussitôt, c\'e-</p><p><em>Fin de la note.</em></p><p>Certaines braises développent une activité anormale : elles sifflent, semblent sourire et attirent irrésistiblement l\'attention. Une Braise Sifflante nourrie après minuit peut donner naissance à un <strong>Fireling</strong>.</p><p>Le Fireling est un petit esprit de feu aussi imprévisible que destructeur. Fasciné par le chaos, il renverse les lanternes, disperse les braises, ouvre les fours et met le feu à tout ce qui lui tombe sous la main. Non par malveillance, mais parce qu\'il semble incapable de comprendre les conséquences de ses actes.</p><p>Ne tentez jamais de l\'éteindre avec de l\'eau. Son corps éclaterait alors en multiples fragments incandescents, chacun pouvant engendrer un nouveau Fireling.</p><p>La seule méthode fiable consiste à attendre l\'aube. Privés de combustible, les Firelings finissent par s’autoconsumer... à condition qu\'il n\'ait rien d\'autre pour les nourrir...</p><p>Un célébre adage dit: <strong>Après minuit, laisse siffler les braises, ou elles riront de tes cendres...</strong></p>',
 },{
 		class: 'foudre-fange',
 		lore:'Les Foudrefanges, êtres silencieux et inquiétants, se dressent sur leurs échasses dans les profondeurs des marécages obscurs. Leur silhouette effilée et immobile se fond si bien dans l\'atmosphère putride des lieux qu\'ils sont difficilement détectables.<br>Patients et implacables, ils demeurent immobiles des heures, voire des jours, guettant toute proie potentielle qui pourrait pénétrer leur champ de vision.<br>Leur arc, engendré par les entrailles des marais, est une arme redoutable, capable de décocher tout ce qui peut leur servir de projectile : os, tige, branche, tronc d\'arbre... Pouvant déployer une puissance dévastatrice, il leur faut un temps interminable pour armer leur coup, accumulant une énergie insoupçonnée.<br>Le bruit assourdissant de la flèche réveille le marais. Elle ne manque jamais sa cible : elle transperce la chair et l\'âme, annihilant tout espoir de survie.<br>Ces monstres hantent les marécages avec une détermination sinistre. Quiconque ose s\’aventurer trop près de leur territoire est condamné. Fuir est inutile, car dans ces étendues fétides, une seule loi règne : celle du silence de la fange, foudroyé par la mort.',
-		ambiance:"../../media/lore/entites/lore-foudre-fange.jpg",
+		ambiance:"./media/lore/entites/lore-foudre-fange.jpg",
 },{
 		class: 'goinfre-vase',
 		lore:'Entités imposantes des marécages, les Goinfres-Vase sont aussi destructeurs pour leur habitat qu\'un « torche-cul » en papier de verre dans des toilettes publiques. Cette métaphore n\'est pas choisie au hasard, car ces êtres abjects se nourrissent de pratiquement tout ce qu\'ils trouvent, produisant une telle quantité de résidus organiques qu\'ils modifient le paysage autour d\'eux. Leur odeur est si pestilentielle qu\'elle peut être sentie à des kilomètres à la ronde, rendant leur présence insupportable bien avant qu\'ils n\'apparaissent.<br>Créatures solitaires et profondément stupides, les Goinfres-Vase entraîne la destruction progressive de tous les lieux dans lesquels ils s\'installent.<br>Bien qu\'ils ne comprennent pas l\'étendue des dégats qu\'ils générent, ils continuent à tout ravager sans la moindre discrimination. <br>Si, par malheur, un Goinfre-Vase s\'égare en dehors des marécages, il peut détruire un village entier en une seule nuit, transformant des terres fertiles en terrains stériles.<br>La seule chose capable d\'arrêter un Goinfre-Vase est la rencontre avec un autre de son espèce. Lorsque cela se produit, les deux créatures entrent dans une frénésie autodestructrice, finissant par se dévorer mutuellement, rétablissant ainsi un équilibre précaire dans l\'écosystème marécageux.',
-		ambiance:"../../media/lore/entites/lore-goinfre-vase.jpg",
+		ambiance:"./media/lore/entites/lore-goinfre-vase.jpg",
 },{
 		class: 'jeune-salamandron',
 		lore:'Les jeunes Salamandrons sont de petites créatures bleues, vives, joueuses, bruyantes, et toujours prêtes à s\'amuser avec tout ce qui leur tombe sous la patte.<br>Ils passent leurs journées à bondir dans les mares, à se rouler dans la boue, à se chamailler entre eux et à transformer le moindre coin humide en terrain de jeu.<br>Les Salamandrons grandissent très peu durant la majeure partie de leur vie. Ils demeurent de petits insectivores agités, vivant en bande sous la protection d\'un dominant : l\'alpha.<br>Tant qu’il joue,  se chamaille et dépense son énergie dans des querelles absurdes, la croissance du Salamandron reste presque figée. Mais lorsqu\'il cesse de jouer, tout change : Il se transforme.<br>En quelques heures, parfois en une seule nuit, son corps s\'allonge, sa mâchoire s\'épaissit, ses griffes durcissent, et son appétit prend une tournure beaucoup plus inquiétante. L\'ancien petit compagnon turbulent devient alors un alpha : massif, territorial, méfiant, protecteur envers les plus jeunes, et animé par la mauvaise habitude de vouloir manger tout ce qui bouge.<br>Son régime change avec lui. Là où le jeune Salamandron se nourrissait presque uniquement d\'insectes, l\'alpha réclame désormais de la viande. Beaucoup de viande. Et de préférence fraîche.<br><br>Pour cette raison, toutes les tentatives de domestication ont fini par échouer. Pensant faire fortune en vendant le parfait compagnon de jeu familial, certains éleveurs ont tenté d\'en faire un animal de compagnie. Mais le jeune Salamandron exigeait une attention constante. Il fallait jouer avec lui, le stimuler, le fatiguer, l\'empêcher de s\'ennuyer.<br>Tôt ou tard, le propriétaire finissait toujours par se lasser.<br>Et dès que le jeu cessait trop longtemps, la transformation commençait. Le matin suivant, il ne restait souvent plus aucune trace du petit bestiau. Seulement des griffures autour de la maison, les lieux saccagés, et rarement assez du propriétaire pour expliquer clairement ce qui s’était passé.<br>Depuis, plus personne ne cherche sérieusement à domestiquer les Salamandrons. On se contente de les regarder jouer à distance, jamais très loin de la protection de l’alpha.',
-		ambiance:"../../media/lore/entites/lore-jeune-salamandron.jpg",
+		ambiance:"./media/lore/entites/lore-jeune-salamandron.jpg",
 }
 
 ];

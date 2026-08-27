@@ -9,7 +9,7 @@ export const ItemDetails = [
     cooldown: 1000,
 	effets:	['itemHeal'],
 	HealAmount:5,
-	itemAsset: '/media/assets/items/healing-potion.png',
+	itemAsset: './media/assets/items/healing-potion.png',
 	itemCost:150,
 	itemQuality:1,
   },{
@@ -21,7 +21,7 @@ export const ItemDetails = [
 	itemDescription: 'Un champignon bizare. A consommer à vos risques et périls.',
     cooldown: 1000,
 	effets:	['itemPoison'],
-	itemAsset: '/media/assets/items/poison-shroom.png',
+	itemAsset: './media/assets/items/poison-shroom.png',
 	itemCost:100,
 	itemQuality:1,
   },{
@@ -35,7 +35,7 @@ export const ItemDetails = [
 	Stuffeffets:[
          { type: 'stat-buff', stat: 'physicalResistance', value: 5 }
     ],
-	itemAsset: '/media/assets/items/protection-ring.png',
+	itemAsset: './media/assets/items/protection-ring.png',
 	itemCost:500,
 	itemQuality:2,
  },{
@@ -47,7 +47,7 @@ export const ItemDetails = [
 	itemDescription: 'Certainement utile sur une cible en mauvais état.',
     cooldown: 1000,
 	effets:	['Unpoison'],
-	itemAsset: '/media/assets/items/medic-weed.png',
+	itemAsset: './media/assets/items/medic-weed.png',
 	itemCost:600,
 	itemQuality:2,
   },{
@@ -63,7 +63,7 @@ export const ItemDetails = [
 	physicalDamage:5,
 	hybridalDamage:0,
 	piercingDamage:0,
-	itemAsset: '/media/assets/items/pomme-douteuse.png',
+	itemAsset: './media/assets/items/pomme-douteuse.png',
 	itemCost:800,
 	itemQuality:2,
     },{
@@ -76,7 +76,7 @@ export const ItemDetails = [
     cooldown: 1000,
 	effets:	['itemRez'],
 	HealAmount:5,
-	itemAsset: '/media/assets/items/sacred-feather.png',
+	itemAsset: './media/assets/items/sacred-feather.png',
 	itemCost:13200,
 	itemQuality:5,
   },{ 
@@ -92,7 +92,7 @@ export const ItemDetails = [
 	physicalDamage:0,
 	hybridalDamage:5,
 	piercingDamage:0,
-	itemAsset: '/media/assets/items/poupe-vaudou.png',
+	itemAsset: './media/assets/items/poupe-vaudou.png',
 	itemCost:1200,
 	itemQuality:2,
     },{ 
@@ -108,7 +108,7 @@ export const ItemDetails = [
 	physicalDamage:0,
 	hybridalDamage:0,
 	piercingDamage:3,
-	itemAsset: '/media/assets/items/rasoir-utilise.png',
+	itemAsset: './media/assets/items/rasoir-utilise.png',
 	itemCost:800,
 	itemQuality:2,
   },{ 
@@ -124,7 +124,7 @@ export const ItemDetails = [
 	physicalDamage:0,
 	hybridalDamage:1,
 	piercingDamage:3,
-	itemAsset: '/media/assets/items/cursed-skull.png',
+	itemAsset: './media/assets/items/cursed-skull.png',
 	itemCost:1400,
 	itemQuality:2,
   },{ 
@@ -137,7 +137,7 @@ export const ItemDetails = [
     cooldown: 1000,
 	effets:	['itemHeal'],
 	HealAmount:15,
-	itemAsset: '/media/assets/items/jarret-juteux.png',
+	itemAsset: './media/assets/items/jarret-juteux.png',
 	itemCost:1800,
 	itemQuality:2,
   },{ 
@@ -153,7 +153,7 @@ export const ItemDetails = [
 	physicalDamage:15,
 	hybridalDamage:0,
 	piercingDamage:0,
-	itemAsset: '/media/assets/items/jarret-avarie.png',
+	itemAsset: './media/assets/items/jarret-avarie.png',
 	itemCost:1700,
 	itemQuality:2,
   },{ 
@@ -166,7 +166,7 @@ export const ItemDetails = [
     cooldown: 1000,
 	effets:	['itemHeal'],
 	HealAmount:35,
-	itemAsset: '/media/assets/items/shoyu-ramen.png',
+	itemAsset: './media/assets/items/shoyu-ramen.png',
 	itemCost:3400,
 	itemQuality:3,
  },{ 
@@ -179,7 +179,7 @@ export const ItemDetails = [
     cooldown: 1000,
 	effets:	['itemHeal'],
 	HealAmount:100,
-	itemAsset: '/media/assets/items/tonkotsu-ramen.png',
+	itemAsset: './media/assets/items/tonkotsu-ramen.png',
 	itemCost:6400,
 	itemQuality:4,
   },{ 
@@ -193,7 +193,7 @@ export const ItemDetails = [
 	Stuffeffets:[
          { type: 'stat-buff', stat: 'physicalDamage', value: 5 }
     ],
-	itemAsset: '/media/assets/items/petite-dague.png',
+	itemAsset: './media/assets/items/petite-dague.png',
 	itemCost:400,
 	itemQuality:1,
    },{ 
@@ -206,7 +206,7 @@ export const ItemDetails = [
 	itemDescription: 'Une sphère qui brûle d\'une matière noire. Effrayante.',
     cooldown: 1000,
 	effets:	['itemDamage'],
-	itemAsset: '/media/assets/items/sphere-noire.png',
+	itemAsset: './media/assets/items/sphere-noire.png',
 	itemCost:35000,
 	itemQuality:6,
   },{ 
@@ -218,7 +218,7 @@ export const ItemDetails = [
 	itemDescription: 'Augmente l\'agilité de son porteur.',
     cooldown: 1000,
 	Stuffeffets:[ { type: 'stat-buff', stat: 'dodge', value: 5 } ],
-	itemAsset: '/media/assets/items/cape-agilite.png',
+	itemAsset: './media/assets/items/cape-agilite.png',
 	itemCost:6000,
 	itemQuality:3,
    },{ 
@@ -236,7 +236,7 @@ export const ItemDetails = [
     { type: 'stat-buff', stat: 'velocity', value: 2 },
     { type: 'stat-buff', stat: 'vitality', value: 3 }
     ],
-	itemAsset: '/media/assets/items/couronne-magique.png',
+	itemAsset: './media/assets/items/couronne-magique.png',
 	itemCost:12000,
 	itemQuality:4,
     },{ 
@@ -250,7 +250,7 @@ export const ItemDetails = [
 	Stuffeffets:[
     { type: 'stat-buff', stat: 'bloodFury', value: 1 },
       ],
-	itemAsset: '/media/assets/items/martal-sanglant.png',
+	itemAsset: './media/assets/items/martal-sanglant.png',
 	itemCost:25000,
 	itemQuality:5,
    }

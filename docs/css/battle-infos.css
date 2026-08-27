@@ -144,7 +144,7 @@ animation:
 .damage-popup.popup-critical .picto-stat.criticalChance {
   width: 30px;
   height: 30px;
-  background: url('/media/assets/ui/picto-crit.svg') no-repeat center / contain;
+  background: url('../media/assets/ui/picto-crit.svg') no-repeat center / contain;
   filter: drop-shadow(0 0 2px #ff0000);
 }
 .BattleText{position: relative;

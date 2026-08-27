@@ -369,7 +369,7 @@ export function stabilizeDeadEntityVisual(entite, { playDeathBlood = false } = {
     context.drawImage(deadSprite, 0, 0, canvas.width, canvas.height);
     forceDeadEntityOpacity(entite, entityBox, container, canvas);
   };
-  deadSprite.src = entite.deadsprite || entite.DeadSprite || '/media/sprites/0-dead.png';
+  deadSprite.src = entite.deadsprite || entite.DeadSprite || './media/sprites/0-dead.png';
 
   forceDeadEntityOpacity(entite, entityBox, container, canvas);
 
@@ -605,7 +605,7 @@ if (isDead) {
     spriteEntite.src =
         entite.deadsprite ||
         entite.DeadSprite ||
-        "/media/sprites/0-dead.png";
+        "./media/sprites/0-dead.png";
 } else {
     canvas.classList.remove(
         "dead",

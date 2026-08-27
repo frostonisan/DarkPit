@@ -1,6 +1,6 @@
 @font-face {
   font-family: 'EB Garamond';
-  src: url('/media/typo/EBGaramond-Regular.ttf') format('truetype');
+  src: url('../media/typo/EBGaramond-Regular.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
@@ -8,7 +8,7 @@
 body, html {
     margin: 0;
     height: 100%;
-       background-image: url("../../media/decors/decors-prison.jpg");
+       background-image: url("../media/decors/decors-prison.jpg");
 	     font-family: 'EB Garamond', sans-serif;
 		 color:white;
 		 background-repeat: round;

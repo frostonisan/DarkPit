@@ -39,13 +39,13 @@ export function summonProfanation(target, effect, attacker, removeEffectCallback
         role: '',
         class: 'aberration-profanee',
         name: 'Aberration Profanée',
-        sprite: "../../media/sprites/aberration-profanee.png",
+        sprite: "./media/sprites/aberration-profanee.png",
         type: 'sbire',
         HP: 10,
         life: 1,
         damage: 10,
         speed: 1000,
-        portrait: "../../media/portrait/aberration-profanee.jpg",
+        portrait: "./media/portrait/aberration-profanee.jpg",
         kills: 0,
         totalDamage: 0,
         totalHeal: 0,
@@ -338,7 +338,7 @@ function healConsommable(entity, summonId) {
             const effectsContainer = document.getElementById(`effectsContainer_${entity.id}`);
             if (effectsContainer) {
                 const healVFX = document.createElement('img');
-                healVFX.src = '../../media/assets/effects/heal.gif'; // Assurez-vous que le chemin est correct
+                healVFX.src = './media/assets/effects/heal.gif'; // Assurez-vous que le chemin est correct
                 healVFX.className = 'effect-vfx heal';
                 healVFX.alt = `${entity.name} est soigné !`;
 
@@ -359,7 +359,7 @@ function healConsommable(entity, summonId) {
 		  const effectsContainer = document.getElementById(`effectsContainer_${entity.id}`);
             if (effectsContainer) {
                 const healVFX = document.createElement('img');
-                healVFX.src = '../../media/assets/effects/blood-loss.gif'; // Assurez-vous que le chemin est correct
+                healVFX.src = './media/assets/effects/blood-loss.gif'; // Assurez-vous que le chemin est correct
                 healVFX.className = 'effect-vfx blood-loss';
                 healVFX.alt = `${entity.name} gache l'effet.`;
 
@@ -407,7 +407,7 @@ function poisonConsommable(entity, summonId) {
                 poisonVFX.id = `poisonVFX_${entity.id}`;
                 poisonVFX.alt = `${entity.name} est empoisonné !`;
                 poisonVFX.className = 'effect-vfx poison';
-                poisonVFX.src = '../../media/assets/effects/poison.gif';
+                poisonVFX.src = './media/assets/effects/poison.gif';
                 effectsContainer.appendChild(poisonVFX);
             } else {
                 console.log(`L'effet de poison visuel existe déjà sur ${entity.name}.`);
@@ -448,7 +448,7 @@ function poisonConsommable(entity, summonId) {
         const effectsContainer = document.getElementById(`effectsContainer_${entity.id}`);
         if (effectsContainer) {
             const poisonVFX = document.createElement('img');
-            poisonVFX.src = '../../media/assets/effects/blood-loss.gif';
+            poisonVFX.src = './media/assets/effects/blood-loss.gif';
             poisonVFX.className = 'effect-vfx blood-loss';
             poisonVFX.alt = `${entity.name} gâche l'effet.`;
             effectsContainer.appendChild(poisonVFX);

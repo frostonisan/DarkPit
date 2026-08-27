@@ -7,7 +7,7 @@ export const itemEffects = [
     effectDuration: 0,
 	effectDot: 0, 
 	effectStack: 0,
-	effectVFX: '../media/assets/effects/heal-green.gif',
+	effectVFX: './media/assets/effects/heal-green.gif',
 	VFXduration: '1500',
   },  {
     effectId: 'ie2',
@@ -17,7 +17,7 @@ export const itemEffects = [
     effectDuration: 0,
 	effectDot: 0, 
 	effectStack: 0,
-	effectVFX: '../media/assets/effects/death-blood.gif',
+	effectVFX: './media/assets/effects/death-blood.gif',
 	VFXduration: '1500',
 	  },  {
     effectId: 'ie3',
@@ -27,7 +27,7 @@ export const itemEffects = [
     effectDuration: 0,
 	effectDot: 0, 
 	effectStack: 0,
-	effectVFX: '../media/assets/effects/heal.gif',
+	effectVFX: './media/assets/effects/heal.gif',
 	VFXduration: '1500',
 	  }
 ];

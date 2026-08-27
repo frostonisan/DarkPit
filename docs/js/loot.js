@@ -34,8 +34,8 @@ function lootTrace(level, message, payload = {}) {
 
 // modularized-loot/loot/storage.js
 var CORPSE_LOOT_STORAGE_KEY = "PersistentCorpseLootSources";
-var CRACKED_CHEST_SPRITE_URL = "/media/assets/misc/chest-cracked.png";
-var CRACKED_CHEST_OPENED_SPRITE_URL = "/media/assets/misc/chest-cracked-opened.png";
+var CRACKED_CHEST_SPRITE_URL = "./media/assets/misc/chest-cracked.png";
+var CRACKED_CHEST_OPENED_SPRITE_URL = "./media/assets/misc/chest-cracked-opened.png";
 var categories = ["entities", "stuff", "consommables"];
 function emptyLoot() {
   return { entities: [], stuff: [], consommables: [] };
@@ -499,10 +499,10 @@ function spawnCorpseBloodImpacts(interfaceElement) {
   const parent = interfaceElement;
   if (!parent) return;
   const gifByVariant = {
-    1: "/media/assets/effects/blood-impact-3.gif",
-    2: "/media/assets/effects/blood-impact-5.gif",
-    3: "/media/assets/effects/blood-impact-4.gif",
-    4: "/media/assets/effects/blood-impact-1.gif"
+    1: "./media/assets/effects/blood-impact-3.gif",
+    2: "./media/assets/effects/blood-impact-5.gif",
+    3: "./media/assets/effects/blood-impact-4.gif",
+    4: "./media/assets/effects/blood-impact-1.gif"
   };
   const positionVariants = [1, 2, 3, 4];
   for (let index = positionVariants.length - 1; index > 0; index -= 1) {
@@ -609,7 +609,7 @@ function spawnChestCockroach(interfaceElement, options = {}) {
   }
   const cockroach = document.createElement("img");
   cockroach.className = "chest-cockroach-fx";
-  cockroach.src = "/media/assets/effects/cafard.gif";
+  cockroach.src = "./media/assets/effects/cafard.gif";
   cockroach.alt = "";
   cockroach.draggable = false;
   cockroach.tabIndex = 0;
@@ -705,7 +705,7 @@ function spawnChestCockroach(interfaceElement, options = {}) {
     const experience = calculateCockroachExperience(elapsedMs, escapeDelayMs);
     requestPlayerExperienceGain(experience);
     cockroach.dataset.experienceAwarded = String(experience);
-    cockroach.src = "/media/assets/effects/dead-cafard.png";
+    cockroach.src = "./media/assets/effects/dead-cafard.png";
     cockroach.classList.add("arrete");
     cockroach.removeAttribute("tabindex");
     cockroach.style.cursor = "default";

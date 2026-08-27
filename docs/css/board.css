@@ -73,7 +73,7 @@
 /* } */
 
 /* .background{background-repeat: round; */
-  /* background-image: url("../../media/decors/decors-prison.jpg"); */
+  /* background-image: url("../media/decors/decors-prison.jpg"); */
   /* height: 100%; */
   /* position: fixed; */
   /* width: 100%; */
@@ -291,13 +291,13 @@ justify-content: center;}
   margin: auto;
   display: flex;
   justify-content: center;clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);}
-.socle.neutre{background-image: url('/media/assets/board/hex.svg');
+.socle.neutre{background-image: url('../media/assets/board/hex.svg');
  }
-.socle.tank{background-image: url('/media/assets/board/hex-tank.svg');
+.socle.tank{background-image: url('../media/assets/board/hex-tank.svg');
  }
-.socle.fantassin{background-image: url('/media/assets/board/hex-fantassin.svg');
+.socle.fantassin{background-image: url('../media/assets/board/hex-fantassin.svg');
  }
-.socle.mage{background-image: url('/media/assets/board/hex-mage.svg');
+.socle.mage{background-image: url('../media/assets/board/hex-mage.svg');
  }
  .hex.hovered .socle.neutre{
    background-color: #ffffff3b; 
@@ -325,16 +325,16 @@ justify-content: center;}
   height: 80px;
  background-repeat: no-repeat;animation: Pulsation 4s ease-in-out infinite;}
 .socle.neutre > .image-role-hex-info {
- background-image: url("../../media/assets/ui/picto-gueux.svg");
+ background-image: url("../media/assets/ui/picto-gueux.svg");
 }
 .socle.tank > .image-role-hex-info {
-background-image: url("../../media/assets/ui/picto-tank.svg");
+background-image: url("../media/assets/ui/picto-tank.svg");
 }
 .socle.fantassin > .image-role-hex-info {
-background-image: url("../../media/assets/ui/picto-fantassin.svg");
+background-image: url("../media/assets/ui/picto-fantassin.svg");
 }
 .socle.mage > .image-role-hex-info {
- background-image: url("../../media/assets/ui/picto-mage.svg");
+ background-image: url("../media/assets/ui/picto-mage.svg");
 }
 #hexGrid {
   transform: perspective(2000px) rotateX(50deg);

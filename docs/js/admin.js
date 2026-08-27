@@ -47,9 +47,9 @@ function preloadImages(images, callback) {
 
 window.onload = function() {
     const imagesToPreload = [
-        '/media/assets/loading/loader-01.jpg',
-		'/media/assets/misc/chest-closed.png',
-		'/media/assets/misc/chest-opened.png',
+        './media/assets/loading/loader-01.jpg',
+		'./media/assets/misc/chest-closed.png',
+		'./media/assets/misc/chest-opened.png',
     ];
 
     preloadImages(imagesToPreload, () => {
