@@ -408,7 +408,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: BARRICADE_SUCCESS_IMAGE,
-      text: 'Vos robustes entités sont parvenues à dresser une barricade solide avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps, permettant à votre armée de se réfugier derrière, à l\'approche des tremblements qui se rapprochent de plus en plus...',
+      text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri de fortune résiste au choc.',
       next: `${EVENT_ID}-c2-success-spawn`
     }),
 
@@ -444,7 +444,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
           times: 1
         })
       })],
-      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs se reforment et chargent en avant dans un élan de bravoure.',
+      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
       next: `${EVENT_ID}-c2-success-result`
     }),
 
