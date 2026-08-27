@@ -6,6 +6,7 @@ const ARRIVAL_IMAGE = './media/lore/events/cockroachking-arrival.jpg';
 const BARRICADE_SUCCESS_IMAGE = './media/lore/events/cockroachking-barricade-success.jpg';
 const BARRICADE_IMAGE = './media/lore/events/cockroachking-barricade.jpg';
 const BARRICADE_CHARGE_IMAGE = './media/lore/events/cockroachking-charge-barricade.jpg';
+const BARRICADE_CHARGE_SUCCESS = './media/lore/events/cockroachking-barricade-success-charge.jpg';
 
 const BARRICADE_DAMAGE_PERCENT = 25;
 const C1_FAIL_DAMAGE_PERCENT = 30;
@@ -138,7 +139,7 @@ function cockroachKingSpawnResult(king) {
         serial: COCKROACH_KING_SERIAL,
         side: 'B'
       },
-      html: 'Le Souverain des Blattes est apparu.',
+      html: 'Le Souverain des Blattes apparaît dans le niveau.',
       classes: ['event-result-entity-spawned', 'spawn']
     }]
   };
@@ -340,7 +341,7 @@ const SCENARIO_1_FAIL = Object.freeze({
       id: `${EVENT_ID}-c1-fail-d1`,
       cinematic: 'hard',
       img: ARRIVAL_IMAGE,
-      text: 'Le Roi des Blattes traverse vos rangs dispersés. Sa charge projette les combattants au sol tandis que ses mandibules se referment sur tout ce qui est à leur portée, détruisant tout sur son passage.',
+      text: 'Le Souverain des Blattes traverse vos rangs dispersés. Sa charge projette les combattants au sol tandis que ses mandibules se referment sur tout ce qui est à leur portée, détruisant tout sur son passage.',
       next: `${EVENT_ID}-c1-fail-attack`
     }),
 
@@ -378,17 +379,17 @@ const SCENARIO_1 = Object.freeze({
     id: `${EVENT_ID}-c1`,
     text: 'Vous tentez de disparaître avant son arrivée.',
     resolution: createResolution('agility', {
-      // TEST SCÉNARIO 1 / MIDDLE : réactiver après validation.
+      // TEST SCÉNARIO 1 / FAIL : réactiver les autres après validation.
       // success: SCENARIO_1_SUCCESS.resolution,
-      middle: SCENARIO_1_MIDDLE.resolution,
-      // fail: SCENARIO_1_FAIL.resolution
+      // middle: SCENARIO_1_MIDDLE.resolution,
+      fail: SCENARIO_1_FAIL.resolution
     })
   }),
   nodes: Object.freeze({
-    // TEST SCÉNARIO 1 / MIDDLE : réactiver après validation.
+    // TEST SCÉNARIO 1 / FAIL : réactiver les autres après validation.
     // ...SCENARIO_1_SUCCESS.nodes,
-    ...SCENARIO_1_MIDDLE.nodes,
-    // ...SCENARIO_1_FAIL.nodes
+    // ...SCENARIO_1_MIDDLE.nodes,
+    ...SCENARIO_1_FAIL.nodes
   })
 });
 
@@ -405,7 +406,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: BARRICADE_SUCCESS_IMAGE,
-      text: 'Vos entités les plus robustes se placent derrière la barricade. Le sol tremble de plus en plus fort, mais personne ne cède.',
+      text: 'Vos robustes entités sont parvenues à dresser une barricade solide avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps, permettant à votre armée de se réfugier derrière, à l\'approche des tremblements qui se rapprochent de plus en plus...',
       next: `${EVENT_ID}-c2-success-spawn`
     }),
 
@@ -419,8 +420,8 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c2-success-d1`,
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
-      text: 'Le Roi des Blattes surgit et percute la barricade de plein fouet. Le bois gémit, les attaches se tendent, mais l’ensemble tient.',
+      img: BARRICADE_CHARGE_SUCCESS,
+      text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br><br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
       next: `${EVENT_ID}-c2-success-damage`
     }),
 
@@ -434,7 +435,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-success-d2`,
       cinematic: 'hard',
-      text: 'La créature recule, sonnée. Vos rangs se reforment derrière la barricade, puis chargent avant qu’elle ne retrouve son équilibre.',
+      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs se reforment et chargent en avant dans un élan de bravoure.',
       next: `${EVENT_ID}-c2-success-result`
     }),
 
@@ -442,7 +443,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
       id: `${EVENT_ID}-c2-success-result`,
       cinematic: 'hard',
       includeResults: true,
-      text: `Le choc blesse le Roi des Blattes et lui fait perdre ${BARRICADE_DAMAGE_PERCENT} % de ses HP actuels.`,
+      text: `Le choc blesse le Souverain des Blattes et lui fait perdre ${BARRICADE_DAMAGE_PERCENT} % de ses HP actuels.`,
       next: `${EVENT_ID}-c2-success-battle`
     }),
 
@@ -490,7 +491,7 @@ const SCENARIO_2_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c2-middle-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-middle-d2`,
       cinematic: 'hard',
-      text: 'Le Roi des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
+      text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
       next: `${EVENT_ID}-c2-middle-result`
     }),
 
@@ -512,16 +513,18 @@ const SCENARIO_2_MIDDLE = Object.freeze({
 const SCENARIO_2 = Object.freeze({
   choice: Object.freeze({
     id: `${EVENT_ID}-c2`,
-    text: 'Vous dressez une barricade avec ce que vous trouvez et attendez fermement la charge.',
+    text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
     img: ARRIVAL_IMAGE,
     resolution: createResolution('strength', {
-      success: SCENARIO_2_SUCCESS.resolution,
-      middle: SCENARIO_2_MIDDLE.resolution
+      // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
+      success: SCENARIO_2_SUCCESS.resolution
+      // middle: SCENARIO_2_MIDDLE.resolution
     })
   }),
   nodes: Object.freeze({
-    ...SCENARIO_2_SUCCESS.nodes,
-    ...SCENARIO_2_MIDDLE.nodes
+    // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
+    ...SCENARIO_2_SUCCESS.nodes
+    // ...SCENARIO_2_MIDDLE.nodes
   })
 });
 
@@ -579,15 +582,15 @@ export const cockRoachHuntEvent = Object.freeze({
       cinematic: 'hard',
       text: 'Vous n’avez que quelques secondes pour réagir.',
       choices: [
-        SCENARIO_1.choice
-        // TEST SCÉNARIO 1 / MIDDLE : réactiver après validation.
-        // SCENARIO_2.choice
+        // TEST SCÉNARIO 2 / SUCCESS : seul le scénario 2 est actif.
+        // SCENARIO_1.choice
+        SCENARIO_2.choice
       ]
     }),
 
-    ...SCENARIO_1.nodes
-    // TEST SCÉNARIO 1 / MIDDLE : réactiver après validation.
-    // ...SCENARIO_2.nodes
+    // TEST SCÉNARIO 2 / SUCCESS : seul le scénario 2 est actif.
+    // ...SCENARIO_1.nodes
+    ...SCENARIO_2.nodes
   }),
 
   actions: Object.freeze({
