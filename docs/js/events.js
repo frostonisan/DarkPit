@@ -4474,9 +4474,6 @@ export async function eventEntitydamages(options = {}) {
     const armorSentence = armorDamage > 0
       ? ` Son <span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> encaisse ${armorDamage} dégâts.<br>`
       : '<br>';
-    const hpSentence = hpDamage > 0
-      ? `${safeName} perd ${hpDamage} HP.<br>`
-      : `${safeName} ne perd aucun HP.<br>`;
     const survivalSentence = resurrection
       ? `${safeName} utilise une ${eventStatHtml(resurrection.type, resurrection.label)} pour échapper à la mort.<br>`
       : alive
@@ -4499,7 +4496,7 @@ export async function eventEntitydamages(options = {}) {
       died: !alive,
       resurrection: resurrection?.label || null,
       resurrectionType: resurrection?.type || null
-    }, `<div class="event-result-item-text">${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${rawDamage} dégâts</span>.${armorSentence}${hpSentence}${survivalSentence}L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`, [
+    }, `<div class="event-result-item-text">${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${rawDamage} dégâts</span>.${armorSentence}${survivalSentence}L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`, [
       'event-result-entity-damage',
       'damage'
     ]));
