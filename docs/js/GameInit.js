@@ -1698,6 +1698,71 @@ function placeHelperInBounds(helperEl, anchorEl, { offset = 5, margin = 8 } = {}
 }
 
 const HELPER_GLOBAL_ENTITY_ID = "__global__";
+const DESTROYED_CHEST_HELPER_TEXT = "Ce coffre est détruit. Il n'y a plus rien a en tirer.";
+const DESTROYED_CORPSE_HELPER_TEXT = "Ces restes ont été complétement broyés. Ils ne sont bon qu'a nourrir les rats...";
+
+function destroyedLootSubject(target) {
+  if (!(target instanceof Element)) return null;
+
+  const destroyedCorpse = target.closest(".destroyed-corpse");
+  if (destroyedCorpse) {
+    return {
+      type: "corpse",
+      element: destroyedCorpse,
+      text: DESTROYED_CORPSE_HELPER_TEXT,
+    };
+  }
+
+  const chestLoot = target.closest(".chest-loot.destroyed");
+  const chestContainer = chestLoot?.closest?.(".chest-container[data-chest-id]");
+  const isDestroyedChest = chestContainer && (
+    chestContainer.dataset.chestStatus === "destroyed" ||
+    chestContainer.dataset.durabilityState === "destroyed"
+  );
+  if (isDestroyedChest) {
+    return {
+      type: "chest",
+      element: chestLoot,
+      text: DESTROYED_CHEST_HELPER_TEXT,
+    };
+  }
+
+  return null;
+}
+
+function hideDestroyedLootHelper() {
+  document.querySelector(".Game-helper .destroyed-loot-helper")?.remove();
+}
+
+function showDestroyedLootHelper(subject) {
+  const container = document.querySelector(".Game-helper");
+  if (!container || !subject) return;
+
+  hideDestroyedLootHelper();
+
+  const helper = document.createElement("div");
+  helper.className = `destroyed-loot-helper ${subject.type}`;
+  helper.textContent = subject.text;
+  container.appendChild(helper);
+}
+
+document.addEventListener("click", (event) => {
+  const subject = destroyedLootSubject(event.target);
+  if (!subject) {
+    hideDestroyedLootHelper();
+    return;
+  }
+
+  showDestroyedLootHelper(subject);
+}, true);
+
+document.addEventListener("mouseout", (event) => {
+  const subject = destroyedLootSubject(event.target);
+  if (!subject) return;
+  if (event.relatedTarget instanceof Element && subject.element.contains(event.relatedTarget)) return;
+
+  hideDestroyedLootHelper();
+}, true);
 
 // Host = élément qui déclenche le hover (stat-container prioritaire, sinon [data-stat])
 function getStatHost(target) {

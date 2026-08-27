@@ -460,7 +460,8 @@ margin-top: 10px;}
   transform: translate(-50%, -50%);
   transform-origin: center;
 
-  pointer-events: none;
+  cursor: help;
+  pointer-events: auto;
   user-select: none;
 
   z-index: 3;
@@ -3885,6 +3886,25 @@ margin-right: 10px;
 
 .Game-helper > .battle-book-window {
     pointer-events: auto;
+}
+
+.Game-helper > .destroyed-loot-helper {
+    position: absolute;
+    left: 50%;
+    bottom: 7%;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+    max-width: min(420px, calc(100% - 32px));
+    padding: 10px 14px;
+    border: 1px solid rgba(255, 253, 240, 0.22);
+    background: rgba(8, 7, 6, 0.84);
+    color: #fffdf0;
+    font-family: "Cinzel", serif;
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
+    pointer-events: none;
+    z-index: 4;
 }
 .stat-container:hover .Game-helper .stat-hover {
     opacity: 1; /* Rend visible */
