@@ -37,6 +37,7 @@ function dialogueScreen({
   portrait = null,
   outcome = null,
   cinematic = null,
+  actions = null,
   next = null
 }) {
   return Object.freeze({
@@ -48,6 +49,7 @@ function dialogueScreen({
     ...(img ? { img } : {}),
     ...(portrait ? { portrait: Object.freeze(portrait) } : {}),
     ...(outcome ? { outcome } : {}),
+    ...(Array.isArray(actions) && actions.length > 0 ? { actions: Object.freeze([...actions]) } : {}),
     ...(next ? { next } : {})
   });
 }
@@ -435,6 +437,13 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-success-d2`,
       cinematic: 'hard',
+      actions: [Object.freeze({
+        action: 'shakeScreenEvent',
+        args: Object.freeze({
+          effect: 'damage',
+          times: 1
+        })
+      })],
       text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs se reforment et chargent en avant dans un élan de bravoure.',
       next: `${EVENT_ID}-c2-success-result`
     }),

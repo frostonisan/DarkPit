@@ -1026,6 +1026,41 @@ export function cinematicScreenFX(outcome = null) {
   return screenFX;
 }
 
+export async function shakeScreenEvent({
+  effect = 'damage',
+  mode = null,
+  animation = null,
+  type = null,
+  times = 1,
+  x = null
+} = {}) {
+  const requestedEffect = String(mode || animation || type || effect || 'damage')
+    .trim()
+    .toLowerCase();
+  const outcome = requestedEffect === 'zoomin'
+    ? 'success'
+    : requestedEffect === 'zoomout'
+      ? 'middle'
+      : 'fail';
+  const repeatCount = Math.max(1, Math.min(10, Math.floor(Number(x ?? times) || 1)));
+  const delay = outcome === 'middle'
+    ? 4100
+    : outcome === 'success'
+      ? 1950
+      : CINEMATIC_SCREEN_FX_SHAKE_DURATION;
+
+  for (let index = 0; index < repeatCount; index += 1) {
+    cinematicScreenFX(outcome);
+    if (index < repeatCount - 1) await waitEventMilliseconds(delay);
+  }
+
+  return {
+    effect: requestedEffect,
+    outcome,
+    times: repeatCount
+  };
+}
+
 function formatEventFinalResultHeader(view = null) {
   let root = null;
 
@@ -6323,6 +6358,7 @@ export const genericEventActions = Object.freeze({
   destroyCorpseAnimation,
   renderDestroyedCorpseMarkers,
   battleEventInPause,
+  shakeScreenEvent,
   forceBattle,
   closeDialogue,
   forceCombat,
@@ -6537,9 +6573,10 @@ async function renderStoredEvent(eventDefinition, storedState, { animate = true 
   if (currentNode.type === 'action') {
     return resolveActionNode(eventDefinition, currentNode, storedState);
   }
-
   const history = normalizeEventHistory(storedState);
-  return renderEventHistoryAt(eventDefinition, storedState, history.length - 1, animate);
+  const rendered = renderEventHistoryAt(eventDefinition, storedState, history.length - 1, animate);
+  await resolveInlineNodeActions(eventDefinition, currentNode, storedState);
+  return rendered;
 }
 
 async function withTransitionLock(callback) {
@@ -6829,6 +6866,98 @@ export async function executeEventAction(eventKey, actionDefinition, context = {
     actions: genericEventActions,
     event: eventDefinition
   });
+}
+
+async function resolveInlineNodeActions(eventDefinition, node, initialState) {
+  if (!Array.isArray(node?.actions) || node.actions.length === 0) return initialState;
+
+  const eventKey = eventDefinition.key;
+  let latestState = getStoredEventState(eventKey) || initialState;
+  if (!latestState || latestState.currentNodeId !== node.id) return latestState || initialState;
+
+  const actionDefinition = actionNodeDefinition(node);
+  const actionName = getChoiceActionName(actionDefinition);
+  const executionId = actionNodeExecutionId(node, actionDefinition);
+  const executedActions = Array.isArray(latestState.executedActions)
+    ? latestState.executedActions
+    : [];
+  if (executedActions.includes(executionId)) return latestState;
+
+  updateQuestState((quest) => {
+    const stored = quest.inProgress[eventKey];
+    if (!stored || stored.currentNodeId !== node.id) return quest;
+    const reservedActions = Array.isArray(stored.executedActions)
+      ? [...stored.executedActions]
+      : [];
+    if (!reservedActions.includes(executionId)) reservedActions.push(executionId);
+    latestState = {
+      ...stored,
+      executedActions: reservedActions,
+      updatedAt: nowIso()
+    };
+    quest.inProgress[eventKey] = latestState;
+    return quest;
+  });
+  syncEventStateToStage(eventKey, latestState);
+
+  let actionOutput = null;
+  try {
+    actionOutput = await executeEventAction(eventKey, actionDefinition, {
+      eventKey,
+      executionId,
+      node,
+      state: latestState,
+      levelId: latestState.levelId
+    });
+  } catch (error) {
+    updateQuestState((quest) => {
+      const stored = quest.inProgress[eventKey];
+      if (!stored) return quest;
+      const retryableActions = Array.isArray(stored.executedActions)
+        ? stored.executedActions.filter((candidate) => candidate !== executionId)
+        : [];
+      latestState = {
+        ...stored,
+        executedActions: retryableActions,
+        lastActionError: {
+          executionId,
+          action: actionName,
+          message: String(error?.message || error),
+          failedAt: nowIso()
+        },
+        updatedAt: nowIso()
+      };
+      quest.inProgress[eventKey] = latestState;
+      return quest;
+    });
+    syncEventStateToStage(eventKey, latestState);
+    throw error;
+  }
+
+  updateQuestState((quest) => {
+    const stored = quest.inProgress[eventKey];
+    if (!stored || stored.currentNodeId !== node.id) return quest;
+    const storedResults = Array.isArray(stored.eventResults)
+      ? [...stored.eventResults]
+      : [];
+    const results = collectActionResults(actionOutput, actionName, executionId);
+    for (const result of results) {
+      if (!storedResults.some((candidate) => (
+        storedEventResultIdentity(candidate) === storedEventResultIdentity(result)
+      ))) storedResults.push(result);
+    }
+    latestState = {
+      ...stored,
+      eventResults: storedResults,
+      lastActionError: null,
+      updatedAt: nowIso()
+    };
+    quest.inProgress[eventKey] = latestState;
+    return quest;
+  });
+  syncEventStateToStage(eventKey, latestState);
+
+  return latestState;
 }
 
 function getChoiceActionName(actionDefinition) {
