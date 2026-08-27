@@ -1104,6 +1104,16 @@ function eventScreenCinematicMode(node) {
   return normalizeEventCinematicMode(node?.cinematic);
 }
 
+function applyEventDialogueTitleTone(view, node) {
+  const tone = node?.outcome || node?.choiceResult || null;
+  if (!['success', 'middle', 'fail'].includes(tone)) return;
+
+  const root = view?.element || view || null;
+  const title = root?.querySelector?.('.dialogue-title')
+    || document.querySelector('.dialogue-window .dialogue-title');
+  title?.classList.add('choice-result', tone);
+}
+
 function renderEventDialogueScreen(node, options = {}) {
   const cinematicMode = eventScreenCinematicMode(node);
   closeOpenLootInterfaces();
@@ -1118,6 +1128,7 @@ function renderEventDialogueScreen(node, options = {}) {
   const render = () => {
     cinematicDialogueTimer = null;
     const view = renderDialogueScreen(node, options);
+    applyEventDialogueTitleTone(view, node);
 
     if (node?.type === 'result') {
       formatEventFinalResultHeader(view);

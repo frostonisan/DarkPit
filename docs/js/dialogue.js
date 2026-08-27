@@ -835,8 +835,7 @@ export function renderDialogueScreen(node, {
     title.className = 'dialogue-title';
     const resultTone = node.outcome || node.choiceResult;
     if (
-      node.type === 'result'
-      && ['success', 'middle', 'fail'].includes(resultTone)
+      ['success', 'middle', 'fail'].includes(resultTone)
     ) {
       title.classList.add('choice-result', resultTone);
     }
