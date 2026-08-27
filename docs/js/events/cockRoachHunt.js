@@ -379,14 +379,16 @@ const SCENARIO_1 = Object.freeze({
     text: 'Vous tentez de disparaître avant son arrivée.',
     resolution: createResolution('agility', {
       success: SCENARIO_1_SUCCESS.resolution,
-      middle: SCENARIO_1_MIDDLE.resolution,
-      fail: SCENARIO_1_FAIL.resolution
+      // TEST SCÉNARIO 1 / SUCCESS : réactiver après validation.
+      // middle: SCENARIO_1_MIDDLE.resolution,
+      // fail: SCENARIO_1_FAIL.resolution
     })
   }),
   nodes: Object.freeze({
     ...SCENARIO_1_SUCCESS.nodes,
-    ...SCENARIO_1_MIDDLE.nodes,
-    ...SCENARIO_1_FAIL.nodes
+    // TEST SCÉNARIO 1 / SUCCESS : réactiver après validation.
+    // ...SCENARIO_1_MIDDLE.nodes,
+    // ...SCENARIO_1_FAIL.nodes
   })
 });
 
@@ -577,13 +579,15 @@ export const cockRoachHuntEvent = Object.freeze({
       cinematic: 'hard',
       text: 'Vous n’avez que quelques secondes pour réagir.',
       choices: [
-        SCENARIO_1.choice,
-        SCENARIO_2.choice
+        SCENARIO_1.choice
+        // TEST SCÉNARIO 1 / SUCCESS : réactiver après validation.
+        // SCENARIO_2.choice
       ]
     }),
 
-    ...SCENARIO_1.nodes,
-    ...SCENARIO_2.nodes
+    ...SCENARIO_1.nodes
+    // TEST SCÉNARIO 1 / SUCCESS : réactiver après validation.
+    // ...SCENARIO_2.nodes
   }),
 
   actions: Object.freeze({
