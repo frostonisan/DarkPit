@@ -250,7 +250,9 @@ function saveLootSource(source) {
 function sourceHasRemainingLoot(source) {
   if (isChestSource(source) && source.durabilityState === "destroyed") return false;
   return categories.some(
-    (category) => (source?.loot?.[category] || []).some((entry) => entry?.collected !== true)
+    (category) => (source?.loot?.[category] || []).some((entry) => (
+      entry?.collected !== true && entry?.lost !== true
+    ))
   );
 }
 function sourceHasUncollectedLoot(source) {
@@ -259,6 +261,18 @@ function sourceHasUncollectedLoot(source) {
       entry?.collected !== true && entry?.lost !== true
     ))
   );
+}
+function sourceHasLostLoot(source) {
+  return categories.some(
+    (category) => (source?.loot?.[category] || []).some((entry) => entry?.lost === true)
+  );
+}
+function markLootLossGlitterPlayed(source) {
+  source.metadata ||= {};
+  if (source.metadata.lootLossGlitterPlayedAt) return false;
+  source.metadata.lootLossGlitterPlayedAt = (/* @__PURE__ */ new Date()).toISOString();
+  saveLootSource(source);
+  return true;
 }
 function inspectLootSource(sourceId, lootInstanceId) {
   const source = resolveLootSource(sourceId);
@@ -499,7 +513,7 @@ function getRenderableLoot(source) {
     ...entities,
     ...source.loot.stuff.map(hydrateItem),
     ...source.loot.consommables.map(hydrateItem)
-  ].filter((reward) => reward?.collected !== true);
+  ].filter((reward) => reward?.collected !== true && reward?.lost !== true);
 }
 function spawnCorpseBloodImpacts(interfaceElement) {
   if (!interfaceElement?.classList.contains("corpse")) return;
@@ -1546,6 +1560,9 @@ function syncChestState(source, container = null) {
   }
   if (loot instanceof HTMLCanvasElement) scheduleChestCanvasRefresh(loot);
   const entrancePending = container.dataset.chestEntrancePending === "true";
+  if (sourceHasLostLoot(source) && markLootLossGlitterPlayed(source)) {
+    disperseLootGlitter(container);
+  }
   if (entrancePending) {
     container.querySelectorAll(":scope > .glitter-loot-container:not(.is-dispersing)").forEach((glitter) => glitter.remove());
   } else {
@@ -2327,6 +2344,9 @@ function syncCorpseState(source, entityBox = null) {
   entityBox.dataset.lootSourceType = "corpse";
   entityBox.style.cursor = remaining ? "pointer" : "default";
   entityBox.title = remaining ? `Fouiller le corps de ${corpseDisplayName(source)}` : `Corps de ${corpseDisplayName(source)} d\xE9j\xE0 fouill\xE9`;
+  if (sourceHasLostLoot(source) && markLootLossGlitterPlayed(source)) {
+    disperseLootGlitter2(entityBox);
+  }
   if (remaining) {
     ensureCorpseGlitter(source, entityBox);
   } else {
