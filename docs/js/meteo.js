@@ -622,20 +622,22 @@ export function disperseLootGlitter(target, {
 
   elements.forEach((element) => {
     if (!element || element.dataset.glitterDispersing === 'true') return;
-    element.dataset.glitterDispersing = 'true';
 
-    const sourceGlitters = [...element.querySelectorAll('.glitter-loot')].slice(0, maxGlitters);
+    const container = element.matches?.('.glitter-loot-container')
+      ? element
+      : element.querySelector('.glitter-loot-container');
+    if (!container || container.classList.contains('is-dispersing')) return;
+
+    const sourceGlitters = [...container.querySelectorAll(':scope > .glitter-loot')].slice(0, maxGlitters);
     if (sourceGlitters.length === 0) {
-      delete element.dataset.glitterDispersing;
       return;
     }
 
-    const hostRect = element.getBoundingClientRect();
-    const burst = document.createElement('div');
-    burst.className = 'glitter-loot-container glitter-loot-dispersion-container';
-    burst.setAttribute('aria-hidden', 'true');
+    element.dataset.glitterDispersing = 'true';
+    container.classList.add('is-dispersing');
 
     let longestDuration = 0;
+    const hostRect = container.getBoundingClientRect();
     const centerX = hostRect.width / 2;
     const centerY = hostRect.height / 2;
 
@@ -650,21 +652,17 @@ export function disperseLootGlitter(target, {
       const duration = random(durationMin, durationMax);
       longestDuration = Math.max(longestDuration, duration);
 
-      const glitter = sourceGlitter.cloneNode(false);
-      glitter.classList.add('is-dispersing');
-      glitter.style.setProperty('--x', `${x}px`);
-      glitter.style.setProperty('--y', `${y}px`);
-      glitter.style.setProperty('--size', sourceGlitter.style.getPropertyValue('--size') || `${random(15, 35)}px`);
-      glitter.style.setProperty('--burst-x', `${directionX * distance}px`);
-      glitter.style.setProperty('--burst-y', `${directionY * distance}px`);
-      glitter.style.setProperty('--burst-rotation', `${random(-220, 220)}deg`);
-      glitter.style.setProperty('--burst-duration', `${duration}ms`);
-      burst.appendChild(glitter);
+      sourceGlitter.classList.add('is-dispersing');
+      sourceGlitter.style.setProperty('--x', `${x}px`);
+      sourceGlitter.style.setProperty('--y', `${y}px`);
+      sourceGlitter.style.setProperty('--burst-x', `${directionX * distance}px`);
+      sourceGlitter.style.setProperty('--burst-y', `${directionY * distance}px`);
+      sourceGlitter.style.setProperty('--burst-rotation', `${random(-220, 220)}deg`);
+      sourceGlitter.style.setProperty('--burst-duration', `${duration}ms`);
     });
 
-    element.appendChild(burst);
     setTimeout(() => {
-      burst.remove();
+      container.remove();
       delete element.dataset.glitterDispersing;
     }, longestDuration + 80);
   });

@@ -6038,16 +6038,21 @@ export async function destroyCorpse(options = {}) {
    * logique des autres.
    */
   await Promise.allSettled(
-    preparedTargets.map(({ entity, markerRecord, corpseSource, hasUncollectedLoot }) => {
-      if (hasUncollectedLoot) disperseLootSourceGlitter(corpseSource);
-      return destroyCorpseAnimation({
+    preparedTargets.map(async ({ entity, markerRecord, corpseSource, hasUncollectedLoot }) => {
+      const waits = [destroyCorpseAnimation({
         entity,
         markerRecord,
         ...(normalizedOptions.animationOptions
           && typeof normalizedOptions.animationOptions === 'object'
           ? normalizedOptions.animationOptions
           : {})
-      });
+      })];
+
+      if (hasUncollectedLoot && disperseLootSourceGlitter(corpseSource)) {
+        waits.push(waitEventMilliseconds(2100));
+      }
+
+      await Promise.allSettled(waits);
     })
   );
 

@@ -4604,19 +4604,13 @@ position: absolute;
   will-change: transform, opacity;
 }
 
-.glitter-loot-dispersion-container {
-  inset: 0;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+.glitter-loot-container.is-dispersing {
   overflow: visible;
   -webkit-mask-image: none;
   mask-image: none;
-  z-index: 2;
 }
 
-.glitter-loot-container > .glitter-loot.is-dispersing {
+.glitter-loot-container.is-dispersing > .glitter-loot.is-dispersing {
   opacity: 1;
   animation: glitterLootDisperse var(--burst-duration) cubic-bezier(.22, .61, .36, 1) forwards;
 }

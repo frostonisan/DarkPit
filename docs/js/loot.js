@@ -918,7 +918,6 @@ function displayLootRewards(source, mosaic, description, controls) {
       if (selectedId === lootInstanceId) selectReward(null);
       const isEntity = result.category === "entities";
       description.textContent = isEntity ? `${entry.reward.name || "Une entit\xE9"} a rejoint ton arm\xE9e.` : `${entry.reward.displayName || entry.reward.itemName || entry.reward.name || "Un objet"} a \xE9t\xE9 ajout\xE9 \xE0 ton inventaire.`;
-      if (result.source.statut === "looted") disperseLootSourceGlitter(result.source, { force: true });
       controls.onUpdated?.(result.source);
       if (result.source.statut === "looted") controls.onLooted?.(result.source);
       updateState();
@@ -1508,7 +1507,7 @@ function syncChestGlitter(source, container) {
       glitterLoot(`#${CSS.escape(battleElement.id)} > .chest-container`);
     }
   } else {
-    container.querySelector(":scope > .glitter-loot-container")?.remove();
+    container.querySelectorAll(":scope > .glitter-loot-container:not(.is-dispersing)").forEach((glitter) => glitter.remove());
   }
 }
 function syncChestState(source, container = null) {
@@ -1548,7 +1547,7 @@ function syncChestState(source, container = null) {
   if (loot instanceof HTMLCanvasElement) scheduleChestCanvasRefresh(loot);
   const entrancePending = container.dataset.chestEntrancePending === "true";
   if (entrancePending) {
-    container.querySelector(":scope > .glitter-loot-container")?.remove();
+    container.querySelectorAll(":scope > .glitter-loot-container:not(.is-dispersing)").forEach((glitter) => glitter.remove());
   } else {
     syncChestGlitter(source, container);
   }
@@ -2270,14 +2269,16 @@ function playCorpseLootClickImpact(source, entityBox) {
   }
 }
 function removeGlitter(entityBox) {
-  entityBox?.querySelectorAll(".glitter-loot-container").forEach((glitter) => glitter.remove());
-  entityBox?.querySelectorAll(".corpse-lootable").forEach((host) => host.remove());
+  entityBox?.querySelectorAll(".glitter-loot-container:not(.is-dispersing)").forEach((glitter) => glitter.remove());
+  entityBox?.querySelectorAll(".corpse-lootable").forEach((host) => {
+    if (!host.querySelector(":scope > .glitter-loot-container.is-dispersing")) host.remove();
+  });
 }
-export function disperseLootSourceGlitter(sourceOrId, { force = false } = {}) {
+export function disperseLootSourceGlitter(sourceOrId) {
   const source = typeof sourceOrId === "string"
     ? resolveLootSource(sourceOrId)
     : sourceOrId;
-  if (!source || (!force && !sourceHasUncollectedLoot(source))) return false;
+  if (!source || !sourceHasUncollectedLoot(source)) return false;
 
   if (isChestSource(source)) {
     const container = document.querySelector(
