@@ -439,11 +439,11 @@
     opacity: 0.75;
   }
   100% {
-    opacity: 0;
+    opacity: 0.85;
     transform:
       translate3d(var(--burst-x), var(--burst-y), 0)
       rotate(var(--burst-rotation))
-      scale(0.45);
+      scale(0.75);
   }
 }
 @keyframes fadeIn {

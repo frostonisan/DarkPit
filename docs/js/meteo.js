@@ -610,8 +610,8 @@ export function glitterLoot(selector, maxGlitters = 15) {
 
 export function disperseLootGlitter(target, {
   maxGlitters = 12,
-  durationMin = 2000,
-  durationMax = 2600
+  durationMin = 4200,
+  durationMax = 5200
 } = {}) {
   const random = (min, max) => Math.random() * (max - min) + min;
   const elements = typeof target === 'string'
@@ -636,7 +636,6 @@ export function disperseLootGlitter(target, {
     element.dataset.glitterDispersing = 'true';
     container.classList.add('is-dispersing');
 
-    let longestDuration = 0;
     const hostRect = container.getBoundingClientRect();
     const centerX = hostRect.width / 2;
     const centerY = hostRect.height / 2;
@@ -650,7 +649,6 @@ export function disperseLootGlitter(target, {
       const directionY = Math.sin(angle) || random(-1, 1);
       const distance = random(80, 150);
       const duration = random(durationMin, durationMax);
-      longestDuration = Math.max(longestDuration, duration);
 
       sourceGlitter.classList.add('is-dispersing');
       sourceGlitter.style.setProperty('--x', `${x}px`);
@@ -660,11 +658,6 @@ export function disperseLootGlitter(target, {
       sourceGlitter.style.setProperty('--burst-rotation', `${random(-220, 220)}deg`);
       sourceGlitter.style.setProperty('--burst-duration', `${duration}ms`);
     });
-
-    setTimeout(() => {
-      container.remove();
-      delete element.dataset.glitterDispersing;
-    }, longestDuration + 80);
   });
 }
 
