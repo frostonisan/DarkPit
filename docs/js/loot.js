@@ -274,6 +274,47 @@ function markLootLossGlitterPlayed(source) {
   saveLootSource(source);
   return true;
 }
+function markLootEmptyGlitterPlayed(source) {
+  source.metadata ||= {};
+  if (source.metadata.lootEmptyGlitterPlayedAt) return false;
+  source.metadata.lootEmptyGlitterPlayedAt = (/* @__PURE__ */ new Date()).toISOString();
+  saveLootSource(source);
+  return true;
+}
+function ensureChestGlitter(container) {
+  if (!container) return null;
+  let glitter = container.querySelector(":scope > .glitter-loot-container");
+  if (glitter) return glitter;
+  const battleElement = getBattleElement(container);
+  if (battleElement?.id) {
+    glitterLoot(`#${CSS.escape(battleElement.id)} > .chest-container`);
+    glitter = container.querySelector(":scope > .glitter-loot-container");
+  }
+  return glitter;
+}
+function playLootEmptyGlitter(source) {
+  if (!source || source.statut !== "looted") return false;
+
+  if (isChestSource(source)) {
+    const container = document.querySelector(
+      `.chest-container[data-chest-id="${CSS.escape(String(source.id))}"]`
+    );
+    if (!ensureChestGlitter(container)) return false;
+    if (!markLootEmptyGlitterPlayed(source)) return false;
+    disperseLootGlitter(container);
+    return true;
+  }
+
+  if (isCorpseSource(source)) {
+    const entityBox = findCorpseEntityBox(source);
+    if (!entityBox || !ensureCorpseGlitter(source, entityBox)) return false;
+    if (!markLootEmptyGlitterPlayed(source)) return false;
+    disperseLootGlitter(entityBox);
+    return true;
+  }
+
+  return false;
+}
 function inspectLootSource(sourceId, lootInstanceId) {
   const source = resolveLootSource(sourceId);
   if (!source) return { success: false, reason: "source_not_found" };
@@ -932,6 +973,9 @@ function displayLootRewards(source, mosaic, description, controls) {
       if (selectedId === lootInstanceId) selectReward(null);
       const isEntity = result.category === "entities";
       description.textContent = isEntity ? `${entry.reward.name || "Une entit\xE9"} a rejoint ton arm\xE9e.` : `${entry.reward.displayName || entry.reward.itemName || entry.reward.name || "Un objet"} a \xE9t\xE9 ajout\xE9 \xE0 ton inventaire.`;
+      if (result.source.statut === "looted") {
+        playLootEmptyGlitter(result.source);
+      }
       controls.onUpdated?.(result.source);
       if (result.source.statut === "looted") controls.onLooted?.(result.source);
       updateState();
