@@ -3041,9 +3041,6 @@ width: 195px;
   justify-content: center;
   gap: 8px;
 }
-.GameOverMessage .IngameAlert.victory-msg .separation-line{
-  margin: 0 auto;
-}
   .chest-battle-element{transform-style: preserve-3d;
   height: 100%;
   width: 100%;}
