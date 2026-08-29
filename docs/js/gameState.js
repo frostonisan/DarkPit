@@ -860,7 +860,7 @@ function displayVictoryOutcomeMessage(message) {
 
     const removeMessage = () => GameOverMsgDiv.remove();
     gameOverDiv.addEventListener('animationend', removeMessage, { once: true });
-    setTimeout(removeMessage, 6200);
+    setTimeout(removeMessage, 4000);
 }
 
 function addLastBattleReportButton(container) {
