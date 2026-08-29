@@ -4605,8 +4605,8 @@ position: absolute;
 }
 
 .glitter-loot-container.is-dispersing {
-  --glitter-dispersal-fade-delay: 3000ms;
-  --glitter-dispersal-fade-duration: 2000ms;
+  --glitter-dispersal-fade-delay: 2000ms;
+  --glitter-dispersal-fade-duration: 1000ms;
   overflow: visible;
   opacity: 1;
   transition: opacity var(--glitter-dispersal-fade-duration, 2000ms) ease;

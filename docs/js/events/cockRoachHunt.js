@@ -217,102 +217,102 @@ const C1_FAIL_ATTACK = Object.freeze({
 /* success / middle / fail                                                    */
 /* ========================================================================== */
 
-const SCENARIO_1_SUCCESS = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c1-success-outcome`),
-  nodes: Object.freeze({
-    [`${EVENT_ID}-c1-success-outcome`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-success-outcome`,
-      outcome: 'success',
-      cinematic: 'hard',
-      text: 'Votre armée se replie habilement sans produire le moindre bruit. Vous effacez vos traces afin de faire croire à votre poursuivant que vous n’avez jamais été là, puis vous vous éloignez calmement.',
-      next: `${EVENT_ID}-c1-success-runaway`
-    }),
-
-    [`${EVENT_ID}-c1-success-runaway`]: actionScreen({
-      id: `${EVENT_ID}-c1-success-runaway`,
-      cinematic: 'soft',
-      actions: [RUNAWAY_SIDE_A],
-      next: `${EVENT_ID}-c1-success-d1`
-    }),
-
-    [`${EVENT_ID}-c1-success-d1`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-success-d1`,
-      cinematic: 'hard',
-      text: 'Au loin, une immense créature insectoïde atteint enfin votre ancienne position. Elle tourne sur elle-même, fouille les débris et cherche une piste qui n’existe plus.',
-      next: `${EVENT_ID}-c1-success-arrival`
-    }),
-
-    [`${EVENT_ID}-c1-success-arrival`]: actionScreen({
-      id: `${EVENT_ID}-c1-success-arrival`,
-      cinematic: 'soft',
-      actions: ['spawnCockroachKingAndWander'],
-      next: `${EVENT_ID}-c1-success-d2`
-    }),
-
-    [`${EVENT_ID}-c1-success-d2`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-success-d2`,
-      cinematic: 'hard',
-      text: 'Les bruits diminuent peu à peu. La bête semble s’apaiser en pensant avoir pourchassé un mirage. Quant à vous, vous êtes déjà loin, hors de danger.',
-      next: `${EVENT_ID}-c1-success-result`
-    }),
-
-    [`${EVENT_ID}-c1-success-result`]: resultScreen({
-      id: `${EVENT_ID}-c1-success-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: 'Vous avez pris la fuite.',
-      next: `${EVENT_ID}-c1-success-leave`
-    }),
-
-    [`${EVENT_ID}-c1-success-leave`]: actionScreen({
-      id: `${EVENT_ID}-c1-success-leave`,
-      actions: ['quitLevel'],
-      endEvent: 'failed'
-    })
-  })
-});
-
-const SCENARIO_1_MIDDLE = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c1-middle-outcome`),
-  nodes: Object.freeze({
-    [`${EVENT_ID}-c1-middle-outcome`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-middle-outcome`,
-      outcome: 'middle',
-      cinematic: 'hard',
-      text: 'Vous vous élancez dans le sens opposé du bruit. Pendant votre fuite, vous jetez un œil derrière vous et repérez une créature colossale lancée à pleine allure, tentant de vous rattraper.',
-      next: `${EVENT_ID}-c1-middle-runaway`
-    }),
-
-    [`${EVENT_ID}-c1-middle-runaway`]: actionScreen({
-      id: `${EVENT_ID}-c1-middle-runaway`,
-      cinematic: 'soft',
-      actions: [RUNAWAY_SIDE_A],
-      next: `${EVENT_ID}-c1-middle-d1`
-    }),
-
-    [`${EVENT_ID}-c1-middle-d1`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-middle-d1`,
-      cinematic: 'hard',
-      text: 'Heureusement, votre armée est plus rapide que la bête.<br>Après une longue poursuite, vous vous retournez : elle n’est plus là.<br>Vous l’avez semée.',
-      next: `${EVENT_ID}-c1-middle-result`
-    }),
-
-    [`${EVENT_ID}-c1-middle-result`]: resultScreen({
-      id: `${EVENT_ID}-c1-middle-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: 'Vous avez pris la fuite.<br>La créature est semée pour toujours.',
-      next: `${EVENT_ID}-c1-middle-leave`
-    }),
-
-    [`${EVENT_ID}-c1-middle-leave`]: actionScreen({
-      id: `${EVENT_ID}-c1-middle-leave`,
-      actions: ['quitLevel'],
-      endEvent: 'failed'
-    })
-  })
-});
-
+// const SCENARIO_1_SUCCESS = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c1-success-outcome`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c1-success-outcome`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-success-outcome`,
+//       outcome: 'success',
+//       cinematic: 'hard',
+//       text: 'Votre armée se replie habilement sans produire le moindre bruit. Vous effacez vos traces afin de faire croire à votre poursuivant que vous n’avez jamais été là, puis vous vous éloignez calmement.',
+//       next: `${EVENT_ID}-c1-success-runaway`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-runaway`]: actionScreen({
+//       id: `${EVENT_ID}-c1-success-runaway`,
+//       cinematic: 'soft',
+//       actions: [RUNAWAY_SIDE_A],
+//       next: `${EVENT_ID}-c1-success-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-success-d1`,
+//       cinematic: 'hard',
+//       text: 'Au loin, une immense créature insectoïde atteint enfin votre ancienne position. Elle tourne sur elle-même, fouille les débris et cherche une piste qui n’existe plus.',
+//       next: `${EVENT_ID}-c1-success-arrival`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-arrival`]: actionScreen({
+//       id: `${EVENT_ID}-c1-success-arrival`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKingAndWander'],
+//       next: `${EVENT_ID}-c1-success-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-success-d2`,
+//       cinematic: 'hard',
+//       text: 'Les bruits diminuent peu à peu. La bête semble s’apaiser en pensant avoir pourchassé un mirage. Quant à vous, vous êtes déjà loin, hors de danger.',
+//       next: `${EVENT_ID}-c1-success-result`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-result`]: resultScreen({
+//       id: `${EVENT_ID}-c1-success-result`,
+//       cinematic: 'hard',
+//       includeResults: true,
+//       text: 'Vous avez pris la fuite.',
+//       next: `${EVENT_ID}-c1-success-leave`
+//     }),
+//
+//     [`${EVENT_ID}-c1-success-leave`]: actionScreen({
+//       id: `${EVENT_ID}-c1-success-leave`,
+//       actions: ['quitLevel'],
+//       endEvent: 'failed'
+//     })
+//   })
+// });
+//
+// const SCENARIO_1_MIDDLE = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c1-middle-outcome`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c1-middle-outcome`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-middle-outcome`,
+//       outcome: 'middle',
+//       cinematic: 'hard',
+//       text: 'Vous vous élancez dans le sens opposé du bruit. Pendant votre fuite, vous jetez un œil derrière vous et repérez une créature colossale lancée à pleine allure, tentant de vous rattraper.',
+//       next: `${EVENT_ID}-c1-middle-runaway`
+//     }),
+//
+//     [`${EVENT_ID}-c1-middle-runaway`]: actionScreen({
+//       id: `${EVENT_ID}-c1-middle-runaway`,
+//       cinematic: 'soft',
+//       actions: [RUNAWAY_SIDE_A],
+//       next: `${EVENT_ID}-c1-middle-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c1-middle-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-middle-d1`,
+//       cinematic: 'hard',
+//       text: 'Heureusement, votre armée est plus rapide que la bête.<br>Après une longue poursuite, vous vous retournez : elle n’est plus là.<br>Vous l’avez semée.',
+//       next: `${EVENT_ID}-c1-middle-result`
+//     }),
+//
+//     [`${EVENT_ID}-c1-middle-result`]: resultScreen({
+//       id: `${EVENT_ID}-c1-middle-result`,
+//       cinematic: 'hard',
+//       includeResults: true,
+//       text: 'Vous avez pris la fuite.<br>La créature est semée pour toujours.',
+//       next: `${EVENT_ID}-c1-middle-leave`
+//     }),
+//
+//     [`${EVENT_ID}-c1-middle-leave`]: actionScreen({
+//       id: `${EVENT_ID}-c1-middle-leave`,
+//       actions: ['quitLevel'],
+//       endEvent: 'failed'
+//     })
+//   })
+// });
+//
 const SCENARIO_1_FAIL = Object.freeze({
   resolution: outcome(`${EVENT_ID}-c1-fail-outcome`),
   nodes: Object.freeze({
@@ -395,147 +395,147 @@ const SCENARIO_1 = Object.freeze({
   })
 });
 
-/* ========================================================================== */
-/* SCÉNARIO 2 — BARRICADE                                                     */
-/* success / middle                                                           */
-/* ========================================================================== */
-
-const SCENARIO_2_SUCCESS = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c2-success-outcome`),
-  nodes: Object.freeze({
-    [`${EVENT_ID}-c2-success-outcome`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-success-outcome`,
-      outcome: 'success',
-      cinematic: 'hard',
-      img: BARRICADE_SUCCESS_IMAGE,
-      text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri de fortune résiste au choc.',
-      next: `${EVENT_ID}-c2-success-spawn`
-    }),
-
-    [`${EVENT_ID}-c2-success-spawn`]: actionScreen({
-      id: `${EVENT_ID}-c2-success-spawn`,
-      cinematic: 'soft',
-      actions: ['spawnCockroachKing'],
-      next: `${EVENT_ID}-c2-success-d1`
-    }),
-
-    [`${EVENT_ID}-c2-success-d1`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-success-d1`,
-      cinematic: 'hard',
-      img: BARRICADE_CHARGE_SUCCESS,
-      text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br><br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
-      next: `${EVENT_ID}-c2-success-damage`
-    }),
-
-    [`${EVENT_ID}-c2-success-damage`]: actionScreen({
-      id: `${EVENT_ID}-c2-success-damage`,
-      cinematic: 'soft',
-      actions: [Object.freeze({
-        action: 'shakeScreenEvent',
-        args: Object.freeze({
-          effect: 'damage',
-          times: 1
-        })
-      }), 'spawnAndWoundCockroachKing'],
-      next: `${EVENT_ID}-c2-success-d2`
-    }),
-
-    [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-success-d2`,
-      cinematic: 'hard',
-      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
-      next: `${EVENT_ID}-c2-success-result`
-    }),
-
-    [`${EVENT_ID}-c2-success-result`]: resultScreen({
-      id: `${EVENT_ID}-c2-success-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: `Le choc blesse le Souverain des Blattes et lui fait perdre ${BARRICADE_DAMAGE_PERCENT} % de ses HP actuels.`,
-      next: `${EVENT_ID}-c2-success-battle`
-    }),
-
-    [`${EVENT_ID}-c2-success-battle`]: actionScreen({
-      id: `${EVENT_ID}-c2-success-battle`,
-      actions: ['forceBattle']
-    })
-  })
-});
-
-const SCENARIO_2_MIDDLE = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c2-middle-outcome`),
-  nodes: Object.freeze({
-    [`${EVENT_ID}-c2-middle-outcome`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-middle-outcome`,
-      outcome: 'middle',
-      cinematic: 'hard',
-      img: BARRICADE_IMAGE,
-      text: 'Vous terminez la barricade au moment où une masse immense surgit au bout du passage.',
-      next: `${EVENT_ID}-c2-middle-spawn`
-    }),
-
-    [`${EVENT_ID}-c2-middle-spawn`]: actionScreen({
-      id: `${EVENT_ID}-c2-middle-spawn`,
-      cinematic: 'soft',
-      actions: ['spawnCockroachKing'],
-      next: `${EVENT_ID}-c2-middle-d1`
-    }),
-
-    [`${EVENT_ID}-c2-middle-d1`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-middle-d1`,
-      cinematic: 'hard',
-      img: BARRICADE_CHARGE_IMAGE,
-      text: 'La barricade s’effondre avec fracas dès la première charge. Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.',
-      next: `${EVENT_ID}-c2-middle-chest`
-    }),
-
-    [`${EVENT_ID}-c2-middle-chest`]: actionScreen({
-      id: `${EVENT_ID}-c2-middle-chest`,
-      cinematic: 'soft',
-      actions: ['destroyChest'],
-      next: `${EVENT_ID}-c2-middle-d2`
-    }),
-
-    [`${EVENT_ID}-c2-middle-d2`]: dialogueScreen({
-      id: `${EVENT_ID}-c2-middle-d2`,
-      cinematic: 'hard',
-      text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
-      next: `${EVENT_ID}-c2-middle-result`
-    }),
-
-    [`${EVENT_ID}-c2-middle-result`]: resultScreen({
-      id: `${EVENT_ID}-c2-middle-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: 'Vous vous préparez au combat.',
-      next: `${EVENT_ID}-c2-middle-battle`
-    }),
-
-    [`${EVENT_ID}-c2-middle-battle`]: actionScreen({
-      id: `${EVENT_ID}-c2-middle-battle`,
-      actions: ['forceBattle']
-    })
-  })
-});
-
-const SCENARIO_2 = Object.freeze({
-  choice: Object.freeze({
-    id: `${EVENT_ID}-c2`,
-    text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
-    img: ARRIVAL_IMAGE,
-    resolution: createResolution('strength', {
-      // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
-      success: SCENARIO_2_SUCCESS.resolution
-      // middle: SCENARIO_2_MIDDLE.resolution
-    })
-  }),
-  nodes: Object.freeze({
-    // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
-    ...SCENARIO_2_SUCCESS.nodes
-    // ...SCENARIO_2_MIDDLE.nodes
-  })
-});
-
+// /* ========================================================================== */
+// /* SCÉNARIO 2 — BARRICADE                                                     */
+// /* success / middle                                                           */
+// /* ========================================================================== */
+//
+// const SCENARIO_2_SUCCESS = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c2-success-outcome`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c2-success-outcome`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-success-outcome`,
+//       outcome: 'success',
+//       cinematic: 'hard',
+//       img: BARRICADE_SUCCESS_IMAGE,
+//       text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri de fortune résiste au choc.',
+//       next: `${EVENT_ID}-c2-success-spawn`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c2-success-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c2-success-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-success-d1`,
+//       cinematic: 'hard',
+//       img: BARRICADE_CHARGE_SUCCESS,
+//       text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br><br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
+//       next: `${EVENT_ID}-c2-success-damage`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-damage`]: actionScreen({
+//       id: `${EVENT_ID}-c2-success-damage`,
+//       cinematic: 'soft',
+//       actions: [Object.freeze({
+//         action: 'shakeScreenEvent',
+//         args: Object.freeze({
+//           effect: 'damage',
+//           times: 1
+//         })
+//       }), 'spawnAndWoundCockroachKing'],
+//       next: `${EVENT_ID}-c2-success-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-success-d2`,
+//       cinematic: 'hard',
+//       text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
+//       next: `${EVENT_ID}-c2-success-result`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-result`]: resultScreen({
+//       id: `${EVENT_ID}-c2-success-result`,
+//       cinematic: 'hard',
+//       includeResults: true,
+//       text: `Le choc blesse le Souverain des Blattes et lui fait perdre ${BARRICADE_DAMAGE_PERCENT} % de ses HP actuels.`,
+//       next: `${EVENT_ID}-c2-success-battle`
+//     }),
+//
+//     [`${EVENT_ID}-c2-success-battle`]: actionScreen({
+//       id: `${EVENT_ID}-c2-success-battle`,
+//       actions: ['forceBattle']
+//     })
+//   })
+// });
+//
+// const SCENARIO_2_MIDDLE = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c2-middle-outcome`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c2-middle-outcome`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-middle-outcome`,
+//       outcome: 'middle',
+//       cinematic: 'hard',
+//       img: BARRICADE_IMAGE,
+//       text: 'Vous terminez la barricade au moment où une masse immense surgit au bout du passage.',
+//       next: `${EVENT_ID}-c2-middle-spawn`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c2-middle-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c2-middle-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-middle-d1`,
+//       cinematic: 'hard',
+//       img: BARRICADE_CHARGE_IMAGE,
+//       text: 'La barricade s’effondre avec fracas dès la première charge. Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.',
+//       next: `${EVENT_ID}-c2-middle-chest`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-chest`]: actionScreen({
+//       id: `${EVENT_ID}-c2-middle-chest`,
+//       cinematic: 'soft',
+//       actions: ['destroyChest'],
+//       next: `${EVENT_ID}-c2-middle-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c2-middle-d2`,
+//       cinematic: 'hard',
+//       text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
+//       next: `${EVENT_ID}-c2-middle-result`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-result`]: resultScreen({
+//       id: `${EVENT_ID}-c2-middle-result`,
+//       cinematic: 'hard',
+//       includeResults: true,
+//       text: 'Vous vous préparez au combat.',
+//       next: `${EVENT_ID}-c2-middle-battle`
+//     }),
+//
+//     [`${EVENT_ID}-c2-middle-battle`]: actionScreen({
+//       id: `${EVENT_ID}-c2-middle-battle`,
+//       actions: ['forceBattle']
+//     })
+//   })
+// });
+//
+// const SCENARIO_2 = Object.freeze({
+//   choice: Object.freeze({
+//     id: `${EVENT_ID}-c2`,
+//     text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
+//     img: ARRIVAL_IMAGE,
+//     resolution: createResolution('strength', {
+//       // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
+//       success: SCENARIO_2_SUCCESS.resolution
+//       // middle: SCENARIO_2_MIDDLE.resolution
+//     })
+//   }),
+//   nodes: Object.freeze({
+//     // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
+//     ...SCENARIO_2_SUCCESS.nodes
+//     // ...SCENARIO_2_MIDDLE.nodes
+//   })
+// });
+//
 /* ========================================================================== */
 /* EVENT                                                                      */
 /* ========================================================================== */
@@ -590,15 +590,15 @@ export const cockRoachHuntEvent = Object.freeze({
       cinematic: 'hard',
       text: 'Vous n’avez que quelques secondes pour réagir.',
       choices: [
-        // TEST SCÉNARIO 2 / SUCCESS : seul le scénario 2 est actif.
-        // SCENARIO_1.choice
-        SCENARIO_2.choice
+        // TEST SCÉNARIO 1 / FAIL : seul le scénario 1 est actif.
+        SCENARIO_1.choice
+        // SCENARIO_2.choice
       ]
     }),
 
-    // TEST SCÉNARIO 2 / SUCCESS : seul le scénario 2 est actif.
-    // ...SCENARIO_1.nodes
-    ...SCENARIO_2.nodes
+    // TEST SCÉNARIO 1 / FAIL : seul le scénario 1 est actif.
+    ...SCENARIO_1.nodes
+    // ...SCENARIO_2.nodes
   }),
 
   actions: Object.freeze({
