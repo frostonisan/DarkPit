@@ -313,91 +313,91 @@ const C1_FAIL_ATTACK = Object.freeze({
 //   })
 // });
 //
-const SCENARIO_1_FAIL = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c1-fail-outcome`),
-  nodes: Object.freeze({
-    [`${EVENT_ID}-c1-fail-outcome`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-fail-outcome`,
-      outcome: 'fail',
-      cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
-      text: 'Votre armée trébuche et se disperse. Une créature colossale surgit de nulle part et vous charge, détruisant tout sur son passage. Toute retraite est désormais impossible.',
-      next: `${EVENT_ID}-c1-fail-spawn`
-    }),
+// const SCENARIO_1_FAIL = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c1-fail-outcome`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c1-fail-outcome`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-fail-outcome`,
+//       outcome: 'fail',
+//       cinematic: 'hard',
+//       img: ARRIVAL_IMAGE,
+//       text: 'Votre armée trébuche pittoyablement et se disperse.<br>Une créature colossale surgit de nulle part et vous charge, détruisant tout sur son passage. Toute retraite est désormais impossible.',
+//       next: `${EVENT_ID}-c1-fail-spawn`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-spawn`]: actionScreen({
-      id: `${EVENT_ID}-c1-fail-spawn`,
-      cinematic: 'soft',
-      actions: [
-        'spawnCockroachKing',
-        Object.freeze({
-          action: 'destroyCorpse',
-          args: Object.freeze({ sides: Object.freeze(['B']) })
-        }),
-        'destroyChest'
-      ],
-      next: `${EVENT_ID}-c1-fail-d1`
-    }),
+//     [`${EVENT_ID}-c1-fail-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c1-fail-spawn`,
+//       cinematic: 'soft',
+//       actions: [
+//         'spawnCockroachKing',
+//         Object.freeze({
+//           action: 'destroyCorpse',
+//           args: Object.freeze({ sides: Object.freeze(['B']) })
+//         }),
+//         'destroyChest'
+//       ],
+//       next: `${EVENT_ID}-c1-fail-d1`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-d1`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-fail-d1`,
-      cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
-      text: 'Le Souverain des Blattes traverse vos rangs dispersés. Sa charge projette les combattants au sol tandis que ses mandibules se referment sur tout ce qui est à leur portée, détruisant tout sur son passage.',
-      next: `${EVENT_ID}-c1-fail-attack`
-    }),
+//     [`${EVENT_ID}-c1-fail-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-fail-d1`,
+//       cinematic: 'hard',
+//       img: ARRIVAL_IMAGE,
+//       text: 'Le Souverain des Blattes traverse vos rangs dispersés. Sa charge projette violemment vos combattants au sol, tandis que ses mandibules se referment sur tout ce qui est à leur portée.<br>Le monstre détruit tout sur son passage.',
+//       next: `${EVENT_ID}-c1-fail-attack`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-attack`]: actionScreen({
-      id: `${EVENT_ID}-c1-fail-attack`,
-      cinematic: 'soft',
-      actions: [C1_FAIL_ATTACK],
-      next: `${EVENT_ID}-c1-fail-d2`
-    }),
+//     [`${EVENT_ID}-c1-fail-attack`]: actionScreen({
+//       id: `${EVENT_ID}-c1-fail-attack`,
+//       cinematic: 'soft',
+//       actions: [C1_FAIL_ATTACK],
+//       next: `${EVENT_ID}-c1-fail-d2`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-d2`]: dialogueScreen({
-      id: `${EVENT_ID}-c1-fail-d2`,
-      cinematic: 'hard',
-      text: 'L\attaque est brutale. La créature se retourne lentement vers le restant de vos troupe. Elle se rue sur vous pour vous achever.',
-      next: `${EVENT_ID}-c1-fail-result`
-    }),
+//     [`${EVENT_ID}-c1-fail-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c1-fail-d2`,
+//       cinematic: 'hard',
+//       text: 'L\attaque est brutale. La créature se retourne lentement vers le restant de vos troupe. Elle se rue sur vous pour vous achever.',
+//       next: `${EVENT_ID}-c1-fail-result`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-result`]: resultScreen({
-      id: `${EVENT_ID}-c1-fail-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: 'C’est le chaos. Vous avez des blessés.',
-      next: `${EVENT_ID}-c1-fail-battle`
-    }),
+//     [`${EVENT_ID}-c1-fail-result`]: resultScreen({
+//       id: `${EVENT_ID}-c1-fail-result`,
+//       cinematic: 'hard',
+//       includeResults: true,
+//       text: 'C’est le chaos. Vous avez des blessés.',
+//       next: `${EVENT_ID}-c1-fail-battle`
+//     }),
 
-    [`${EVENT_ID}-c1-fail-battle`]: actionScreen({
-      id: `${EVENT_ID}-c1-fail-battle`,
-      actions: ['forceBattle']
-    })
-  })
-});
+//     [`${EVENT_ID}-c1-fail-battle`]: actionScreen({
+//       id: `${EVENT_ID}-c1-fail-battle`,
+//       actions: ['forceBattle']
+//     })
+//   })
+// });
 
-const SCENARIO_1 = Object.freeze({
-  choice: Object.freeze({
-    id: `${EVENT_ID}-c1`,
-    text: 'Vous tentez de disparaître avant son arrivée.',
-    resolution: createResolution('agility', {
+// const SCENARIO_1 = Object.freeze({
+//   choice: Object.freeze({
+//     id: `${EVENT_ID}-c1`,
+//     text: 'Vous tentez de disparaître avant son arrivée.',
+//     resolution: createResolution('agility', {
       // TEST SCÉNARIO 1 / FAIL : réactiver les autres après validation.
       // success: SCENARIO_1_SUCCESS.resolution,
       // middle: SCENARIO_1_MIDDLE.resolution,
-      fail: SCENARIO_1_FAIL.resolution
-    })
-  }),
-  nodes: Object.freeze({
+//       fail: SCENARIO_1_FAIL.resolution
+//     })
+//   }),
+//   nodes: Object.freeze({
     // TEST SCÉNARIO 1 / FAIL : réactiver les autres après validation.
     // ...SCENARIO_1_SUCCESS.nodes,
     // ...SCENARIO_1_MIDDLE.nodes,
-    ...SCENARIO_1_FAIL.nodes
-  })
-});
+//     ...SCENARIO_1_FAIL.nodes
+//   })
+// });
 
 // /* ========================================================================== */
 // /* SCÉNARIO 2 — BARRICADE                                                     */
-// /* success / middle                                                           */
+// /* success                                                      */
 // /* ========================================================================== */
 //
 // const SCENARIO_2_SUCCESS = Object.freeze({
@@ -408,7 +408,7 @@ const SCENARIO_1 = Object.freeze({
 //       outcome: 'success',
 //       cinematic: 'hard',
 //       img: BARRICADE_SUCCESS_IMAGE,
-//       text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri de fortune résiste au choc.',
+//       text: 'Vos robustes entités sont parvenues à temps à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri résiste au choc.',
 //       next: `${EVENT_ID}-c2-success-spawn`
 //     }),
 //
@@ -423,7 +423,7 @@ const SCENARIO_1 = Object.freeze({
 //       id: `${EVENT_ID}-c2-success-d1`,
 //       cinematic: 'hard',
 //       img: BARRICADE_CHARGE_SUCCESS,
-//       text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br><br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
+//       text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
 //       next: `${EVENT_ID}-c2-success-damage`
 //     }),
 //
@@ -443,7 +443,7 @@ const SCENARIO_1 = Object.freeze({
 //     [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
 //       id: `${EVENT_ID}-c2-success-d2`,
 //       cinematic: 'hard',
-//       text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
+//       text: 'La créature est lacérée par les débris de la barricade, qui ont percé sa chaire sous la violence de l'impacte. Elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisés par ce succès.',
 //       next: `${EVENT_ID}-c2-success-result`
 //     }),
 //
@@ -470,7 +470,7 @@ const SCENARIO_1 = Object.freeze({
 //       outcome: 'middle',
 //       cinematic: 'hard',
 //       img: BARRICADE_IMAGE,
-//       text: 'Vous terminez la barricade au moment où une masse immense surgit au bout du passage.',
+//       text: 'Vous construisez une barricade de fortune.<br>Vous ne pouviez pas déplacer sur de trop grandes distances des objets lourds, vous avez donc utilisé ce qui était à votre proximité immédiate.<br>Au moment où vous réfigiez devant un coffre utilisé comme rempart, une masse immense surgit furieusement de nulle part et se jette dans votre direction.',
 //       next: `${EVENT_ID}-c2-middle-spawn`
 //     }),
 //
@@ -485,7 +485,7 @@ const SCENARIO_1 = Object.freeze({
 //       id: `${EVENT_ID}-c2-middle-d1`,
 //       cinematic: 'hard',
 //       img: BARRICADE_CHARGE_IMAGE,
-//       text: 'La barricade s’effondre avec fracas dès la première charge. Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.',
+//       text: 'L'impacte est d'une rare violance.<br>Votre barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.<br>Il ne reste plus rien.',
 //       next: `${EVENT_ID}-c2-middle-chest`
 //     }),
 //
@@ -499,7 +499,7 @@ const SCENARIO_1 = Object.freeze({
 //     [`${EVENT_ID}-c2-middle-d2`]: dialogueScreen({
 //       id: `${EVENT_ID}-c2-middle-d2`,
 //       cinematic: 'hard',
-//       text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
+//       text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit.<br>Il bondit sur votre armée.',
 //       next: `${EVENT_ID}-c2-middle-result`
 //     }),
 //
@@ -518,23 +518,77 @@ const SCENARIO_1 = Object.freeze({
 //   })
 // });
 //
-// const SCENARIO_2 = Object.freeze({
-//   choice: Object.freeze({
-//     id: `${EVENT_ID}-c2`,
-//     text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
-//     img: ARRIVAL_IMAGE,
-//     resolution: createResolution('strength', {
-//       // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
-//       success: SCENARIO_2_SUCCESS.resolution
-//       // middle: SCENARIO_2_MIDDLE.resolution
-//     })
-//   }),
-//   nodes: Object.freeze({
-//     // TEST SCÉNARIO 2 / SUCCESS : réactiver les autres après validation.
-//     ...SCENARIO_2_SUCCESS.nodes
-//     // ...SCENARIO_2_MIDDLE.nodes
-//   })
-// });
+const SCENARIO_2_FAIL = Object.freeze({
+  resolution: outcome(`${EVENT_ID}-c2-fail-outcome`),
+  nodes: Object.freeze({
+    [`${EVENT_ID}-c2-fail-outcome`]: dialogueScreen({
+      id: `${EVENT_ID}-c2-fail-outcome`,
+      outcome: 'fail',
+      cinematic: 'hard',
+      img: BARRICADE_IMAGE,
+      text: 'Vos entités n\'étaient pas taillées physiquement pour déplacer les débris les plus robustes qui vous entouraient, afin de constituer une protection suffisament solide.<br>Malgrés vos efforts, vous n\'avez pas le temps de terminer la barricade avant qu\'une masse immense surgisse dans votre direction.',
+      next: `${EVENT_ID}-c2-fail-spawn`
+    }),
+
+    [`${EVENT_ID}-c2-fail-spawn`]: actionScreen({
+      id: `${EVENT_ID}-c2-fail-spawn`,
+      cinematic: 'soft',
+      actions: ['spawnCockroachKing'],
+      next: `${EVENT_ID}-c2-fail-d1`
+    }),
+
+    [`${EVENT_ID}-c2-fail-d1`]: dialogueScreen({
+      id: `${EVENT_ID}-c2-fail-d1`,
+      cinematic: 'hard',
+      img: BARRICADE_CHARGE_IMAGE,
+      text: 'La barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.',
+      next: `${EVENT_ID}-c2-fail-chest`
+    }),
+
+    [`${EVENT_ID}-c2-fail-chest`]: actionScreen({
+      id: `${EVENT_ID}-c2-fail-chest`,
+      cinematic: 'soft',
+      actions: ['destroyChest'],
+      next: `${EVENT_ID}-c2-fail-d2`
+    }),
+
+    [`${EVENT_ID}-c2-fail-d2`]: dialogueScreen({
+      id: `${EVENT_ID}-c2-fail-d2`,
+      cinematic: 'hard',
+      text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
+      next: `${EVENT_ID}-c2-fail-result`
+    }),
+
+    [`${EVENT_ID}-c2-fail-result`]: resultScreen({
+      id: `${EVENT_ID}-c2-fail-result`,
+      cinematic: 'hard',
+      includeResults: true,
+      text: 'Vous vous préparez au combat.',
+      next: `${EVENT_ID}-c2-fail-battle`
+    }),
+
+    [`${EVENT_ID}-c2-fail-battle`]: actionScreen({
+      id: `${EVENT_ID}-c2-fail-battle`,
+      actions: ['forceBattle']
+    })
+  })
+});
+//
+const SCENARIO_2 = Object.freeze({
+  choice: Object.freeze({
+    id: `${EVENT_ID}-c2`,
+    text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
+    img: ARRIVAL_IMAGE,
+    resolution: createResolution('strength', {
+      // TEST SCÉNARIO 2 / FAIL : seul le fail est actif.
+      fail: SCENARIO_2_FAIL.resolution
+    })
+  }),
+  nodes: Object.freeze({
+    // TEST SCÉNARIO 2 / FAIL : seul le fail est actif.
+    ...SCENARIO_2_FAIL.nodes
+  })
+});
 //
 /* ========================================================================== */
 /* EVENT                                                                      */
@@ -590,15 +644,15 @@ export const cockRoachHuntEvent = Object.freeze({
       cinematic: 'hard',
       text: 'Vous n’avez que quelques secondes pour réagir.',
       choices: [
-        // TEST SCÉNARIO 1 / FAIL : seul le scénario 1 est actif.
-        SCENARIO_1.choice
-        // SCENARIO_2.choice
+        // TEST SCÉNARIO 2 / FAIL : seul le scénario 2 est actif.
+        // SCENARIO_1.choice
+        SCENARIO_2.choice
       ]
     }),
 
-    // TEST SCÉNARIO 1 / FAIL : seul le scénario 1 est actif.
-    ...SCENARIO_1.nodes
-    // ...SCENARIO_2.nodes
+    // TEST SCÉNARIO 2 / FAIL : seul le scénario 2 est actif.
+    // ...SCENARIO_1.nodes
+    ...SCENARIO_2.nodes
   }),
 
   actions: Object.freeze({
