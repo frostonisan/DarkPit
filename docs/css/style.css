@@ -90,15 +90,17 @@ background: rgba(15, 18, 20, 0.8);
 
 .dialogue-left,
 .dialogue-right {
-  width: 20%;
+width: 15%;
   height: 100%;
-  margin: auto;position: fixed;
+  margin: auto;
+  overflow: visible;
 }
 
 .dialogue-center {
-  width: 60%;
+width: 65%;
   height: 100%;
   margin: auto;
+  overflow-y: auto;
 }
 
 .dialogue-footer {
@@ -3026,14 +3028,21 @@ width: 195px;
   width: 100%;}
 .GameOverMessage.victory-outcome-message{pointer-events: none;}
 .GameOverMessage .IngameAlert.victory-msg{
-  background: linear-gradient(to right, transparent, #100b00 18%, #9d7800d9 80%, transparent);
+ background: linear-gradient(to right, transparent, #a46c00d9 18%, #cda300d9 80%, transparent);
   color: #fff9c5;
-  font-family: Arial, sans-serif;
-  height: 4vh;
-  font-size: 20px;
+ font-family: "Garamond", "Times New Roman", serif;
+  min-height: 4vh;
+  font-size: 25px;
   font-weight: bold;
   filter: drop-shadow(0px 0px 2px rgba(255, 255, 255, 0.41));
-  animation: gameOutcomeZoof 5.6s ease-in-out forwards;
+   animation: gameOutcomeZoof 2s ease-in-out forwards;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+.GameOverMessage .IngameAlert.victory-msg .separation-line{
+  margin: 0 auto;
 }
   .chest-battle-element{transform-style: preserve-3d;
   height: 100%;

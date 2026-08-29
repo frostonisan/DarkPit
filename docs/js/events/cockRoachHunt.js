@@ -357,7 +357,7 @@ const SCENARIO_1_FAIL = Object.freeze({
     [`${EVENT_ID}-c1-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c1-fail-d2`,
       cinematic: 'hard',
-      text: 'La créature se retourne lentement vers les survivants. Elle ne vous laissera pas fuir une seconde fois.',
+      text: 'L\attaque est brutale. La créature se retourne lentement vers le restant de vos troupe. Elle se rue sur vous pour vous achever.',
       next: `${EVENT_ID}-c1-fail-result`
     }),
 

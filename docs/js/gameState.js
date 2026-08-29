@@ -840,7 +840,20 @@ function displayVictoryOutcomeMessage(message) {
     const gameOverDiv = document.createElement('div');
     gameOverDiv.id = 'gameOverMessage';
     gameOverDiv.className = 'IngameAlert victory-msg';
-    gameOverDiv.innerText = message;
+
+    const topLine = document.createElement('div');
+    topLine.className = 'separation-line golden';
+
+    const messageText = document.createElement('div');
+    messageText.className = 'victory-message-text';
+    messageText.innerText = message;
+
+    const bottomLine = document.createElement('div');
+    bottomLine.className = 'separation-line golden';
+
+    gameOverDiv.appendChild(topLine);
+    gameOverDiv.appendChild(messageText);
+    gameOverDiv.appendChild(bottomLine);
 
     GameOverMsgDiv.appendChild(gameOverDiv);
     gameUI.appendChild(GameOverMsgDiv);
