@@ -771,6 +771,11 @@ function restartAfterGlobalGameOver() {
 }
 // Afficher le message de Game Over dans une div dynamique
 function displayGameOverMessage(message) {
+    if (String(message).trim() === 'Victoire !') {
+        displayVictoryOutcomeMessage(message);
+        return;
+    }
+
     const existingDiv = document.getElementById('gameOverMessage');
 
     if (existingDiv) {
@@ -818,6 +823,31 @@ function displayGameOverMessage(message) {
     addLastBattleReportButton(GameOverMsgDiv);
 
     gameUI.appendChild(GameOverMsgDiv);
+}
+
+function displayVictoryOutcomeMessage(message) {
+    const gameUI = document.querySelector(".Game-UI");
+    if (!gameUI) {
+        console.error("Erreur : Élément .Game-UI introuvable.");
+        return;
+    }
+
+    document.querySelector(".GameOverMessage")?.remove();
+
+    const GameOverMsgDiv = document.createElement('div');
+    GameOverMsgDiv.className = 'GameOverMessage victory-outcome-message';
+
+    const gameOverDiv = document.createElement('div');
+    gameOverDiv.id = 'gameOverMessage';
+    gameOverDiv.className = 'IngameAlert runaway-msg victory-msg';
+    gameOverDiv.innerText = message;
+
+    GameOverMsgDiv.appendChild(gameOverDiv);
+    gameUI.appendChild(GameOverMsgDiv);
+
+    const removeMessage = () => GameOverMsgDiv.remove();
+    gameOverDiv.addEventListener('animationend', removeMessage, { once: true });
+    setTimeout(removeMessage, 6200);
 }
 
 function addLastBattleReportButton(container) {

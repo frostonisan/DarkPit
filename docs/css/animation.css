@@ -393,6 +393,24 @@
     opacity: 0;
   }
 }
+@keyframes gameOutcomeZoof {
+  0% {
+    transform: translate(-260%, -50%) scale(0.82);
+    opacity: 0;
+  }
+  16% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  78% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-260%, -50%) scale(0.9);
+    opacity: 0;
+  }
+}
 @keyframes glitterLootFloat {
   0% {
     transform:
