@@ -839,7 +839,7 @@ function displayVictoryOutcomeMessage(message) {
 
     const gameOverDiv = document.createElement('div');
     gameOverDiv.id = 'gameOverMessage';
-    gameOverDiv.className = 'IngameAlert runaway-msg victory-msg';
+    gameOverDiv.className = 'IngameAlert victory-msg';
     gameOverDiv.innerText = message;
 
     GameOverMsgDiv.appendChild(gameOverDiv);
