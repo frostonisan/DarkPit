@@ -3899,9 +3899,6 @@ margin-right: 10px;
 
 .Game-helper > .destroyed-loot-helper {
     position: absolute;
-    left: 50%;
-    bottom: 7%;
-    transform: translateX(-50%);
     box-sizing: border-box;
     max-width: min(420px, calc(100% - 32px));
     padding: 10px 14px;

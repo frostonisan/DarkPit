@@ -1746,6 +1746,25 @@ function showDestroyedLootHelper(subject) {
   container.appendChild(helper);
 }
 
+function placeDestroyedLootHelperAtPointer(helperEl, event, { offset = 12, margin = 8 } = {}) {
+  const bounds = getGameBoundsRect();
+  const helperRect = helperEl.getBoundingClientRect();
+  const helperW = helperRect.width;
+  const helperH = helperRect.height;
+
+  let left = Number(event?.pageX) + offset;
+  let top = Number(event?.pageY) + offset;
+
+  if (!Number.isFinite(left)) left = bounds.left + margin;
+  if (!Number.isFinite(top)) top = bounds.top + margin;
+
+  const maxLeft = Math.max(bounds.left + margin, bounds.right - margin - helperW);
+  const maxTop = Math.max(bounds.top + margin, bounds.bottom - margin - helperH);
+
+  helperEl.style.left = `${Math.min(Math.max(left, bounds.left + margin), maxLeft)}px`;
+  helperEl.style.top = `${Math.min(Math.max(top, bounds.top + margin), maxTop)}px`;
+}
+
 document.addEventListener("click", (event) => {
   const subject = destroyedLootSubject(event.target);
   if (!subject) {
@@ -1754,6 +1773,8 @@ document.addEventListener("click", (event) => {
   }
 
   showDestroyedLootHelper(subject);
+  const helper = document.querySelector(".Game-helper .destroyed-loot-helper");
+  if (helper) placeDestroyedLootHelperAtPointer(helper, event);
 }, true);
 
 document.addEventListener("mouseout", (event) => {
