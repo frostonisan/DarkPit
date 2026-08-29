@@ -5572,6 +5572,22 @@ function purgePersistentCorpseLootSources(entityIds, stageId) {
   return removed;
 }
 
+function countUncollectedPersistentLoot(source) {
+  return ['entities', 'stuff', 'consommables'].reduce((total, category) => (
+    total + (source?.loot?.[category] || []).filter((entry) => (
+      entry?.collected !== true && entry?.lost !== true
+    )).length
+  ), 0);
+}
+
+function lostLootResultSuffix(lostLootCount) {
+  const count = Math.max(0, Number(lostLootCount) || 0);
+  if (count === 0) return '';
+  return count === 1
+    ? ' (1 objet est perdu)'
+    : ` (${count} objets sont perdus)`;
+}
+
 function findEventCorpseBattleElement(entity) {
   if (!entity?.id && entity?.id !== 0) return null;
 
@@ -5911,11 +5927,6 @@ export async function destroyChest(options = {}) {
   const chestSentence = destroyedChestCount === 1
     ? 'Le coffre du niveau est détruit.'
     : `${destroyedChestCount} coffres du niveau sont détruits.`;
-  const lootSentence = lostLootCount === 0
-    ? ''
-    : lostLootCount === 1
-      ? '<br>1 objet contenu dans le coffre est perdu.'
-      : `<br>${lostLootCount} objets contenus dans les coffres sont perdus.`;
   const eventResults = destroyedChestCount > 0
     ? [eventResult(
       'chestsDestroyed',
@@ -5924,7 +5935,7 @@ export async function destroyChest(options = {}) {
         destroyedChestCount,
         lostLootCount
       },
-      `${chestSentence}${lootSentence}`,
+      `${chestSentence}${lostLootResultSuffix(lostLootCount)}`,
       ['event-result-chests-destroyed', 'destroy']
     )]
     : [];
@@ -6018,11 +6029,14 @@ export async function destroyCorpse(options = {}) {
 
       markerRecord.corpseId = corpseSource?.id ?? null;
 
+      const lostLootCount = countUncollectedPersistentLoot(corpseSource);
+
       return {
         entity,
         side,
         markerRecord,
         corpseSource,
+        lostLootCount,
         hasUncollectedLoot: ['entities', 'stuff', 'consommables'].some((category) => (
           (corpseSource?.loot?.[category] || []).some((entry) => (
             entry?.collected !== true && entry?.lost !== true
@@ -6091,6 +6105,10 @@ export async function destroyCorpse(options = {}) {
   syncEventMaterialChanges();
 
   const destroyedCorpseCount = destroyedRecords.length;
+  const lostLootCount = preparedTargets.reduce(
+    (total, target) => total + Math.max(0, Number(target?.lostLootCount) || 0),
+    0
+  );
 
   window.dispatchEvent(new CustomEvent('eventCorpsesDestroyed', {
     detail: {
@@ -6098,6 +6116,7 @@ export async function destroyCorpse(options = {}) {
       destroyedCorpseCount,
       destroyedCorpseIds: destroyedEntityIds,
       removedPersistentCorpseCount,
+      lostLootCount,
       sprite: DESTROYED_CORPSE_SPRITE_URL
     }
   }));
@@ -6111,11 +6130,12 @@ export async function destroyCorpse(options = {}) {
           destroyedCorpseCount,
           destroyedCorpseIds: destroyedEntityIds,
           removedPersistentCorpseCount,
+          lostLootCount,
           sprite: DESTROYED_CORPSE_SPRITE_URL
         },
-        destroyedCorpseCount === 1
+        `${destroyedCorpseCount === 1
           ? 'Un cadavre est détruit.'
-          : `${destroyedCorpseCount} cadavres sont détruits.`,
+          : `${destroyedCorpseCount} cadavres sont détruits.`}${lostLootResultSuffix(lostLootCount)}`,
         [
           'event-result-corpses-destroyed',
           'destroy'
@@ -6130,6 +6150,7 @@ export async function destroyCorpse(options = {}) {
     destroyedCorpseCount,
     destroyedCorpseIds: destroyedEntityIds,
     removedPersistentCorpseCount,
+    lostLootCount,
     sprite: DESTROYED_CORPSE_SPRITE_URL,
     eventResults
   };
