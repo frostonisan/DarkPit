@@ -1422,7 +1422,7 @@ export function updateSpriteUI(entity) {
     }
 
     const bloodGif = document.createElement("img");
-    bloodGif.src = `/media/assets/effects/death-blood.gif?t=${Date.now()}`;
+    bloodGif.src = `./media/assets/effects/death-blood.gif?t=${Date.now()}`;
     bloodGif.className = "effect-vfx death-blood";
     bloodGif.id = `bloodEffect_${entity.id}`;
 
@@ -3786,7 +3786,7 @@ function restoreCanvasEffects() {
     removeExistingMysticismVFX();
 
     mysticismVFX = document.createElement("img");
-    mysticismVFX.src = `/media/assets/effects/mysticism.gif?t=${Date.now()}`;
+    mysticismVFX.src = `./media/assets/effects/mysticism.gif?t=${Date.now()}`;
     mysticismVFX.className = "effect-vfx mysticism mysticism-pop";
     mysticismVFX.alt = "Transe mystique";
     mysticismVFX.style.position = "absolute";
@@ -3897,7 +3897,7 @@ export function mysticismAttackGif(attackerId) {
     sprite.classList.contains("sideB");
 
   const gif = document.createElement("img");
-  gif.src = `/media/assets/effects/mysticism-attack.gif?t=${Date.now()}`;
+  gif.src = `./media/assets/effects/mysticism-attack.gif?t=${Date.now()}`;
   gif.className = "effect-vfx mysticism-attack";
   gif.alt = "";
 

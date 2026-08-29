@@ -5054,7 +5054,7 @@ export function attemptEquilibreAttack(entite) {
 
     if (effectsContainer) {
       const balanceVFX = document.createElement("img");
-      balanceVFX.src = `/media/assets/effects/balance-strike.gif?t=${Date.now()}`;
+      balanceVFX.src = `./media/assets/effects/balance-strike.gif?t=${Date.now()}`;
       balanceVFX.className = "effect-vfx balance-strike";
       balanceVFX.alt = "";
       balanceVFX.style.position = "absolute";

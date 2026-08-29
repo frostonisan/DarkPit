@@ -397,7 +397,7 @@ export function stabilizeDeadEntityVisual(entite, { playDeathBlood = false } = {
   if (playDeathBlood) {
     document.getElementById(`bloodEffect_${entite.id}`)?.remove();
     const bloodGif = document.createElement('img');
-    bloodGif.src = `/media/assets/effects/death-blood.gif?t=${Date.now()}`;
+    bloodGif.src = `./media/assets/effects/death-blood.gif?t=${Date.now()}`;
     bloodGif.className = 'effect-vfx blood';
     bloodGif.id = `bloodEffect_${entite.id}`;
     effectsContainer.appendChild(bloodGif);
