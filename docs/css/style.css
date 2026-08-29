@@ -4605,9 +4605,17 @@ position: absolute;
 }
 
 .glitter-loot-container.is-dispersing {
+  --glitter-dispersal-fade-delay: 3000ms;
+  --glitter-dispersal-fade-duration: 2000ms;
   overflow: visible;
+  opacity: 1;
+  transition: opacity var(--glitter-dispersal-fade-duration, 2000ms) ease;
   -webkit-mask-image: none;
   mask-image: none;
+}
+
+.glitter-loot-container.is-dispersing.is-fading {
+  opacity: 0;
 }
 
 .glitter-loot-container.is-dispersing > .glitter-loot.is-dispersing {

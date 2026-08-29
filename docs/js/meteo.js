@@ -611,9 +611,19 @@ export function glitterLoot(selector, maxGlitters = 15) {
 export function disperseLootGlitter(target, {
   maxGlitters = 12,
   durationMin = 4200,
-  durationMax = 5200
+  durationMax = 5200,
+  fadeDelay = null,
+  fadeDuration = null
 } = {}) {
   const random = (min, max) => Math.random() * (max - min) + min;
+  const parseTime = (value, fallback) => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    const text = String(value ?? '').trim();
+    if (!text) return fallback;
+    const numeric = Number.parseFloat(text);
+    if (!Number.isFinite(numeric)) return fallback;
+    return text.endsWith('ms') ? numeric : text.endsWith('s') ? numeric * 1000 : numeric;
+  };
   const elements = typeof target === 'string'
     ? document.querySelectorAll(target)
     : target instanceof Element
@@ -635,6 +645,10 @@ export function disperseLootGlitter(target, {
 
     element.dataset.glitterDispersing = 'true';
     container.classList.add('is-dispersing');
+    container.classList.remove('is-fading');
+    const style = getComputedStyle(container);
+    const resolvedFadeDelay = parseTime(fadeDelay ?? style.getPropertyValue('--glitter-dispersal-fade-delay'), 3000);
+    const resolvedFadeDuration = parseTime(fadeDuration ?? style.getPropertyValue('--glitter-dispersal-fade-duration'), 2000);
 
     const hostRect = container.getBoundingClientRect();
     const centerX = hostRect.width / 2;
@@ -658,6 +672,15 @@ export function disperseLootGlitter(target, {
       sourceGlitter.style.setProperty('--burst-rotation', `${random(-220, 220)}deg`);
       sourceGlitter.style.setProperty('--burst-duration', `${duration}ms`);
     });
+
+    setTimeout(() => {
+      container.classList.add('is-fading');
+    }, resolvedFadeDelay);
+
+    setTimeout(() => {
+      container.remove();
+      delete element.dataset.glitterDispersing;
+    }, resolvedFadeDelay + resolvedFadeDuration);
   });
 }
 
