@@ -4930,6 +4930,13 @@ async function runEventMeleeAttackVisual({
   return applyDamage();
 }
 
+function eventEntityAttackShouldShake(options = {}) {
+  const value = options.shakescreen ?? options.shakeScreen ?? options.screenShake;
+  if (value === false || value === 0) return false;
+  const text = String(value ?? '').trim().toLowerCase();
+  return !['false', '0', 'no', 'off'].includes(text);
+}
+
 /**
  * Animation cosmétique d'une attaque d'entité suivie des dégâts d'événement.
  *
@@ -5042,6 +5049,7 @@ export async function eventEntityAttack(options = {}) {
   };
 
   const eventResults = [];
+  const shouldShakeScreen = eventEntityAttackShouldShake(options);
 
   try {
     attacker.currentAttack = visualAttack;
@@ -5061,19 +5069,24 @@ export async function eventEntityAttack(options = {}) {
       }
 
       let damagePromise = null;
-      const applyDamageOnce = () => {
+      const applyDamageOnce = async () => {
         if (!damagePromise) {
-          damagePromise = eventEntitydamages({
-            ...options,
-            side: victimTarget.side || victimSide,
-            targetId: target.id,
-            count: 1,
-            percent,
-            lifeState: 'alive',
-            includeDead: false,
-            traceSelection: false,
-            traceLabel: 'eventEntityAttack:damage'
-          });
+          damagePromise = (async () => {
+            if (shouldShakeScreen) {
+              await shakeScreenEvent({ effect: 'damage', times: 1 });
+            }
+            return eventEntitydamages({
+              ...options,
+              side: victimTarget.side || victimSide,
+              targetId: target.id,
+              count: 1,
+              percent,
+              lifeState: 'alive',
+              includeDead: false,
+              traceSelection: false,
+              traceLabel: 'eventEntityAttack:damage'
+            });
+          })();
         }
         return damagePromise;
       };
