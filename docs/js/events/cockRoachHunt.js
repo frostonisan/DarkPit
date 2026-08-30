@@ -212,6 +212,20 @@ const C1_FAIL_ATTACK = Object.freeze({
   })
 });
 
+const C2_FAIL_KILL = Object.freeze({
+  action: 'eventRemoveEntity',
+  args: Object.freeze({
+    side: 'A',
+    lifeState: 'alive',
+    strategy: 'random',
+    count: 1,
+    safeMode: true,
+    protectedSide: 'A',
+    allowCorpseFallback: false,
+    allowResurrectionEscape: false
+  })
+});
+
 /* ========================================================================== */
 /* SCÉNARIO 1 — DISPARAÎTRE AVANT SON ARRIVÉE                                 */
 /* success / middle / fail                                                    */
@@ -526,7 +540,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       outcome: 'fail',
       cinematic: 'hard',
       img: BARRICADE_IMAGE,
-      text: 'Vos entités n\'étaient pas taillées physiquement pour déplacer les débris les plus robustes qui vous entouraient, afin de constituer une protection suffisament solide.<br>Malgrés vos efforts, vous n\'avez pas le temps de terminer la barricade avant qu\'une masse immense surgisse dans votre direction.',
+      text: 'Vos entités n\'étaient pas taillées physiquement pour déplacer les débris les plus robustes qui vous entouraient, afin de constituer une protection suffisamment solide.<br>Malgré vos efforts, vous n\'avez pas le temps de terminer la barricade avant qu\'une masse immense surgisse dans votre direction.',
       next: `${EVENT_ID}-c2-fail-spawn`
     }),
 
@@ -541,7 +555,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       id: `${EVENT_ID}-c2-fail-d1`,
       cinematic: 'hard',
       img: BARRICADE_CHARGE_IMAGE,
-      text: 'La barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.',
+      text: 'Le Souverain des Blattes percute votre construction inachevée de plein fouet.<br><br>Une de vos créatures, un peu trop zélée, avait cru bon de monter sur la pile de débris censée vous servir de protection afin d\'y ajouter une subtile décoration et de clore l\'ouvrage avec classe.<br><br>L\'impact la fait basculer dans le vide.',
       next: `${EVENT_ID}-c2-fail-chest`
     }),
 
@@ -555,7 +569,21 @@ const SCENARIO_2_FAIL = Object.freeze({
     [`${EVENT_ID}-c2-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-fail-d2`,
       cinematic: 'hard',
-      text: 'Le Souverain des Blattes cesse de s’acharner sur les débris lorsqu’il vous aperçoit. Il se jette furieusement sur votre armée.',
+      text: 'Le Souverain des Blattes la voit chuter.<br><br>En une fraction de seconde, il se place sous son point d\'atterrissage, toutes mandibules ouvertes.<br><br>La pauvre créature atterrit directement dans la gueule du monstre.<br>La scène est aussi cruelle que grotesque.',
+      next: `${EVENT_ID}-c2-fail-kill`
+    }),
+
+    [`${EVENT_ID}-c2-fail-kill`]: actionScreen({
+      id: `${EVENT_ID}-c2-fail-kill`,
+      cinematic: 'soft',
+      actions: [C2_FAIL_KILL],
+      next: `${EVENT_ID}-c2-fail-d3`
+    }),
+
+    [`${EVENT_ID}-c2-fail-d3`]: dialogueScreen({
+      id: `${EVENT_ID}-c2-fail-d3`,
+      cinematic: 'hard',
+      text: 'Le Souverain des Blattes n\'est pourtant pas rassasié.<br><br>Il se tourne vers ce qu\'il reste de votre armée et charge avec rage.',
       next: `${EVENT_ID}-c2-fail-result`
     }),
 
@@ -563,7 +591,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       id: `${EVENT_ID}-c2-fail-result`,
       cinematic: 'hard',
       includeResults: true,
-      text: 'Vous vous préparez au combat.',
+      text: 'Le coffre est détruit.<br>Une de vos entités a servi de casse-croûte au Souverain des Blattes.<br>Le combat est engagé.',
       next: `${EVENT_ID}-c2-fail-battle`
     }),
 
@@ -589,6 +617,266 @@ const SCENARIO_2 = Object.freeze({
     ...SCENARIO_2_FAIL.nodes
   })
 });
+//
+// /* ========================================================================== */
+// /* SCÉNARIO 3 — LEURRE / INTELLIGENCE                                         */
+// /* success / middle / fail                                                    */
+// /* ========================================================================== */
+//
+// // À définir au moment de l'activation du scénario 3.
+// // const LURE_DAMAGE_PERCENT = 40;
+//
+// const SCENARIO_3_SUCCESS = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c3-success-spawn`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c3-success-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c3-success-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c3-success-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c3-success-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c3-success-d1`,
+//       cinematic: 'hard',
+//       text: 'Une immense créature insectoïde apparaît. Sans même regarder dans votre direction, elle se précipite vers le cafard écrasé, guidée par les puissantes phéromones du cadavre.',
+//       next: `${EVENT_ID}-c3-success-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c3-success-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c3-success-d2`,
+//       cinematic: 'hard',
+//       text: 'La gigantesque blatte se penche sur la dépouille et laisse échapper une plainte pitoyable. Elle ne semble toujours pas avoir remarqué votre armée.',
+//       next: `${EVENT_ID}-c3-success-choice`
+//     }),
+//
+//     [`${EVENT_ID}-c3-success-choice`]: choiceScreen({
+//       id: `${EVENT_ID}-c3-success-choice`,
+//       cinematic: 'hard',
+//       text: 'La diversion fonctionne. Que décidez-vous de faire ?',
+//       choices: [
+//         Object.freeze({
+//           id: `${EVENT_ID}-c3-success-fight`,
+//           text: 'Lancer le combat.',
+//           action: Object.freeze(['forceBattle']),
+//           startsCombat: true
+//         }),
+//         Object.freeze({
+//           id: `${EVENT_ID}-c3-success-leave`,
+//           text: 'Quitter le niveau.',
+//           action: Object.freeze(['quitLevel']),
+//           end: true
+//         })
+//       ]
+//     })
+//   })
+// });
+//
+// const SCENARIO_3_MIDDLE = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c3-middle-spawn`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c3-middle-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c3-middle-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c3-middle-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c3-middle-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c3-middle-d1`,
+//       cinematic: 'hard',
+//       text: 'La créature surgit des ombres et engloutit le leurre en quelques secondes. Puis ses antennes se tournent lentement vers l’entité dont il porte l’odeur.',
+//       next: `${EVENT_ID}-c3-middle-damage`
+//     }),
+//
+//     [`${EVENT_ID}-c3-middle-damage`]: actionScreen({
+//       id: `${EVENT_ID}-c3-middle-damage`,
+//       cinematic: 'soft',
+//       actions: [Object.freeze({
+//         action: 'eventEntitydamages',
+//         args: Object.freeze({
+//           side: 'A',
+//           lifeState: 'alive',
+//           strategy: 'random',
+//           count: 1,
+//           percent: LURE_DAMAGE_PERCENT
+//         })
+//       })],
+//       next: `${EVENT_ID}-c3-middle-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c3-middle-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c3-middle-d2`,
+//       cinematic: 'hard',
+//       text: 'Blessée mais toujours debout, la cible rejoint vos rangs. Le Roi des Blattes se dresse devant vous : il faut maintenant combattre pour survivre.',
+//       next: `${EVENT_ID}-c3-middle-battle`
+//     }),
+//
+//     [`${EVENT_ID}-c3-middle-battle`]: actionScreen({
+//       id: `${EVENT_ID}-c3-middle-battle`,
+//       actions: ['forceBattle']
+//     })
+//   })
+// });
+//
+// const SCENARIO_3_FAIL = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c3-fail-remove`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c3-fail-remove`]: actionScreen({
+//       id: `${EVENT_ID}-c3-fail-remove`,
+//       cinematic: 'soft',
+//       actions: [Object.freeze({
+//         action: 'eventRemoveEntity',
+//         args: Object.freeze({
+//           side: 'A',
+//           lifeState: 'alive',
+//           strategy: 'lowestStat',
+//           statKey: 'level',
+//           tieBreakers: Object.freeze([
+//             Object.freeze({ statKey: 'HP.max', direction: 'lowest' }),
+//             Object.freeze({ random: true })
+//           ]),
+//           count: 1,
+//           safeMode: true,
+//           protectedSide: 'A',
+//           allowCorpseFallback: false,
+//           allowResurrectionEscape: false
+//         })
+//       })],
+//       next: `${EVENT_ID}-c3-fail-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c3-fail-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c3-fail-d1`,
+//       cinematic: 'hard',
+//       text: 'Le silence retombe aussi vite que la créature est apparue. Vous êtes encore vivants, mais à quel prix ?',
+//       next: `${EVENT_ID}-c3-fail-close`
+//     }),
+//
+//     [`${EVENT_ID}-c3-fail-close`]: actionScreen({
+//       id: `${EVENT_ID}-c3-fail-close`,
+//       actions: ['closeDialogue'],
+//       endEvent: 'failed'
+//     })
+//   })
+// });
+//
+// const SCENARIO_3 = Object.freeze({
+//   choice: Object.freeze({
+//     id: `${EVENT_ID}-c3`,
+//     text: 'Vous tentez une diversion en exploitant les phéromones du cafard écrasé.',
+//     resolution: createResolution('intelligence', {
+//       success: SCENARIO_3_SUCCESS.resolution,
+//       middle: SCENARIO_3_MIDDLE.resolution,
+//       fail: SCENARIO_3_FAIL.resolution
+//     })
+//   }),
+//   nodes: Object.freeze({
+//     ...SCENARIO_3_SUCCESS.nodes,
+//     ...SCENARIO_3_MIDDLE.nodes,
+//     ...SCENARIO_3_FAIL.nodes
+//   })
+// });
+//
+// /* ========================================================================== */
+// /* SCÉNARIO 4 — CACHE CONDITIONNELLE / AGILITÉ                                */
+// /* success / fail                                                             */
+// /* ========================================================================== */
+//
+// const SCENARIO_4_SUCCESS = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c4-success-spawn`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c4-success-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c4-success-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c4-success-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c4-success-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c4-success-d1`,
+//       cinematic: 'hard',
+//       text: 'La créature surgit et se précipite irrésistiblement vers l’endroit que vous venez de quitter. Elle cherche, gratte le sol et expose son dos.',
+//       next: `${EVENT_ID}-c4-success-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c4-success-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c4-success-d2`,
+//       cinematic: 'hard',
+//       text: 'Toujours dissimulée, votre armée contourne silencieusement le monstre. Chacun attend votre signal pour lui bondir dessus.',
+//       next: `${EVENT_ID}-c4-success-surprise`
+//     }),
+//
+//     [`${EVENT_ID}-c4-success-surprise`]: actionScreen({
+//       id: `${EVENT_ID}-c4-success-surprise`,
+//       cinematic: 'soft',
+//       actions: [Object.freeze({
+//         action: 'attackSurprise',
+//         args: Object.freeze({ side: 'sideA' })
+//       })],
+//       next: `${EVENT_ID}-c4-success-d3`
+//     }),
+//
+//     [`${EVENT_ID}-c4-success-d3`]: dialogueScreen({
+//       id: `${EVENT_ID}-c4-success-d3`,
+//       cinematic: 'hard',
+//       text: 'Le signal est donné. Votre armée jaillit des ombres avant que le Roi des Blattes ne puisse se retourner.',
+//       next: `${EVENT_ID}-c4-success-battle`
+//     }),
+//
+//     [`${EVENT_ID}-c4-success-battle`]: actionScreen({
+//       id: `${EVENT_ID}-c4-success-battle`,
+//       actions: ['forceBattle']
+//     })
+//   })
+// });
+//
+// const SCENARIO_4_FAIL = Object.freeze({
+//   resolution: outcome(`${EVENT_ID}-c4-fail-spawn`),
+//   nodes: Object.freeze({
+//     [`${EVENT_ID}-c4-fail-spawn`]: actionScreen({
+//       id: `${EVENT_ID}-c4-fail-spawn`,
+//       cinematic: 'soft',
+//       actions: ['spawnCockroachKing'],
+//       next: `${EVENT_ID}-c4-fail-d1`
+//     }),
+//
+//     [`${EVENT_ID}-c4-fail-d1`]: dialogueScreen({
+//       id: `${EVENT_ID}-c4-fail-d1`,
+//       cinematic: 'hard',
+//       text: 'Le Roi des Blattes distingue votre mouvement et fond sur votre cachette. Vous l’abandonnez juste avant que ses mandibules ne se referment.',
+//       next: `${EVENT_ID}-c4-fail-d2`
+//     }),
+//
+//     [`${EVENT_ID}-c4-fail-d2`]: dialogueScreen({
+//       id: `${EVENT_ID}-c4-fail-d2`,
+//       cinematic: 'hard',
+//       text: 'La créature vous poursuit sans toucher au coffre, mais elle ne parvient pas à combler la distance. Vous pouvez encore lui échapper.',
+//       next: `${EVENT_ID}-c4-fail-leave`
+//     }),
+//
+//     [`${EVENT_ID}-c4-fail-leave`]: actionScreen({
+//       id: `${EVENT_ID}-c4-fail-leave`,
+//       actions: ['quitLevel'],
+//       endEvent: 'failed'
+//     })
+//   })
+// });
+//
+// const SCENARIO_4 = Object.freeze({
+//   choice: Object.freeze({
+//     id: `${EVENT_ID}-c4`,
+//     text: 'Vous tentez d’attirer la créature ailleurs avant de vous cacher.',
+//     resolution: createResolution('agility', {
+//       success: SCENARIO_4_SUCCESS.resolution,
+//       fail: SCENARIO_4_FAIL.resolution
+//     })
+//   }),
+//   nodes: Object.freeze({
+//     ...SCENARIO_4_SUCCESS.nodes,
+//     ...SCENARIO_4_FAIL.nodes
+//   })
+// });
 //
 /* ========================================================================== */
 /* EVENT                                                                      */
