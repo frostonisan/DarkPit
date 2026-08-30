@@ -992,31 +992,54 @@ export function stageHasRewardChest(stage) {
     return stage?.reward === 'chest';
 }
 
-export function getOrCreateStageChest(stage) {
+function normalizeStageChestStatus(status, fallback) {
+    const normalized = String(status || '').trim().toLowerCase();
+    if (normalized === 'lootable' || normalized === 'unlocked') return STAGE_CHEST_STATUS.CLOSED;
+    if (Object.values(STAGE_CHEST_STATUS).includes(normalized)) return normalized;
+    return fallback;
+}
+
+function normalizeStageChestSide(side) {
+    const normalized = String(side || '').trim().toLowerCase();
+    if (normalized === 'a' || normalized === 'sidea' || normalized === 'side-a') return 'A';
+    if (normalized === 'b' || normalized === 'sideb' || normalized === 'side-b') return 'B';
+    return 'neutral';
+}
+
+export function getOrCreateStageChest(stage, options = {}) {
     if (!stage?.id || !stageHasRewardChest(stage)) return null;
 
     const chestStorage = getChestStorage();
     const existing = chestStorage.chests.find(chest => String(chest.level) === String(stage.id));
-    if (existing) {
+    if (existing && options.forceNew !== true) {
         syncStageChestState(existing);
         return existing;
     }
 
     const createdAt = new Date().toISOString();
+    const fallbackStatus = stage.victory ? STAGE_CHEST_STATUS.CLOSED : STAGE_CHEST_STATUS.LOCKED;
+    const status = normalizeStageChestStatus(options.status ?? options.statut, fallbackStatus);
+    const side = normalizeStageChestSide(options.side);
     const chest = {
         id: createPersistentUniqueId(`c-${stage.id}`),
         level: String(stage.id),
-        statut: stage.victory ? STAGE_CHEST_STATUS.CLOSED : STAGE_CHEST_STATUS.LOCKED,
+        statut: status,
         createdAt,
-        unlockedAt: stage.victory ? createdAt : null,
+        unlockedAt: status === STAGE_CHEST_STATUS.LOCKED ? null : createdAt,
         openedAt: null,
         updatedAt: createdAt,
-        destroyedAt: null,
+        destroyedAt: status === STAGE_CHEST_STATUS.DESTROYED ? createdAt : null,
+        durabilityState: status === STAGE_CHEST_STATUS.DESTROYED ? STAGE_CHEST_STATUS.DESTROYED : 'normal',
+        metadata: {
+            side,
+            source: options.source || null
+        },
         loot: { entities: [], stuff: [], consommables: [] },
         history: [{
             at: createdAt,
-            event: stage.victory ? 'created-unlocked' : 'created-locked',
+            event: status === STAGE_CHEST_STATUS.LOCKED ? 'created-locked' : `created-${status}`,
             stageId: String(stage.id),
+            side,
         }],
     };
 

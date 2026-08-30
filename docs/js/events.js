@@ -2901,20 +2901,45 @@ function prepareEventLootableCorpse(entity, reward = 'random') {
   }
 }
 
+function normalizeEventMaterialSide(side) {
+  const normalized = String(side || '').trim().toLowerCase();
+  if (normalized === 'a' || normalized === 'sidea' || normalized === 'side-a') return 'A';
+  if (normalized === 'b' || normalized === 'sideb' || normalized === 'side-b') return 'B';
+  return 'neutral';
+}
+
+function normalizeEventChestStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'locked') return 'locked';
+  if (normalized === 'destroyed') return 'destroyed';
+  return 'lootable';
+}
+
+function normalizeEventCorpseStatus(status) {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (normalized === 'destroyed') return 'destroyed';
+  if (normalized === 'empty' || normalized === 'looted') return 'empty';
+  return 'lootable';
+}
+
 export async function spawnDead({
   serial = null,
   entityName = 'Porc des bas-fonds',
   aliases = [],
   side = 'neutral',
   reward = 'random',
+  status = 'lootable',
   eventKey = null,
   eventId = null,
   levelId = getCurrentLevel(),
   createOptions = {}
 } = {}) {
+  const corpseStatus = normalizeEventCorpseStatus(status);
+  const corpseSide = normalizeEventMaterialSide(side);
+  const resolvedReward = corpseStatus === 'lootable' ? reward : false;
   const template = resolveEventEntityTemplate({ serial, entityName, aliases });
   const corpseBase = cloneValue(template);
-  prepareEventLootableCorpse(corpseBase, reward);
+  prepareEventLootableCorpse(corpseBase, resolvedReward);
   corpseBase.eventId = eventId || eventKey || 'spawnDead';
   corpseBase.eventSpawned = true;
   corpseBase.eventSpawnedCorpse = true;
@@ -2923,11 +2948,11 @@ export async function spawnDead({
   // killEventEntity, car ces fonctions déclenchent la vérification de victoire.
   const corpse = await createEntityIngame(corpseBase, {
     ...createOptions,
-    side
+    side: corpseSide
   });
 
-  prepareEventLootableCorpse(corpse, reward);
-  corpse.side = side;
+  prepareEventLootableCorpse(corpse, resolvedReward);
+  corpse.side = corpseSide;
   corpse.eventId = corpseBase.eventId;
   corpse.eventSpawned = true;
   corpse.eventSpawnedCorpse = true;
@@ -2952,25 +2977,36 @@ export async function spawnDead({
       entity: corpse,
       entityId: corpse.id,
       levelId,
-      lootable: true,
-      reward: reward === false ? null : cloneValue(reward),
+      lootable: corpseStatus === 'lootable',
+      reward: resolvedReward === false ? null : cloneValue(resolvedReward),
       ignoreVictory: true
     }
   }));
 
+  if (corpseStatus === 'destroyed') {
+    return destroyCorpse({
+      targetId: corpse.id,
+      side: corpseSide,
+      count: 1
+    });
+  }
+
   const name = eventEntityName(corpse);
+  const lootable = corpseStatus === 'lootable';
   return {
     corpse,
     eventResults: [eventResult('lootableCorpseSpawned', {
       entityId: corpse.id,
       serial: corpse.serial,
       name,
-      side,
-      lootable: true,
-      reward: reward === false ? null : cloneValue(reward)
-    }, `<strong>Un cadavre de ${escapeEventHtml(name)} apparaît.</strong><br>Il peut être fouillé et contient une récompense.`, [
+      side: corpseSide,
+      lootable,
+      reward: resolvedReward === false ? null : cloneValue(resolvedReward)
+    }, lootable
+      ? `<strong>Un cadavre de ${escapeEventHtml(name)} apparaît.</strong><br>Il peut être fouillé et contient une récompense.`
+      : `<strong>Un cadavre de ${escapeEventHtml(name)} apparaît.</strong><br>Il ne contient aucun objet.`, [
       'event-result-corpse-spawned',
-      'loot'
+      lootable ? 'loot' : 'empty'
     ])]
   };
 }
@@ -2980,14 +3016,20 @@ export async function spawnChest({
   spawnMode = 'drop',
   random = true,
   forceNew = true,
+  side = 'neutral',
+  status = 'lootable',
   eventKey = null
 } = {}) {
+  const chestSide = normalizeEventMaterialSide(side);
+  const chestStatus = normalizeEventChestStatus(status);
   if (typeof runtimeAdapters.spawnChest === 'function') {
     return runtimeAdapters.spawnChest({
       levelId,
       spawnMode,
       random,
       forceNew,
+      side: chestSide,
+      status: chestStatus,
       eventKey
     });
   }
@@ -3007,6 +3049,8 @@ export async function spawnChest({
   }, {
     forceNew,
     random,
+    side: chestSide,
+    status: chestStatus,
     source: eventKey || 'spawnChest'
   });
   const storedChests = getStageChests(stageId, { includeDestroyed: true });
@@ -3032,11 +3076,17 @@ export async function spawnChest({
     eventResults: [eventResult('randomChestSpawned', {
       chestId,
       stageId,
-      lootable: true,
+      side: chestSide,
+      status: chestStatus,
+      lootable: chestStatus === 'lootable',
       random: Boolean(random)
-    }, '<strong>Un coffre apparaît dans le niveau.</strong><br>Son contenu aléatoire peut être récupéré immédiatement.', [
+    }, chestStatus === 'locked'
+      ? '<strong>Un coffre verrouillé apparaît dans le niveau.</strong>'
+      : chestStatus === 'destroyed'
+        ? '<strong>Un coffre détruit apparaît dans le niveau.</strong>'
+        : '<strong>Un coffre apparaît dans le niveau.</strong><br>Son contenu aléatoire peut être récupéré immédiatement.', [
       'event-result-chest-spawned',
-      'loot'
+      chestStatus
     ])]
   };
 }

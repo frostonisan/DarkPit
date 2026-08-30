@@ -144,6 +144,12 @@ function migrateCorpseStorageToCompactFormat() {
 function getActiveStageId() {
   return String(window.currentStageId ?? localStorage.getItem("currentStageId") ?? "");
 }
+function normalizeLootBattleSide(side) {
+  const normalized = String(side || "").trim().toLowerCase();
+  if (normalized === "a" || normalized === "sidea" || normalized === "side-a") return "A";
+  if (normalized === "b" || normalized === "sideb" || normalized === "side-b") return "B";
+  return "neutral";
+}
 function normalizeLootSource(source, fallbackType = "chest") {
   if (!source) return null;
   source.sourceType ||= fallbackType;
@@ -2051,16 +2057,11 @@ export function createChestLoot(sourceOrId, {
     source.battlePosition ?? source.metadata?.battlePosition ?? ""
   ).trim() || null;
 
-  // Règle de placement des coffres :
-  // - locked     -> SideB / top / end
-  // - non locked -> Neutral / middle / center
-  //
-  // La position persistée reste informative, mais la zone dépend du statut
-  // courant afin qu'un coffre verrouillé et un coffre déverrouillé ne partagent
-  // jamais la même logique de spawn.
+  const chestSide = normalizeLootBattleSide(source.metadata?.side ?? source.side);
+
   const [position] = source.statut === "locked"
-    ? hexCoordonne("B", "top", "end", 1)
-    : hexCoordonne("neutral", "middle", "center", 1);
+    ? hexCoordonne(chestSide === "neutral" ? "B" : chestSide, "top", "end", 1)
+    : hexCoordonne(chestSide, "middle", "center", 1);
 
   if (!position) return null;
   const battleElement = createBattleElementInDOM({
@@ -2077,7 +2078,7 @@ export function createChestLoot(sourceOrId, {
   battleElement.id = `chest-ui-${source.id}`;
   Object.assign(battleElement.dataset, {
     entityType: "passive",
-    side: "neutral",
+    side: chestSide,
     targetable: "false",
     movable: "false",
     draggable: "false"
