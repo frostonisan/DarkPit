@@ -20,42 +20,8 @@ const CORPSE_STATUSES = Object.freeze([
   Object.freeze({ key: 'empty', label: 'Corpse empty' })
 ]);
 
-function choiceNode({ id, text, choices }) {
-  return Object.freeze({
-    id,
-    type: 'choices',
-    text,
-    choices: Object.freeze(choices.map((choice) => Object.freeze(choice)))
-  });
-}
-
-function actionNode({ id, actions }) {
-  return Object.freeze({
-    id,
-    type: 'action',
-    actions: Object.freeze(actions),
-    next: `${id}-result`
-  });
-}
-
-function resultNode({ id, title, text }) {
-  return Object.freeze({
-    id,
-    type: 'result',
-    title,
-    text,
-    includeResults: true,
-    next: `${id}-close`
-  });
-}
-
-function closeNode(id) {
-  return Object.freeze({
-    id,
-    type: 'action',
-    actions: Object.freeze(['closeDialogue']),
-    endEvent: 'finished'
-  });
+function nodeId(side, status) {
+  return `${EVENT_ID}-${side}-${status}`;
 }
 
 function spawnDeadAction(side, status) {
@@ -84,47 +50,50 @@ function spawnDeadActions(side, status) {
   })];
 }
 
-function statusChoiceId(side, status) {
-  return `${EVENT_ID}-${side}-${status}`;
+function actionNode(id, actions) {
+  return Object.freeze({
+    id,
+    type: 'action',
+    actions: Object.freeze(actions),
+    next: `${id}-result`
+  });
 }
 
-const sideChoices = CORPSE_SIDES.map((side) => ({
-  id: `${EVENT_ID}-${side.key}`,
-  text: side.label,
-  next: `${EVENT_ID}-${side.key}-status`
-}));
+function resultNode(id, title, text) {
+  return Object.freeze({
+    id,
+    type: 'result',
+    title,
+    text,
+    includeResults: true,
+    next: `${id}-close`
+  });
+}
 
-const nodes = {
-  [`${EVENT_ID}-side`]: choiceNode({
-    id: `${EVENT_ID}-side`,
-    text: 'Choisissez le camp du cadavre.',
-    choices: sideChoices
-  })
-};
+function closeNode(id) {
+  return Object.freeze({
+    id,
+    type: 'action',
+    actions: Object.freeze(['closeDialogue']),
+    endEvent: 'finished'
+  });
+}
+
+const nodes = {};
+const adminBranches = [];
 
 CORPSE_SIDES.forEach((side) => {
-  nodes[`${EVENT_ID}-${side.key}-status`] = choiceNode({
-    id: `${EVENT_ID}-${side.key}-status`,
-    text: `Choisissez l’état du cadavre ${side.label}.`,
-    choices: CORPSE_STATUSES.map((status) => ({
-      id: statusChoiceId(side.key, status.key),
-      text: status.label,
-      next: statusChoiceId(side.key, status.key)
-    }))
-  });
-
   CORPSE_STATUSES.forEach((status) => {
-    const actionId = statusChoiceId(side.key, status.key);
-    const resultId = `${actionId}-result`;
-    nodes[statusChoiceId(side.key, status.key)] = actionNode({
-      id: actionId,
-      actions: spawnDeadActions(side.key, status.key)
-    });
-    nodes[resultId] = resultNode({
-      id: resultId,
-      title: status.label,
-      text: `${status.label} · ${side.label}`
-    });
+    const id = nodeId(side.key, status.key);
+    const resultId = `${id}-result`;
+
+    adminBranches.push(Object.freeze({
+      id,
+      label: `${side.label} - ${status.label}`,
+      startNodeId: id
+    }));
+    nodes[id] = actionNode(id, spawnDeadActions(side.key, status.key));
+    nodes[resultId] = resultNode(resultId, status.label, `${status.label} · ${side.label}`);
     nodes[`${resultId}-close`] = closeNode(`${resultId}-close`);
   });
 });
@@ -133,7 +102,8 @@ export const spawnDeadEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Spawn Dead',
-  version: 3,
-  startNodeId: `${EVENT_ID}-side`,
+  version: 4,
+  startNodeId: nodeId('neutral', 'lootable'),
+  adminBranches: Object.freeze(adminBranches),
   nodes: Object.freeze(nodes)
 });

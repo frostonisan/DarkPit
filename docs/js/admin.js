@@ -108,6 +108,22 @@ function getAdminEventChoiceTreeBranches(eventDefinition, nodeId, labels = [], v
 }
 
 function getAdminEventBranches(eventDefinition) {
+    if (Array.isArray(eventDefinition?.adminBranches)) {
+        return eventDefinition.adminBranches
+            .map((branch) => {
+                const targetNodeId = branch?.startNodeId || branch?.nodeId || null;
+                if (!targetNodeId || !eventDefinition.nodes?.[targetNodeId]) return null;
+
+                return Object.freeze({
+                    id: String(branch.id || `${eventDefinition.key || 'event'}-${targetNodeId}`),
+                    eventKey: eventDefinition.key,
+                    label: String(branch.label || targetNodeId),
+                    startNodeId: String(targetNodeId)
+                });
+            })
+            .filter(Boolean);
+    }
+
     const firstChoiceNode = getAdminEventFirstChoiceNode(eventDefinition);
     if (!firstChoiceNode) return [];
     return getAdminEventChoiceTreeBranches(eventDefinition, firstChoiceNode.id);
