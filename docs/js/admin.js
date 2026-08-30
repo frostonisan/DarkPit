@@ -15,6 +15,50 @@ export function getAdminEventDefinitions() {
     return [...ADMIN_EVENT_LIST];
 }
 
+const ADMIN_EVENT_OUTCOME_ORDER = Object.freeze(['success', 'middle', 'fail']);
+
+function getAdminEventApproachLabel(choice) {
+    const resolution = choice?.resolution || {};
+    const approach = String(
+        resolution.adminLabel
+        || resolution.label
+        || resolution.approach
+        || choice?.text
+        || 'branche'
+    ).trim();
+    const condition = resolution.condition
+        ? String(resolution.condition).trim()
+        : '';
+
+    return condition ? `${approach} ${condition}` : approach;
+}
+
+function getAdminEventBranches(eventDefinition) {
+    const startNode = eventDefinition?.nodes?.[eventDefinition?.startNodeId];
+    const choices = Array.isArray(startNode?.choices) ? startNode.choices : [];
+    const branches = [];
+
+    choices.forEach(choice => {
+        const outcomes = choice?.resolution?.outcomes;
+        if (!outcomes || typeof outcomes !== 'object') return;
+
+        const approachLabel = getAdminEventApproachLabel(choice);
+        ADMIN_EVENT_OUTCOME_ORDER.forEach(outcomeKey => {
+            const targetNodeId = outcomes[outcomeKey]?.next;
+            if (!targetNodeId || !eventDefinition.nodes?.[targetNodeId]) return;
+
+            branches.push(Object.freeze({
+                id: `${choice.id || approachLabel}-${outcomeKey}`,
+                eventKey: eventDefinition.key,
+                label: `${approachLabel} - ${outcomeKey}`,
+                startNodeId: targetNodeId
+            }));
+        });
+    });
+
+    return branches;
+}
+
 
 // preload
 function preloadImages(images, callback) {
@@ -722,10 +766,14 @@ export function initializeAdminLevel(entityCatalog) {
 
     const entityRows = [];
     const eventRows = [];
+    let activeBranchEventTitle = null;
+    let eventBranchRows = [];
 
     const renderAdminList = () => {
         const isEventsTab = form.dataset.activeAdminTab === 'events';
-        const availableRows = isEventsTab ? eventRows : entityRows;
+        const availableRows = isEventsTab
+            ? (activeBranchEventTitle ? eventBranchRows : eventRows)
+            : entityRows;
         const query = normalizeAdminSearchText(searchInput.value);
         const displayedRows = getAdminSearchMatches(query, availableRows);
 
@@ -736,7 +784,9 @@ export function initializeAdminLevel(entityCatalog) {
             const emptyMessage = document.createElement('p');
             emptyMessage.textContent = query
                 ? 'Aucun résultat.'
-                : (isEventsTab ? 'Aucun scénario enregistré.' : 'Aucune entité disponible.');
+                : (isEventsTab
+                    ? (activeBranchEventTitle ? 'Aucune branche disponible.' : 'Aucun scénario enregistré.')
+                    : 'Aucune entité disponible.');
             list.appendChild(emptyMessage);
             return;
         }
@@ -751,6 +801,8 @@ export function initializeAdminLevel(entityCatalog) {
 
     const setActiveSide = side => {
         form.dataset.activeAdminTab = 'entities';
+        activeBranchEventTitle = null;
+        eventBranchRows = [];
         form.dataset.activeSide = side;
         tabA.classList.toggle('active', side === 'A');
         tabB.classList.toggle('active', side === 'B');
@@ -764,6 +816,8 @@ export function initializeAdminLevel(entityCatalog) {
 
     const setActiveEvents = () => {
         form.dataset.activeAdminTab = 'events';
+        activeBranchEventTitle = null;
+        eventBranchRows = [];
         tabA.classList.remove('active');
         tabB.classList.remove('active');
         tabEvents.classList.add('active');
@@ -813,6 +867,78 @@ export function initializeAdminLevel(entityCatalog) {
         });
     };
 
+    const openEventBranches = (eventDefinition, eventTitle, branches, launchEvent) => {
+        activeBranchEventTitle = eventTitle;
+        searchInput.placeholder = 'Rechercher une branche…';
+
+        const backRow = document.createElement('div');
+        backRow.className = 'admin-entity-row admin-event-row';
+        backRow.setAttribute('role', 'button');
+        backRow.setAttribute('aria-disabled', 'false');
+        backRow.tabIndex = 0;
+
+        const backLabel = document.createElement('span');
+        backLabel.textContent = '< Retour aux événements';
+
+        const backIdentity = document.createElement('span');
+        backIdentity.style.opacity = '0.7';
+        backIdentity.textContent = eventTitle;
+
+        backRow.append(backLabel, backIdentity);
+        const closeBranches = () => {
+            activeBranchEventTitle = null;
+            eventBranchRows = [];
+            searchInput.placeholder = 'Rechercher un événement…';
+            resetSearch();
+            renderAdminList();
+        };
+        backRow.addEventListener('click', closeBranches);
+        backRow.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            closeBranches();
+        });
+
+        eventBranchRows = [{
+            element: backRow,
+            searchText: `retour ${eventTitle}`
+        }];
+
+        branches.forEach(branch => {
+            const branchRow = document.createElement('div');
+            branchRow.className = 'admin-entity-row admin-event-row';
+            branchRow.dataset.eventKey = eventDefinition.key;
+            branchRow.dataset.eventBranch = branch.id;
+            branchRow.setAttribute('role', 'button');
+            branchRow.setAttribute('aria-disabled', 'false');
+            branchRow.tabIndex = 0;
+
+            const branchName = document.createElement('span');
+            branchName.textContent = branch.label;
+
+            const branchIdentity = document.createElement('span');
+            branchIdentity.style.opacity = '0.7';
+            branchIdentity.textContent = `ID ${eventDefinition.id} · v${eventDefinition.version || 1}`;
+
+            branchRow.append(branchName, branchIdentity);
+            branchRow.addEventListener('click', () => launchEvent(branch));
+            branchRow.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                launchEvent(branch);
+            });
+
+            eventLaunchRows.push(branchRow);
+            eventBranchRows.push({
+                element: branchRow,
+                searchText: `${branch.label} ${eventTitle} ${eventDefinition.key}`
+            });
+        });
+
+        resetSearch();
+        renderAdminList();
+    };
+
     if (eventsEnabled) ADMIN_EVENT_LIST.forEach(eventDefinition => {
         const eventRow = document.createElement('div');
         eventRow.className = 'admin-entity-row admin-event-row';
@@ -822,9 +948,13 @@ export function initializeAdminLevel(entityCatalog) {
         eventRow.tabIndex = 0;
 
         const eventName = document.createElement('span');
-        eventName.textContent = eventDefinition.title
+        const eventTitle = eventDefinition.title
             || eventDefinition.name
             || eventDefinition.key;
+        const eventBranches = getAdminEventBranches(eventDefinition);
+        eventName.textContent = eventBranches.length > 0
+            ? `${eventTitle} >`
+            : eventTitle;
 
         const eventIdentity = document.createElement('span');
         eventIdentity.style.opacity = '0.7';
@@ -832,19 +962,20 @@ export function initializeAdminLevel(entityCatalog) {
 
         eventRow.append(eventName, eventIdentity);
 
-        const launchEvent = async () => {
+        const launchEvent = async (branch = null) => {
             if (window.levelRunning !== 'admin' || window.__adminEventLaunchPending) return;
 
             window.__adminEventLaunchPending = true;
             setEventRowsDisabled(true);
-            eventStatus.textContent = `Lancement de ${eventName.textContent}…`;
+            eventStatus.textContent = `Lancement de ${branch?.label || eventTitle}…`;
             eventStatus.hidden = false;
 
             try {
                 const { startEvent } = await import('./events.js');
                 await startEvent(eventDefinition, {
                     levelId: window.currentStageId,
-                    force: true
+                    force: true,
+                    ...(branch?.startNodeId ? { forcedStartNodeId: branch.startNodeId } : {})
                 });
                 cleanupAdminLevel();
                 showAdminLauncherButton();
@@ -857,11 +988,20 @@ export function initializeAdminLevel(entityCatalog) {
             }
         };
 
-        eventRow.addEventListener('click', launchEvent);
+        const openOrLaunchEvent = () => {
+            if (eventBranches.length > 0) {
+                openEventBranches(eventDefinition, eventTitle, eventBranches, launchEvent);
+                return;
+            }
+
+            launchEvent();
+        };
+
+        eventRow.addEventListener('click', openOrLaunchEvent);
         eventRow.addEventListener('keydown', event => {
             if (event.key !== 'Enter' && event.key !== ' ') return;
             event.preventDefault();
-            launchEvent();
+            openOrLaunchEvent();
         });
 
         eventLaunchRows.push(eventRow);

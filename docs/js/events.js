@@ -6694,7 +6694,8 @@ async function withTransitionLock(callback) {
 
 export async function startEvent(eventDefinition, {
   levelId = activeLevelId || getCurrentLevel(),
-  force = false
+  force = false,
+  forcedStartNodeId = null
 } = {}) {
   if (
     eventDefinition?.adminOnly === true
@@ -6704,6 +6705,10 @@ export async function startEvent(eventDefinition, {
   }
   registerEventDefinition(eventDefinition);
   const startedAt = nowIso();
+  const startNodeId = forcedStartNodeId == null
+    ? eventDefinition.startNodeId
+    : String(forcedStartNodeId);
+  const startNode = validateNode(eventDefinition, startNodeId);
   let startedState = null;
   let interruptedEvent = null;
 
@@ -6755,14 +6760,14 @@ export async function startEvent(eventDefinition, {
       eventId: String(eventDefinition.id),
       version: eventDefinition.version || 1,
       levelId: levelId == null ? null : String(levelId),
-      currentNodeId: eventDefinition.startNodeId,
-      currentNodeType: validateNode(eventDefinition, eventDefinition.startNodeId).type,
+      currentNodeId: startNodeId,
+      currentNodeType: startNode.type,
       lastCompletedNodeId: null,
       selectedChoiceId: null,
       choiceResolution: null,
       completedNodeIds: [],
       history: [{
-        nodeId: eventDefinition.startNodeId,
+        nodeId: startNodeId,
         selectedChoiceId: null,
         visitedAt: startedAt
       }],
@@ -6770,6 +6775,7 @@ export async function startEvent(eventDefinition, {
       eventResults: [],
       eventResultScreens: {},
       actionNodeState: null,
+      ...(forcedStartNodeId == null ? {} : { forcedStartNodeId: startNodeId }),
       startedAt,
       updatedAt: startedAt
     };
