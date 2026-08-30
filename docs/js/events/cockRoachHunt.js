@@ -213,16 +213,17 @@ const C1_FAIL_ATTACK = Object.freeze({
 });
 
 const C2_FAIL_KILL = Object.freeze({
-  action: 'eventRemoveEntity',
+  action: 'killEventEntity',
   args: Object.freeze({
     side: 'A',
     lifeState: 'alive',
-    strategy: 'random',
+    strategy: 'lowestStat',
+    statKey: 'intelligence',
     count: 1,
     safeMode: true,
     protectedSide: 'A',
-    allowCorpseFallback: false,
-    allowResurrectionEscape: false
+    suppressSingleTargetAnnouncement: true,
+    lastSurvivorEscapesDeathIntro: 'Le Souverain des Blattes blesse grièvement une entité. En tant que dernier membre de votre armée, elle est galvanisée par votre confiance et parvient à esquiver le coup mortel. Elle est cependant salement amochée.'
   })
 });
 
@@ -550,7 +551,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       id: `${EVENT_ID}-c2-fail-result`,
       cinematic: 'hard',
       includeResults: true,
-      text: 'Le coffre est détruit.<br>Une de vos entités a servi de casse-croûte au Souverain des Blattes.<br>Le combat est engagé.',
+      text: '',
       next: `${EVENT_ID}-c2-fail-battle`
     }),
 

@@ -5138,6 +5138,13 @@ export async function killEventEntity(options = {}) {
     const isProtectedLastLiving = safeMode
       && side === protectedSide
       && livingCount <= 1;
+    const resultTarget = options.suppressSingleTargetAnnouncement === true && livingCount <= 1
+      ? {
+        ...target,
+        selectionReason: null,
+        announcement: null
+      }
+      : target;
 
     if (isProtectedLastLiving) {
       traceEventTargetOverride(
@@ -5152,7 +5159,7 @@ export async function killEventEntity(options = {}) {
 
     if (!isProtectedLastLiving || hasUsableResurrection(entity)) {
       results.push(fatalResultFor(
-        target,
+        resultTarget,
         await applyFatalEventDamage(entity, {
           destroyArmor: isProtectedLastLiving
         })
@@ -5174,20 +5181,21 @@ export async function killEventEntity(options = {}) {
     }
     const name = eventEntityName(entity);
     const safeName = escapeEventHtml(name);
+    const introSentence = String(options.lastSurvivorEscapesDeathIntro || '').trim();
     const armorSentence = armorLoss.armorDamage > 0
-      ? `<br>L’<span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> de ${safeName} vole en éclats et perd ${armorLoss.armorDamage} points.`
+      ? ` Son <span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> encaisse ${armorLoss.armorDamage} dégâts.`
       : '';
     results.push(eventResult('lastSurvivorEscapesDeath', {
       entityId: entity.id,
       name,
       side,
       safeMode: true,
-      ...eventTargetResultData(target),
+      ...eventTargetResultData(resultTarget),
       hpBefore,
       hpAfter,
       damage,
       ...armorLoss
-    }, withEventTargetAnnouncement(target, `${safeName} aurait dû mourir sur le coup. Mais, dans un élan héroïque, ${safeName} parvient, sans trop comprendre comment, à préserver sa vie au prix d’une profonde blessure.${armorSentence}<br><br><strong>${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${damage} dégâts</span>. L’entité conserve 10 % de ses HP actuels et possède désormais <span class="HP">${hpAfter} HP</span>.</strong>`)));
+    }, withEventTargetAnnouncement(resultTarget, `<div class="event-result-item-text">${introSentence ? `${introSentence}<br>` : ''}${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${damage} dégâts</span>.${armorSentence}<br>L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`)));
   }
 
   syncEventMaterialChanges();
@@ -7250,8 +7258,8 @@ function materialResultHtml(screen) {
     );
   }
 
-  // Les apparitions d’entité ouvrent toujours le résultat matériel.
-  const openingMessages = [...entitySpawnMessages, ...preMessages];
+  // Le texte de lore reste en premier ; les apparitions ouvrent ensuite les résultats matériels.
+  const openingMessages = [...preMessages, ...entitySpawnMessages];
   if (openingMessages.length > 0) {
     sections.push(`<div class="event-result-pre-message">${openingMessages.join('<br>')}</div>`);
   }
