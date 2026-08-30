@@ -118,6 +118,7 @@ function getAdminEventBranches(eventDefinition) {
                     id: String(branch.id || `${eventDefinition.key || 'event'}-${targetNodeId}`),
                     eventKey: eventDefinition.key,
                     label: String(branch.label || targetNodeId),
+                    group: branch.group == null ? null : String(branch.group),
                     startNodeId: String(targetNodeId)
                 });
             })
@@ -937,7 +938,7 @@ export function initializeAdminLevel(entityCatalog) {
         });
     };
 
-    const openEventBranches = (eventDefinition, eventTitle, branches, launchEvent) => {
+    const openEventBranches = (eventDefinition, eventTitle, branches, launchEvent, options = {}) => {
         activeBranchEventTitle = eventTitle;
         searchInput.placeholder = 'Rechercher une branche…';
 
@@ -956,6 +957,11 @@ export function initializeAdminLevel(entityCatalog) {
 
         backRow.append(backLabel, backIdentity);
         const closeBranches = () => {
+            if (typeof options.onBack === 'function') {
+                options.onBack();
+                return;
+            }
+
             activeBranchEventTitle = null;
             eventBranchRows = [];
             searchInput.placeholder = 'Rechercher un événement…';
@@ -974,7 +980,15 @@ export function initializeAdminLevel(entityCatalog) {
             searchText: `retour ${eventTitle}`
         }];
 
-        branches.forEach(branch => {
+        const groupedBranches = !options.skipGrouping
+            && branches.some(branch => branch.group);
+        const displayedBranches = groupedBranches
+            ? [...new Map(branches
+                .filter(branch => branch.group)
+                .map(branch => [branch.group, branch])).values()]
+            : branches;
+
+        displayedBranches.forEach(branch => {
             const branchRow = document.createElement('div');
             branchRow.className = 'admin-entity-row admin-event-row';
             branchRow.dataset.eventKey = eventDefinition.key;
@@ -984,24 +998,46 @@ export function initializeAdminLevel(entityCatalog) {
             branchRow.tabIndex = 0;
 
             const branchName = document.createElement('span');
-            branchName.textContent = branch.label;
+            branchName.textContent = groupedBranches
+                ? `${branch.group} >`
+                : branch.label;
 
             const branchIdentity = document.createElement('span');
             branchIdentity.style.opacity = '0.7';
-            branchIdentity.textContent = `ID ${eventDefinition.id} · v${eventDefinition.version || 1}`;
+            branchIdentity.textContent = groupedBranches
+                ? eventTitle
+                : `ID ${eventDefinition.id} · v${eventDefinition.version || 1}`;
 
             branchRow.append(branchName, branchIdentity);
-            branchRow.addEventListener('click', () => launchEvent(branch));
+            const openOrLaunchBranch = () => {
+                if (groupedBranches) {
+                    openEventBranches(
+                        eventDefinition,
+                        `${eventTitle} > ${branch.group}`,
+                        branches.filter(candidate => candidate.group === branch.group),
+                        launchEvent,
+                        {
+                            skipGrouping: true,
+                            onBack: () => openEventBranches(eventDefinition, eventTitle, branches, launchEvent)
+                        }
+                    );
+                    return;
+                }
+
+                launchEvent(branch);
+            };
+
+            branchRow.addEventListener('click', openOrLaunchBranch);
             branchRow.addEventListener('keydown', event => {
                 if (event.key !== 'Enter' && event.key !== ' ') return;
                 event.preventDefault();
-                launchEvent(branch);
+                openOrLaunchBranch();
             });
 
             eventLaunchRows.push(branchRow);
             eventBranchRows.push({
                 element: branchRow,
-                searchText: `${branch.label} ${eventTitle} ${eventDefinition.key}`
+                searchText: `${branch.group || ''} ${branch.label} ${eventTitle} ${eventDefinition.key}`
             });
         });
 

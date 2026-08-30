@@ -83,7 +83,8 @@ CHEST_SIDES.forEach((side) => {
 
     adminBranches.push(Object.freeze({
       id,
-      label: `${side.label} - ${status.label}`,
+      group: side.label,
+      label: status.label,
       startNodeId: id
     }));
     nodes[id] = actionNode(id, spawnChestActions(side.key, status.key));
