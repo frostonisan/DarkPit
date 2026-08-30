@@ -33,7 +33,7 @@ function getAdminEventApproachLabel(choice) {
     return condition ? `${approach} ${condition}` : approach;
 }
 
-function getAdminEventBranchChoices(eventDefinition) {
+function getAdminEventFirstChoiceNode(eventDefinition) {
     const nodes = eventDefinition?.nodes || {};
     const visited = new Set();
     let nodeId = eventDefinition?.startNodeId;
@@ -46,40 +46,71 @@ function getAdminEventBranchChoices(eventDefinition) {
         if (!node) break;
 
         const choices = Array.isArray(node.choices) ? node.choices : [];
-        if (choices.some(choice => choice?.resolution?.outcomes)) return choices;
+        if (choices.length > 0) return node;
 
         nodeId = node.next || null;
     }
 
-    return Object.values(nodes)
-        .filter(node => Array.isArray(node?.choices))
-        .flatMap(node => node.choices)
-        .filter(choice => choice?.resolution?.outcomes);
+    return null;
 }
 
-function getAdminEventBranches(eventDefinition) {
-    const choices = getAdminEventBranchChoices(eventDefinition);
+function getAdminEventResolutionBranches(eventDefinition, choice) {
+    const outcomes = choice?.resolution?.outcomes;
+    if (!outcomes || typeof outcomes !== 'object') return [];
+
+    const approachLabel = getAdminEventApproachLabel(choice);
     const branches = [];
+    ADMIN_EVENT_OUTCOME_ORDER.forEach(outcomeKey => {
+        const targetNodeId = outcomes[outcomeKey]?.next;
+        if (!targetNodeId || !eventDefinition.nodes?.[targetNodeId]) return;
 
-    choices.forEach(choice => {
-        const outcomes = choice?.resolution?.outcomes;
-        if (!outcomes || typeof outcomes !== 'object') return;
-
-        const approachLabel = getAdminEventApproachLabel(choice);
-        ADMIN_EVENT_OUTCOME_ORDER.forEach(outcomeKey => {
-            const targetNodeId = outcomes[outcomeKey]?.next;
-            if (!targetNodeId || !eventDefinition.nodes?.[targetNodeId]) return;
-
-            branches.push(Object.freeze({
-                id: `${choice.id || approachLabel}-${outcomeKey}`,
-                eventKey: eventDefinition.key,
-                label: `${approachLabel} - ${outcomeKey}`,
-                startNodeId: targetNodeId
-            }));
-        });
+        branches.push(Object.freeze({
+            id: `${choice.id || approachLabel}-${outcomeKey}`,
+            eventKey: eventDefinition.key,
+            label: `${approachLabel} - ${outcomeKey}`,
+            startNodeId: targetNodeId
+        }));
     });
 
     return branches;
+}
+
+function getAdminEventChoiceTreeBranches(eventDefinition, nodeId, labels = [], visited = new Set()) {
+    const nodes = eventDefinition?.nodes || {};
+    const node = nodes[nodeId];
+    if (!node || visited.has(nodeId)) return [];
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(nodeId);
+
+    const choices = Array.isArray(node.choices) ? node.choices : [];
+    if (choices.length > 0) {
+        return choices.flatMap(choice => {
+            const resolutionBranches = getAdminEventResolutionBranches(eventDefinition, choice);
+            if (resolutionBranches.length > 0) return resolutionBranches;
+            if (!choice.next) return [];
+            return getAdminEventChoiceTreeBranches(
+                eventDefinition,
+                choice.next,
+                [...labels, String(choice.text || choice.id || '').trim()].filter(Boolean),
+                nextVisited
+            );
+        });
+    }
+
+    if (labels.length === 0) return [];
+    return [Object.freeze({
+        id: `${eventDefinition.key || 'event'}-${nodeId}`,
+        eventKey: eventDefinition.key,
+        label: labels.join(' - '),
+        startNodeId: nodeId
+    })];
+}
+
+function getAdminEventBranches(eventDefinition) {
+    const firstChoiceNode = getAdminEventFirstChoiceNode(eventDefinition);
+    if (!firstChoiceNode) return [];
+    return getAdminEventChoiceTreeBranches(eventDefinition, firstChoiceNode.id);
 }
 
 
