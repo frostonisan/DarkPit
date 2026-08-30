@@ -33,9 +33,32 @@ function getAdminEventApproachLabel(choice) {
     return condition ? `${approach} ${condition}` : approach;
 }
 
+function getAdminEventBranchChoices(eventDefinition) {
+    const nodes = eventDefinition?.nodes || {};
+    const visited = new Set();
+    let nodeId = eventDefinition?.startNodeId;
+
+    for (let depth = 0; nodeId && depth < 40; depth += 1) {
+        if (visited.has(nodeId)) break;
+        visited.add(nodeId);
+
+        const node = nodes[nodeId];
+        if (!node) break;
+
+        const choices = Array.isArray(node.choices) ? node.choices : [];
+        if (choices.some(choice => choice?.resolution?.outcomes)) return choices;
+
+        nodeId = node.next || null;
+    }
+
+    return Object.values(nodes)
+        .filter(node => Array.isArray(node?.choices))
+        .flatMap(node => node.choices)
+        .filter(choice => choice?.resolution?.outcomes);
+}
+
 function getAdminEventBranches(eventDefinition) {
-    const startNode = eventDefinition?.nodes?.[eventDefinition?.startNodeId];
-    const choices = Array.isArray(startNode?.choices) ? startNode.choices : [];
+    const choices = getAdminEventBranchChoices(eventDefinition);
     const branches = [];
 
     choices.forEach(choice => {
