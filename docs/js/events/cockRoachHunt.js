@@ -286,7 +286,7 @@ const SCENARIO_1_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c1-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
-      text: 'Vous vous élancez dans le sens opposé du bruit. Pendant votre fuite, vous jetez un œil derrière vous et repérez une créature colossale lancée à pleine allure, tentant de vous rattraper.',
+      text: 'Vous vous élancez dans le sens opposé du bruit.<br>Pendant votre fuite, vous jetez un œil derrière vous et repérez une créature colossale lancée à pleine allure, tentant de vous rattraper.',
       next: `${EVENT_ID}-c1-middle-runaway`
     }),
     [`${EVENT_ID}-c1-middle-runaway`]: actionScreen({
@@ -298,7 +298,7 @@ const SCENARIO_1_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c1-middle-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c1-middle-d1`,
       cinematic: 'hard',
-      text: 'Heureusement, votre armée est plus rapide que la bête.<br>Après une longue poursuite, vous vous retournez : elle n’est plus là.<br>Vous l’avez semée.',
+      text: 'Heureusement, votre armée est plus rapide que la bête.<br><br>Après une longue poursuite, vous vous retournez : elle n’est plus là.<br>Vous l’avez semée.',
       next: `${EVENT_ID}-c1-middle-result`
     }),
     [`${EVENT_ID}-c1-middle-result`]: resultScreen({
