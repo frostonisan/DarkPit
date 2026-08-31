@@ -832,6 +832,7 @@ export function initializeAdminLevel(entityCatalog) {
         entries.forEach(entry => {
             const button = document.createElement('button');
             button.type = 'button';
+            button.dataset.adminTabKey = entry.key;
             button.textContent = entry.label;
             button.classList.toggle('active', getActive() === entry.key);
             button.addEventListener('click', () => onSelect(entry.key));
@@ -1415,18 +1416,17 @@ export function initializeAdminLevel(entityCatalog) {
         form.dataset.activeAdminTab = menuState.mode;
         form.dataset.activeSide = menuState.side;
         modeTabs.querySelectorAll('button').forEach(button => {
-            button.classList.toggle('active', button.textContent.toLowerCase() === menuState.mode);
+            button.classList.toggle('active', button.dataset.adminTabKey === menuState.mode);
         });
-        sideTabs.querySelectorAll('button').forEach((button, index) => {
-            button.classList.toggle('active', ADMIN_SPAWN_SIDES[index]?.key === menuState.side);
+        sideTabs.querySelectorAll('button').forEach(button => {
+            button.classList.toggle('active', button.dataset.adminTabKey === menuState.side);
         });
-        categoryTabs.querySelectorAll('button').forEach((button, index) => {
-            const key = index === 0 ? 'entity' : 'misc';
-            button.classList.toggle('active', key === menuState.category);
+        categoryTabs.querySelectorAll('button').forEach(button => {
+            button.classList.toggle('active', button.dataset.adminTabKey === menuState.category);
         });
 
-        sideTabs.hidden = menuState.mode !== 'spawn';
-        categoryTabs.hidden = menuState.mode !== 'spawn';
+        sideTabs.style.display = menuState.mode === 'spawn' ? 'flex' : 'none';
+        categoryTabs.style.display = menuState.mode === 'spawn' ? 'flex' : 'none';
         spawnButton.hidden = menuState.mode !== 'spawn' || menuState.category !== 'entity';
         resetLevelButton.hidden = false;
         eventStatus.hidden = !eventStatus.textContent;

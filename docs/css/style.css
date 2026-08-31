@@ -3979,6 +3979,19 @@ background-size: contain;
   background-position: center;}
   .admin-commands{position: absolute;
   bottom: 0;z-index: 99999;display: flex;}
+#admin-entity-form {
+  width: 340px;
+  min-height: 520px;
+  max-height: 520px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+#admin-entity-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 .admin-buttons.is-hidden,
 .GameidDisplay.is-hidden {
   display: none;
