@@ -132,7 +132,9 @@ const backgroundUrl = matchingBiome.background;
 
 // Appliquer l'image de fond avec l'URL du biome
 backGround.style.backgroundImage = `url('${backgroundUrl}')`;
-        board.appendChild(backGround); 
+        const hexGrid = board.querySelector(':scope > #hexGrid');
+        if (hexGrid) board.insertBefore(backGround, hexGrid);
+        else board.appendChild(backGround);
     }
 }
 
