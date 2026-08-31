@@ -409,7 +409,7 @@ const SCENARIO_1_FAIL = Object.freeze({
       outcome: 'fail',
       cinematic: 'hard',
       img: ARRIVAL_IMAGE,
-      text: 'Votre armée trébuche pittoyablement et se disperse.<br>Une créature colossale surgit de nulle part et vous charge, détruisant tout sur son passage. Toute retraite est désormais impossible.',
+      text: 'Votre armée trébuche pitoyablement et se disperse.<br>Une créature colossale surgit de nulle part et vous charge, détruisant tout sur son passage. Toute retraite est désormais impossible.',
       next: `${EVENT_ID}-c1-fail-spawn`
     }),
     [`${EVENT_ID}-c1-fail-spawn`]: actionScreen({
@@ -483,7 +483,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: BARRICADE_SUCCESS_IMAGE,
-      text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br> Le sol tremble de plus en plus vite, de plus en plus fort.<br> Vous vous préparez à l\'impacte, en priant pour que votre abri de fortune résiste au choc.',
+      text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br>Le sol tremble de plus en plus vite, de plus en plus fort.<br>Vous vous préparez à l\'impact, en priant pour que votre abri de fortune résiste au choc.',
       next: `${EVENT_ID}-c2-success-spawn`
     }),
     [`${EVENT_ID}-c2-success-spawn`]: actionScreen({
@@ -511,7 +511,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-success-d2`,
       cinematic: 'hard',
-      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br> Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisé par se succés.',
+      text: 'La créature est sonnée par l\'impact. Lacérée par les débris de la barricade, elle recule.<br>Les rangs de votre armée se reforment et chargent dans un élan de bravoure, galvanisés par ce succès.',
       next: `${EVENT_ID}-c2-success-result`
     }),
     [`${EVENT_ID}-c2-success-result`]: resultScreen({
@@ -536,7 +536,7 @@ const SCENARIO_2_MIDDLE = Object.freeze({
       outcome: 'middle',
       cinematic: 'hard',
       img: BARRICADE_IMAGE,
-      text: 'Vous construisez une barricade de fortune.<br>Vous ne pouviez pas déplacer sur de trop grandes distances des objets lourds, vous avez donc utilisé ce qui était à votre proximité immédiate.<br>Au moment où vous réfigiez devant un coffre utilisé comme rempart, une masse immense surgit furieusement de nulle part et se jette dans votre direction.',
+      text: 'Vous construisez une barricade de fortune.<br>Vous ne pouviez pas déplacer sur de trop grandes distances des objets lourds, vous avez donc utilisé ce qui était à proximité immédiate.<br>Au moment où vous vous réfugiez devant un coffre utilisé comme rempart, une masse immense surgit furieusement de nulle part et se jette dans votre direction.',
       next: `${EVENT_ID}-c2-middle-spawn`
     }),
     [`${EVENT_ID}-c2-middle-spawn`]: actionScreen({
@@ -549,7 +549,7 @@ const SCENARIO_2_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c2-middle-d1`,
       cinematic: 'hard',
       img: BARRICADE_CHARGE_IMAGE,
-      text: 'L’impacte est d’une rare violance.<br>Votre barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.<br>Il ne reste plus rien.',
+      text: 'L’impact est d’une rare violence.<br>Votre barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.<br>Il ne reste plus rien.',
       next: `${EVENT_ID}-c2-middle-chest`
     }),
     [`${EVENT_ID}-c2-middle-chest`]: actionScreen({
@@ -673,7 +673,7 @@ const SCENARIO_3_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: PHEROMONES_IMAGE,
-      text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vision ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le cadavre écrasé.',
+      text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vue ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le cadavre écrasé.',
       next: `${EVENT_ID}-c3-success-lure`
     }),
     [`${EVENT_ID}-c3-success-lure`]: actionScreen({
@@ -699,7 +699,7 @@ const SCENARIO_3_SUCCESS = Object.freeze({
       id: `${EVENT_ID}-c3-success-d2`,
       cinematic: 'hard',
       img: PHEROMONES_IMAGE,
-      text: 'Le gigantesque Souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa peine est telle qu’il n’a aucune conscience de votre présence. Vous réalisez que vous êtes cruel.<br><br>La créature est comme hypnotisée par les phéromones de son congénère. La diversion est parfaite.<br><br>Vous pouvez profiter de ce pitoyable spectacle pour tirer un avantage tactique.',
+      text: 'Le gigantesque Souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa peine est telle qu’il n’a aucune conscience de votre présence. Vous réalisez que vous êtes cruels.<br><br>La créature est comme hypnotisée par les phéromones de son congénère. La diversion est parfaite.<br><br>Vous pouvez profiter de ce pitoyable spectacle pour tirer un avantage tactique.',
       next: `${EVENT_ID}-c3-success-result`
     }),
     [`${EVENT_ID}-c3-success-result`]: resultScreen({
@@ -738,7 +738,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c3-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
-      text: 'Vous êtes pris de court, et ne parvenez pas à réagir de manière absolument rationnelle.<br><br>Vous saisissez un bout de tissu de vos affaires et l’imprégnez de l’odeur du sang d’une entité blessée.<br><br>Cette puissante odeur de sang devrait attirer la créature, qui ne semble pas être herbivore, d’après l’agressivité dont elle semble être dotée.<br><br>Vous lancez au loin votre appât.',
+      text: 'Vous êtes pris de court et ne parvenez pas à réagir de manière absolument rationnelle.<br><br>Vous saisissez un bout de tissu de vos affaires et l’imprégnez de l’odeur du sang d’une entité blessée.<br><br>Cette puissante odeur de sang devrait attirer la créature, qui ne semble pas être herbivore, d’après l’agressivité dont elle semble être dotée.<br><br>Vous lancez au loin votre appât.',
       next: `${EVENT_ID}-c3-middle-spawn`
     }),
     [`${EVENT_ID}-c3-middle-spawn`]: actionScreen({
@@ -751,7 +751,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c3-middle-d1`,
       cinematic: 'hard',
       img: PHEROMONES_IMAGE,
-      text: 'Une infâme créature insectoïde surgit alors de nulle part.<br><br>Le Souverain des Blattes est instantanément attiré par votre appât. Vous êtes soulagé face à l’efficacité de ce stratagème, qui vous donne de précieuses secondes de répit pour vous permettre de vous cacher et d’entamer une fuite.<br><br>Il engloutit le leurre en quelques secondes.',
+      text: 'Une infâme créature insectoïde surgit alors de nulle part.<br><br>Le Souverain des Blattes est instantanément attiré par votre appât. Vous êtes soulagé face à l’efficacité de ce stratagème, qui vous donne de précieuses secondes de répit pour vous permettre de vous cacher et d’entamer votre fuite.<br><br>Il engloutit le leurre en quelques secondes.',
       next: `${EVENT_ID}-c3-middle-d2`
     }),
     [`${EVENT_ID}-c3-middle-d2`]: dialogueScreen({
@@ -769,7 +769,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c3-middle-d3`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d3`,
       cinematic: 'hard',
-      text: 'L’odeur du sang est trop puissante, et le coup, d’une violence argneuse.<br><br>La cible parvient à éviter une mort certaine, mais ressort sévèrement blessée. Le Souverain des Blattes se dresse désormais face à vous.<br><br>Ce n’est plus le moment de réfléchir désormais, il faut se battre.',
+      text: 'L’odeur du sang est trop puissante, et le coup, d’une violence hargneuse.<br><br>La cible parvient à éviter une mort certaine, mais ressort sévèrement blessée. Le Souverain des Blattes se dresse désormais face à vous.<br><br>Ce n’est plus le moment de réfléchir : il faut se battre.',
       next: `${EVENT_ID}-c3-middle-result`
     }),
     [`${EVENT_ID}-c3-middle-result`]: resultScreen({
@@ -793,7 +793,7 @@ const SCENARIO_3_FAIL = Object.freeze({
       id: `${EVENT_ID}-c3-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      text: 'L’idée d’attirer la créature loin de vous avec un leurre vous vient subitement à l’esprit.<br><br>Cependant, vos idées ne sont pas aussi fulgurantes qu’escompté, et vous vous épanchez un peu trop sur les conséquences potentielles d’une telle stratégie, plutôt que sur le choix de l’appât et l’application de ladite stratégie.<br><br>Le bruit se rapprochant de plus en plus, vous écourtez votre “réflexion” et hurlez sur une de vos entités, qui semble la plus docile, de faire quelque chose, en lui pointant la direction de la source du bruit.<br><br>Elle se dévoue. Vous la voyez s’éloigner en vous regardant, un peu perdue, presque honteuse pour vous de ne pas avoir su quoi lui dire.',
+      text: 'L’idée d’attirer la créature loin de vous avec un leurre vous vient subitement à l’esprit.<br><br>Cependant, vos idées ne sont pas aussi fulgurantes qu’escompté, et vous vous appesantissez un peu trop sur les conséquences potentielles d’une telle stratégie, plutôt que sur le choix de l’appât et l’application de ladite stratégie.<br><br>Le bruit se rapprochant de plus en plus, vous écourtez votre “réflexion” et hurlez sur une de vos entités, qui semble la plus docile, de faire quelque chose, en lui pointant la direction de la source du bruit.<br><br>Elle se dévoue. Vous la voyez s’éloigner en vous regardant, un peu perdue, presque honteuse pour vous de ne pas avoir su quoi lui dire.',
       next: `${EVENT_ID}-c3-fail-move`
     }),
     [`${EVENT_ID}-c3-fail-move`]: actionScreen({
@@ -975,7 +975,7 @@ export const cockRoachHuntEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Cockroach Hunt',
-  version: 22,
+  version: 23,
   startNodeId: `${EVENT_ID}-d1`,
   watchedPlayerInfoKeys: ['cockroaches'],
   onStart: removeUnclickedCockroaches,
