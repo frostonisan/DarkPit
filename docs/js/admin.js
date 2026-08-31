@@ -604,7 +604,7 @@ export function removeAdminEntityIngame(entityId) {
 
         const socle = hex.querySelector('.socle');
         if (socle) {
-            socle.style.opacity = '';
+            socle.style.opacity = '0';
             socle.style.filter = '';
         }
     }
@@ -1498,6 +1498,11 @@ export function initializeAdminLevel(entityCatalog) {
         document.querySelectorAll('#hexGrid .hex').forEach(hex => {
             hex.classList.remove('occupied', 'focused');
             delete hex.dataset.occupiedBy;
+            const socle = hex.querySelector('.socle');
+            if (socle) {
+                socle.style.opacity = '0';
+                socle.style.filter = '';
+            }
             hex.querySelectorAll('.focused').forEach(node => node.classList.remove('focused'));
         });
         entites.splice(0, entites.length);

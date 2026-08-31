@@ -274,6 +274,8 @@ targetHex.classList.add('occupied');
                 assignPositionToEntity(newEntite, entiteElement, availableHexTypesA, middleThirdHexesA, 'A', neutralHexes, occupiedHexes);
             } else if (newEntite.side === 'B') {
                 assignPositionToEntity(newEntite, entiteElement, availableHexTypesB, middleThirdHexesB, 'B', neutralHexes, occupiedHexes);
+            } else if (newEntite.side === 'neutral') {
+                assignPositionToEntity(newEntite, entiteElement, neutralHexTypes, neutralHexes, 'neutral', neutralHexes, occupiedHexes);
             }
         } else {
             console.error(`Impossible de trouver l'élément pour l'entité ${newEntite.id}`);
@@ -289,6 +291,8 @@ targetHex.classList.add('occupied');
                     assignPositionToEntity(entite, entiteElement, availableHexTypesA, middleThirdHexesA, 'A', neutralHexes, occupiedHexes);
                 } else if (entite.side === 'B') {
                     assignPositionToEntity(entite, entiteElement, availableHexTypesB, middleThirdHexesB, 'B', neutralHexes, occupiedHexes);
+                } else if (entite.side === 'neutral') {
+                    assignPositionToEntity(entite, entiteElement, neutralHexTypes, neutralHexes, 'neutral', neutralHexes, occupiedHexes);
                 }
             }
         });
