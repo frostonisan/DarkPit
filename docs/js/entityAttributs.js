@@ -18,6 +18,34 @@ import { getAttackResolutionFlags } from './attackResolution.js';
 import { battleLogs } from './battleLogs.js';
 import { syncEntityAuras, cleanupEntityAuras } from "./entitesAura.js";
 import { createCorpseLoot } from './loot.js';
+
+const ADMIN_INVINCIBLE_MODE_STORAGE_KEY = 'DarkPitAdminInvincibleMode';
+
+function isAdminInvincibleModeEnabled() {
+  return window.levelRunning === 'admin'
+    && (
+      window.__adminInvincibleMode === true
+      || localStorage.getItem(ADMIN_INVINCIBLE_MODE_STORAGE_KEY) === 'true'
+    );
+}
+
+function restoreAdminInvincibleEntity(entite) {
+  const maxHP = Math.max(1, Number(entite.stats.HP.max ?? 0) || 1);
+  entite.stats.HP.current = maxHP;
+  entite.isDEAD = false;
+  entite.statut = ['alive'];
+  entite.hasDeathBeenLogged = false;
+  entite.hasAlreadyDeadBeenLogged = false;
+
+  const armorCur = entite.stats?.armor?.current ?? 0;
+  const armorMax = entite.stats?.armor?.max ?? 0;
+  saveEntityHPToStorage(entite);
+  updateEntityStatusInStorage(entite);
+  updateHealthBar(maxHP, maxHP, armorCur, armorMax, entite.id, 0);
+  updateHPCounters(entite.id, maxHP, maxHP);
+  updateBonusLifeCounters(entite);
+}
+
 // LIFE AND DEATH
 // Intégrez l'appel de cette fonction dans votre fonction LifeandDeath
 export function LifeandDeath(entite, attacker = null) {
@@ -32,6 +60,12 @@ export function LifeandDeath(entite, attacker = null) {
   // Ne jamais retourner sur la seule base de statut/isDEAD/ancien log : ces
   // marqueurs peuvent avoir été posés avant cet appel ou provenir du stockage.
   if (hpCur <= 0) {
+    if (isAdminInvincibleModeEnabled()) {
+      restoreAdminInvincibleEntity(entite);
+      console.log(`🛡️ Mode invincible admin : ${entite.name} récupère tous ses HP.`);
+      return;
+    }
+
     const targetElement = document.getElementById(`sbire_${entite.id}`);
 
     // 1.a) Cas resurrected (flag DOM)

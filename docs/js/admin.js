@@ -18,6 +18,7 @@ export function getAdminEventDefinitions() {
 
 const ADMIN_EVENT_OUTCOME_ORDER = Object.freeze(['success', 'middle', 'fail']);
 const ADMIN_MENU_STORAGE_KEY = 'DarkPitAdminMenuState';
+const ADMIN_INVINCIBLE_MODE_STORAGE_KEY = 'DarkPitAdminInvincibleMode';
 const ADMIN_SPAWN_SIDES = Object.freeze([
     Object.freeze({ key: 'A', label: 'Side A' }),
     Object.freeze({ key: 'B', label: 'Side B' }),
@@ -68,6 +69,16 @@ function writeAdminMenuState(state) {
     } catch {
         // La persistance admin ne doit jamais bloquer l'outil de debug.
     }
+}
+
+function readAdminInvincibleMode() {
+    return localStorage.getItem(ADMIN_INVINCIBLE_MODE_STORAGE_KEY) === 'true';
+}
+
+function writeAdminInvincibleMode(enabled) {
+    const active = enabled === true;
+    window.__adminInvincibleMode = active;
+    localStorage.setItem(ADMIN_INVINCIBLE_MODE_STORAGE_KEY, active ? 'true' : 'false');
 }
 
 function getAdminEventApproachLabel(choice) {
@@ -925,10 +936,25 @@ export function initializeAdminLevel(entityCatalog) {
     resetLevelButton.type = 'button';
     resetLevelButton.textContent = 'Reset niveau';
 
+    const invincibleModeButton = document.createElement('button');
+    invincibleModeButton.type = 'button';
+    invincibleModeButton.className = 'admin-tab-button admin-invincible-mode-button';
+
     const entityRows = [];
     const eventRows = [];
     const viewStack = [];
     let currentRows = [];
+
+    const updateInvincibleModeButton = () => {
+        const active = readAdminInvincibleMode();
+        window.__adminInvincibleMode = active;
+        invincibleModeButton.textContent = active
+            ? 'Invincible mode : ON'
+            : 'Invincible mode : OFF';
+        invincibleModeButton.classList.toggle('active', active);
+        invincibleModeButton.classList.toggle('passive', !active);
+        invincibleModeButton.setAttribute('aria-pressed', String(active));
+    };
 
     function persistAndRender() {
         writeAdminMenuState(menuState);
@@ -1559,6 +1585,11 @@ export function initializeAdminLevel(entityCatalog) {
         renderCurrentView();
     });
 
+    invincibleModeButton.addEventListener('click', () => {
+        writeAdminInvincibleMode(!readAdminInvincibleMode());
+        updateInvincibleModeButton();
+    });
+
     const adminDropInterceptor = async event => {
         if (window.levelRunning !== 'admin' || !document.getElementById('admin-entity-form')) return;
 
@@ -1600,7 +1631,8 @@ export function initializeAdminLevel(entityCatalog) {
     window.__adminDropInterceptor = adminDropInterceptor;
     document.addEventListener('drop', adminDropInterceptor, true);
 
-    form.append(modeTabs, sideTabs, categoryTabs, searchTools, eventStatus, list, spawnButton, resetLevelButton, closeButton);
+    updateInvincibleModeButton();
+    form.append(modeTabs, sideTabs, categoryTabs, searchTools, eventStatus, list, spawnButton, invincibleModeButton, resetLevelButton, closeButton);
     document.body.appendChild(form);
     renderShell();
     renderCurrentView();
