@@ -344,7 +344,7 @@ const SCENARIO_1_FAIL = Object.freeze({
       id: `${EVENT_ID}-c1-fail-d1`,
       cinematic: 'hard',
       img: ARRIVAL_IMAGE,
-      text: 'Le Souverain des Blattes traverse vos rangs dispersés. Sa charge projette violemment vos combattants au sol, tandis que ses mandibules se referment sur tout ce qui est à leur portée.<br>Le monstre détruit tout sur son passage.',
+      text: 'Le Souverain des Blattes traverse vos rangs dispersés.<br><br>Sa charge projette violemment vos combattants au sol, tandis que ses mandibules se referment sur tout ce qui est à leur portée.<br><br>Le monstre détruit tout sur son passage.',
       next: `${EVENT_ID}-c1-fail-attack`
     }),
     [`${EVENT_ID}-c1-fail-attack`]: actionScreen({
@@ -356,7 +356,7 @@ const SCENARIO_1_FAIL = Object.freeze({
     [`${EVENT_ID}-c1-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c1-fail-d2`,
       cinematic: 'hard',
-      text: 'L’attaque est brutale. La créature se retourne lentement vers le restant de vos troupes. Elle se rue sur vous pour vous achever.',
+      text: 'L’attaque est brutale.<br><br>La créature se retourne lentement vers le restant de vos troupes.<br><br>Elle se rue sur vous pour vous achever.',
       next: `${EVENT_ID}-c1-fail-result`
     }),
     [`${EVENT_ID}-c1-fail-result`]: resultScreen({
@@ -588,7 +588,7 @@ const SCENARIO_3_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: PHEROMONES_IMAGE,
-      text: 'Votre stratagème fonctionne. Les phéromones du cafard écrasé saturent l’air et détournent l’attention de la créature.',
+      text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vue ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le corps écrasé.',
       next: `${EVENT_ID}-c3-success-spawn`
     }),
     [`${EVENT_ID}-c3-success-spawn`]: actionScreen({
@@ -600,7 +600,7 @@ const SCENARIO_3_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c3-success-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-success-d1`,
       cinematic: 'hard',
-      text: 'Une immense créature insectoïde apparaît. Sans même regarder dans votre direction, elle se précipite vers le cafard écrasé, guidée par les puissantes phéromones du cadavre.',
+      text: ' l\'instant d\'après, une immense créature insectoïde surgit enfin... Et vous aviez vu juste.<br><br>Le monstre est guidé par les phéromones dégagées par le cancrelat.monstre se précipite droit vers le cafard écrasé. Le gigantesque souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa  peine est telle qu\'il il n\'a aucune conscience de votre présence.<br><br>Vous réalisez à quel point vous êtes cruel.',
       next: `${EVENT_ID}-c3-success-d2`
     }),
     [`${EVENT_ID}-c3-success-d2`]: dialogueScreen({
