@@ -1539,10 +1539,22 @@ export function initializeAdminLevel(entityCatalog) {
     });
 
     resetLevelButton.addEventListener('click', async () => {
+        let restoreAdminBattleActions = null;
+
         try {
-            const { StopGame, resetBattleResolution } = await import('./gameState.js');
+            const {
+                StopGame,
+                resetBattleResolution,
+                manageBattleActions,
+                BATTLE_ACTION_MODE
+            } = await import('./gameState.js');
             StopGame();
             resetBattleResolution();
+            restoreAdminBattleActions = () => manageBattleActions({
+                mode: BATTLE_ACTION_MODE.START,
+                dialogueActive: false,
+                entityList: entites
+            });
         } catch (error) {
             console.warn('Reset admin : arrêt combat partiel.', error);
         }
@@ -1582,6 +1594,7 @@ export function initializeAdminLevel(entityCatalog) {
         selectedEntitiesB.length = 0;
         selectedEntitiesNeutral.length = 0;
         selectedBaseSet.clear();
+        restoreAdminBattleActions?.();
         eventStatus.textContent = 'Niveau admin réinitialisé.';
         eventStatus.hidden = false;
         renderCurrentView();
