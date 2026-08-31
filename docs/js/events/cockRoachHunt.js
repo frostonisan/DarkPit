@@ -223,7 +223,7 @@ const C2_FAIL_KILL = Object.freeze({
     safeMode: true,
     protectedSide: 'A',
     suppressSingleTargetAnnouncement: true,
-    lastSurvivorEscapesDeathIntro: 'Le Souverain des Blattes blesse grièvement une entité. En tant que dernier membre de votre armée, elle est galvanisée par votre confiance et parvient à esquiver le coup mortel. Elle est cependant salement amochée.'
+    attackerName: 'Le Souverain des Blattes'
   })
 });
 

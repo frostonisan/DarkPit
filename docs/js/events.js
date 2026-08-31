@@ -4334,10 +4334,41 @@ function eventResult(type, data, html, classes = []) {
   };
 }
 
-function fatalResultFor(target, fatal) {
+function eventEntityObjectPronoun(entity) {
+  return eventEntityGender(entity) === 'w' ? 'la' : 'le';
+}
+
+function eventAttackerName(options = {}) {
+  return String(options.attackerName || options.attacker || '').trim();
+}
+
+function eventFatalAttackSentence(target, options = {}) {
+  const safeName = escapeEventHtml(eventEntityName(target.entity));
+  const attacker = eventAttackerName(options);
+  if (attacker) {
+    return `${escapeEventHtml(attacker)} attaque ${safeName} et ${eventEntityObjectPronoun(target.entity)} tue sur le coup.`;
+  }
+  return `${safeName} prend le coup de plein fouet et s’effondre sans un bruit.`;
+}
+
+function eventDamageAttackSentence(target, damage, armorDamage, hpAfter, options = {}) {
+  const safeName = escapeEventHtml(eventEntityName(target.entity));
+  const attacker = eventAttackerName(options);
+  const opening = attacker
+    ? `${escapeEventHtml(attacker)} attaque ${safeName} et lui inflige <span class="event-damages">${damage} dégâts</span>.`
+    : `${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${damage} dégâts</span>.`;
+  const armorSentence = armorDamage > 0
+    ? ` Son <span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> encaisse ${armorDamage} dégâts.`
+    : '';
+
+  return `<div class="event-result-item-text">${opening}${armorSentence}<br>L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`;
+}
+
+function fatalResultFor(target, fatal, options = {}) {
   const { entity, side } = target;
   const name = eventEntityName(entity);
   const safeName = escapeEventHtml(name);
+  const attackSentence = eventFatalAttackSentence(target, options);
   if (fatal.resurrection) {
     const resurrectionStat = eventStatHtml(
       fatal.resurrectionType,
@@ -4349,7 +4380,7 @@ function fatalResultFor(target, fatal) {
       side,
       ...eventTargetResultData(target),
       ...fatal
-    }, withEventTargetAnnouncement(target, `Le corps s’effondre... mais, par miracle, une ${resurrectionStat} se consume. ${safeName} revient à la vie !<br><strong>${safeName} utilise une ${resurrectionStat}. L’entité possède désormais <span class="HP">${fatal.hpAfter} HP</span>.</strong>`));
+    }, withEventTargetAnnouncement(target, `<div class="event-result-item-text">${attackSentence}<br>Par miracle, ${safeName} utilise une ${resurrectionStat} et revient d’entre les morts avec <span class="HP">${fatal.hpAfter} HP</span>.</div>`));
   }
   return eventResult('entityKilled', {
     entityId: entity.id,
@@ -4357,7 +4388,7 @@ function fatalResultFor(target, fatal) {
     side,
     ...eventTargetResultData(target),
     ...fatal
-  }, withEventTargetAnnouncement(target, `${safeName} prend le coup de plein fouet et s’effondre sans un bruit.<br><br><strong>${safeName} ${eventMalusHtml('décède')} sur le coup.</strong>`));
+  }, withEventTargetAnnouncement(target, `<div class="event-result-item-text">${attackSentence}</div>`));
 }
 
 function pluralizeEventAdjective(adjective) {
@@ -5212,7 +5243,8 @@ export async function killEventEntity(options = {}) {
         resultTarget,
         await applyFatalEventDamage(entity, {
           destroyArmor: isProtectedLastLiving
-        })
+        }),
+        options
       ));
       continue;
     }
@@ -5230,11 +5262,6 @@ export async function killEventEntity(options = {}) {
       showEventDamageNumbers(entity, damage, armorLoss.armorDamage);
     }
     const name = eventEntityName(entity);
-    const safeName = escapeEventHtml(name);
-    const introSentence = String(options.lastSurvivorEscapesDeathIntro || '').trim();
-    const armorSentence = armorLoss.armorDamage > 0
-      ? ` Son <span class="picto-stat armor" data-typewriter-atomic="true"></span><span class="armor">armure</span> encaisse ${armorLoss.armorDamage} dégâts.`
-      : '';
     results.push(eventResult('lastSurvivorEscapesDeath', {
       entityId: entity.id,
       name,
@@ -5245,7 +5272,13 @@ export async function killEventEntity(options = {}) {
       hpAfter,
       damage,
       ...armorLoss
-    }, withEventTargetAnnouncement(resultTarget, `<div class="event-result-item-text">${introSentence ? `${introSentence}<br>` : ''}${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${damage} dégâts</span>.${armorSentence}<br>L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`)));
+    }, withEventTargetAnnouncement(resultTarget, eventDamageAttackSentence(
+      resultTarget,
+      damage,
+      armorLoss.armorDamage,
+      hpAfter,
+      options
+    ))));
   }
 
   syncEventMaterialChanges();
