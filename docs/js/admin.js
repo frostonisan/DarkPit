@@ -16,6 +16,58 @@ export function getAdminEventDefinitions() {
 }
 
 const ADMIN_EVENT_OUTCOME_ORDER = Object.freeze(['success', 'middle', 'fail']);
+const ADMIN_MENU_STORAGE_KEY = 'DarkPitAdminMenuState';
+const ADMIN_SPAWN_SIDES = Object.freeze([
+    Object.freeze({ key: 'A', label: 'Side A' }),
+    Object.freeze({ key: 'B', label: 'Side B' }),
+    Object.freeze({ key: 'neutral', label: 'Neutral' })
+]);
+const ADMIN_CHEST_STATUSES = Object.freeze([
+    Object.freeze({ key: 'lootable', label: 'Lootable' }),
+    Object.freeze({ key: 'locked', label: 'Locked' }),
+    Object.freeze({ key: 'destroyed', label: 'Destroyed' })
+]);
+const ADMIN_CORPSE_STATUSES = Object.freeze([
+    Object.freeze({ key: 'lootable', label: 'Lootable' }),
+    Object.freeze({ key: 'empty', label: 'Empty' }),
+    Object.freeze({ key: 'destroyed', label: 'Destroyed' })
+]);
+
+function normalizeAdminSpawnSide(side) {
+    const normalized = String(side || '').trim().toLowerCase();
+    if (normalized === 'b' || normalized === 'sideb' || normalized === 'side-b') return 'B';
+    if (normalized === 'neutral' || normalized === 'neutre' || normalized === 'n') return 'neutral';
+    return 'A';
+}
+
+function readAdminMenuState() {
+    try {
+        const parsed = JSON.parse(localStorage.getItem(ADMIN_MENU_STORAGE_KEY) || '{}');
+        return {
+            mode: parsed.mode === 'events' ? 'events' : 'spawn',
+            side: normalizeAdminSpawnSide(parsed.side),
+            category: parsed.category === 'misc' ? 'misc' : 'entity',
+            miscType: ['chest', 'corpse'].includes(parsed.miscType) ? parsed.miscType : null,
+            miscStatus: String(parsed.miscStatus || '').trim().toLowerCase() || null
+        };
+    } catch {
+        return {
+            mode: 'spawn',
+            side: 'A',
+            category: 'entity',
+            miscType: null,
+            miscStatus: null
+        };
+    }
+}
+
+function writeAdminMenuState(state) {
+    try {
+        localStorage.setItem(ADMIN_MENU_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+        // La persistance admin ne doit jamais bloquer l'outil de debug.
+    }
+}
 
 function getAdminEventApproachLabel(choice) {
     const resolution = choice?.resolution || {};
@@ -755,40 +807,68 @@ export function initializeAdminLevel(entityCatalog) {
     enableAdminDeleteKey();
     window.__adminEntityCatalog = entityCatalog;
 
-    const configuredAdminTabs = Array.isArray(stage.adminTabs)
-        ? stage.adminTabs.map(tab => String(tab).trim().toLowerCase())
-        : [];
-    const isAdminIsland = String(stage.levelName || '').trim().toLowerCase() === 'admin island';
-    const eventsEnabled = configuredAdminTabs.includes('events') || isAdminIsland;
-
     const selectedEntitiesA = [];
     const selectedEntitiesB = [];
+    const selectedEntitiesNeutral = [];
     const selectedBaseSet = new Set();
+    const menuState = readAdminMenuState();
 
     const form = document.createElement('form');
     form.id = 'admin-entity-form';
-    form.dataset.activeSide = 'A';
+    form.dataset.activeSide = menuState.side;
     form.dataset.eventCount = String(ADMIN_EVENT_LIST.length);
+    form.dataset.activeAdminTab = menuState.mode;
     form.innerHTML = '<h3>Sélectionner les entités (Admin)</h3>';
     form.addEventListener('submit', event => event.preventDefault());
 
-    const tabs = document.createElement('div');
-    tabs.id = 'admin-side-tabs';
-    tabs.style.display = 'flex';
-    tabs.style.gap = '8px';
-    tabs.style.marginBottom = '8px';
+    const createTabs = (id, entries, getActive, onSelect) => {
+        const tabs = document.createElement('div');
+        if (id) tabs.id = id;
+        tabs.className = 'admin-side-tabs';
+        tabs.style.display = 'flex';
+        tabs.style.gap = '8px';
+        tabs.style.marginBottom = '8px';
 
-    const tabA = document.createElement('button');
-    tabA.type = 'button';
-    tabA.textContent = 'Side A';
+        entries.forEach(entry => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = entry.label;
+            button.classList.toggle('active', getActive() === entry.key);
+            button.addEventListener('click', () => onSelect(entry.key));
+            tabs.appendChild(button);
+        });
 
-    const tabB = document.createElement('button');
-    tabB.type = 'button';
-    tabB.textContent = 'Side B';
+        return tabs;
+    };
 
-    const tabEvents = document.createElement('button');
-    tabEvents.type = 'button';
-    tabEvents.textContent = 'Events';
+    const modeTabs = createTabs('admin-side-tabs', [
+        Object.freeze({ key: 'spawn', label: 'Spawn' }),
+        Object.freeze({ key: 'events', label: 'Events' })
+    ], () => menuState.mode, key => {
+        menuState.mode = key;
+        menuState.miscType = null;
+        menuState.miscStatus = null;
+        viewStack.length = 0;
+        persistAndRender();
+    });
+
+    const sideTabs = createTabs(null, ADMIN_SPAWN_SIDES, () => menuState.side, key => {
+        menuState.side = key;
+        form.dataset.activeSide = key;
+        viewStack.length = 0;
+        persistAndRender();
+    });
+
+    const categoryTabs = createTabs(null, [
+        Object.freeze({ key: 'entity', label: 'Entity' }),
+        Object.freeze({ key: 'misc', label: 'Misc' })
+    ], () => menuState.category, key => {
+        menuState.category = key;
+        menuState.miscType = null;
+        menuState.miscStatus = null;
+        viewStack.length = 0;
+        persistAndRender();
+    });
 
     const list = document.createElement('div');
     list.id = 'admin-entity-list';
@@ -835,16 +915,22 @@ export function initializeAdminLevel(entityCatalog) {
     eventStatus.setAttribute('aria-live', 'polite');
     eventStatus.hidden = true;
 
+    const resetLevelButton = document.createElement('button');
+    resetLevelButton.type = 'button';
+    resetLevelButton.textContent = 'Reset niveau';
+
     const entityRows = [];
     const eventRows = [];
-    let activeBranchEventTitle = null;
-    let eventBranchRows = [];
+    const viewStack = [];
+    let currentRows = [];
 
-    const renderAdminList = () => {
-        const isEventsTab = form.dataset.activeAdminTab === 'events';
-        const availableRows = isEventsTab
-            ? (activeBranchEventTitle ? eventBranchRows : eventRows)
-            : entityRows;
+    function persistAndRender() {
+        writeAdminMenuState(menuState);
+        renderShell();
+        renderCurrentView();
+    }
+
+    const renderAdminList = (availableRows = currentRows) => {
         const query = normalizeAdminSearchText(searchInput.value);
         const displayedRows = getAdminSearchMatches(query, availableRows);
 
@@ -855,9 +941,7 @@ export function initializeAdminLevel(entityCatalog) {
             const emptyMessage = document.createElement('p');
             emptyMessage.textContent = query
                 ? 'Aucun résultat.'
-                : (isEventsTab
-                    ? (activeBranchEventTitle ? 'Aucune branche disponible.' : 'Aucun scénario enregistré.')
-                    : 'Aucune entité disponible.');
+                : 'Aucun élément disponible.';
             list.appendChild(emptyMessage);
             return;
         }
@@ -870,45 +954,7 @@ export function initializeAdminLevel(entityCatalog) {
         clearSearchButton.disabled = true;
     };
 
-    const setActiveSide = side => {
-        form.dataset.activeAdminTab = 'entities';
-        activeBranchEventTitle = null;
-        eventBranchRows = [];
-        form.dataset.activeSide = side;
-        tabA.classList.toggle('active', side === 'A');
-        tabB.classList.toggle('active', side === 'B');
-        tabEvents.classList.remove('active');
-        searchInput.placeholder = 'Rechercher une entité…';
-        spawnButton.hidden = false;
-        eventStatus.hidden = true;
-        resetSearch();
-        renderAdminList();
-    };
-
-    const setActiveEvents = () => {
-        form.dataset.activeAdminTab = 'events';
-        activeBranchEventTitle = null;
-        eventBranchRows = [];
-        tabA.classList.remove('active');
-        tabB.classList.remove('active');
-        tabEvents.classList.add('active');
-        searchInput.placeholder = 'Rechercher un événement…';
-        spawnButton.hidden = true;
-        eventStatus.hidden = !eventStatus.textContent;
-        resetSearch();
-        renderAdminList();
-    };
-
-    tabA.addEventListener('click', () => setActiveSide('A'));
-    tabB.addEventListener('click', () => setActiveSide('B'));
-    if (eventsEnabled) {
-        tabEvents.addEventListener('click', setActiveEvents);
-        tabs.append(tabA, tabB, tabEvents);
-    } else {
-        tabs.append(tabA, tabB);
-    }
-
-    searchInput.addEventListener('input', renderAdminList);
+    searchInput.addEventListener('input', () => renderAdminList());
     clearSearchButton.addEventListener('click', () => {
         resetSearch();
         renderAdminList();
@@ -938,8 +984,20 @@ export function initializeAdminLevel(entityCatalog) {
         });
     };
 
+    const pushRowsView = (title, rows, placeholder, onBack) => {
+        viewStack.push({ title, rows, placeholder, onBack });
+        resetSearch();
+        renderCurrentView();
+    };
+
+    const closeRowsView = () => {
+        const view = viewStack.pop();
+        view?.onBack?.();
+        resetSearch();
+        renderCurrentView();
+    };
+
     const openEventBranches = (eventDefinition, eventTitle, branches, launchEvent, options = {}) => {
-        activeBranchEventTitle = eventTitle;
         searchInput.placeholder = 'Rechercher une branche…';
 
         const backRow = document.createElement('div');
@@ -962,11 +1020,7 @@ export function initializeAdminLevel(entityCatalog) {
                 return;
             }
 
-            activeBranchEventTitle = null;
-            eventBranchRows = [];
-            searchInput.placeholder = 'Rechercher un événement…';
-            resetSearch();
-            renderAdminList();
+            closeRowsView();
         };
         backRow.addEventListener('click', closeBranches);
         backRow.addEventListener('keydown', event => {
@@ -975,7 +1029,7 @@ export function initializeAdminLevel(entityCatalog) {
             closeBranches();
         });
 
-        eventBranchRows = [{
+        const branchRows = [{
             element: backRow,
             searchText: `retour ${eventTitle}`
         }];
@@ -1016,10 +1070,7 @@ export function initializeAdminLevel(entityCatalog) {
                         `${eventTitle} > ${branch.group}`,
                         branches.filter(candidate => candidate.group === branch.group),
                         launchEvent,
-                        {
-                            skipGrouping: true,
-                            onBack: () => openEventBranches(eventDefinition, eventTitle, branches, launchEvent)
-                        }
+                        { skipGrouping: true }
                     );
                     return;
                 }
@@ -1035,17 +1086,16 @@ export function initializeAdminLevel(entityCatalog) {
             });
 
             eventLaunchRows.push(branchRow);
-            eventBranchRows.push({
+            branchRows.push({
                 element: branchRow,
                 searchText: `${branch.group || ''} ${branch.label} ${eventTitle} ${eventDefinition.key}`
             });
         });
 
-        resetSearch();
-        renderAdminList();
+        pushRowsView(eventTitle, branchRows, 'Rechercher une branche…');
     };
 
-    if (eventsEnabled) ADMIN_EVENT_LIST.forEach(eventDefinition => {
+    ADMIN_EVENT_LIST.forEach(eventDefinition => {
         const eventRow = document.createElement('div');
         eventRow.className = 'admin-entity-row admin-event-row';
         eventRow.dataset.eventKey = eventDefinition.key;
@@ -1122,16 +1172,14 @@ export function initializeAdminLevel(entityCatalog) {
         showAdminLauncherButton();
     });
 
-    form.append(tabs, searchTools, eventStatus, list, spawnButton, closeButton);
-    document.body.appendChild(form);
-
     const spawnEntity = async (entityBase, side, forcedPosition = null) => {
         if (window.levelRunning !== 'admin') return null;
 
         try {
             const created = await createEntityIngame(entityBase, { side, position: forcedPosition });
             if (side === 'A') selectedEntitiesA.push(created);
-            else selectedEntitiesB.push(created);
+            else if (side === 'B') selectedEntitiesB.push(created);
+            else selectedEntitiesNeutral.push(created);
             return created;
         } catch (error) {
             console.error('❌ Création de l’entité impossible :', error);
@@ -1154,6 +1202,16 @@ export function initializeAdminLevel(entityCatalog) {
 
         const serializedEntity = JSON.stringify(entity);
         row.addEventListener('click', () => {
+            if (menuState.category === 'misc' && menuState.miscType === 'corpse' && menuState.miscStatus) {
+                spawnAdminMisc({
+                    side: menuState.side,
+                    miscType: 'corpse',
+                    status: menuState.miscStatus,
+                    entity
+                });
+                return;
+            }
+
             const isSelected = selectedBaseSet.has(serializedEntity);
             if (isSelected) selectedBaseSet.delete(serializedEntity);
             else selectedBaseSet.add(serializedEntity);
@@ -1167,7 +1225,11 @@ export function initializeAdminLevel(entityCatalog) {
             }
 
             const side = form.dataset.activeSide || 'A';
-            const payload = `ADMIN_SPAWN:${JSON.stringify({ __adminSpawn: 1, side, entity })}`;
+            const payload = `ADMIN_SPAWN:${JSON.stringify(
+                menuState.category === 'misc' && menuState.miscType === 'corpse' && menuState.miscStatus
+                    ? { __adminSpawn: 1, kind: 'misc', side, miscType: 'corpse', status: menuState.miscStatus, entity }
+                    : { __adminSpawn: 1, kind: 'entity', side, entity }
+            )}`;
             event.dataTransfer.setData('text/plain', payload);
             event.dataTransfer.effectAllowed = 'copy';
         });
@@ -1178,7 +1240,229 @@ export function initializeAdminLevel(entityCatalog) {
         });
     });
 
-    setActiveSide('A');
+    const createRow = ({
+        label,
+        identity = '',
+        searchText = label,
+        draggable = false,
+        payload = null,
+        onClick = null
+    }) => {
+        const row = document.createElement('div');
+        row.className = 'admin-entity-row';
+        row.draggable = Boolean(draggable);
+        row.setAttribute('role', onClick ? 'button' : 'listitem');
+        if (onClick) row.tabIndex = 0;
+
+        const name = document.createElement('span');
+        name.textContent = label;
+
+        const details = document.createElement('span');
+        details.style.opacity = '0.7';
+        details.textContent = identity;
+        row.append(name, details);
+
+        if (onClick) {
+            row.addEventListener('click', onClick);
+            row.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                onClick();
+            });
+        }
+
+        if (draggable && payload) {
+            row.addEventListener('dragstart', event => {
+                const data = typeof payload === 'function' ? payload() : payload;
+                event.dataTransfer.setData('text/plain', `ADMIN_SPAWN:${JSON.stringify(data)}`);
+                event.dataTransfer.effectAllowed = 'copy';
+            });
+        }
+
+        return { element: row, searchText };
+    };
+
+    const getDefaultCorpseEntity = () => entityCatalog.find(entity => (
+        String(entity?.name || entity?.nom || '').toLowerCase().includes('porc')
+    )) || entityCatalog[0] || null;
+
+    const spawnAdminMisc = async ({
+        side,
+        miscType,
+        status = 'lootable',
+        entity = null,
+        position = null
+    } = {}) => {
+        if (window.levelRunning !== 'admin') return null;
+
+        try {
+            const eventsApi = await import('./events.js');
+            if (miscType === 'chest') {
+                return eventsApi.spawnChest({
+                    side,
+                    status,
+                    position,
+                    spawnMode: position ? 'in-place' : 'drop',
+                    forceNew: true,
+                    random: true,
+                    eventKey: 'admin-spawn'
+                });
+            }
+
+            const corpseEntity = entity || getDefaultCorpseEntity();
+            return eventsApi.spawnDead({
+                side,
+                status,
+                serial: corpseEntity?.serial ?? null,
+                entityName: corpseEntity?.name || corpseEntity?.nom || 'Porc des bas-fonds',
+                createOptions: position ? { position } : {},
+                eventKey: 'admin-spawn'
+            });
+        } catch (error) {
+            console.error('❌ Création du misc admin impossible :', error);
+            eventStatus.textContent = `Échec spawn misc : ${error?.message || error}`;
+            eventStatus.hidden = false;
+            return null;
+        }
+    };
+
+    const miscPayload = (miscType, status = 'lootable', entity = null) => ({
+        __adminSpawn: 1,
+        kind: 'misc',
+        side: menuState.side,
+        miscType,
+        status,
+        ...(entity ? { entity } : {})
+    });
+
+    const renderMiscRoot = () => [
+        createRow({
+            label: 'Chest >',
+            identity: 'lootable par défaut',
+            draggable: true,
+            payload: () => miscPayload('chest'),
+            onClick: () => {
+                menuState.miscType = 'chest';
+                menuState.miscStatus = null;
+                persistAndRender();
+            }
+        }),
+        createRow({
+            label: 'Corpse >',
+            identity: 'lootable par défaut',
+            draggable: true,
+            payload: () => miscPayload('corpse'),
+            onClick: () => {
+                menuState.miscType = 'corpse';
+                menuState.miscStatus = null;
+                persistAndRender();
+            }
+        })
+    ];
+
+    const backToMiscRow = (label = '< Retour misc') => createRow({
+        label,
+        identity: menuState.side === 'neutral' ? 'Neutral' : `Side ${menuState.side}`,
+        onClick: () => {
+            menuState.miscType = null;
+            menuState.miscStatus = null;
+            persistAndRender();
+        }
+    });
+
+    const renderChestStatusRows = () => [
+        backToMiscRow(),
+        ...ADMIN_CHEST_STATUSES.map(status => createRow({
+            label: status.label,
+            identity: 'Chest',
+            draggable: true,
+            payload: () => miscPayload('chest', status.key),
+            onClick: () => spawnAdminMisc({
+                side: menuState.side,
+                miscType: 'chest',
+                status: status.key
+            })
+        }))
+    ];
+
+    const renderCorpseStatusRows = () => [
+        backToMiscRow(),
+        ...ADMIN_CORPSE_STATUSES.map(status => createRow({
+            label: `${status.label} >`,
+            identity: 'Corpse',
+            draggable: true,
+            payload: () => miscPayload('corpse', status.key),
+            onClick: () => {
+                menuState.miscStatus = status.key;
+                persistAndRender();
+            }
+        }))
+    ];
+
+    const renderCorpseEntityRows = () => [
+        createRow({
+            label: '< Retour corpse',
+            identity: menuState.miscStatus || '',
+            onClick: () => {
+                menuState.miscStatus = null;
+                persistAndRender();
+            }
+        }),
+        ...entityRows
+    ];
+
+    function renderShell() {
+        form.dataset.activeAdminTab = menuState.mode;
+        form.dataset.activeSide = menuState.side;
+        modeTabs.querySelectorAll('button').forEach(button => {
+            button.classList.toggle('active', button.textContent.toLowerCase() === menuState.mode);
+        });
+        sideTabs.querySelectorAll('button').forEach((button, index) => {
+            button.classList.toggle('active', ADMIN_SPAWN_SIDES[index]?.key === menuState.side);
+        });
+        categoryTabs.querySelectorAll('button').forEach((button, index) => {
+            const key = index === 0 ? 'entity' : 'misc';
+            button.classList.toggle('active', key === menuState.category);
+        });
+
+        sideTabs.hidden = menuState.mode !== 'spawn';
+        categoryTabs.hidden = menuState.mode !== 'spawn';
+        spawnButton.hidden = menuState.mode !== 'spawn' || menuState.category !== 'entity';
+        resetLevelButton.hidden = false;
+        eventStatus.hidden = !eventStatus.textContent;
+    }
+
+    function renderCurrentView() {
+        if (viewStack.length > 0) {
+            const view = viewStack[viewStack.length - 1];
+            currentRows = view.rows;
+            searchInput.placeholder = view.placeholder;
+            renderAdminList();
+            return;
+        }
+
+        if (menuState.mode === 'events') {
+            currentRows = eventRows;
+            searchInput.placeholder = 'Rechercher un événement…';
+        } else if (menuState.category === 'entity') {
+            currentRows = entityRows;
+            searchInput.placeholder = 'Rechercher une entité…';
+        } else if (!menuState.miscType) {
+            currentRows = renderMiscRoot();
+            searchInput.placeholder = 'Rechercher un élément misc…';
+        } else if (menuState.miscType === 'chest') {
+            currentRows = renderChestStatusRows();
+            searchInput.placeholder = 'Rechercher un coffre…';
+        } else if (!menuState.miscStatus) {
+            currentRows = renderCorpseStatusRows();
+            searchInput.placeholder = 'Rechercher un type de cadavre…';
+        } else {
+            currentRows = renderCorpseEntityRows();
+            searchInput.placeholder = 'Rechercher une entité pour le cadavre…';
+        }
+
+        renderAdminList();
+    }
 
     spawnButton.addEventListener('click', async () => {
         const side = form.dataset.activeSide || 'A';
@@ -1187,6 +1471,51 @@ export function initializeAdminLevel(entityCatalog) {
         }
         assignUniqueIDToEntities(selectedEntitiesA);
         assignUniqueIDToEntities(selectedEntitiesB);
+        assignUniqueIDToEntities(selectedEntitiesNeutral);
+    });
+
+    resetLevelButton.addEventListener('click', async () => {
+        try {
+            const { StopGame, resetBattleResolution } = await import('./gameState.js');
+            StopGame();
+            resetBattleResolution();
+        } catch (error) {
+            console.warn('Reset admin : arrêt combat partiel.', error);
+        }
+
+        document.querySelectorAll(
+            '#hexGrid .entite-box, #hexGrid .battle-element, .loot-interface, .destroyed-corpse, .event-dialogue-overlay'
+        ).forEach(element => element.remove());
+        document.querySelectorAll('#hexGrid .hex').forEach(hex => {
+            hex.classList.remove('occupied', 'focused');
+            delete hex.dataset.occupiedBy;
+            hex.querySelectorAll('.focused').forEach(node => node.classList.remove('focused'));
+        });
+        entites.splice(0, entites.length);
+
+        const chestStorage = loadFromLocalStorage('ChestLoot', { chests: [] });
+        if (Array.isArray(chestStorage.chests)) {
+            chestStorage.chests = chestStorage.chests.filter(chest => (
+                String(chest?.level ?? chest?.stageId ?? '') !== String(currentStageId)
+            ));
+            saveToLocalStorage('ChestLoot', chestStorage);
+        }
+
+        const corpseStorage = loadFromLocalStorage('PersistentCorpseLootSources', { corpses: [] });
+        if (Array.isArray(corpseStorage.corpses)) {
+            corpseStorage.corpses = corpseStorage.corpses.filter(corpse => (
+                String(corpse?.level ?? corpse?.stageId ?? '') !== String(currentStageId)
+            ));
+            saveToLocalStorage('PersistentCorpseLootSources', corpseStorage);
+        }
+
+        selectedEntitiesA.length = 0;
+        selectedEntitiesB.length = 0;
+        selectedEntitiesNeutral.length = 0;
+        selectedBaseSet.clear();
+        eventStatus.textContent = 'Niveau admin réinitialisé.';
+        eventStatus.hidden = false;
+        renderCurrentView();
     });
 
     const adminDropInterceptor = async event => {
@@ -1207,18 +1536,35 @@ export function initializeAdminLevel(entityCatalog) {
             return;
         }
 
-        const side = payload.side === 'B' ? 'B' : 'A';
+        const side = normalizeAdminSpawnSide(payload.side);
+        if (payload.kind === 'misc') {
+            await spawnAdminMisc({
+                side,
+                miscType: payload.miscType,
+                status: payload.status,
+                entity: payload.entity,
+                position: hex.dataset.position
+            });
+            return;
+        }
+
         const created = await spawnEntity(payload.entity, side, hex.dataset.position);
         if (!created) return;
 
         assignUniqueIDToEntities(selectedEntitiesA);
         assignUniqueIDToEntities(selectedEntitiesB);
+        assignUniqueIDToEntities(selectedEntitiesNeutral);
     };
 
     window.__adminDropInterceptor = adminDropInterceptor;
     document.addEventListener('drop', adminDropInterceptor, true);
 
-    return { A: selectedEntitiesA, B: selectedEntitiesB };
+    form.append(modeTabs, sideTabs, categoryTabs, searchTools, eventStatus, list, spawnButton, resetLevelButton, closeButton);
+    document.body.appendChild(form);
+    renderShell();
+    renderCurrentView();
+
+    return { A: selectedEntitiesA, B: selectedEntitiesB, neutral: selectedEntitiesNeutral };
 }
 
 // Alias temporaire pour les anciens imports pendant la migration.

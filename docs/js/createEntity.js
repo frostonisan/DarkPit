@@ -1416,7 +1416,19 @@ const cloneEntityForSpawn = (entity) => {
   return JSON.parse(JSON.stringify(entity));
 };
 
-const sideToHexClass = (side) => (side === 'A' ? 'SideA' : 'SideB');
+const normalizeSpawnSide = (side) => {
+  const normalized = String(side || '').trim().toLowerCase();
+  if (normalized === 'a' || normalized === 'sidea' || normalized === 'side-a') return 'A';
+  if (normalized === 'b' || normalized === 'sideb' || normalized === 'side-b') return 'B';
+  if (normalized === 'neutral' || normalized === 'neutre' || normalized === 'n') return 'neutral';
+  return null;
+};
+
+const sideToHexClass = (side) => {
+  if (side === 'A') return 'SideA';
+  if (side === 'B') return 'SideB';
+  return 'Neutral';
+};
 
 function normalizeEntityRoles(role) {
   const roles = Array.isArray(role) ? role : [role];
@@ -1555,7 +1567,7 @@ document.addEventListener(
 
 function prepareSpawnHexForSide(hex, side) {
   if (!hex) return;
-  hex.classList.remove('SideA', 'SideB');
+  hex.classList.remove('SideA', 'SideB', 'Neutral');
   hex.classList.add(sideToHexClass(side));
   hex.dataset.side = side;
 }
@@ -1691,12 +1703,13 @@ export async function createEntityIngame(entityBase, {
   level = null
 } = {}) {
   if (!entityBase) throw new Error('Le modèle d’entité est obligatoire.');
-  if (side !== 'A' && side !== 'B') throw new Error('Le side doit être A ou B.');
+  const spawnSide = normalizeSpawnSide(side);
+  if (!spawnSide) throw new Error('Le side doit être A, B ou neutral.');
 
   const entity = cloneEntityForSpawn(entityBase);
   entity.id = generateUniqueID();
-  entity.side = side;
-  entity.position = position ?? findAvailableSpawnPosition(side);
+  entity.side = spawnSide;
+  entity.position = position ?? findAvailableSpawnPosition(spawnSide);
 
   // Conserve la structure level originale utilisée par le rendu des entités.
   if (level !== null) {
@@ -1709,7 +1722,7 @@ export async function createEntityIngame(entityBase, {
 
   if (!entity.position) {
     showSpawnBoardFullAlert();
-    throw new Error(`Aucune position disponible pour le side ${side}.`);
+    throw new Error(`Aucune position disponible pour le side ${spawnSide}.`);
   }
 
   entity.position = String(entity.position);
@@ -1728,6 +1741,6 @@ export async function createEntityIngame(entityBase, {
     throw new Error(`La case ${entity.position} est déjà occupée.`);
   }
 
-  prepareSpawnHexForSide(hex, side);
+  prepareSpawnHexForSide(hex, spawnSide);
   return spawnEntiteIngame(enrichEntityStats(entity));
 }

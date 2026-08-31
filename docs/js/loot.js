@@ -2059,9 +2059,12 @@ export function createChestLoot(sourceOrId, {
 
   const chestSide = normalizeLootBattleSide(source.metadata?.side ?? source.side);
 
-  const [position] = source.statut === "locked"
+  const [defaultPosition] = source.statut === "locked"
     ? hexCoordonne(chestSide === "neutral" ? "B" : chestSide, "top", "end", 1)
     : hexCoordonne(chestSide, "middle", "center", 1);
+  const position = preferredPosition && !isHexOccupied(preferredPosition)
+    ? preferredPosition
+    : defaultPosition;
 
   if (!position) return null;
   const battleElement = createBattleElementInDOM({
@@ -2459,7 +2462,7 @@ function ensureInteraction2() {
   document.addEventListener("click", handleCorpseClick, true);
 }
 export function createCorpseLoot(entity) {
-  if (!entity || entity.side !== "B" || !Array.isArray(entity.statut) || !entity.statut.includes("dead")) return null;
+  if (!entity || (entity.side !== "B" && entity.eventSpawnedCorpse !== true) || !Array.isArray(entity.statut) || !entity.statut.includes("dead")) return null;
   const stageId = getActiveStageId() || "battle";
   const instanceId = entityInstanceId(entity);
   if (instanceId == null) return null;
@@ -2471,12 +2474,13 @@ export function createCorpseLoot(entity) {
     return existing;
   }
   const now = (/* @__PURE__ */ new Date()).toISOString();
+  const hasReward = entity.hasReward !== false && entity.eventReward !== false;
   const source = {
     id: corpseId,
     sourceType: "corpse",
     level: String(stageId),
     stageId: String(stageId),
-    statut: "created",
+    statut: hasReward ? "created" : "looted",
     createdAt: now,
     updatedAt: now,
     metadata: {
@@ -2488,7 +2492,7 @@ export function createCorpseLoot(entity) {
     },
     loot: { entities: [], stuff: [], consommables: [] }
   };
-  ensureSimpleLootBundle(source);
+  if (hasReward) ensureSimpleLootBundle(source);
   saveLootSource(source);
   ensureInteraction2();
   attachCorpse(source);

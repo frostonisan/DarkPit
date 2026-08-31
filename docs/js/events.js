@@ -1,7 +1,7 @@
 import { entites, entitesNestUp, RemoveEntite } from './entites.js';
 import { createEntityIngame } from './createEntity.js';
 import { removeBattleElementFromDOM } from './createBattleElements.js';
-import { closeOpenLootInterfaces, destroyChest as destroyChestLoot, disperseLootSourceGlitter, restoreVacatedHexSocleOpacity } from './loot.js';
+import { closeOpenLootInterfaces, createCorpseLoot, destroyChest as destroyChestLoot, disperseLootSourceGlitter, restoreVacatedHexSocleOpacity } from './loot.js';
 import { battleLogs } from './battleLogs.js';
 import { startGame } from './gameState.js';
 import { getCurrentLevel, getOrCreateStageChest, getStageChests, getVisibleHexes, loadFromLocalStorage, loadPlayerInfo, loadQuestState, saveCurrentGameData, saveToLocalStorage, updateQuestState } from './GameStorage.js';
@@ -2982,6 +2982,7 @@ export async function spawnDead({
       ignoreVictory: true
     }
   }));
+  createCorpseLoot(corpse);
 
   if (corpseStatus === 'destroyed') {
     return destroyCorpse({
@@ -3018,7 +3019,8 @@ export async function spawnChest({
   forceNew = true,
   side = 'neutral',
   status = 'lootable',
-  eventKey = null
+  eventKey = null,
+  position = null
 } = {}) {
   const chestSide = normalizeEventMaterialSide(side);
   const chestStatus = normalizeEventChestStatus(status);
@@ -3030,7 +3032,8 @@ export async function spawnChest({
       forceNew,
       side: chestSide,
       status: chestStatus,
-      eventKey
+      eventKey,
+      position
     });
   }
 
@@ -3057,6 +3060,11 @@ export async function spawnChest({
   const resolvedChest = chest || storedChests[storedChests.length - 1] || null;
   if (!resolvedChest) {
     throw new Error('[Events] La création du coffre aléatoire a échoué.');
+  }
+  if (position) {
+    resolvedChest.battlePosition = String(position);
+    resolvedChest.metadata ||= {};
+    resolvedChest.metadata.battlePosition = String(position);
   }
 
   window.dispatchEvent(new CustomEvent('stageChestsLoaded', {
