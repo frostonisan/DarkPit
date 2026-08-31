@@ -832,9 +832,12 @@ export function initializeAdminLevel(entityCatalog) {
         entries.forEach(entry => {
             const button = document.createElement('button');
             button.type = 'button';
+            button.classList.add('admin-tab-button');
             button.dataset.adminTabKey = entry.key;
             button.textContent = entry.label;
-            button.classList.toggle('active', getActive() === entry.key);
+            const isActive = getActive() === entry.key;
+            button.classList.toggle('active', isActive);
+            button.classList.toggle('passive', !isActive);
             button.addEventListener('click', () => onSelect(entry.key));
             tabs.appendChild(button);
         });
@@ -1416,13 +1419,19 @@ export function initializeAdminLevel(entityCatalog) {
         form.dataset.activeAdminTab = menuState.mode;
         form.dataset.activeSide = menuState.side;
         modeTabs.querySelectorAll('button').forEach(button => {
-            button.classList.toggle('active', button.dataset.adminTabKey === menuState.mode);
+            const isActive = button.dataset.adminTabKey === menuState.mode;
+            button.classList.toggle('active', isActive);
+            button.classList.toggle('passive', !isActive);
         });
         sideTabs.querySelectorAll('button').forEach(button => {
-            button.classList.toggle('active', button.dataset.adminTabKey === menuState.side);
+            const isActive = button.dataset.adminTabKey === menuState.side;
+            button.classList.toggle('active', isActive);
+            button.classList.toggle('passive', !isActive);
         });
         categoryTabs.querySelectorAll('button').forEach(button => {
-            button.classList.toggle('active', button.dataset.adminTabKey === menuState.category);
+            const isActive = button.dataset.adminTabKey === menuState.category;
+            button.classList.toggle('active', isActive);
+            button.classList.toggle('passive', !isActive);
         });
 
         sideTabs.style.display = menuState.mode === 'spawn' ? 'flex' : 'none';
