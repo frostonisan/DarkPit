@@ -45,10 +45,13 @@ function normalizeAdminSpawnSide(side) {
 function readAdminMenuState() {
     try {
         const parsed = JSON.parse(localStorage.getItem(ADMIN_MENU_STORAGE_KEY) || '{}');
+        const mode = ['spawn', 'events', 'biome'].includes(parsed.mode)
+            ? parsed.mode
+            : (parsed.category === 'biome' ? 'biome' : 'spawn');
         return {
-            mode: parsed.mode === 'events' ? 'events' : 'spawn',
+            mode,
             side: normalizeAdminSpawnSide(parsed.side),
-            category: ['entity', 'misc', 'biome'].includes(parsed.category) ? parsed.category : 'entity',
+            category: parsed.category === 'misc' ? 'misc' : 'entity',
             miscType: ['chest', 'corpse'].includes(parsed.miscType) ? parsed.miscType : null,
             miscStatus: String(parsed.miscStatus || '').trim().toLowerCase() || null
         };
@@ -859,7 +862,8 @@ export function initializeAdminLevel(entityCatalog) {
 
     const modeTabs = createTabs('admin-side-tabs', [
         Object.freeze({ key: 'spawn', label: 'Spawn' }),
-        Object.freeze({ key: 'events', label: 'Events' })
+        Object.freeze({ key: 'events', label: 'Events' }),
+        Object.freeze({ key: 'biome', label: 'Biome' })
     ], () => menuState.mode, key => {
         menuState.mode = key;
         menuState.miscType = null;
@@ -877,8 +881,7 @@ export function initializeAdminLevel(entityCatalog) {
 
     const categoryTabs = createTabs(null, [
         Object.freeze({ key: 'entity', label: 'Entity' }),
-        Object.freeze({ key: 'misc', label: 'Misc' }),
-        Object.freeze({ key: 'biome', label: 'Biome' })
+        Object.freeze({ key: 'misc', label: 'Misc' })
     ], () => menuState.category, key => {
         menuState.category = key;
         menuState.miscType = null;
@@ -1483,8 +1486,7 @@ export function initializeAdminLevel(entityCatalog) {
         });
 
         const showSpawnOptions = menuState.mode === 'spawn';
-        const showSideTabs = showSpawnOptions && menuState.category !== 'biome';
-        sideTabs.style.display = showSideTabs ? 'flex' : 'none';
+        sideTabs.style.display = showSpawnOptions ? 'flex' : 'none';
         categoryTabs.style.display = showSpawnOptions ? 'flex' : 'none';
         spawnButton.hidden = menuState.mode !== 'spawn' || menuState.category !== 'entity';
         resetLevelButton.hidden = false;
@@ -1503,7 +1505,7 @@ export function initializeAdminLevel(entityCatalog) {
         if (menuState.mode === 'events') {
             currentRows = eventRows;
             searchInput.placeholder = 'Rechercher un événement…';
-        } else if (menuState.category === 'biome') {
+        } else if (menuState.mode === 'biome') {
             currentRows = renderBiomeRows();
             searchInput.placeholder = 'Rechercher un biome…';
         } else if (menuState.category === 'entity') {
