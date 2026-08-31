@@ -5,9 +5,12 @@ const COCKROACH_KING_SERIAL = 666;
 const ARRIVAL_IMAGE = './media/lore/events/cockroachking-arrival.jpg';
 const BARRICADE_SUCCESS_IMAGE = './media/lore/events/cockroachking-barricade-success.jpg';
 const BARRICADE_IMAGE = './media/lore/events/cockroachking-barricade.jpg';
+const BARRICADE_FAIL_IMAGE = './media/lore/events/cockroachking-barricade-fail.jpg';
 const BARRICADE_CHARGE_IMAGE = './media/lore/events/cockroachking-charge-barricade.jpg';
 const BARRICADE_CHARGE_SUCCESS = './media/lore/events/cockroachking-barricade-success-charge.jpg';
 const PHEROMONES_IMAGE = './media/lore/events/cockroachking-pheromones.jpg';
+const BLOOD_BAIT_IMAGE = './media/lore/events/cockroachking-blood-bait.jpg';
+const ORDER_IMAGE = './media/lore/events/cockroachking-order.jpg';
 
 const BARRICADE_DAMAGE_PERCENT = 25;
 const C1_FAIL_DAMAGE_PERCENT = 30;
@@ -585,7 +588,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       id: `${EVENT_ID}-c2-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      img: BARRICADE_IMAGE,
+      img: BARRICADE_FAIL_IMAGE,
       text: 'Vos entités n\'étaient pas taillées physiquement pour déplacer les débris les plus robustes qui vous entouraient, afin de constituer une protection suffisamment solide.<br>Malgré vos efforts, vous n\'avez pas le temps de terminer la barricade avant qu\'une masse immense surgisse dans votre direction.',
       next: `${EVENT_ID}-c2-fail-spawn`
     }),
@@ -615,6 +618,7 @@ const SCENARIO_2_FAIL = Object.freeze({
     [`${EVENT_ID}-c2-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-fail-d2`,
       cinematic: 'hard',
+      img: ARRIVAL_IMAGE,
       text: 'Le Souverain des Blattes la voit chuter.<br><br>En une fraction de seconde, il se place sous son point d\'atterrissage, toutes mandibules ouvertes.<br><br>La pauvre créature atterrit directement dans la gueule du monstre.<br>La scène est aussi cruelle que grotesque.',
       next: `${EVENT_ID}-c2-fail-kill`
     }),
@@ -738,6 +742,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c3-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
+      img: BLOOD_BAIT_IMAGE,
       text: 'Vous êtes pris de court et ne parvenez pas à réagir de manière absolument rationnelle.<br><br>Vous saisissez un bout de tissu de vos affaires et l’imprégnez de l’odeur du sang d’une entité blessée.<br><br>Cette puissante odeur de sang devrait attirer la créature, qui ne semble pas être herbivore, d’après l’agressivité dont elle semble être dotée.<br><br>Vous lancez au loin votre appât.',
       next: `${EVENT_ID}-c3-middle-spawn`
     }),
@@ -757,6 +762,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c3-middle-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d2`,
       cinematic: 'hard',
+      img: ARRIVAL_IMAGE,
       text: 'Mais quelque chose ne va pas. Ses multiples antennes s’agitent violemment, puis se tournent lentement vers l’entité qui a donné son sang.<br><br>Le Souverain associe instantanément cette odeur à celle du leurre.<br><br>En une fraction de seconde, la créature remonte brutalement jusqu’à sa cible et l’attaque.',
       next: `${EVENT_ID}-c3-middle-attack`
     }),
@@ -793,6 +799,7 @@ const SCENARIO_3_FAIL = Object.freeze({
       id: `${EVENT_ID}-c3-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
+      img: ORDER_IMAGE,
       text: 'L’idée d’attirer la créature loin de vous avec un leurre vous vient subitement à l’esprit.<br><br>Cependant, vos idées ne sont pas aussi fulgurantes qu’escompté, et vous vous appesantissez un peu trop sur les conséquences potentielles d’une telle stratégie, plutôt que sur le choix de l’appât et l’application de ladite stratégie.<br><br>Le bruit se rapprochant de plus en plus, vous écourtez votre “réflexion” et hurlez sur une de vos entités, qui semble la plus docile, de faire quelque chose, en lui pointant la direction de la source du bruit.<br><br>Elle se dévoue. Vous la voyez s’éloigner en vous regardant, un peu perdue, presque honteuse pour vous de ne pas avoir su quoi lui dire.',
       next: `${EVENT_ID}-c3-fail-move`
     }),
@@ -811,7 +818,7 @@ const SCENARIO_3_FAIL = Object.freeze({
     [`${EVENT_ID}-c3-fail-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-fail-d1`,
       cinematic: 'hard',
-      img: PHEROMONES_IMAGE,
+      img: ARRIVAL_IMAGE,
       text: 'Lorsque vous vous rendez compte de cela, il est un peu trop tard.<br><br>Un monstre de chitine, de mandibules et d’ichor se dresse devant l’entité envoyée au loin.<br><br>À ce moment, un étrange sentiment d’effroi et de soulagement vous apparaît : tout est sous contrôle, c’est finalement elle qui servira d’appât.<br><br>Le monstre referme son étreinte d’une violence rare sur sa cible.',
       next: `${EVENT_ID}-c3-fail-remove`
     }),
@@ -975,7 +982,7 @@ export const cockRoachHuntEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Cockroach Hunt',
-  version: 23,
+  version: 24,
   startNodeId: `${EVENT_ID}-d1`,
   watchedPlayerInfoKeys: ['cockroaches'],
   onStart: removeUnclickedCockroaches,

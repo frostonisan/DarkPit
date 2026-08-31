@@ -200,4 +200,11 @@ height: 390px;
   
   .img-container:has(.cockroach-king){top: -170px;
   left: -3px;}
-.iddle.cockroach-king {animation: bougeote 15s linear infinite;} 
+.iddle.cockroach-king {animation: bougeote 15s linear infinite;}
+
+
+  .drag-box:has(.mimic) {top: 50px;
+  position: absolute;}
+    .img-container:has(.mimic){top: -390px;
+  left: -10px;}
+.iddle.mimic {animation: bougeote 0.5s linear infinite;}
