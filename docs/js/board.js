@@ -3,7 +3,7 @@ import { positionnerEntites } from './load-entity.js';
 import { hexRoles } from './role-rule.js';
 import { levelBiome } from './level.js';
 import { LevelUi } from './ui.js';
-import { initCanvas, initDroplet, initSunray, initSnowstorm, handleMeteo, handleGroundFx } from './meteo.js';
+import { clearBiomeEffects, initCanvas, initDroplet, initSunray, initSnowstorm, handleMeteo, handleGroundFx } from './meteo.js';
 import { createSoundManager } from './soundManager.js';
 import { getOrCreateGameContainer } from './GameInit.js';
 
@@ -44,6 +44,34 @@ document.addEventListener('biomeUpdated', (event) => {
         console.log('Aucun biome correspondant trouvé dans levelBiome.');
     }
 });
+
+export function applyBiomeRealtime(biomeClass) {
+    const selectedBiome = levelBiome.find(biome => biome.classe === biomeClass);
+    if (!selectedBiome) {
+        console.warn(`Biome admin introuvable : ${biomeClass}`);
+        return false;
+    }
+
+    matchingBiome = selectedBiome;
+    clearBiomeEffects();
+
+    document.querySelectorAll('.background, .foreground').forEach(element => element.remove());
+    document.querySelectorAll('#hexGrid > .ground').forEach(element => element.remove());
+
+    const gameContainer = getOrCreateGameContainer();
+    const board = document.querySelector('.board');
+    const hexGrid = document.getElementById('hexGrid');
+
+    addBackground(board);
+    generateDecor(gameContainer, null, hexGrid);
+    playBiomeSound();
+
+    document.dispatchEvent(new CustomEvent('adminBiomeChanged', {
+        detail: { biome: selectedBiome }
+    }));
+
+    return true;
+}
 
 // Fonction pour générer les éléments de décor (foreground et ground)
 export function generateDecor(gameContainer, board, hexGrid) {

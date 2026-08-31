@@ -2,6 +2,16 @@ let meteoPaused = false;
 let animationFrameId = null;
 let activeEffects = {}; // Stocke les données de chaque effet météo
 
+export function clearBiomeEffects() {
+    if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+    }
+    activeEffects = {};
+    document.getElementById('meteo-fx')?.remove();
+    document.getElementById('ground-fx')?.remove();
+}
+
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
         meteoPaused = true;

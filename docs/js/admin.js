@@ -2,6 +2,7 @@ import { loadFromLocalStorage, saveToLocalStorage, armyAConfig, loadCurrentGameD
 import { assignUniqueIDToEntities, entites } from './entites.js';
 import { createEntityIngame } from './createEntity.js';
 import { eventList } from './eventList.js?catalog=20260823i';
+import { levelBiome } from './level.js';
 
 const ADMIN_EVENT_LIST = Object.freeze(
     eventList
@@ -46,7 +47,7 @@ function readAdminMenuState() {
         return {
             mode: parsed.mode === 'events' ? 'events' : 'spawn',
             side: normalizeAdminSpawnSide(parsed.side),
-            category: parsed.category === 'misc' ? 'misc' : 'entity',
+            category: ['entity', 'misc', 'biome'].includes(parsed.category) ? parsed.category : 'entity',
             miscType: ['chest', 'corpse'].includes(parsed.miscType) ? parsed.miscType : null,
             miscStatus: String(parsed.miscStatus || '').trim().toLowerCase() || null
         };
@@ -865,7 +866,8 @@ export function initializeAdminLevel(entityCatalog) {
 
     const categoryTabs = createTabs(null, [
         Object.freeze({ key: 'entity', label: 'Entity' }),
-        Object.freeze({ key: 'misc', label: 'Misc' })
+        Object.freeze({ key: 'misc', label: 'Misc' }),
+        Object.freeze({ key: 'biome', label: 'Biome' })
     ], () => menuState.category, key => {
         menuState.category = key;
         menuState.miscType = null;
@@ -1415,6 +1417,26 @@ export function initializeAdminLevel(entityCatalog) {
         ...entityRows
     ];
 
+    const renderBiomeRows = () => levelBiome.map(biome => createRow({
+        label: biome.name || biome.classe,
+        identity: biome.classe,
+        searchText: `${biome.name || ''} ${biome.classe || ''}`,
+        onClick: async () => {
+            try {
+                const { applyBiomeRealtime } = await import('./board.js');
+                const applied = applyBiomeRealtime(biome.classe);
+                eventStatus.textContent = applied
+                    ? `Biome appliqué : ${biome.name || biome.classe}.`
+                    : `Biome introuvable : ${biome.classe}.`;
+                eventStatus.hidden = false;
+            } catch (error) {
+                console.error('❌ Changement de biome impossible :', error);
+                eventStatus.textContent = `Échec biome : ${error?.message || error}`;
+                eventStatus.hidden = false;
+            }
+        }
+    }));
+
     function renderShell() {
         form.dataset.activeAdminTab = menuState.mode;
         form.dataset.activeSide = menuState.side;
@@ -1434,8 +1456,10 @@ export function initializeAdminLevel(entityCatalog) {
             button.classList.toggle('passive', !isActive);
         });
 
-        sideTabs.style.display = menuState.mode === 'spawn' ? 'flex' : 'none';
-        categoryTabs.style.display = menuState.mode === 'spawn' ? 'flex' : 'none';
+        const showSpawnOptions = menuState.mode === 'spawn';
+        const showSideTabs = showSpawnOptions && menuState.category !== 'biome';
+        sideTabs.style.display = showSideTabs ? 'flex' : 'none';
+        categoryTabs.style.display = showSpawnOptions ? 'flex' : 'none';
         spawnButton.hidden = menuState.mode !== 'spawn' || menuState.category !== 'entity';
         resetLevelButton.hidden = false;
         eventStatus.hidden = !eventStatus.textContent;
@@ -1453,6 +1477,9 @@ export function initializeAdminLevel(entityCatalog) {
         if (menuState.mode === 'events') {
             currentRows = eventRows;
             searchInput.placeholder = 'Rechercher un événement…';
+        } else if (menuState.category === 'biome') {
+            currentRows = renderBiomeRows();
+            searchInput.placeholder = 'Rechercher un biome…';
         } else if (menuState.category === 'entity') {
             currentRows = entityRows;
             searchInput.placeholder = 'Rechercher une entité…';
