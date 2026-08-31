@@ -7,6 +7,7 @@ const BARRICADE_SUCCESS_IMAGE = './media/lore/events/cockroachking-barricade-suc
 const BARRICADE_IMAGE = './media/lore/events/cockroachking-barricade.jpg';
 const BARRICADE_CHARGE_IMAGE = './media/lore/events/cockroachking-charge-barricade.jpg';
 const BARRICADE_CHARGE_SUCCESS = './media/lore/events/cockroachking-barricade-success-charge.jpg';
+const PHEROMONES_IMAGE = './media/lore/events/cockroachking-pheromones.jpg';
 
 const BARRICADE_DAMAGE_PERCENT = 25;
 const C1_FAIL_DAMAGE_PERCENT = 30;
@@ -579,10 +580,17 @@ const SCENARIO_2 = Object.freeze({
     ...SCENARIO_2_FAIL.nodes
   })
 });
-//
 const SCENARIO_3_SUCCESS = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c3-success-spawn`),
+  resolution: outcome(`${EVENT_ID}-c3-success-outcome`),
   nodes: Object.freeze({
+    [`${EVENT_ID}-c3-success-outcome`]: dialogueScreen({
+      id: `${EVENT_ID}-c3-success-outcome`,
+      outcome: 'success',
+      cinematic: 'hard',
+      img: PHEROMONES_IMAGE,
+      text: 'Votre stratagème fonctionne. Les phéromones du cafard écrasé saturent l’air et détournent l’attention de la créature.',
+      next: `${EVENT_ID}-c3-success-spawn`
+    }),
     [`${EVENT_ID}-c3-success-spawn`]: actionScreen({
       id: `${EVENT_ID}-c3-success-spawn`,
       cinematic: 'soft',
@@ -624,8 +632,15 @@ const SCENARIO_3_SUCCESS = Object.freeze({
 });
 
 const SCENARIO_3_MIDDLE = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c3-middle-spawn`),
+  resolution: outcome(`${EVENT_ID}-c3-middle-outcome`),
   nodes: Object.freeze({
+    [`${EVENT_ID}-c3-middle-outcome`]: dialogueScreen({
+      id: `${EVENT_ID}-c3-middle-outcome`,
+      outcome: 'middle',
+      cinematic: 'hard',
+      text: 'La diversion prend, mais l’odeur n’est pas assez nette. La créature mord à l’hameçon avant de remonter la piste jusqu’à vous.',
+      next: `${EVENT_ID}-c3-middle-spawn`
+    }),
     [`${EVENT_ID}-c3-middle-spawn`]: actionScreen({
       id: `${EVENT_ID}-c3-middle-spawn`,
       cinematic: 'soft',
@@ -667,8 +682,15 @@ const SCENARIO_3_MIDDLE = Object.freeze({
 });
 
 const SCENARIO_3_FAIL = Object.freeze({
-  resolution: outcome(`${EVENT_ID}-c3-fail-remove`),
+  resolution: outcome(`${EVENT_ID}-c3-fail-outcome`),
   nodes: Object.freeze({
+    [`${EVENT_ID}-c3-fail-outcome`]: dialogueScreen({
+      id: `${EVENT_ID}-c3-fail-outcome`,
+      outcome: 'fail',
+      cinematic: 'hard',
+      text: 'Votre lecture des traces est mauvaise. La créature ignore presque le leurre et fond sur la cible qui porte encore l’odeur du cadavre.',
+      next: `${EVENT_ID}-c3-fail-remove`
+    }),
     [`${EVENT_ID}-c3-fail-remove`]: actionScreen({
       id: `${EVENT_ID}-c3-fail-remove`,
       cinematic: 'soft',
@@ -833,7 +855,7 @@ export const cockRoachHuntEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Cockroach Hunt',
-  version: 20,
+  version: 21,
   startNodeId: `${EVENT_ID}-d1`,
   watchedPlayerInfoKeys: ['cockroaches'],
   onStart: removeUnclickedCockroaches,
