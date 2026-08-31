@@ -3081,6 +3081,32 @@ width: 195px;
     animation: chestpulse 3s infinite ease-in-out;
 }
 .SideB .chest-battle-element{transform: scaleX(-1);}
+.battle-element.event-board-effect{
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.battle-element.event-board-effect .battle-element-visual{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.battle-element.event-board-effect .battle-element-sprite{
+  width: 58px;
+  max-width: 80%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.55));
+}
+.battle-element.event-dead-cafard-lure .battle-element-sprite{
+  width: 46px;
+}
 /* Pas d'interaction pendant apparition ou ouverture */
 .chest-container.entrance .chest-sprite,
 .chest-container:has(.chest-loot.opening) .chest-sprite {

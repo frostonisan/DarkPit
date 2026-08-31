@@ -195,9 +195,27 @@ async function spawnAndWoundCockroachKing({ actions, eventKey, levelId }) {
   });
 }
 
+function markCockroachHuntInitiative() {
+  return {
+    eventResults: [{
+      type: 'initiativeGranted',
+      data: {
+        eventId: EVENT_ID,
+        eventKey: EVENT_KEY
+      },
+      html: '<div class="event-result-item-text">Vous avez l’initiative.</div>',
+      classes: ['event-result-initiative-granted', 'success']
+    }]
+  };
+}
+
 const RUNAWAY_SIDE_A = Object.freeze({
   action: 'runawayTheatre',
   args: Object.freeze({ side: 'sideA' })
+});
+const RUNAWAY_SIDE_B = Object.freeze({
+  action: 'runawayTheatre',
+  args: Object.freeze({ side: 'sideB' })
 });
 
 const C1_FAIL_ATTACK = Object.freeze({
@@ -229,6 +247,73 @@ const C2_FAIL_KILL = Object.freeze({
 });
 
 const LURE_DAMAGE_PERCENT = 40;
+const DEAD_CAFARD_LURE = Object.freeze({
+  action: 'spawnEventBoardEffect',
+  args: Object.freeze({
+    id: `${EVENT_ID}-dead-cafard-lure`,
+    type: 'passive',
+    name: 'Cafard écrasé',
+    sprite: './media/assets/effects/dead-cafard.png',
+    className: 'event-dead-cafard-lure',
+    side: 'neutral',
+    line: 'middle',
+    column: 'center',
+    blocking: false,
+    replaceExisting: true
+  })
+});
+const C3_MIDDLE_ATTACK = Object.freeze({
+  action: 'eventEntityAttack',
+  args: Object.freeze({
+    attackerSide: 'B',
+    side: 'A',
+    lifeState: 'alive',
+    strategy: 'lowestStat',
+    statKey: 'HP.ratio',
+    tieBreakers: Object.freeze([
+      Object.freeze({ statKey: 'HP.current', direction: 'lowest' }),
+      Object.freeze({ statKey: 'level', direction: 'lowest' }),
+      Object.freeze({ random: true })
+    ]),
+    count: 1,
+    percent: LURE_DAMAGE_PERCENT,
+    executionTime: 500,
+    attackerName: 'Le Souverain des Blattes'
+  })
+});
+const C3_FAIL_MOVE_LURE = Object.freeze({
+  action: 'moveEventEntityToBoardPosition',
+  args: Object.freeze({
+    side: 'A',
+    strategy: 'lowestStat',
+    statKey: 'level',
+    tieBreakers: Object.freeze([
+      Object.freeze({ statKey: 'HP.max', direction: 'lowest' }),
+      Object.freeze({ random: true })
+    ]),
+    targetSide: 'neutral',
+    line: 'middle',
+    column: 'center'
+  })
+});
+const C3_FAIL_CAPTURE = Object.freeze({
+  action: 'eventRemoveEntity',
+  args: Object.freeze({
+    side: 'A',
+    lifeState: 'alive',
+    strategy: 'lowestStat',
+    statKey: 'level',
+    tieBreakers: Object.freeze([
+      Object.freeze({ statKey: 'HP.max', direction: 'lowest' }),
+      Object.freeze({ random: true })
+    ]),
+    count: 1,
+    safeMode: true,
+    protectedSide: 'A',
+    allowCorpseFallback: false,
+    allowResurrectionEscape: false
+  })
+});
 
 const SCENARIO_1_SUCCESS = Object.freeze({
   resolution: outcome(`${EVENT_ID}-c1-success-outcome`),
@@ -588,25 +673,40 @@ const SCENARIO_3_SUCCESS = Object.freeze({
       outcome: 'success',
       cinematic: 'hard',
       img: PHEROMONES_IMAGE,
-      text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vue ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le corps écrasé.',
+      text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vision ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le cadavre écrasé.',
+      next: `${EVENT_ID}-c3-success-lure`
+    }),
+    [`${EVENT_ID}-c3-success-lure`]: actionScreen({
+      id: `${EVENT_ID}-c3-success-lure`,
+      cinematic: 'soft',
+      actions: [DEAD_CAFARD_LURE],
       next: `${EVENT_ID}-c3-success-spawn`
     }),
     [`${EVENT_ID}-c3-success-spawn`]: actionScreen({
       id: `${EVENT_ID}-c3-success-spawn`,
       cinematic: 'soft',
-      actions: ['spawnCockroachKing'],
+      actions: ['spawnCockroachKing', 'markCockroachHuntInitiative'],
       next: `${EVENT_ID}-c3-success-d1`
     }),
     [`${EVENT_ID}-c3-success-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-success-d1`,
       cinematic: 'hard',
-      text: ' l\'instant d\'après, une immense créature insectoïde surgit enfin... Et vous aviez vu juste.<br><br>Le monstre est guidé par les phéromones dégagées par le cancrelat.monstre se précipite droit vers le cafard écrasé. Le gigantesque souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa  peine est telle qu\'il il n\'a aucune conscience de votre présence.<br><br>Vous réalisez à quel point vous êtes cruel.',
+      img: PHEROMONES_IMAGE,
+      text: 'L’instant d’après, une immense créature insectoïde surgit enfin.<br><br>Vous aviez raison : le monstre est guidé par les phéromones dégagées par le cancrelat. Le Souverain des Blattes se précipite droit vers le cafard écrasé.',
       next: `${EVENT_ID}-c3-success-d2`
     }),
     [`${EVENT_ID}-c3-success-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-success-d2`,
       cinematic: 'hard',
-      text: 'La gigantesque blatte se penche sur la dépouille et laisse échapper une plainte pitoyable. Elle ne semble toujours pas avoir remarqué votre armée.',
+      img: PHEROMONES_IMAGE,
+      text: 'Le gigantesque Souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa peine est telle qu’il n’a aucune conscience de votre présence. Vous réalisez que vous êtes cruel.<br><br>La créature est comme hypnotisée par les phéromones de son congénère. La diversion est parfaite.<br><br>Vous pouvez profiter de ce pitoyable spectacle pour tirer un avantage tactique.',
+      next: `${EVENT_ID}-c3-success-result`
+    }),
+    [`${EVENT_ID}-c3-success-result`]: resultScreen({
+      id: `${EVENT_ID}-c3-success-result`,
+      cinematic: 'hard',
+      includeResults: true,
+      text: '',
       next: `${EVENT_ID}-c3-success-choice`
     }),
     [`${EVENT_ID}-c3-success-choice`]: choiceScreen({
@@ -638,7 +738,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c3-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
-      text: 'La diversion prend, mais l’odeur n’est pas assez nette. La créature mord à l’hameçon avant de remonter la piste jusqu’à vous.',
+      text: 'Vous êtes pris de court, et ne parvenez pas à réagir de manière absolument rationnelle.<br><br>Vous saisissez un bout de tissu de vos affaires et l’imprégnez de l’odeur du sang d’une entité blessée.<br><br>Cette puissante odeur de sang devrait attirer la créature, qui ne semble pas être herbivore, d’après l’agressivité dont elle semble être dotée.<br><br>Vous lancez au loin votre appât.',
       next: `${EVENT_ID}-c3-middle-spawn`
     }),
     [`${EVENT_ID}-c3-middle-spawn`]: actionScreen({
@@ -650,28 +750,33 @@ const SCENARIO_3_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c3-middle-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d1`,
       cinematic: 'hard',
-      text: 'La créature surgit des ombres et engloutit le leurre en quelques secondes. Puis ses antennes se tournent lentement vers l’entité dont il porte l’odeur.',
-      next: `${EVENT_ID}-c3-middle-damage`
-    }),
-    [`${EVENT_ID}-c3-middle-damage`]: actionScreen({
-      id: `${EVENT_ID}-c3-middle-damage`,
-      cinematic: 'soft',
-      actions: [Object.freeze({
-        action: 'eventEntitydamages',
-        args: Object.freeze({
-          side: 'A',
-          lifeState: 'alive',
-          strategy: 'random',
-          count: 1,
-          percent: LURE_DAMAGE_PERCENT
-        })
-      })],
+      img: PHEROMONES_IMAGE,
+      text: 'Une infâme créature insectoïde surgit alors de nulle part.<br><br>Le Souverain des Blattes est instantanément attiré par votre appât. Vous êtes soulagé face à l’efficacité de ce stratagème, qui vous donne de précieuses secondes de répit pour vous permettre de vous cacher et d’entamer une fuite.<br><br>Il engloutit le leurre en quelques secondes.',
       next: `${EVENT_ID}-c3-middle-d2`
     }),
     [`${EVENT_ID}-c3-middle-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d2`,
       cinematic: 'hard',
-      text: 'Blessée mais toujours debout, la cible rejoint vos rangs. Le Roi des Blattes se dresse devant vous : il faut maintenant combattre pour survivre.',
+      text: 'Mais quelque chose ne va pas. Ses multiples antennes s’agitent violemment, puis se tournent lentement vers l’entité qui a donné son sang.<br><br>Le Souverain associe instantanément cette odeur à celle du leurre.<br><br>En une fraction de seconde, la créature remonte brutalement jusqu’à sa cible et l’attaque.',
+      next: `${EVENT_ID}-c3-middle-attack`
+    }),
+    [`${EVENT_ID}-c3-middle-attack`]: actionScreen({
+      id: `${EVENT_ID}-c3-middle-attack`,
+      cinematic: 'soft',
+      actions: [C3_MIDDLE_ATTACK],
+      next: `${EVENT_ID}-c3-middle-d3`
+    }),
+    [`${EVENT_ID}-c3-middle-d3`]: dialogueScreen({
+      id: `${EVENT_ID}-c3-middle-d3`,
+      cinematic: 'hard',
+      text: 'L’odeur du sang est trop puissante, et le coup, d’une violence argneuse.<br><br>La cible parvient à éviter une mort certaine, mais ressort sévèrement blessée. Le Souverain des Blattes se dresse désormais face à vous.<br><br>Ce n’est plus le moment de réfléchir désormais, il faut se battre.',
+      next: `${EVENT_ID}-c3-middle-result`
+    }),
+    [`${EVENT_ID}-c3-middle-result`]: resultScreen({
+      id: `${EVENT_ID}-c3-middle-result`,
+      cinematic: 'hard',
+      includeResults: true,
+      text: '',
       next: `${EVENT_ID}-c3-middle-battle`
     }),
     [`${EVENT_ID}-c3-middle-battle`]: actionScreen({
@@ -688,36 +793,51 @@ const SCENARIO_3_FAIL = Object.freeze({
       id: `${EVENT_ID}-c3-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      text: 'Votre lecture des traces est mauvaise. La créature ignore presque le leurre et fond sur la cible qui porte encore l’odeur du cadavre.',
-      next: `${EVENT_ID}-c3-fail-remove`
+      text: 'L’idée d’attirer la créature loin de vous avec un leurre vous vient subitement à l’esprit.<br><br>Cependant, vos idées ne sont pas aussi fulgurantes qu’escompté, et vous vous épanchez un peu trop sur les conséquences potentielles d’une telle stratégie, plutôt que sur le choix de l’appât et l’application de ladite stratégie.<br><br>Le bruit se rapprochant de plus en plus, vous écourtez votre “réflexion” et hurlez sur une de vos entités, qui semble la plus docile, de faire quelque chose, en lui pointant la direction de la source du bruit.<br><br>Elle se dévoue. Vous la voyez s’éloigner en vous regardant, un peu perdue, presque honteuse pour vous de ne pas avoir su quoi lui dire.',
+      next: `${EVENT_ID}-c3-fail-move`
     }),
-    [`${EVENT_ID}-c3-fail-remove`]: actionScreen({
-      id: `${EVENT_ID}-c3-fail-remove`,
+    [`${EVENT_ID}-c3-fail-move`]: actionScreen({
+      id: `${EVENT_ID}-c3-fail-move`,
       cinematic: 'soft',
-      actions: [Object.freeze({
-        action: 'eventRemoveEntity',
-        args: Object.freeze({
-          side: 'A',
-          lifeState: 'alive',
-          strategy: 'lowestStat',
-          statKey: 'level',
-          tieBreakers: Object.freeze([
-            Object.freeze({ statKey: 'HP.max', direction: 'lowest' }),
-            Object.freeze({ random: true })
-          ]),
-          count: 1,
-          safeMode: true,
-          protectedSide: 'A',
-          allowCorpseFallback: false,
-          allowResurrectionEscape: false
-        })
-      })],
+      actions: [C3_FAIL_MOVE_LURE],
+      next: `${EVENT_ID}-c3-fail-spawn`
+    }),
+    [`${EVENT_ID}-c3-fail-spawn`]: actionScreen({
+      id: `${EVENT_ID}-c3-fail-spawn`,
+      cinematic: 'soft',
+      actions: ['spawnCockroachKing'],
       next: `${EVENT_ID}-c3-fail-d1`
     }),
     [`${EVENT_ID}-c3-fail-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-fail-d1`,
       cinematic: 'hard',
-      text: 'Le silence retombe aussi vite que la créature est apparue. Vous êtes encore vivants, mais à quel prix ?',
+      img: PHEROMONES_IMAGE,
+      text: 'Lorsque vous vous rendez compte de cela, il est un peu trop tard.<br><br>Un monstre de chitine, de mandibules et d’ichor se dresse devant l’entité envoyée au loin.<br><br>À ce moment, un étrange sentiment d’effroi et de soulagement vous apparaît : tout est sous contrôle, c’est finalement elle qui servira d’appât.<br><br>Le monstre referme son étreinte d’une violence rare sur sa cible.',
+      next: `${EVENT_ID}-c3-fail-remove`
+    }),
+    [`${EVENT_ID}-c3-fail-remove`]: actionScreen({
+      id: `${EVENT_ID}-c3-fail-remove`,
+      cinematic: 'soft',
+      actions: [C3_FAIL_CAPTURE],
+      next: `${EVENT_ID}-c3-fail-d2`
+    }),
+    [`${EVENT_ID}-c3-fail-d2`]: dialogueScreen({
+      id: `${EVENT_ID}-c3-fail-d2`,
+      cinematic: 'hard',
+      text: 'La créature disparaît aussi brutalement qu’elle est arrivée.<br><br>Derrière votre incompétence et votre intelligence lacunaire, vous tentez de transformer cet échec en réussite en vous disant que vous êtes encore en vie, et hors de danger... mais à quel prix ?',
+      next: `${EVENT_ID}-c3-fail-king-leave`
+    }),
+    [`${EVENT_ID}-c3-fail-king-leave`]: actionScreen({
+      id: `${EVENT_ID}-c3-fail-king-leave`,
+      cinematic: 'soft',
+      actions: [RUNAWAY_SIDE_B],
+      next: `${EVENT_ID}-c3-fail-result`
+    }),
+    [`${EVENT_ID}-c3-fail-result`]: resultScreen({
+      id: `${EVENT_ID}-c3-fail-result`,
+      cinematic: 'hard',
+      includeResults: true,
+      text: '',
       next: `${EVENT_ID}-c3-fail-close`
     }),
     [`${EVENT_ID}-c3-fail-close`]: actionScreen({
@@ -855,7 +975,7 @@ export const cockRoachHuntEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Cockroach Hunt',
-  version: 21,
+  version: 22,
   startNodeId: `${EVENT_ID}-d1`,
   watchedPlayerInfoKeys: ['cockroaches'],
   onStart: removeUnclickedCockroaches,
@@ -905,7 +1025,8 @@ export const cockRoachHuntEvent = Object.freeze({
     removeUnclickedCockroaches,
     spawnCockroachKing,
     spawnCockroachKingAndWander,
-    spawnAndWoundCockroachKing
+    spawnAndWoundCockroachKing,
+    markCockroachHuntInitiative
   }),
 
   completion: Object.freeze({

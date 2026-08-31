@@ -1,6 +1,6 @@
 import { entites, entitesNestUp, RemoveEntite } from './entites.js';
 import { createEntityIngame } from './createEntity.js';
-import { removeBattleElementFromDOM } from './createBattleElements.js';
+import { createBattleElementInDOM, removeBattleElementFromDOM } from './createBattleElements.js';
 import { closeOpenLootInterfaces, createCorpseLoot, destroyChest as destroyChestLoot, disperseLootSourceGlitter, restoreVacatedHexSocleOpacity } from './loot.js';
 import { battleLogs } from './battleLogs.js';
 import { startGame } from './gameState.js';
@@ -1985,6 +1985,13 @@ function eventValueAtPath(source, pathParts) {
 }
 
 function getEventEntityStatValue(entity, statKey) {
+  const normalizedStatKey = String(statKey ?? '').trim();
+  if (['HP.ratio', 'HP.percent', 'hpRatio', 'hpPercent'].includes(normalizedStatKey)) {
+    const maxHp = getEntityMaxHp(entity);
+    if (maxHp <= 0) return null;
+    return getEntityCurrentHp(entity) / maxHp;
+  }
+
   const pathParts = String(statKey ?? '')
     .split('.')
     .map((part) => part.trim())
@@ -2779,6 +2786,139 @@ export async function spawnMonster({
   }
 
   return spawnedEntity;
+}
+
+function resolveEventBoardPosition({
+  side = 'neutral',
+  line = 'middle',
+  column = 'center',
+  count = 16,
+  movingElement = null
+} = {}) {
+  const grid = document.getElementById('hexGrid') || document.querySelector('.hex-grid');
+  const positions = [];
+  try {
+    positions.push(...(hexCoordonne(side, line, column, count) || []));
+  } catch (error) {
+    console.warn('[Events] Position event introuvable via hexCoordonne.', error);
+  }
+
+  if (String(side).toLowerCase() !== 'neutral') {
+    try {
+      positions.push(...(hexCoordonne('neutral', line, column, count) || []));
+    } catch {
+      // Fallback neutre facultatif.
+    }
+  }
+
+  return [...new Set(positions.map((position) => String(position)).filter(Boolean))]
+    .map((position) => ({
+      position,
+      hex: eventHexElementByPosition(grid, position)
+    }))
+    .find(({ hex }) => isTheatreHexAvailable(hex, movingElement))
+    ?.position || null;
+}
+
+export async function spawnEventBoardEffect({
+  id = null,
+  type = 'effect',
+  name = 'Effet d’événement',
+  sprite = null,
+  className = '',
+  side = 'neutral',
+  line = 'middle',
+  column = 'center',
+  blocking = false,
+  replaceExisting = true
+} = {}) {
+  const effectId = String(id || `event-effect-${Date.now()}`).trim();
+  const existing = document.getElementById(`BattleElement_${effectId}`);
+  if (existing && replaceExisting) removeBattleElementFromDOM(existing);
+
+  const position = resolveEventBoardPosition({ side, line, column });
+  if (!position) {
+    throw new Error(`[Events] Aucune case disponible pour l’effet ${effectId}.`);
+  }
+
+  const element = createBattleElementInDOM({
+    id: effectId,
+    type,
+    name,
+    sprite,
+    position,
+    blocking,
+    draggable: false,
+    className: ['event-board-effect', className].filter(Boolean).join(' ')
+  }, {
+    container: document.getElementById('hexGrid') || document.body
+  });
+
+  if (!element) {
+    throw new Error(`[Events] Création de l’effet ${effectId} impossible.`);
+  }
+
+  return { elementId: element.id, position };
+}
+
+export async function moveEventEntityToBoardPosition({
+  side = 'A',
+  strategy = 'first',
+  statKey = null,
+  targetMode = null,
+  tieBreakers = null,
+  targetId = null,
+  line = 'middle',
+  column = 'center',
+  targetSide = 'neutral',
+  levelId = activeLevelId || getCurrentLevel()
+} = {}) {
+  const target = targetEventEntity({
+    side,
+    strategy,
+    statKey,
+    targetMode,
+    tieBreakers,
+    targetId,
+    count: 1,
+    lifeState: 'alive',
+    includeDead: false,
+    levelId,
+    traceLabel: 'moveEventEntityToBoardPosition'
+  })[0];
+  const entity = target?.entity;
+  if (!entity) return { moved: false };
+
+  const element = document.getElementById(`Box_Entite_${entity.id}`)
+    || document.getElementById(`imgContainer_${entity.id}`);
+  const position = resolveEventBoardPosition({
+    side: targetSide,
+    line,
+    column,
+    movingElement: element
+  });
+  const hex = eventHexElementByPosition(
+    document.getElementById('hexGrid') || document.querySelector('.hex-grid'),
+    position
+  );
+  if (!element || !hex || !position) return { moved: false, entityId: entity.id };
+
+  const previousHex = element.closest?.('.hex') || null;
+  if (!hex.contains(element)) hex.appendChild(element);
+  entity.position = position;
+  entity.battlePosition = position;
+  element.dataset.position = position;
+  hex.classList.add('occupied');
+  restoreVacatedHexSocleOpacity(previousHex);
+  syncEventMaterialChanges();
+
+  return {
+    moved: true,
+    entityId: entity.id,
+    name: eventEntityName(entity),
+    side: target.side,
+    position
+  };
 }
 
 function normalizeEventTemplateName(value) {
@@ -4249,6 +4389,10 @@ export function eventTargetAnnouncement({
       loweststat: 'L’entité la plus affaiblie.',
       higheststat: 'L’entité possédant le plus de points de vie.'
     },
+    'HP.ratio': {
+      loweststat: 'L’entité la plus grièvement blessée.',
+      higheststat: 'L’entité la plus fraîche.'
+    },
     level: {
       loweststat: 'L’entité la moins expérimentée.',
       higheststat: 'L’entité la plus expérimentée.'
@@ -4659,6 +4803,9 @@ export async function eventEntitydamages(options = {}) {
       : alive
         ? ''
         : `${safeName} décède sur le coup.<br>`;
+    const resultHtml = eventAttackerName(options)
+      ? eventDamageAttackSentence(target, rawDamage, armorDamage, hpAfter, options)
+      : `<div class="event-result-item-text">${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${rawDamage} dégâts</span>.${armorSentence}${survivalSentence}L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`;
     results.push(eventResult('entityDamaged', {
       entityId: entity.id,
       name,
@@ -4676,7 +4823,7 @@ export async function eventEntitydamages(options = {}) {
       died: !alive,
       resurrection: resurrection?.label || null,
       resurrectionType: resurrection?.type || null
-    }, `<div class="event-result-item-text">${safeName} ${eventMalusHtml('subit')} <span class="event-damages">${rawDamage} dégâts</span>.${armorSentence}${survivalSentence}L’entité possède désormais <span class="HP">${hpAfter} HP</span>.</div>`, [
+    }, resultHtml, [
       'event-result-entity-damage',
       'damage'
     ]));
@@ -6547,6 +6694,8 @@ export const genericEventActions = Object.freeze({
   eventEntitydamages,
   killEventEntity,
   eventRemoveEntity,
+  spawnEventBoardEffect,
+  moveEventEntityToBoardPosition,
   spawnCharge,
   spawnMonster,
   spawnDead,
