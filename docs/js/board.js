@@ -13,6 +13,12 @@ let hexesSideB = [];
 let matchingBiome = null;  
 let currentAudioElement = null;
 
+export const BOARD_SIZE_OPTIONS = Object.freeze([
+    Object.freeze({ key: 'small', label: 'Small', scenarioIndex: 0 }),
+    Object.freeze({ key: 'medium', label: 'Medium', scenarioIndex: 1 }),
+    Object.freeze({ key: 'large', label: 'Large', scenarioIndex: 2 })
+]);
+
 function playBiomeSound() {
     if (currentAudioElement) {
         currentAudioElement.remove(); // Supprimer l'ancien son avant d'en charger un nouveau
@@ -45,7 +51,7 @@ document.addEventListener('biomeUpdated', (event) => {
     }
 });
 
-export function applyBiomeRealtime(biomeClass) {
+export function applyBiomeRealtime(biomeClass, options = {}) {
     const selectedBiome = levelBiome.find(biome => biome.classe === biomeClass);
     if (!selectedBiome) {
         console.warn(`Biome admin introuvable : ${biomeClass}`);
@@ -61,13 +67,24 @@ export function applyBiomeRealtime(biomeClass) {
     const gameContainer = getOrCreateGameContainer();
     const board = document.querySelector('.board');
     const hexGrid = document.getElementById('hexGrid');
+    const requestedScenario = getBoardSizeScenario(options.size);
 
     addBackground(board);
-    generateDecor(gameContainer, null, hexGrid);
+    if (requestedScenario) {
+        applyBoardDecorLayout(requestedScenario);
+        createHexGrid(getGridConfigForScenario(requestedScenario));
+        generateDecor(gameContainer, null, null);
+    } else {
+        applyCurrentBoardDecorLayout();
+        generateDecor(gameContainer, null, hexGrid);
+    }
     playBiomeSound();
 
     document.dispatchEvent(new CustomEvent('adminBiomeChanged', {
-        detail: { biome: selectedBiome }
+        detail: {
+            biome: selectedBiome,
+            ...(requestedScenario ? { size: options.size, scenario: requestedScenario } : {})
+        }
     }));
 
     return true;
@@ -169,7 +186,7 @@ export function StageLoading() {
 }
 
 // Fonction createHexGrid
-export function createHexGrid() {
+export function createHexGrid(forcedGridConfig = null) {
     const hexGrid = document.getElementById('hexGrid');
     if (!hexGrid) {
         console.error("L'élément #hexGrid est introuvable.");
@@ -177,7 +194,7 @@ export function createHexGrid() {
     }
     hexGrid.style.overflow = 'visible';
 
-    const { rows, cols, hexWidth, hexHeight, staggeredRowHeight, totalHexagons, scale } = calculateRowsAndCols();
+    const { rows, cols, hexWidth, hexHeight, staggeredRowHeight, totalHexagons, scale } = forcedGridConfig || calculateRowsAndCols();
 
     const effectiveHexWidth = hexWidth;
     const effectiveHexHeight = hexHeight;
@@ -298,6 +315,97 @@ export function getScenario(entityCount) {
     return scenarios.find(scenario => entityCount >= scenario.minEntities && entityCount <= scenario.maxEntities);
 }
 
+export function getBoardSizeOptions() {
+    return BOARD_SIZE_OPTIONS.map(option => ({
+        ...option,
+        scenario: scenarios[option.scenarioIndex] || null
+    })).filter(option => option.scenario);
+}
+
+function getBoardSizeScenario(sizeKey) {
+    if (!sizeKey) return null;
+    const option = BOARD_SIZE_OPTIONS.find(candidate => candidate.key === sizeKey);
+    return option ? scenarios[option.scenarioIndex] || null : null;
+}
+
+function getGridConfigForScenario(scenario) {
+    const { r, ow, oh, spacing } = getStyleProperties();
+    let { hexagons, rows, cols, scale } = scenario;
+    const totalNeededHexagons = rows * cols;
+    if (totalNeededHexagons > hexagons) {
+        hexagons = totalNeededHexagons;
+    }
+
+    const hexWidth = ow * r + spacing;
+    const hexHeight = oh * r + spacing;
+    const staggeredRowHeight = hexHeight * 0.75;
+
+    return {
+        rows,
+        cols,
+        hexWidth,
+        hexHeight,
+        staggeredRowHeight,
+        totalHexagons: hexagons,
+        scale
+    };
+}
+
+function getScenarioForCurrentBoard() {
+    const boardGlobal = document.getElementsByClassName('board-global')[0];
+    if (boardGlobal) {
+        const currentTransform = boardGlobal.style.transform;
+        const currentLeft = boardGlobal.style.left;
+        const currentTop = boardGlobal.style.top;
+        const layoutScenario = scenarios.find(scenario => (
+            scenario.boardGlobalTransform === currentTransform &&
+            scenario.boardGlobalLeft === currentLeft &&
+            scenario.boardGlobalTop === currentTop
+        ));
+        if (layoutScenario) return layoutScenario;
+    }
+
+    const hexCount = document.querySelectorAll('#hexGrid > .hex').length;
+    if (hexCount > 0) {
+        return scenarios.find(scenario => (
+            Math.min(Number(scenario.hexagons) || 0, Number(scenario.rows) * Number(scenario.cols)) === hexCount
+        ));
+    }
+
+    const entityCount = document.querySelectorAll('[id^="Box_Entite_"]').length;
+    return getScenario(entityCount);
+}
+
+function applyBoardDecorLayout(scenario) {
+    if (!scenario) return false;
+
+    const backgroundTop = document.getElementsByClassName('background')[0];
+    if (backgroundTop) {
+        backgroundTop.style.top = scenario.backgroundTop;
+        backgroundTop.style['background-size'] = scenario.backgroundSize;
+    }
+
+    const boardGlobal = document.getElementsByClassName('board-global')[0];
+    if (boardGlobal) {
+        boardGlobal.style.transform = scenario.boardGlobalTransform;
+        boardGlobal.style.left = scenario.boardGlobalLeft;
+        boardGlobal.style.top = scenario.boardGlobalTop;
+    }
+
+    return Boolean(backgroundTop || boardGlobal);
+}
+
+export function applyCurrentBoardDecorLayout() {
+    let scenario = getScenarioForCurrentBoard();
+
+    if (!scenario) {
+        console.warn("Aucun scénario trouvé pour le plateau courant. Application du scénario par défaut.");
+        scenario = scenarios.find(s => s.hexagons === 150);
+    }
+
+    return applyBoardDecorLayout(scenario);
+}
+
 // Fonction calculateRowsAndCols
 export function calculateRowsAndCols() {
     const { r, ow, oh, spacing, screenHeight, screenWidth } = getStyleProperties();
@@ -357,20 +465,14 @@ export function setupBoard(entityCount) {
         console.error("L'élément .background est introuvable.");
         return;
     }
-    backgroundTop.style.top = scenario.backgroundTop;
-    backgroundTop.style['background-size'] = scenario.backgroundSize;
-
     const boardGlobal = document.getElementsByClassName('board-global')[0];
     if (!boardGlobal) {
         console.error("L'élément .board-global est introuvable.");
         return;
     }
-    boardGlobal.style.transform = scenario.boardGlobalTransform;
-    boardGlobal.style.left = scenario.boardGlobalLeft;
-    boardGlobal.style.top = scenario.boardGlobalTop;
+    applyBoardDecorLayout(scenario);
 
-    const { rows, cols, hexagons } = scenario;
-    createHexGrid(rows, cols, hexagons);
+    createHexGrid(getGridConfigForScenario(scenario));
 }
 
 // Fonction calculateHexes

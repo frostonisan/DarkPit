@@ -2,16 +2,6 @@ const EVENT_KEY = 'cockRoachHunt';
 const EVENT_ID = '78954';
 const COCKROACH_KING_SERIAL = 666;
 
-const ARRIVAL_IMAGE = './media/lore/events/cockroachking-arrival.jpg';
-const BARRICADE_SUCCESS_IMAGE = './media/lore/events/cockroachking-barricade-success.jpg';
-const BARRICADE_IMAGE = './media/lore/events/cockroachking-barricade.jpg';
-const BARRICADE_FAIL_IMAGE = './media/lore/events/cockroachking-barricade-fail.jpg';
-const BARRICADE_CHARGE_IMAGE = './media/lore/events/cockroachking-charge-barricade.jpg';
-const BARRICADE_CHARGE_SUCCESS = './media/lore/events/cockroachking-barricade-success-charge.jpg';
-const PHEROMONES_IMAGE = './media/lore/events/cockroachking-pheromones.jpg';
-const BLOOD_BAIT_IMAGE = './media/lore/events/cockroachking-blood-bait.jpg';
-const ORDER_IMAGE = './media/lore/events/cockroachking-order.jpg';
-
 const BARRICADE_DAMAGE_PERCENT = 25;
 const C1_FAIL_DAMAGE_PERCENT = 30;
 const C1_FAIL_DAMAGE_TARGET_COUNT = 3;
@@ -411,7 +401,7 @@ const SCENARIO_1_FAIL = Object.freeze({
       id: `${EVENT_ID}-c1-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
+      img: './media/lore/events/cockroachking-arrival.jpg',
       text: 'Votre armée trébuche pitoyablement et se disperse.<br>Une créature colossale surgit de nulle part et vous charge, détruisant tout sur son passage. Toute retraite est désormais impossible.',
       next: `${EVENT_ID}-c1-fail-spawn`
     }),
@@ -431,7 +421,7 @@ const SCENARIO_1_FAIL = Object.freeze({
     [`${EVENT_ID}-c1-fail-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c1-fail-d1`,
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
+      img: './media/lore/events/cockroachking-arrival.jpg',
       text: 'Le Souverain des Blattes traverse vos rangs dispersés.<br><br>Sa charge projette violemment vos combattants au sol, tandis que ses mandibules se referment sur tout ce qui est à leur portée.<br><br>Le monstre détruit tout sur son passage.',
       next: `${EVENT_ID}-c1-fail-attack`
     }),
@@ -485,7 +475,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
       id: `${EVENT_ID}-c2-success-outcome`,
       outcome: 'success',
       cinematic: 'hard',
-      img: BARRICADE_SUCCESS_IMAGE,
+      img: './media/lore/events/cockroachking-barricade-success.jpg',
       text: 'Vos robustes entités sont parvenues à dresser une barricade imposante avec des objets lourds.<br>En plus d\'être solide, elle est réalisée à temps.<br>Votre armée se réfugie derrière.<br>Le sol tremble de plus en plus vite, de plus en plus fort.<br>Vous vous préparez à l\'impact, en priant pour que votre abri de fortune résiste au choc.',
       next: `${EVENT_ID}-c2-success-spawn`
     }),
@@ -498,7 +488,7 @@ const SCENARIO_2_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c2-success-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c2-success-d1`,
       cinematic: 'hard',
-      img: BARRICADE_CHARGE_SUCCESS,
+      img: './media/lore/events/cockroachking-barricade-success-charge.jpg',
       text: 'Une immense forme noire surgit de nulle part et percute furieusement la barricade de plein fouet.<br><br>Le choc est incroyablement violent.<br>Dans un nuage de poussière, vous entendez le bois gémir, les attaches se tendent...<br>Les matériaux encaissent le choc tant bien que mal, mais le tout tient !',
       next: `${EVENT_ID}-c2-success-damage`
     }),
@@ -538,7 +528,7 @@ const SCENARIO_2_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c2-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
-      img: BARRICADE_IMAGE,
+      img: './media/lore/events/cockroachking-barricade.jpg',
       text: 'Vous construisez une barricade de fortune.<br>Vous ne pouviez pas déplacer sur de trop grandes distances des objets lourds, vous avez donc utilisé ce qui était à proximité immédiate.<br>Au moment où vous vous réfugiez devant un coffre utilisé comme rempart, une masse immense surgit furieusement de nulle part et se jette dans votre direction.',
       next: `${EVENT_ID}-c2-middle-spawn`
     }),
@@ -551,7 +541,7 @@ const SCENARIO_2_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c2-middle-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c2-middle-d1`,
       cinematic: 'hard',
-      img: BARRICADE_CHARGE_IMAGE,
+      img: './media/lore/events/cockroachking-charge-barricade.jpg',
       text: 'L’impact est d’une rare violence.<br>Votre barricade s’effondre avec fracas dès la première charge.<br>Elle absorbe l’impact, mais les débris détruisent tout sur leur passage.<br>Il ne reste plus rien.',
       next: `${EVENT_ID}-c2-middle-chest`
     }),
@@ -588,7 +578,7 @@ const SCENARIO_2_FAIL = Object.freeze({
       id: `${EVENT_ID}-c2-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      img: BARRICADE_FAIL_IMAGE,
+      img: './media/lore/events/cockroachking-barricade-fail.jpg',
       text: 'Vos entités n\'étaient pas taillées physiquement pour déplacer les débris les plus robustes qui vous entouraient, afin de constituer une protection suffisamment solide.<br>Malgré vos efforts, vous n\'avez pas le temps de terminer la barricade avant qu\'une masse immense surgisse dans votre direction.',
       next: `${EVENT_ID}-c2-fail-spawn`
     }),
@@ -603,7 +593,7 @@ const SCENARIO_2_FAIL = Object.freeze({
     [`${EVENT_ID}-c2-fail-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c2-fail-d1`,
       cinematic: 'hard',
-      img: BARRICADE_CHARGE_IMAGE,
+      img: './media/lore/events/cockroachking-charge-barricade.jpg',
       text: 'Le Souverain des Blattes percute votre construction inachevée de plein fouet.<br><br>Une de vos créatures, un peu trop zélée, avait cru bon de monter sur la pile de débris censée vous servir de protection afin d\'y ajouter une subtile décoration et de clore l\'ouvrage avec classe.<br><br>L\'impact la fait basculer dans le vide.',
       next: `${EVENT_ID}-c2-fail-chest`
     }),
@@ -618,7 +608,7 @@ const SCENARIO_2_FAIL = Object.freeze({
     [`${EVENT_ID}-c2-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c2-fail-d2`,
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
+      img: './media/lore/events/cockroachking-arrival.jpg',
       text: 'Le Souverain des Blattes la voit chuter.<br><br>En une fraction de seconde, il se place sous son point d\'atterrissage, toutes mandibules ouvertes.<br><br>La pauvre créature atterrit directement dans la gueule du monstre.<br>La scène est aussi cruelle que grotesque.',
       next: `${EVENT_ID}-c2-fail-kill`
     }),
@@ -656,7 +646,7 @@ const SCENARIO_2 = Object.freeze({
   choice: Object.freeze({
     id: `${EVENT_ID}-c2`,
     text: 'Vous tentez de dresser une barricade avec ce que vous trouvez et attendez fermement la charge.',
-    img: ARRIVAL_IMAGE,
+    img: './media/lore/events/cockroachking-arrival.jpg',
     resolution: createResolution('strength', {
       success: SCENARIO_2_SUCCESS.resolution,
       middle: SCENARIO_2_MIDDLE.resolution,
@@ -676,7 +666,7 @@ const SCENARIO_3_SUCCESS = Object.freeze({
       id: `${EVENT_ID}-c3-success-outcome`,
       outcome: 'success',
       cinematic: 'hard',
-      img: PHEROMONES_IMAGE,
+      img: './media/lore/events/cockroachking-pheromones.jpg',
       text: 'Au lieu de succomber à la panique, vous préférez faire ce que vous savez faire de mieux : réfléchir. Vous faites rapidement le point.<br><br>Si c’est le fait d’avoir écrasé des cafards qui a déclenché la fureur de cette chose, alors peut-être sera-t-elle sensible à la vue ou à l’odeur du cadavre.<br><br>D’un mouvement, vous projetez au loin le cadavre écrasé.',
       next: `${EVENT_ID}-c3-success-lure`
     }),
@@ -695,14 +685,14 @@ const SCENARIO_3_SUCCESS = Object.freeze({
     [`${EVENT_ID}-c3-success-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-success-d1`,
       cinematic: 'hard',
-      img: PHEROMONES_IMAGE,
+      img: './media/lore/events/cockroachking-pheromones.jpg',
       text: 'L’instant d’après, une immense créature insectoïde surgit enfin.<br><br>Vous aviez raison : le monstre est guidé par les phéromones dégagées par le cancrelat. Le Souverain des Blattes se précipite droit vers le cafard écrasé.',
       next: `${EVENT_ID}-c3-success-d2`
     }),
     [`${EVENT_ID}-c3-success-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-success-d2`,
       cinematic: 'hard',
-      img: PHEROMONES_IMAGE,
+      img: './media/lore/events/cockroachking-pheromones.jpg',
       text: 'Le gigantesque Souverain des Blattes se penche alors sur la dépouille et laisse échapper une plainte pitoyable.<br><br>Sa peine est telle qu’il n’a aucune conscience de votre présence. Vous réalisez que vous êtes cruels.<br><br>La créature est comme hypnotisée par les phéromones de son congénère. La diversion est parfaite.<br><br>Vous pouvez profiter de ce pitoyable spectacle pour tirer un avantage tactique.',
       next: `${EVENT_ID}-c3-success-result`
     }),
@@ -721,16 +711,24 @@ const SCENARIO_3_SUCCESS = Object.freeze({
         Object.freeze({
           id: `${EVENT_ID}-c3-success-fight`,
           text: 'Lancer le combat.',
-          action: Object.freeze(['forceBattle']),
+          next: `${EVENT_ID}-c3-success-fight-action`,
           startsCombat: true
         }),
         Object.freeze({
           id: `${EVENT_ID}-c3-success-leave`,
           text: 'Quitter le niveau.',
-          action: Object.freeze(['quitLevel']),
-          end: true
+          next: `${EVENT_ID}-c3-success-leave-action`
         })
       ]
+    }),
+    [`${EVENT_ID}-c3-success-fight-action`]: actionScreen({
+      id: `${EVENT_ID}-c3-success-fight-action`,
+      actions: ['forceBattle']
+    }),
+    [`${EVENT_ID}-c3-success-leave-action`]: actionScreen({
+      id: `${EVENT_ID}-c3-success-leave-action`,
+      actions: ['quitLevel'],
+      endEvent: 'finished'
     })
   })
 });
@@ -742,7 +740,7 @@ const SCENARIO_3_MIDDLE = Object.freeze({
       id: `${EVENT_ID}-c3-middle-outcome`,
       outcome: 'middle',
       cinematic: 'hard',
-      img: BLOOD_BAIT_IMAGE,
+      img: './media/lore/events/cockroachking-blood-bait.jpg',
       text: 'Vous êtes pris de court et ne parvenez pas à réagir de manière absolument rationnelle.<br><br>Vous saisissez un bout de tissu de vos affaires et l’imprégnez de l’odeur du sang d’une entité blessée.<br><br>Cette puissante odeur de sang devrait attirer la créature, qui ne semble pas être herbivore, d’après l’agressivité dont elle semble être dotée.<br><br>Vous lancez au loin votre appât.',
       next: `${EVENT_ID}-c3-middle-spawn`
     }),
@@ -755,14 +753,14 @@ const SCENARIO_3_MIDDLE = Object.freeze({
     [`${EVENT_ID}-c3-middle-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d1`,
       cinematic: 'hard',
-      img: PHEROMONES_IMAGE,
+      img: './media/lore/events/cockroachking-pheromones.jpg',
       text: 'Une infâme créature insectoïde surgit alors de nulle part.<br><br>Le Souverain des Blattes est instantanément attiré par votre appât. Vous êtes soulagé face à l’efficacité de ce stratagème, qui vous donne de précieuses secondes de répit pour vous permettre de vous cacher et d’entamer votre fuite.<br><br>Il engloutit le leurre en quelques secondes.',
       next: `${EVENT_ID}-c3-middle-d2`
     }),
     [`${EVENT_ID}-c3-middle-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-middle-d2`,
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
+      img: './media/lore/events/cockroachking-arrival.jpg',
       text: 'Mais quelque chose ne va pas. Ses multiples antennes s’agitent violemment, puis se tournent lentement vers l’entité qui a donné son sang.<br><br>Le Souverain associe instantanément cette odeur à celle du leurre.<br><br>En une fraction de seconde, la créature remonte brutalement jusqu’à sa cible et l’attaque.',
       next: `${EVENT_ID}-c3-middle-attack`
     }),
@@ -799,7 +797,7 @@ const SCENARIO_3_FAIL = Object.freeze({
       id: `${EVENT_ID}-c3-fail-outcome`,
       outcome: 'fail',
       cinematic: 'hard',
-      img: ORDER_IMAGE,
+      img: './media/lore/events/cockroachking-order.jpg',
       text: 'L’idée d’attirer la créature loin de vous avec un leurre vous vient subitement à l’esprit.<br><br>Cependant, vos idées ne sont pas aussi fulgurantes qu’escompté, et vous vous appesantissez un peu trop sur les conséquences potentielles d’une telle stratégie, plutôt que sur le choix de l’appât et l’application de ladite stratégie.<br><br>Le bruit se rapprochant de plus en plus, vous écourtez votre “réflexion” et hurlez sur une de vos entités, qui semble la plus docile, de faire quelque chose, en lui pointant la direction de la source du bruit.<br><br>Elle se dévoue. Vous la voyez s’éloigner en vous regardant, un peu perdue, presque honteuse pour vous de ne pas avoir su quoi lui dire.',
       next: `${EVENT_ID}-c3-fail-move`
     }),
@@ -818,33 +816,28 @@ const SCENARIO_3_FAIL = Object.freeze({
     [`${EVENT_ID}-c3-fail-d1`]: dialogueScreen({
       id: `${EVENT_ID}-c3-fail-d1`,
       cinematic: 'hard',
-      img: ARRIVAL_IMAGE,
+      img: './media/lore/events/cockroachking-arrival.jpg',
       text: 'Lorsque vous vous rendez compte de cela, il est un peu trop tard.<br><br>Un monstre de chitine, de mandibules et d’ichor se dresse devant l’entité envoyée au loin.<br><br>À ce moment, un étrange sentiment d’effroi et de soulagement vous apparaît : tout est sous contrôle, c’est finalement elle qui servira d’appât.<br><br>Le monstre referme son étreinte d’une violence rare sur sa cible.',
       next: `${EVENT_ID}-c3-fail-remove`
     }),
     [`${EVENT_ID}-c3-fail-remove`]: actionScreen({
       id: `${EVENT_ID}-c3-fail-remove`,
-      cinematic: 'soft',
-      actions: [C3_FAIL_CAPTURE],
+      cinematic: 'hard',
+      actions: [Object.freeze({
+        action: 'sequence',
+        args: Object.freeze({
+          sequence: Object.freeze([
+            C3_FAIL_CAPTURE,
+            RUNAWAY_SIDE_B
+          ])
+        })
+      })],
       next: `${EVENT_ID}-c3-fail-d2`
     }),
     [`${EVENT_ID}-c3-fail-d2`]: dialogueScreen({
       id: `${EVENT_ID}-c3-fail-d2`,
       cinematic: 'hard',
       text: 'La créature disparaît aussi brutalement qu’elle est arrivée.<br><br>Derrière votre incompétence et votre intelligence lacunaire, vous tentez de transformer cet échec en réussite en vous disant que vous êtes encore en vie, et hors de danger... mais à quel prix ?',
-      next: `${EVENT_ID}-c3-fail-king-leave`
-    }),
-    [`${EVENT_ID}-c3-fail-king-leave`]: actionScreen({
-      id: `${EVENT_ID}-c3-fail-king-leave`,
-      cinematic: 'soft',
-      actions: [RUNAWAY_SIDE_B],
-      next: `${EVENT_ID}-c3-fail-result`
-    }),
-    [`${EVENT_ID}-c3-fail-result`]: resultScreen({
-      id: `${EVENT_ID}-c3-fail-result`,
-      cinematic: 'hard',
-      includeResults: true,
-      text: '',
       next: `${EVENT_ID}-c3-fail-close`
     }),
     [`${EVENT_ID}-c3-fail-close`]: actionScreen({
@@ -982,7 +975,7 @@ export const cockRoachHuntEvent = Object.freeze({
   key: EVENT_KEY,
   id: EVENT_ID,
   title: 'Cockroach Hunt',
-  version: 24,
+  version: 26,
   startNodeId: `${EVENT_ID}-d1`,
   watchedPlayerInfoKeys: ['cockroaches'],
   onStart: removeUnclickedCockroaches,

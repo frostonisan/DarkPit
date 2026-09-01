@@ -73,7 +73,7 @@ const meleeOriginalVisibilityLocks = new Map();
 const meleeOriginalRecoveryAnimations = new Map();
 const meleePostRecoveryOpacityLocks = new WeakMap();
 let meleeAnimationSequence = 0;
-const meleeImpactFxPool = [];
+let projectileCleanupToken = 0;
 const meleeTrailPool = [];
 const MELEE_ORIGINAL_RECOVERY_DURATION = 750;
 
@@ -201,71 +201,62 @@ function releaseMeleeTrail(trail) {
 }
 
 function acquireMeleeImpactFx(parent) {
-  let layer = meleeImpactFxPool.pop();
-  if (!layer) {
-    layer = document.createElement("div");
-    layer.className = "melee-impact-fx";
-    Object.assign(layer.style, {
-      position: "absolute",
-      width: "0",
-      height: "0",
-      zIndex: "10001",
-      pointerEvents: "none",
-    });
+  const layer = document.createElement("div");
+  layer.className = "melee-impact-fx";
+  Object.assign(layer.style, {
+    position: "absolute",
+    width: "0",
+    height: "0",
+    zIndex: "10001",
+    pointerEvents: "none",
+  });
 
-    const ring = document.createElement("div");
-    ring.className = "melee-impact-ring";
-    Object.assign(ring.style, {
+  const ring = document.createElement("div");
+  ring.className = "melee-impact-ring";
+  Object.assign(ring.style, {
+    position: "absolute",
+    left: "-26px",
+    top: "-26px",
+    width: "52px",
+    height: "52px",
+    border: "4px solid rgba(255, 238, 155, 1)",
+    borderRadius: "50%",
+    background: "radial-gradient(circle, rgba(255, 250, 205, 0.55) 0%, rgba(255, 224, 120, 0.18) 42%, rgba(255, 224, 120, 0) 70%)",
+    opacity: "0",
+    willChange: "transform, opacity",
+  });
+  layer.appendChild(ring);
+
+  const particles = [];
+  for (let index = 0; index < 6; index += 1) {
+    const particle = document.createElement("i");
+    Object.assign(particle.style, {
       position: "absolute",
-      left: "-26px",
-      top: "-26px",
-      width: "52px",
-      height: "52px",
-      border: "4px solid rgba(255, 238, 155, 1)",
-      borderRadius: "50%",
-      background: "radial-gradient(circle, rgba(255, 250, 205, 0.55) 0%, rgba(255, 224, 120, 0.18) 42%, rgba(255, 224, 120, 0) 70%)",
+      left: "-4px",
+      top: "-2px",
+      width: "8px",
+      height: "5px",
+      borderRadius: "2px",
+      background: "rgba(255, 248, 200, 1)",
       opacity: "0",
       willChange: "transform, opacity",
     });
-    layer.appendChild(ring);
-
-    const particles = [];
-    for (let index = 0; index < 6; index += 1) {
-      const particle = document.createElement("i");
-      Object.assign(particle.style, {
-        position: "absolute",
-        left: "-4px",
-        top: "-2px",
-        width: "8px",
-        height: "5px",
-        borderRadius: "2px",
-        background: "rgba(255, 248, 200, 1)",
-        opacity: "0",
-        willChange: "transform, opacity",
-      });
-      layer.appendChild(particle);
-      particles.push(particle);
-    }
-
-    layer._ring = ring;
-    layer._particles = particles;
-    layer._animations = [];
+    layer.appendChild(particle);
+    particles.push(particle);
   }
 
-  layer._pooled = false;
+  layer._ring = ring;
+  layer._particles = particles;
+  layer._animations = [];
   layer.style.display = "block";
   parent.appendChild(layer);
   return layer;
 }
 
 function releaseMeleeImpactFx(layer) {
-  if (!layer || layer._pooled) return;
+  if (!layer) return;
   layer._animations?.splice(0).forEach(animation => animation.cancel());
-  layer.style.display = "none";
-  layer._pooled = true;
-
-  if (meleeImpactFxPool.length < 12) meleeImpactFxPool.push(layer);
-  else layer.remove();
+  layer.remove();
 }
 
 function playMeleeImpactFx(parent, targetElement, x, y, unitX, unitY, duration) {
@@ -2099,6 +2090,7 @@ export async function animationProjectile(attackerObj, targetObj, onHit, project
     }
 
     const projectileId = `projectile_${attackerObj.id}_${Date.now()}`;
+    const projectileToken = projectileCleanupToken;
 
     const projectile = {
         ...(projectileData || {}),
@@ -2218,6 +2210,11 @@ projectileParent.appendChild(projectileChild);
     }
 
     async function animerProjectile(timestamp) {
+        if (projectileToken !== projectileCleanupToken || !projectileParent?.isConnected) {
+            removeProjectile();
+            return;
+        }
+
         if (!startTime) startTime = timestamp;
 
         const elapsedTime = timestamp - startTime;
@@ -2325,6 +2322,29 @@ projectileParent.appendChild(projectileChild);
     registerProjectileFollower(targetTrackingKey, targetTrackingId, projectileFollower);
     requestAnimationFrame(animerProjectile);
 }
+
+export function clearProjectileEffects(entityList = []) {
+    projectileCleanupToken += 1;
+    projectileTargetFollowers.clear();
+
+    document.querySelectorAll('.projectile-parent, .projectile-impacte')
+        .forEach(element => element.remove());
+
+    document.querySelectorAll('.BattleFX > .melee-impact-fx')
+        .forEach(element => {
+            element.getAnimations?.().forEach(animation => animation.cancel());
+            element.remove();
+        });
+
+    if (!Array.isArray(entityList)) return;
+
+    entityList.forEach(entity => {
+        if (Array.isArray(entity?.projectiles)) {
+            entity.projectiles.length = 0;
+        }
+    });
+}
+
 function cleanupOldProjectiles(attackerObj) {
     if (!attackerObj || !Array.isArray(attackerObj.projectiles)) {
         return;

@@ -7781,6 +7781,67 @@ export function failEvent(eventKey, details = {}) {
   return moveEventTo(eventKey, 'failed', details);
 }
 
+export function resetActiveEventsImmediately(details = {}) {
+  const interruptedAt = nowIso();
+  const interruptedEvents = [];
+
+  pendingActionNodeResolutions.clear();
+  eventActionScreenDepth = 0;
+  closeDialogueWindow({ remove: true });
+  cinematicScreenFX(false);
+  clearTimeout(cinematicCloseTimer);
+  clearTimeout(cinematicDialogueTimer);
+  cinematicCloseTimer = null;
+  cinematicDialogueTimer = null;
+  cinematicDialogueReadyAt = 0;
+  activeEventCinematicMode = null;
+  cinematicPerspectiveEngaged = false;
+  document.querySelectorAll('.event-cinematic').forEach((element) => element.remove());
+  restoreParallaxViewAndControls();
+
+  updateQuestState((quest) => {
+    quest.failed = quest.failed && typeof quest.failed === 'object'
+      ? quest.failed
+      : {};
+    quest.inProgress = quest.inProgress && typeof quest.inProgress === 'object'
+      ? quest.inProgress
+      : {};
+    const inProgress = quest.inProgress && typeof quest.inProgress === 'object'
+      ? quest.inProgress
+      : {};
+
+    for (const [eventKey, state] of Object.entries(inProgress)) {
+      const finalState = {
+        ...(state || {}),
+        ...details,
+        status: 'failed',
+        interruptedByAdminReset: true,
+        completedAt: interruptedAt,
+        updatedAt: interruptedAt
+      };
+      quest.failed[eventKey] = finalState;
+      delete quest.inProgress[eventKey];
+      interruptedEvents.push({ eventKey, state: finalState });
+    }
+
+    quest.activeEventKey = null;
+    return quest;
+  });
+
+  interruptedEvents.forEach(({ eventKey, state }) => {
+    syncEventStateToStage(eventKey, state, 'failed');
+  });
+
+  window.dispatchEvent(new CustomEvent('battleActionContextChanged', {
+    detail: { dialogueActive: false, reason: 'admin-reset' }
+  }));
+
+  return {
+    interrupted: interruptedEvents.length,
+    events: interruptedEvents.map(({ eventKey }) => eventKey)
+  };
+}
+
 export async function restoreOrStartEvents({
   levelId = activeLevelId || getCurrentLevel()
 } = {}) {

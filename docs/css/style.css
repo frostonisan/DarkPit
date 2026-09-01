@@ -77,7 +77,7 @@ width: 93%;
   z-index: 2;
   display: flex;
   width: 95%;
-  height: 62%;
+  height: 71%;
   margin: auto;
   overflow: visible;
 }
@@ -111,7 +111,7 @@ display: flex;
 }
 .dialogue-continue, .dialogue-previous{display: flex;
 }
-.dialogue-continue{margin-left: auto;
+.dialogue-continue{margin-left: auto;margin-top: -20px;
 }
 .dialogue-continue.cut{opacity:0.5;}
 .dialogue-previous{margin-right: auto;cursor:pointer;
@@ -3105,7 +3105,7 @@ width: 195px;
   filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.55));
 }
 .battle-element.event-dead-cafard-lure .battle-element-sprite{
-  width: 46px;
+  width: 104px;filter: drop-shadow(0 0 12px #afd0b5);
 }
 /* Pas d'interaction pendant apparition ou ouverture */
 .chest-container.entrance .chest-sprite,

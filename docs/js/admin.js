@@ -53,7 +53,10 @@ function readAdminMenuState() {
             side: normalizeAdminSpawnSide(parsed.side),
             category: parsed.category === 'misc' ? 'misc' : 'entity',
             miscType: ['chest', 'corpse'].includes(parsed.miscType) ? parsed.miscType : null,
-            miscStatus: String(parsed.miscStatus || '').trim().toLowerCase() || null
+            miscStatus: String(parsed.miscStatus || '').trim().toLowerCase() || null,
+            biomeClass: levelBiome.some(biome => biome.classe === parsed.biomeClass)
+                ? parsed.biomeClass
+                : null
         };
     } catch {
         return {
@@ -61,7 +64,8 @@ function readAdminMenuState() {
             side: 'A',
             category: 'entity',
             miscType: null,
-            miscStatus: null
+            miscStatus: null,
+            biomeClass: null
         };
     }
 }
@@ -1446,25 +1450,94 @@ export function initializeAdminLevel(entityCatalog) {
         ...entityRows
     ];
 
-    const renderBiomeRows = () => levelBiome.map(biome => createRow({
-        label: biome.name || biome.classe,
-        identity: biome.classe,
-        searchText: `${biome.name || ''} ${biome.classe || ''}`,
-        onClick: async () => {
-            try {
-                const { applyBiomeRealtime } = await import('./board.js');
-                const applied = applyBiomeRealtime(biome.classe);
-                eventStatus.textContent = applied
-                    ? `Biome appliqué : ${biome.name || biome.classe}.`
-                    : `Biome introuvable : ${biome.classe}.`;
-                eventStatus.hidden = false;
-            } catch (error) {
-                console.error('❌ Changement de biome impossible :', error);
-                eventStatus.textContent = `Échec biome : ${error?.message || error}`;
-                eventStatus.hidden = false;
-            }
+    const applyAdminBiome = async (biome, options = {}) => {
+        try {
+            const { applyBiomeRealtime } = await import('./board.js');
+            const applied = applyBiomeRealtime(biome.classe, options);
+            eventStatus.textContent = applied
+                ? `Biome appliqué : ${biome.name || biome.classe}.`
+                : `Biome introuvable : ${biome.classe}.`;
+            eventStatus.hidden = false;
+        } catch (error) {
+            console.error('❌ Changement de biome impossible :', error);
+            eventStatus.textContent = `Échec biome : ${error?.message || error}`;
+            eventStatus.hidden = false;
         }
-    }));
+    };
+
+    const createBiomeRow = (biome) => {
+        const row = document.createElement('div');
+        row.className = 'admin-entity-row admin-biome-row';
+        row.setAttribute('role', 'button');
+        row.setAttribute('aria-disabled', 'false');
+        row.tabIndex = 0;
+
+        const name = document.createElement('span');
+        name.textContent = biome.name || biome.classe;
+
+        const details = document.createElement('span');
+        details.style.opacity = '0.7';
+        details.textContent = biome.classe;
+
+        const arrow = document.createElement('button');
+        arrow.type = 'button';
+        arrow.className = 'admin-biome-size-button';
+        arrow.textContent = '>';
+        arrow.setAttribute('aria-label', `Tailles ${biome.name || biome.classe}`);
+
+        row.append(name, details, arrow);
+
+        const applySkinOnly = () => applyAdminBiome(biome);
+        const openSizes = (event = null) => {
+            event?.stopPropagation?.();
+            menuState.biomeClass = biome.classe;
+            persistAndRender();
+        };
+
+        row.addEventListener('click', applySkinOnly);
+        row.addEventListener('keydown', event => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            applySkinOnly();
+        });
+        arrow.addEventListener('click', openSizes);
+
+        return {
+            element: row,
+            searchText: `${biome.name || ''} ${biome.classe || ''} small medium large`
+        };
+    };
+
+    const renderBiomeRows = () => levelBiome.map(createBiomeRow);
+
+    const renderBiomeSizeRows = () => {
+        const biome = levelBiome.find(candidate => candidate.classe === menuState.biomeClass);
+        if (!biome) {
+            menuState.biomeClass = null;
+            return renderBiomeRows();
+        }
+
+        return [
+            createRow({
+                label: '< Retour biomes',
+                identity: biome.name || biome.classe,
+                onClick: () => {
+                    menuState.biomeClass = null;
+                    persistAndRender();
+                }
+            }),
+            ...[
+                { key: 'small', label: 'Small' },
+                { key: 'medium', label: 'Medium' },
+                { key: 'large', label: 'Large' }
+            ].map(size => createRow({
+                label: size.label,
+                identity: biome.name || biome.classe,
+                searchText: `${biome.name || ''} ${biome.classe || ''} ${size.label}`,
+                onClick: () => applyAdminBiome(biome, { size: size.key })
+            }))
+        ];
+    };
 
     function renderShell() {
         form.dataset.activeAdminTab = menuState.mode;
@@ -1506,8 +1579,12 @@ export function initializeAdminLevel(entityCatalog) {
             currentRows = eventRows;
             searchInput.placeholder = 'Rechercher un événement…';
         } else if (menuState.mode === 'biome') {
-            currentRows = renderBiomeRows();
-            searchInput.placeholder = 'Rechercher un biome…';
+            currentRows = menuState.biomeClass
+                ? renderBiomeSizeRows()
+                : renderBiomeRows();
+            searchInput.placeholder = menuState.biomeClass
+                ? 'Rechercher une taille…'
+                : 'Rechercher un biome…';
         } else if (menuState.category === 'entity') {
             currentRows = entityRows;
             searchInput.placeholder = 'Rechercher une entité…';
@@ -1559,8 +1636,22 @@ export function initializeAdminLevel(entityCatalog) {
             console.warn('Reset admin : arrêt combat partiel.', error);
         }
 
+        try {
+            const { resetActiveEventsImmediately } = await import('./events.js');
+            resetActiveEventsImmediately({ resetSource: 'admin-level-reset' });
+        } catch (error) {
+            console.warn('Reset admin : arrêt event partiel.', error);
+        }
+
+        try {
+            const { clearProjectileEffects } = await import('./entitesAnimation.js');
+            clearProjectileEffects(entites);
+        } catch (error) {
+            console.warn('Reset admin : nettoyage projectiles partiel.', error);
+        }
+
         document.querySelectorAll(
-            '#hexGrid .entite-box, #hexGrid .battle-element, .loot-interface, .destroyed-corpse, .event-dialogue-overlay'
+            '#hexGrid .entite-box, #hexGrid .battle-element, .loot-interface, .destroyed-corpse, .event-dialogue-overlay, .projectile-parent, .projectile-impacte'
         ).forEach(element => element.remove());
         document.querySelectorAll('#hexGrid .hex').forEach(hex => {
             hex.classList.remove('occupied', 'focused');
