@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Essences d'attaque · Logique 11</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b0c0e; --line: #383637; --text: #e8e5df; --muted: #a19fa2; --gold: #edc06b; --red: #ff6864; --blue: #60c7ff; --yellow: #f5dd67; --green: #a4daba; }
+    * { box-sizing: border-box; letter-spacing: 0; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 Georgia, "Times New Roman", serif; }
+    button, select, input { font: inherit; }
+    button, select, input[type="checkbox"], input[type="range"] { cursor: pointer; }
+    a { color: var(--gold); text-underline-offset: 4px; }
+    button, select, input[type="number"] { min-height: 36px; border: 1px solid #4d4740; border-radius: 3px; background: #1c1b1b; color: var(--text); }
+    button { padding: 6px 10px; }
+    button:hover { border-color: var(--gold); background: #292622; }
+    button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+    button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: #29251c; }
+    input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--gold); vertical-align: middle; }
+    input[type="number"], select { width: 100%; padding: 5px 7px; }
+    .app { max-width: 1550px; margin: auto; padding: 24px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    h1, h2, h3, p { margin: 0; }
+    h1 { color: var(--gold); font-size: 30px; font-weight: normal; }
+    h2 { color: var(--gold); font-size: 19px; font-weight: normal; }
+    h3 { font-size: 17px; font-weight: normal; }
+    .eyebrow { font: 12px/1.5 system-ui, sans-serif; color: var(--muted); text-transform: uppercase; }
+    .subtle { color: var(--muted); font-size: 13px; }
+    .version { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .version strong { color: var(--green); font-weight: normal; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0; }
+    .preset-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; background: currentColor; }
+    .red { color: var(--red); } .blue { color: var(--blue); } .yellow { color: var(--yellow); }
+    .layout { display: grid; grid-template-columns: minmax(340px, .8fr) minmax(0, 1.7fr); gap: 28px; align-items: start; }
+    .builder, .results { min-width: 0; }
+    .builder { border-right: 1px solid var(--line); padding-right: 24px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .field { display: grid; align-content: start; gap: 5px; min-width: 0; }
+    .field > span, .field > label { font-size: 13px; color: var(--muted); }
+    .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .slot { display: grid; grid-template-columns: 36px minmax(0,1fr) 20px; gap: 7px; align-items: center; padding: 7px; border: 1px solid var(--line); border-radius: 3px; background: #131416; }
+    .orb { position: relative; width: 36px; height: 36px; display: grid; place-items: center; }
+    .orb img { width: 36px; height: 36px; object-fit: contain; }
+    .orb span { position: absolute; bottom: -4px; left: -3px; color: #fff; font: 11px system-ui,sans-serif; background: #0b0c0e; padding: 0 3px; }
+    .slot[data-color="red"] { border-color: #794441; } .slot[data-color="blue"] { border-color: #3b657d; } .slot[data-color="yellow"] { border-color: #776c40; }
+    .slot[data-color="blue"] img { filter: hue-rotate(175deg); }
+    .slot[data-active="false"] .orb img { opacity: .4; }
+    details { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 14px; }
+    summary { cursor: pointer; color: var(--gold); margin-bottom: 12px; }
+    .source-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .source-table th { color: var(--muted); font-weight: normal; font-size: 12px; }
+    .source-table th, .source-table td { text-align: center; padding: 7px 2px; border-bottom: 1px solid #242629; }
+    .source-table th:first-child, .source-table td:first-child { text-align: left; }
+    .source-name { display: flex; gap: 5px; align-items: center; }
+    .source-name img { width: 20px; height: 20px; object-fit: contain; }
+    .source-help { margin-top: 10px; color: var(--muted); font-size: 13px; }
+    .section { padding: 16px 0; border-bottom: 1px solid var(--line); }
+    .section:first-child { padding-top: 0; }
+    .summary-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .nature { font-size: 25px; color: var(--text); line-height: 1.2; margin: 5px 0; }
+    .profile { color: var(--muted); font-size: 13px; }
+    .purity { text-align: right; }
+    .purity strong { display: block; color: var(--gold); font-size: 19px; font-weight: normal; }
+    .bars { display: grid; gap: 7px; }
+    .bar-row { display: grid; grid-template-columns: 90px 1fr 52px; gap: 10px; align-items: center; font-size: 13px; }
+    .bar-track { height: 6px; background: #24272b; }
+    .bar-fill { height: 100%; background: currentColor; transition: width .15s ease; }
+    .bar-share { text-align: right; font-variant-numeric: tabular-nums; }
+    .signature { padding: 14px 0 14px 14px; border-left: 3px solid var(--gold); margin-top: 14px; }
+    .signature h3 { color: var(--gold); font-size: 22px; }
+    .signature p { margin-top: 6px; }
+    .signature[data-signature="rupture"] { border-color: var(--red); }
+    .signature[data-signature="dissolution"] { border-color: var(--blue); }
+    .signature[data-signature="none"] { border-color: var(--line); }
+    .effect-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; }
+    .effect-list li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; }
+    .effect-list img { width: 24px; height: 24px; object-fit: contain; }
+    .effect-list strong { font-weight: normal; color: var(--text); }
+    .effect-list small { display: block; color: var(--muted); font-size: 13px; }
+    .table-scroll { overflow-x: auto; }
+    .comparison { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    .comparison th, .comparison td { padding: 9px 8px; border-bottom: 1px solid #292b2e; text-align: left; vertical-align: top; }
+    .comparison th { color: var(--muted); font-size: 12px; font-weight: normal; }
+    .comparison th:first-child { width: 27%; }
+    .comparison th:nth-child(2), .comparison th:nth-child(3) { width: 65px; }
+    .comparison .yes { color: var(--green); } .comparison .no { color: #9b989d; }
+    .comparison .changed { background: #d0a45909; }
+    .comparison .changed td:first-child { box-shadow: inset 2px 0 var(--gold); }
+    .comparison .reason { color: var(--muted); }
+    .settings-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+    .settings-grid .wide { grid-column: 1 / -1; }
+    .projection { margin-top: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+    .projection output { display: block; color: var(--gold); margin-top: 8px; }
+    .projection input[type="range"] { width: 100%; accent-color: var(--gold); }
+    .rules { padding-left: 19px; color: var(--muted); font-size: 13px; }
+    .rules li { margin: 6px 0; }
+    footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 28px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 1050px) { .layout { grid-template-columns: minmax(290px,.85fr) minmax(0,1.3fr); gap: 18px; } .builder { padding-right: 16px; } }
+    @media (max-width: 780px) { .app { padding: 16px; } .topbar { align-items: start; flex-direction: column; gap: 12px; } .layout { grid-template-columns: 1fr; } .builder { padding-right: 0; border-right: 0; } .results { border-top: 1px solid var(--line); padding-top: 20px; } }
+    @media (max-width: 560px) {
+      .comparison thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      .comparison tbody { display: block; }
+      .comparison tr { display: grid; grid-template-columns: 1fr 1fr; padding: 8px 0; border-bottom: 1px solid var(--line); }
+      .comparison td { border: 0; padding: 5px 8px; }
+      .comparison td:first-child, .comparison td:last-child { grid-column: 1 / -1; }
+      .comparison td:nth-child(2)::before { content: 'V10 : '; color: var(--muted); }
+      .comparison td:nth-child(3)::before { content: 'V11 : '; color: var(--muted); }
+    }
+    @media (max-width: 380px) { .slot-grid { grid-template-columns: 1fr; } .summary-grid { grid-template-columns: 1fr; } .purity { text-align: left; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div><div class="eyebrow">Constructeur d'essences · Version 11</div><h1>Essences d'attaque</h1></div>
+      <nav class="version" aria-label="Versions"><a href="./index-10.html" target="_blank" rel="noopener">Ouvrir la logique 10</a><strong>11 · Essences &amp; sources</strong></nav>
+    </header>
+    <div class="toolbar" id="presets" aria-label="Compositions d'essences"></div>
+    <div class="layout">
+      <section class="builder" aria-labelledby="builder-title">
+        <div class="section-head"><h2 id="builder-title">Composition</h2><span id="slot-count" class="subtle" aria-live="polite"></span></div>
+        <div class="controls">
+          <label class="field"><span>Portée</span><select id="attack-range"><option value="melee">Mêlée</option><option value="range">Distance</option></select></label>
+          <label class="field"><span>Fonction de l'impact</span><select id="attack-function"><option value="offense">Offensif direct</option><option value="support">Soin / aide</option><option value="summon">Invocation</option></select></label>
+        </div>
+        <div class="slot-grid" id="essence-slots" aria-label="Chasses d'essences"></div>
+        <details open>
+          <summary>Sources de l'entité</summary>
+          <table class="source-table">
+            <thead><tr><th>Umbra / contribution</th><th title="Umbra apprise, soumise aux essences">Appris</th><th title="Seule la contribution de l'objet est conservée">Stuff</th><th title="Bonus direct indépendant de l'Umbra, du même type">Autonome</th></tr></thead>
+            <tbody id="sources"></tbody>
+          </table>
+          <p class="source-help">Chaque case cochée représente une contribution positive possédée. Le stuff n'accorde que sa propre contribution ; une stat autonome ne débloque pas l'Umbra qui peut aussi la procurer.</p>
+          <label class="source-help switch"><input type="checkbox" id="old-hypercognition" checked> Hypercognition disponible dans la logique 10</label>
+        </details>
+        <details open>
+          <summary>Équilibrage des signatures <span class="subtle">· valeurs d'essai</span></summary>
+          <div id="signature-settings"></div>
+        </details>
+        <details>
+          <summary>Règles retenues dans cette variante</summary>
+          <ul class="rules">
+            <li>Pure : tous les paliers offensifs appris de sa couleur. Mixte : palier accessible = nombre d'essences de cette couleur, jusqu'à 3.</li>
+            <li>Stuff et stats autonomes restent distincts des Umbras apprises. Défense et utilitaire ne sont pas filtrés.</li>
+            <li>Sans essence : aucun bonus d'attaque. Les essences supplémentaires pures ajoutent 3 points à la base des bonus de pureté, au maximum 15, sans augmenter leurs ratios d'attributs.</li>
+            <li>Une seule signature de combinaison. La prismatique ne cumule pas Rupture et Dissolution.</li>
+            <li>Hypothèse d'essai : chaque impact offensif direct réussi ajoute un stack après ses dégâts, y compris un second impact d'ambidextrie ou un coup absorbé par l'armure. Pas de stack sur un échec, un soin, une invocation, un DOT ou un dégât secondaire.</li>
+            <li>Hypothèse d'essai : compteur commun à la cible, durée entière rafraîchie à chaque application. Tous les stacks expirent ensemble ; pas de modification permanente des statistiques de base.</li>
+            <li>Décharge : PV max à l'impact, tirage équiprobable physique / magique / perçant, défenses habituelles. Aucun bonus de pureté accordé par ce tirage, ni proc récursif, ni point de maîtrise supplémentaire.</li>
+          </ul>
+        </details>
+      </section>
+      <section class="results" aria-labelledby="result-title">
+        <div class="section">
+          <div class="summary-grid">
+            <div><div class="eyebrow" id="result-title">Nature effective</div><div class="nature" id="effective-nature"></div><div class="profile" id="profile"></div></div>
+            <div class="purity"><span class="eyebrow">Pureté</span><strong id="purity-level"></strong><span class="subtle" id="purity-bonus"></span></div>
+          </div>
+          <div class="bars" id="shares" aria-label="Répartition des essences"></div>
+          <div class="signature" id="signature" aria-live="polite"></div>
+        </div>
+        <section class="section"><h2>Bonus d'essences &amp; portée</h2><ul class="effect-list" id="nature-effects"></ul></section>
+        <section class="section">
+          <div class="section-head"><h2>Contributions offensives</h2><span class="subtle" id="access-count"></span></div>
+          <div class="table-scroll"><table class="comparison"><thead><tr><th>Effet</th><th>V10</th><th>V11</th><th>Origine retenue / condition manquante</th></tr></thead><tbody id="umbra-results"></tbody></table></div>
+        </section>
+        <section class="section">
+          <h2>Changements de règles</h2>
+          <div class="table-scroll"><table class="comparison"><thead><tr><th>Règle</th><th>V10</th><th>V11</th><th>Conséquence</th></tr></thead><tbody id="rule-results"></tbody></table></div>
+          <p class="source-help">V10 reprend les conditions de la page index-10, pas un audit du moteur de combat. Les contributions présentes ne s'appliquent que si leur effet et leur déclencheur concernent l'attaque.</p>
+        </section>
+      </section>
+    </div>
+    <footer>Variante de comparaison isolée. Aucun changement du jeu ni des sauvegardes. Réductions et dégâts projetés avant défenses ; valeurs X / Y / W et interactions critiques / vol de vie de la Décharge restent à équilibrer.</footer>
+  </main>
+  <script>
+    'use strict';
+    const COLORS = {
+      red: { label: 'Rouge', attribute: 'Force', damage: 'Physique', sprite: 'essence-strength-02-min.png' },
+      blue: { label: 'Bleu', attribute: 'Intelligence', damage: 'Magique', sprite: 'essence-agility-02-min.png' },
+      yellow: { label: 'Jaune', attribute: 'Agilité', damage: 'Perçant', sprite: 'essence-agility-02-min.png' }
+    };
+    const PRESETS = {
+      red: { label: 'Physique', colors: ['red'] },
+      blue: { label: 'Magique', colors: ['blue'] },
+      yellow: { label: 'Perçante', colors: ['yellow'] },
+      hybrid: { label: 'Hybride', colors: ['red','blue'] },
+      rupture: { label: 'Rupture', colors: ['red','yellow'] },
+      dissolution: { label: 'Dissolution', colors: ['blue','yellow'] },
+      prism: { label: 'Prismatique', colors: ['red','blue','yellow'] },
+      empty: { label: 'Vider', colors: [] }
+    };
+    const UMBRAS = [
+      { id: 'vigueur', name: 'Vigueur', color: 'red', tier: 1, icon: 'vigueur', direct: 'Puissance physique', description: 'Contribution à la puissance physique.' },
+      { id: 'brutality', name: 'Brutalité', color: 'red', tier: 2, icon: 'physicalPen', direct: 'Pénétration physique', description: 'Contribution à la pénétration physique.' },
+      { id: 'bloodFury', name: 'Fureur sanguinaire', color: 'red', tier: 3, icon: 'bloodFury', direct: 'Soif de sang', description: 'Soif de sang sur les dégâts HP réellement infligés, même à distance. Exécution et autres effets réservés à la mêlée restent soumis à cette portée.' },
+      { id: 'esprit', name: 'Esprit', color: 'blue', tier: 1, icon: 'esprit', direct: 'Puissance magique', description: 'Contribution à la puissance magique.' },
+      { id: 'inflexion', name: 'Inflexion', color: 'blue', tier: 2, icon: 'magicalPen', direct: 'Pénétration magique', description: 'Contribution à la pénétration magique.' },
+      { id: 'hypercognition', name: 'Hypercognition', color: 'blue', tier: 3, icon: 'hypercognition', direct: 'Bonus magique', description: 'Contribution magique sans créer une essence bleue ni débloquer sa branche.' },
+      { id: 'finesse', name: 'Finesse', color: 'yellow', tier: 1, icon: 'finesse', direct: 'Puissance perçante', description: 'Contribution à la puissance perçante.' },
+      { id: 'critical', name: 'Coup critique', color: 'yellow', tier: 2, icon: 'crit-power', direct: 'Chance critique', description: 'Une chance critique effective positive autorise le critique, sans interdiction liée à la nature magique.' },
+      { id: 'ambidextry', name: 'Ambidextrie', color: 'yellow', tier: 3, icon: 'ambidextry', direct: 'Chance ambidextrie', description: 'Second impact si une contribution effective existe. L’agilité seule ne débloque pas cet effet.' }
+    ];
+    const DEFAULTS = {
+      rupture: { duration: 8, cap: 5, amount: 5, defense: 'armor' },
+      dissolution: { duration: 8, cap: 5, amount: 5 },
+      discharge: { percent: 1.5, maxHP: 10000 }
+    };
+    const fmt = value => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 }).format(value);
+    function bounded(value, fallback, min, max, integer = false) {
+      const parsed = value === '' || value == null ? NaN : Number(value);
+      const number = Math.min(max, Math.max(min, Number.isFinite(parsed) ? parsed : fallback));
+      return integer ? Math.floor(number) : number;
+    }
+    function resolveProfile(slots) {
+      const profile = { red: 0, blue: 0, yellow: 0, total: 0, pure: null, level: 0, bonus: 0 };
+      for (const slot of slots.slice(0,10)) {
+        if (!slot.active || !Object.hasOwn(COLORS, slot.color)) continue;
+        profile[slot.color] += 1;
+        profile.total += 1;
+      }
+      const colors = Object.keys(COLORS).filter(color => profile[color] > 0);
+      if (colors.length === 1) {
+        profile.pure = colors[0];
+        profile.level = profile.total;
+        profile.bonus = Math.min(15, (profile.level - 1) * 3);
+      }
+      return profile;
+    }
+    function natureName(p) {
+      if (!p.total) return 'Aucune nature';
+      if (p.pure) return { red: 'Pure physique', blue: 'Pure magique', yellow: 'Pure perçante' }[p.pure];
+      if (p.red && p.blue && p.yellow) return 'Attaque prismatique';
+      if (p.red && p.blue) return 'Hybride physique-magique';
+      return p.red ? 'Physique perçante' : 'Magique perçante';
+    }
+    function signatureFor(p, attackFunction) {
+      if (attackFunction !== 'offense' || p.pure || !p.total) return 'none';
+      if (p.red && p.blue && p.yellow) return 'discharge';
+      if (p.red && p.yellow) return 'rupture';
+      if (p.blue && p.yellow) return 'dissolution';
+      return 'none';
+    }
+    // V10 predicates mirror index-10, including its lack of ownership/tier checks.
+    function legacyAccess(id, p, hypercognition) {
+      if (id === 'brutality') return p.red > 0;
+      if (id === 'inflexion') return p.blue > 0;
+      if (id === 'critical' || id === 'ambidextry') return p.yellow > 0 && p.pure !== 'blue';
+      if (id === 'hypercognition') return hypercognition && p.red > 0;
+      return null;
+    }
+    function resolveAttack(input) {
+      const profile = resolveProfile(input.slots);
+      const access = UMBRAS.map(umbra => {
+        const source = input.sources[umbra.id] || {};
+        const compatible = profile[umbra.color] > 0 && (profile.pure === umbra.color || profile[umbra.color] >= umbra.tier);
+        const learned = Boolean(profile.total && source.learned && compatible);
+        const equipment = Boolean(profile.total && source.equipment);
+        const direct = Boolean(profile.total && source.direct);
+        return { ...umbra, directLabel: umbra.direct, compatible, learned, equipment, direct, available: learned || equipment || direct,
+          missing: Math.max(0, umbra.tier - profile[umbra.color]),
+          legacy: legacyAccess(umbra.id, profile, input.oldHypercognition) };
+      });
+      return { profile, access, range: input.range, attackFunction: input.attackFunction,
+        signature: signatureFor(profile, input.attackFunction) };
+    }
+    function stackProjection(config, stacks) {
+      const count = bounded(stacks, 0, 0, config.cap, true);
+      return { count, reduction: count * config.amount, maximum: config.cap * config.amount };
+    }
+    function dischargeProjection(config) { return config.maxHP * config.percent / 100; }
+
+    // DOM bindings: this page is deliberately independent from runtime game data.
+    const $ = id => document.getElementById(id);
+    const slotsRoot = $('essence-slots');
+    const icon = name => `<img src="./media/assets/ui/picto-${name}.svg" alt="" loading="lazy">`;
+    const emptySources = () => Object.fromEntries(UMBRAS.map(umbra => [umbra.id, { learned: true, equipment: false, direct: false }]));
+    const status = value => value === null ? '<span class="no" title="Non décrit dans la V10">n.d.</span>' : `<span class="${value ? 'yes' : 'no'}">${value ? 'Oui' : 'Non'}</span>`;
+    function comparisonRow(name, previous, current, reason) {
+      return `<tr class="${previous !== null && previous !== current ? 'changed' : ''}"><td>${name}</td><td>${status(previous)}</td><td>${status(current)}</td><td class="reason">${reason}</td></tr>`;
+    }
+    function createControls() {
+      $('presets').innerHTML = Object.entries(PRESETS).map(([key,preset]) => `<button type="button" data-preset="${key}" aria-pressed="false">${preset.colors.map(color => `<span class="preset-dot ${color}" aria-hidden="true"></span>`).join('')} ${preset.label}</button>`).join('');
+      for (let i = 0; i < 10; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.innerHTML = `<div class="orb"><img src="./media/assets/misc/essence-empty-min.png" alt=""><span>${i+1}</span></div><select class="slot-select" aria-label="Essence de la chasse ${i+1}"><option value="">Vide</option>${Object.entries(COLORS).map(([color, data]) => `<option value="${color}">${data.label}</option>`).join('')}</select><input class="slot-active" type="checkbox" aria-label="Activer la chasse ${i+1}">`;
+        slotsRoot.append(slot);
+      }
+      $('sources').innerHTML = UMBRAS.map(umbra => `<tr data-source="${umbra.id}"><td><span class="source-name ${umbra.color}">${icon(umbra.icon)}${umbra.name} ${umbra.tier}</span></td>${['learned','equipment','direct'].map(source => `<td><input type="checkbox" data-source-kind="${source}" ${source === 'learned' ? 'checked' : ''} aria-label="${source === 'learned' ? 'Appris : ' : source === 'equipment' ? 'Stuff : ' : 'Autonome : '}${source === 'direct' ? umbra.direct : umbra.name}" title="${source === 'direct' ? umbra.direct : umbra.name}"></td>`).join('')}</tr>`).join('');
+      $('signature-settings').innerHTML = ['rupture','dissolution'].map(key => `<h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'}</h3><div class="settings-grid">
+        <label class="field"><span>Durée X (s)</span><input id="${key}-duration" type="number" min="0.1" max="120" step="0.1" value="${DEFAULTS[key].duration}"></label>
+        <label class="field"><span>Stacks max Y</span><input id="${key}-cap" type="number" min="1" max="100" step="1" value="${DEFAULTS[key].cap}"></label>
+        <label class="field"><span>Réduction W</span><input id="${key}-amount" type="number" min="0" max="10000" step="1" value="${DEFAULTS[key].amount}"></label>
+        ${key === 'rupture' ? '<label class="field wide"><span>Défense affectée par Rupture</span><select id="rupture-defense"><option value="armor">Armure physique (proposition initiale)</option><option value="physicalResistance">Résistance physique (variante)</option></select></label>' : ''}
+      </div><div class="projection"><label for="${key}-stacks">Stacks projetés : <span id="${key}-count"></span></label><input id="${key}-stacks" type="range" min="0" max="${DEFAULTS[key].cap}" step="1" value="1"><output id="${key}-projection"></output></div>`).join('') + `
+      <h3>Décharge convergente</h3><div class="settings-grid"><label class="field"><span>PV max (%)</span><input id="discharge-percent" type="number" min="0" max="100" step="0.1" value="1.5"></label><label class="field wide"><span>PV maximum de la cible</span><input id="discharge-maxHP" type="number" min="1" max="1000000000" step="1" value="10000"></label></div><div class="projection"><output id="discharge-projection"></output></div>`;
+    }
+    function readState() {
+      const sources = emptySources();
+      for (const row of $('sources').rows) for (const input of row.querySelectorAll('input')) sources[row.dataset.source][input.dataset.sourceKind] = input.checked;
+      return { slots: Array.from(slotsRoot.children, slot => ({ color: slot.querySelector('select').value, active: slot.querySelector('input').checked })),
+        sources, range: $('attack-range').value, attackFunction: $('attack-function').value, oldHypercognition: $('old-hypercognition').checked };
+    }
+    function readConfig() {
+      const config = {};
+      for (const key of ['rupture','dissolution']) config[key] = {
+        duration: bounded($(`${key}-duration`).value, DEFAULTS[key].duration, .1, 120),
+        cap: bounded($(`${key}-cap`).value, DEFAULTS[key].cap, 1, 100, true),
+        amount: bounded($(`${key}-amount`).value, DEFAULTS[key].amount, 0, 10000)
+      };
+      config.rupture.defense = $('rupture-defense').value;
+      config.discharge = { percent: bounded($('discharge-percent').value, 1.5, 0, 100), maxHP: bounded($('discharge-maxHP').value, 10000, 1, 1e9, true) };
+      return config;
+    }
+    function applyPreset(key) {
+      const colors = PRESETS[key].colors;
+      Array.from(slotsRoot.children).forEach((slot,i) => {
+        slot.querySelector('select').value = colors[i] || '';
+        slot.querySelector('input').checked = Boolean(colors[i]);
+      });
+      update();
+    }
+    function renderSummary(model, input) {
+      const p = model.profile;
+      $('slot-count').textContent = `${p.total}/10 essences actives`;
+      $('effective-nature').textContent = natureName(p);
+      $('profile').textContent = Object.keys(COLORS).map(color => `${COLORS[color].label} ${p[color]}`).join(' / ');
+      $('purity-level').textContent = p.pure ? `Niveau ${p.level}` : p.total ? 'Mixte' : 'Aucune';
+      $('purity-bonus').textContent = p.pure ? `+${p.bonus} points de base` : 'Pas de bonus de pureté';
+      $('shares').innerHTML = Object.entries(COLORS).map(([color,data]) => {
+        const percent = p.total ? p[color]/p.total*100 : 0;
+        return `<div class="bar-row ${color}"><span>${data.damage}</span><div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div><span class="bar-share">${fmt(percent)} %</span></div>`;
+      }).join('');
+      Array.from(slotsRoot.children).forEach((slot,i) => {
+        const data = input.slots[i];
+        const active = Boolean(data.active && data.color);
+        slot.dataset.active = String(active);
+        slot.dataset.color = active ? data.color : '';
+        const sprite = active ? COLORS[data.color].sprite : 'essence-empty-min.png';
+        const image = slot.querySelector('img');
+        if (image.dataset.sprite !== sprite) { image.src = `./media/assets/misc/${sprite}`; image.dataset.sprite = sprite; }
+      });
+      for (const button of $('presets').children) {
+        const preset = resolveProfile(PRESETS[button.dataset.preset].colors.map(color => ({ color, active: true })));
+        button.setAttribute('aria-pressed', String(Object.keys(COLORS).every(color => preset[color] === p[color])));
+      }
+    }
+    function renderSignature(model, config) {
+      const key = model.signature;
+      const root = $('signature');
+      root.dataset.signature = key;
+      if (key === 'none') {
+        root.innerHTML = `<div class="eyebrow">Signature de combinaison</div><h3>Aucune</h3><p class="subtle">${model.attackFunction !== 'offense' ? 'Ces signatures exigent un impact offensif direct, pas un soin ou une invocation.' : 'Cette composition ne déclenche ni Rupture, ni Dissolution, ni Décharge convergente.'}</p>`;
+      } else if (key === 'discharge') {
+        root.innerHTML = `<div class="eyebrow">Signature de combinaison</div><h3>Décharge convergente</h3><p>+${fmt(config.discharge.percent)} % des PV max de la cible en dégâts bruts à chaque impact réussi.</p><p class="subtle">Physique, magique ou perçant : 1 chance sur 3. Les dégâts hybrides normaux sont conservés. Pas de Rupture ni de Dissolution en supplément.</p>`;
+      } else {
+        const cfg = config[key];
+        const defense = key === 'dissolution' ? 'résistance magique' : cfg.defense === 'armor' ? 'armure physique' : 'résistance physique';
+        root.innerHTML = `<div class="eyebrow">Signature de combinaison</div><h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'}</h3><p>−${fmt(cfg.amount)} ${defense} par stack, jusqu'à ${cfg.cap} stacks : −${fmt(cfg.amount * cfg.cap)} au maximum.</p><p class="subtle">Durée ${fmt(cfg.duration)} s, rafraîchie à chaque impact. Réduction commune à la cible, utile à tout le groupe. Tous les stacks expirent ensemble.</p>`;
+      }
+      for (const effect of ['rupture','dissolution']) {
+        $(`${effect}-stacks`).max = config[effect].cap;
+        const projection = stackProjection(config[effect], $(`${effect}-stacks`).value);
+        $(`${effect}-count`).textContent = `${projection.count} / ${config[effect].cap}`;
+        $(`${effect}-projection`).textContent = `Réduction : ${fmt(projection.reduction)} / ${fmt(projection.maximum)} max · ${fmt(config[effect].duration)} s`;
+      }
+      $('discharge-projection').textContent = `${fmt(config.discharge.maxHP)} × ${fmt(config.discharge.percent)} % = ${fmt(dischargeProjection(config.discharge))} dégâts avant défenses`;
+    }
+    function renderNature(model) {
+      const p = model.profile;
+      const effects = [];
+      const add = (iconName, name, text) => effects.push(`<li>${icon(iconName)}<div><strong>${name}</strong><small>${text}</small></div></li>`);
+      if (!p.total) add('miss-shot', 'Aucun bonus d’attaque', 'Aucune essence active.');
+      else {
+        if (p.pure === 'red') add('brutality', `Fracassante ${p.level}`, `Bonus natif de puissance physique. Base renforcée de +${p.bonus} points ; ratio Force inchangé.`);
+        if (p.pure === 'blue') add('intellect', `Psionique ${p.level}`, `Bonus natif de puissance magique. Base renforcée de +${p.bonus} points ; ratio Intelligence inchangé.`);
+        if (p.pure === 'yellow') {
+          add('transpiercing-damage', `Transpercement ${p.level}`, `Bonus natif perçant et récupération transperçante. Bases renforcées de +${p.bonus} points ; ratios Agilité inchangés.`);
+          add('perforation', 'Perforation', 'L’attaque pure perçante ignore l’armure. Cet avantage n’est pas accordé au tirage perçant d’une Décharge.');
+        } else if (p.yellow) add('recuperationTime', 'Récupération perçante', 'Réduction de récupération liée à la présence d’une part perçante, sans renforcement de pureté.');
+        if (model.range === 'melee') add('melee', 'Courte portée', 'Bonus d’exécution du corps à corps. Le clone est interrompu si le lanceur meurt avant l’impact.');
+        else {
+          add('range', 'Distance', 'Le projectile et la récupération peuvent se chevaucher. Aucun jet de ratage aléatoire. Les règles de trajectoire restent distinctes des sources de bonus.');
+          if (p.red || p.yellow) add('range', 'Ratio distance', 'Le ratio distance demeure applicable aux composantes concernées. Sa formule n’est pas modifiée par cette variante.');
+        }
+      }
+      $('nature-effects').innerHTML = effects.join('');
+    }
+    function renderAccess(model, input) {
+      const p = model.profile;
+      $('access-count').textContent = `${model.access.filter(entry => entry.available).length} / ${UMBRAS.length} contributions`;
+      $('umbra-results').innerHTML = model.access.map(entry => {
+        const source = input.sources[entry.id];
+        const origins = [];
+        if (entry.learned) origins.push(p.pure ? 'Umbra apprise · essence pure' : `Umbra apprise · ${p[entry.color]} essence(s) ${COLORS[entry.color].attribute}`);
+        if (entry.equipment) origins.push('contribution du stuff');
+        if (entry.direct) origins.push(`stat autonome : ${entry.directLabel}`);
+        let reason = origins.join(' + ');
+        if (!p.total) reason = 'Aucune essence : bonus inactif.';
+        else if (!entry.available) reason = source.learned ? `Manque ${entry.missing} essence(s) ${COLORS[entry.color].attribute}, ou une attaque pure de cette couleur.` : 'Aucune source possédée.';
+        if (p.total && source.learned && !entry.compatible && entry.available) reason += ' ; partie apprise inactive.';
+        return comparisonRow(`${entry.name}<div class="subtle">${entry.tier} · ${COLORS[entry.color].attribute}</div>`, entry.legacy, entry.available, `${reason}<div>${entry.description}</div>`);
+      }).join('');
+    }
+    function renderRules(model) {
+      const p = model.profile;
+      const active = p.total > 0;
+      const range = model.range === 'range';
+      const offensive = model.attackFunction === 'offense';
+      const blood = model.access.find(entry => entry.id === 'bloodFury');
+      const rows = [
+        ['Rupture', false, model.signature === 'rupture', 'Rouge + jaune, sans bleu. Réduction cumulable sur la cible.'],
+        ['Dissolution', false, model.signature === 'dissolution', 'Bleu + jaune, sans rouge. Réduction cumulable de résistance magique.'],
+        ['Décharge convergente', false, model.signature === 'discharge', 'Trois couleurs. Un dégât secondaire typé, sans nouveau déclenchement.'],
+        ['Ratage calculé à distance', range && p.pure !== 'blue', false, 'Supprimé. Un déplacement peut toujours éviter un projectile non guidé.'],
+        ['Vol de vie via Fureur / Soif de sang', null, active && offensive && blood.available, 'Autorisé aussi à distance avec une source valide ; uniquement sur les dégâts HP réellement infligés.'],
+        ['Effets de Fureur réservés à la mêlée', null, active && offensive && !range && (blood.learned || blood.equipment), 'Exécution et déclencheurs de mêlée : pas d’activation par le seul bonus autonome de Soif de sang.'],
+        ['Esquive ignorée (jet)', p.pure === 'blue', active && (range || p.pure === 'blue'), 'Le jet d’esquive et l’évitement par déplacement sont deux mécanismes différents.'],
+        ['Foirage magique', p.pure === 'blue', p.pure === 'blue', 'Conservé : cette variante ne modifie pas les risques de l’attaque pure magique.']
+      ];
+      $('rule-results').innerHTML = rows.map(row => comparisonRow(...row)).join('');
+    }
+    function update() {
+      const input = readState();
+      const model = resolveAttack(input);
+      renderSummary(model, input);
+      renderSignature(model, readConfig());
+      renderNature(model);
+      renderAccess(model, input);
+      renderRules(model);
+    }
+    createControls();
+    $('presets').addEventListener('click', event => {
+      const button = event.target.closest('[data-preset]');
+      if (button) applyPreset(button.dataset.preset);
+    });
+    document.addEventListener('change', event => {
+      const slot = event.target.closest('.slot');
+      if (slot && event.target.matches('.slot-select')) slot.querySelector('input').checked = Boolean(event.target.value);
+      if (event.target.type === 'number') {
+        const input = event.target;
+        input.value = bounded(input.value, input.defaultValue, Number(input.min), Number(input.max), input.step === '1');
+      }
+      update();
+    });
+    $('signature-settings').addEventListener('input', () => renderSignature(resolveAttack(readState()), readConfig()));
+    applyPreset('rupture');
+  </script>
+</body>
+</html>
