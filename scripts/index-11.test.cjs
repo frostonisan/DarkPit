@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, '../docs/index-11.html'), 'utf
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 new vm.Script(script);
 const context = vm.createContext({ Intl });
-vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, signatureStats, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects, resonanceBonus, resonanceProximityLabel, resonanceStatus };', context);
+vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, signatureStats, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects, resonanceBonus, resonanceProximityLabel, resonanceStatus, intakeMode };', context);
 const { api } = context;
 function input(colors, extras = {}) {
   return { slots: colors.map(color => ({ color, active: true })), range: 'melee', attackFunction: 'offense',
@@ -191,6 +191,71 @@ test('mixed components receive their own defensive treatment then sum', () => {
   const result = impact(['red', 'yellow'], { physicalResistance: 100, magicalResistance: 20 });
   close(result.total, 50 * 70 / 170 + 50 * (1 + 1.2 * 80 / 180));
   assert.equal(result.components.length, 2);
+});
+
+test('each composition has a distinct named intake mode', () => {
+  const modes = [
+    [['red'], 'physical', 'Encaissement physique'],
+    [['blue'], 'magical', 'Encaissement magique'],
+    [['yellow'], 'piercing', 'Encaissement perçant'],
+    [['red','blue'], 'hybrid', 'Encaissement hybride'],
+    [['red','yellow'], 'physical-piercing', 'Encaissement physique-perçant'],
+    [['blue','yellow'], 'magical-piercing', 'Encaissement magique-perçant'],
+    [['red','blue','yellow'], 'prismatic', 'Encaissement prismatique']
+  ];
+  for (const [colors, key, name] of modes) {
+    const mode = api.intakeMode(api.resolveAttack(input(colors)).profile);
+    assert.equal(mode.key, key);
+    assert.equal(mode.name, name);
+    assert.ok(mode.rule.length > 0);
+  }
+  assert.equal(api.intakeMode(api.resolveAttack(input([])).profile).key, 'none');
+});
+
+test('hybrid intake pools unequal original components and applies each defense to half', () => {
+  const result = impact(['red','red','blue'], {powers: {red: 200, blue: 50}, ratio: .6, physicalResistance: 70, magicalResistance: 0});
+  close(result.components[0].raw, 80);
+  close(result.components[1].raw, 10);
+  close(result.intakeTotal, 90);
+  close(result.components[0].beforeResistance, 45);
+  close(result.components[1].beforeResistance, 45);
+  close(result.components[0].damage, 22.5);
+  close(result.components[1].damage, 45);
+  close(result.total, 67.5);
+  assert.equal(result.components.length, 2);
+});
+
+test('hybrid intake follows armor and original distance scaling without changing the total', () => {
+  const model = api.resolveAttack(input(['red','red','blue'], {range: 'range'}));
+  const result = api.calculateImpact(model, {powers: {red: 200, blue: 50}, ratio: .6, armor: 45, rangePercent: 50});
+  close(result.absorbed, 45);
+  close(result.components[0].afterArmor, 40);
+  close(result.components[1].afterArmor, 5);
+  close(result.components[0].beforeIntake, 20);
+  close(result.components[1].beforeIntake, 5);
+  close(result.intakeTotal, 25);
+  close(result.components[0].beforeResistance, 12.5);
+  close(result.components[1].beforeResistance, 12.5);
+  close(result.total, 25);
+});
+
+test('piercing mixtures preserve original essence-weighted damage instead of hybrid intake', () => {
+  for (const primary of ['red','blue']) {
+    const powers = {red: 200, blue: 200, yellow: 50};
+    const result = impact([primary,'yellow','yellow'], {powers, physicalResistance: 70, magicalResistance: 70});
+    close(result.components[0].beforeResistance, 200 / 3);
+    close(result.components[1].beforeResistance, 100 / 3);
+    close(result.components[0].damage, 100 / 3);
+    close(result.components[1].damage, 100 / 3);
+    assert.match(result.intake.rule, /33,33 %/);
+    assert.match(result.intake.rule, /66,67 %/);
+  }
+  const prism = impact(['red','blue','yellow','yellow'], {powers: {red: 200, blue: 80, yellow: 50}, dischargeNature: 'blue'});
+  close(prism.components[0].beforeResistance, 50);
+  close(prism.components[1].beforeResistance, 20);
+  close(prism.components[2].beforeResistance, 25);
+  close(prism.components[3].beforeResistance, 150);
+  close(prism.intakeTotal, 95);
 });
 
 test('penetration applies before the piercing differential for both resistances', () => {
@@ -736,7 +801,7 @@ test('resonance floor is safe for scientific notation and extreme permitted powe
   assert.equal(resonance(1e-7, 1e-7).perfect, true);
 });
 
-test('resonance precedes armor, distance and per-nature resistance without extra procs', () => {
+test('resonance precedes armor, distance and hybrid intake without extra procs', () => {
   const model = hybrid(1);
   model.range = 'range';
   const result = api.calculateImpact(model, { armor:40, rangePercent:50, physicalResistance:70, magicalResistance:0 });
@@ -744,9 +809,11 @@ test('resonance precedes armor, distance and per-nature resistance without extra
   close(result.absorbed, 40);
   close(result.components[0].afterArmor, 50);
   close(result.components[1].afterArmor, 50);
-  close(result.components[0].damage, 12.5);
-  close(result.components[1].damage, 50);
-  close(result.total, 62.5);
+  close(result.components[0].beforeIntake, 25);
+  close(result.components[1].beforeIntake, 50);
+  close(result.components[0].damage, 18.75);
+  close(result.components[1].damage, 37.5);
+  close(result.total, 56.25);
 });
 
 test('repeated resonance simulation neither compounds its bonus nor mutates powers', () => {

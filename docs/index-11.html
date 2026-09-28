@@ -70,6 +70,9 @@
     .summary-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 12px; margin-bottom: 10px; }
     .nature { font-size: 25px; color: var(--text); line-height: 1.2; margin: 5px 0; }
     .profile { color: var(--muted); font-size: 13px; }
+    .intake-mode { margin-top: 14px; }
+    .intake-mode h3 { margin-top: 3px; }
+    .intake-mode p { margin-top: 5px; }
     .purity { text-align: right; }
     .purity strong { display: block; color: var(--gold); font-size: 19px; font-weight: normal; }
     .bars { display: grid; gap: 7px; }
@@ -175,6 +178,7 @@
           </div>
           <div class="bars" id="shares" aria-label="Répartition des essences"></div>
           <p class="source-help" id="damage-distribution" hidden></p>
+          <div class="intake-mode" id="intake-mode" hidden><div class="eyebrow">Mode d'encaissement</div><h3 id="intake-name"></h3><p class="subtle" id="intake-rule"></p></div>
           <div class="signature" id="signature" aria-live="polite"></div>
         </div>
         <div class="bonus-grid">
@@ -223,7 +227,7 @@
           <div id="sim-results" aria-live="polite">
             <div class="sim-totals"><div><span>Dégâts bruts</span><output id="sim-raw"></output></div><div><span>Armure absorbée</span><output id="sim-absorbed"></output></div><div class="total"><span>Total dégâts HP</span><output id="sim-total"></output></div></div>
             <details><summary>Détail du calcul</summary>
-            <div class="sim-step"><span>Puissance × ratio × part de nature</span><span id="transpiercing-step" hidden>+ Bonus Transperçant</span><span>Dégâts bruts</span><span>Armure, sauf fraction transperçante</span><span id="range-step" hidden>Ratio distance</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
+            <div class="sim-step"><span>Puissance × ratio × part de nature</span><span id="transpiercing-step" hidden>+ Bonus Transperçant</span><span>Dégâts bruts</span><span>Armure, sauf fraction transperçante</span><span id="range-step" hidden>Ratio distance</span><span>Mode d'encaissement</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
             <p class="subtle" id="effective-resistances"></p>
             <div id="damage-components"></div>
             <p class="source-help">Résonance : bonus de puissance arrondi à l'entier inférieur avant ajout et répartition. Transperçant : bonus d'Agilité arrondi à l'entier inférieur, ajouté aux dégâts bruts après le ratio d'attaque. Le reste du calcul conserve sa précision ; seuls les nombres affichés sont arrondis. Les pertes de composantes pendant le vol et les déclenchements aléatoires ne sont pas simulés.</p>
@@ -236,8 +240,10 @@
       <div class="help-columns">
         <div>
           <details>
-            <summary>Les trois encaissements</summary>
+            <summary>Modes d'encaissement &amp; résistances</summary>
             <div class="encaissement-rules">
+              <div><strong>Encaissement hybride</strong>Rouge + bleu : les essences pondèrent les puissances produites. La cible traite ensuite le total restant après armure et distance à 50 % physique et 50 % magique, quelle que soit cette pondération. Chaque moitié rencontre sa résistance propre.</div>
+              <div><strong>Encaissements physique-perçant, magique-perçant et prismatique</strong>Les composantes d'origine restent distinctes et sont pondérées selon les essences de l'attaque. Chacune suit son propre traitement défensif ; aucune conversion en 50/50 n'est imposée. La Décharge prismatique reste un dégât secondaire de la nature tirée.</div>
               <div><strong class="red">Atténuation physique</strong>La résistance physique amortit la violence des coups.<br><span class="formula">Dégâts × 70 / (70 + résistance physique effective)</span></div>
               <div><strong class="blue">Atténuation mentale</strong>La résistance magique protège l'esprit des chocs magiques.<br><span class="formula">Dégâts × 70 / (70 + résistance magique effective)</span></div>
               <div><strong class="yellow">Exploitation des résistances</strong>Le perçant retourne la résistance physique contre la cible. Une résistance magique supérieure le réduit.<br><span class="formula">Écart = résistance physique effective − résistance magique effective.<br>Multiplicateur = 1 + A × écart / (100 + |écart|).<br>A = 1,2 si l'écart est positif ; A = 0,9 s'il est négatif.</span><br>À 0 / 200 : −60 %. À 500 / 0 : ×2. À égalité : aucun changement. Limites approchées : ×0,1 et ×2,2.</div>
@@ -256,7 +262,7 @@
               <li>Rupture et Dissolution : réduction par stack = 5 + (niveau − 1), cinq stacks, huit secondes par défaut. Décharge : 1,5 + 0,5 × (niveau − 1) % des PV max.</li>
               <li>Une seule signature : rouge / bleu donne Résonance, rouge / jaune Rupture, bleu / jaune Dissolution, les trois couleurs Décharge. La prismatique ne cumule aucune autre signature. Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
               <li>Résonance : proximité = min(PP, PM) / max(PP, PM). Puissances strictement positives, avant Résonance et sans arrondi. Aucun bonus sous 30 % ; +5 % à ce seuil, puis croissance linéaire vers un plafond de 30 à 40 % selon le niveau 1 à 5. À égalité exacte : +10 points, soit +40 à +50 %.</li>
-              <li>Dans la V11, la puissance hybride de référence est PP × part rouge + PM × part bleue. Le bonus vaut cette base × taux de Résonance, arrondi à l'entier inférieur une seule fois. Il est réparti selon les essences, puis suit le ratio d'attaque et les défenses. Aucun impact ni déclenchement supplémentaire ; jamais de Résonance sur son propre bonus.</li>
+              <li>Dans la V11, la puissance hybride de référence est PP × part rouge + PM × part bleue. Le bonus vaut cette base × taux de Résonance, arrondi à l'entier inférieur une seule fois. Il est réparti selon les essences à la production, puis suit le ratio d'attaque, l'armure et la distance. À l'encaissement, le total hybride restant est traité moitié physique et moitié magique. Aucun impact ni déclenchement supplémentaire ; jamais de Résonance sur son propre bonus.</li>
               <li>Umbras : en pureté, tous les paliers offensifs appris de sa couleur ; en mixte, palier accessible = nombre d'essences de la couleur, jusqu'à 3. Les niveaux de signature n'augmentent pas les Umbras.</li>
               <li>Stuff et stats autonomes restent distincts des Umbras apprises. Défense et utilitaire ne sont pas filtrés. Sans essence : aucun bonus d'attaque.</li>
               <li>Rupture favorise le physique, mais diminue l'avantage perçant. Dissolution favorise le magique et le perçant. Pénétrations avant le différentiel ; résistances effectives au minimum à zéro.</li>
@@ -353,6 +359,22 @@
       if (p.red && p.blue && p.yellow) return 'Attaque prismatique';
       if (p.red && p.blue) return 'Hybride physique-magique';
       return p.red ? 'Physique perçante' : 'Magique perçante';
+    }
+    function intakeMode(profile) {
+      if (!profile.total) return { key: 'none', name: 'Aucun encaissement', rule: '' };
+      if (profile.pure) return {
+        red: { key: 'physical', name: 'Encaissement physique', rule: '100 % des dégâts sont physiques et rencontrent la résistance physique.' },
+        blue: { key: 'magical', name: 'Encaissement magique', rule: '100 % des dégâts sont magiques et rencontrent la résistance magique.' },
+        yellow: { key: 'piercing', name: 'Encaissement perçant', rule: '100 % des dégâts sont perçants. Le différentiel résistance physique − résistance magique les amplifie ou les réduit.' }
+      }[profile.pure];
+      if (!profile.yellow) return { key: 'hybrid', name: 'Encaissement hybride', rule: 'La cible considère le total hybride comme 50 % physique et 50 % magique, après armure et distance, quelle que soit la proportion rouge/bleu. Chaque moitié est traitée par sa propre résistance.' };
+      const prism = profile.red && profile.blue;
+      const proportions = Object.entries(COLORS).filter(([color]) => profile[color]).map(([color, data]) => `${fmt(profile[color] / profile.total * 100)} % ${data.damage.toLowerCase()}`).join(' / ');
+      return {
+        key: prism ? 'prismatic' : profile.red ? 'physical-piercing' : 'magical-piercing',
+        name: prism ? 'Encaissement prismatique' : profile.red ? 'Encaissement physique-perçant' : 'Encaissement magique-perçant',
+        rule: `Selon les essences : ${proportions}. Chaque composante conserve ses dégâts d'origine et son traitement défensif, sans redistribution en 50/50.${prism ? ' La Décharge est encaissée séparément selon la nature tirée.' : ''}`
+      };
     }
     function signatureFor(p, attackFunction) {
       if (attackFunction !== 'offense' || p.pure || !p.total) return 'none';
@@ -506,16 +528,22 @@
       const absorbed = Math.min(armor, blockable);
       const armorFactor = blockable > 0 ? (blockable - absorbed) / blockable : 1;
       const rangeFactor = model.range === 'range' ? bounded(values.rangePercent, 100, 0, 100) / 100 : 1;
+      const intake = intakeMode(p);
       for (const component of components) {
         component.bypassedRaw = component.raw * component.bypassFraction;
         component.afterArmor = component.bypassedRaw + (component.raw - component.bypassedRaw) * armorFactor;
         component.rangeFactor = !component.secondary && component.color !== 'blue' ? rangeFactor : 1;
-        component.beforeResistance = component.afterArmor * component.rangeFactor;
+        component.beforeIntake = component.afterArmor * component.rangeFactor;
+      }
+      // Hybrid production keeps its essence weights; the target receives equal halves.
+      const intakeTotal = components.filter(component => !component.secondary).reduce((sum, component) => sum + component.beforeIntake, 0);
+      for (const component of components) {
+        component.beforeResistance = intake.key === 'hybrid' && !component.secondary ? intakeTotal / 2 : component.beforeIntake;
         component.multiplier = damageMultiplier(component.color, physical, magical);
         component.damage = component.beforeResistance * component.multiplier;
       }
       return { applicable: true, components, physicalBase, magicalBase, physicalPen, magicalPen, physical, magical,
-        delta: physical - magical, rupture, dissolution, discharge, resonance, agility, agilityBonus, armor, absorbed, armorAfter: armor - absorbed,
+        delta: physical - magical, rupture, dissolution, discharge, resonance, agility, agilityBonus, intake, intakeTotal, armor, absorbed, armorAfter: armor - absorbed,
         raw: components.reduce((sum, component) => sum + component.raw, 0),
         total: components.reduce((sum, component) => sum + component.damage, 0) };
     }
@@ -595,7 +623,7 @@
         <h4>Cette attaque</h4>
         <p>${p.red} rouges + ${p.blue} bleues : niveau ${resonance.level}. PP ${exact(resonance.physical)} / PM ${exact(resonance.magical)}.<br>${resonanceStatus(resonance)}</p>
         <p class="formula">Base hybride V11 = (PP × rouges + PM × bleues) ÷ total d'essences = ${fmtFactor(resonance.reference)}.<br>Bonus avant arrondi = base × ${fmtFactor(resonance.percent)} % ≈ ${fmtFactor(resonance.unroundedBonus)}.<br>Bonus ajouté = entier inférieur : <strong>${fmt(resonance.bonus)}</strong> puissance hybride.</p>
-        <p>Répartition : +${fmtFactor(resonance.bonus * resonance.redShare)} physique, +${fmtFactor(resonance.bonus * resonance.blueShare)} magique. Puis ratio d'attaque, armure et résistances habituelles.</p>
+        <p>À la production : +${fmtFactor(resonance.bonus * resonance.redShare)} physique, +${fmtFactor(resonance.bonus * resonance.blueShare)} magique. Puis ratio d'attaque, armure et distance. À l'encaissement, le total hybride restant est traité à 50 % physique et 50 % magique, chacun avec sa résistance.</p>
         <h4>Limites</h4>
         <p>Aucun arrondi préalable de PP, PM ou du taux. Un seul arrondi sur le bonus total, pas un arrondi par nature. Aucun nouveau coup, critique, point de maîtrise ou effet secondaire. Le bonus ne se renforce pas lui-même.</p>
         <p class="subtle">Puissances saisies avant Résonance. Les pertes de composantes en vol ne sont pas simulées par cette page.</p>`;
@@ -704,7 +732,11 @@
       }).join('');
       const shares = Object.entries(COLORS).filter(([color]) => p[color]);
       $('damage-distribution').hidden = shares.length < 2;
-      $('damage-distribution').textContent = shares.length < 2 ? '' : `Répartition : ${shares.map(([color, data]) => `${fmt(p[color] / p.total * 100)} % ${data.damage.toLowerCase()}`).join(' / ')}. Chaque part pondère sa puissance avant le ratio d'attaque ; les dégâts reçus dépendent ensuite des défenses.`;
+      $('damage-distribution').textContent = shares.length < 2 ? '' : `Pondération à la production : ${shares.map(([color, data]) => `${fmt(p[color] / p.total * 100)} % ${data.damage.toLowerCase()}`).join(' / ')}. Chaque part pondère sa puissance avant le ratio d'attaque.`;
+      const intake = intakeMode(p);
+      $('intake-mode').hidden = !p.total || model.attackFunction !== 'offense';
+      $('intake-name').textContent = intake.name;
+      $('intake-rule').textContent = intake.rule;
       Array.from(slotsRoot.children).forEach((slot,i) => {
         const data = input.slots[i];
         const active = Boolean(data.active && data.color);
@@ -805,11 +837,12 @@
         const encaissement = component.color === 'yellow'
           ? `Écart : ${fmt(result.physical)} − ${fmt(result.magical)} = ${fmt(result.delta)}. ${modifier >= 0 ? '+' : ''}${fmt(modifier)} % de dégâts.`
           : `Résistance effective : ${fmt(component.color === 'red' ? result.physical : result.magical)}. Atténuation : ${fmt(Math.max(0, -modifier))} %.`;
-        const distance = component.rangeFactor !== 1 ? `<p>Distance : ${fmt(component.afterArmor)} × ${fmt(component.rangeFactor * 100)} % = ${fmt(component.beforeResistance)} avant résistances.</p>` : '';
+        const distance = component.rangeFactor !== 1 ? `<p>Distance : ${fmt(component.afterArmor)} × ${fmt(component.rangeFactor * 100)} % = ${fmt(component.beforeIntake)} avant encaissement.</p>` : '';
+        const intake = result.intake.key === 'hybrid' && !component.secondary ? `<p>Encaissement hybride : ${fmt(result.intakeTotal)} au total × 50 % = ${fmt(component.beforeResistance)} ${COLORS[component.color].damage.toLowerCase()} avant résistance.</p>` : '';
         const armor = component.bypassFraction > 0
           ? `Perforation ${model.profile.level} · ${fmt(component.bypassFraction * 100)} % : ${fmt(component.bypassedRaw)} contournent l’armure, ${fmt(component.raw - component.bypassedRaw)} peuvent être absorbés. Après armure : ${fmt(component.afterArmor)}.`
           : `${fmt(component.afterArmor)} dégâts passent l’armure.`;
-        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? `Décharge ${result.discharge.level} · ` : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${armor}</p>${distance}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
+        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? `Décharge ${result.discharge.level} · ` : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${armor}</p>${distance}${intake}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
       }).join('');
     }
     function update() {
