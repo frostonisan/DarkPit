@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, '../docs/index-11.html'), 'utf
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 new vm.Script(script);
 const context = vm.createContext({ Intl });
-vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, signatureStats, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects };', context);
+vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, signatureStats, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects, resonanceBonus, resonanceProximityLabel, resonanceStatus };', context);
 const { api } = context;
 function input(colors, extras = {}) {
   return { slots: colors.map(color => ({ color, active: true })), range: 'melee', attackFunction: 'offense',
@@ -19,7 +19,7 @@ const entry = (model, id) => model.access.find(value => value.id === id);
 test('each of the seven compositions has the expected exclusive signature', () => {
   for (const [colors, signature] of [
     [['red'], 'none'], [['blue'], 'none'], [['yellow'], 'none'],
-    [['red', 'blue'], 'none'], [['red', 'yellow'], 'rupture'],
+    [['red', 'blue'], 'resonance'], [['red', 'yellow'], 'rupture'],
     [['blue', 'yellow'], 'dissolution'], [['red', 'blue', 'yellow'], 'discharge']
   ]) assert.equal(api.resolveAttack(input(colors)).signature, signature);
 });
@@ -482,4 +482,164 @@ test('individual sockets and damage shares remain in the top composition area', 
   assert.ok(shares > results && shares < html.indexOf('id="signature"'));
   assert.equal(html.match(/id="essence-slots"/g).length, 1);
   assert.equal(html.match(/id="shares"/g).length, 1);
+});
+
+const hybrid = level => api.resolveAttack(input([...Array(level).fill('red'), ...Array(level).fill('blue')]));
+const resonance = (physical, magical, level = 1) => api.resonanceBonus(hybrid(level), { powers: { red: physical, blue: magical } });
+
+test('resonance has an inclusive thirty percent threshold, never a rounded threshold', () => {
+  const below = resonance(100, 29.999999999);
+  assert.equal(below.eligible, false);
+  assert.equal(below.bonus, 0);
+  assert.equal(api.resonanceProximityLabel(below), '< 30 %');
+  const at = resonance(100, 30);
+  assert.equal(at.eligible, true);
+  close(at.percent, 5);
+  close(at.reference, 65);
+  assert.equal(at.bonus, 3);
+  assert.ok(resonance(100, 30.001).percent > 5);
+});
+
+test('resonance scales normal caps from thirty to forty and perfect caps from forty to fifty', () => {
+  for (let level = 1; level <= 5; level++) {
+    const cap = 30 + (level - 1) * 2.5;
+    const normal = resonance(100, 99.999999, level);
+    assert.equal(normal.perfect, false);
+    assert.ok(normal.percent < cap && normal.percent > cap - .00001);
+    const perfect = resonance(100, 100, level);
+    assert.equal(perfect.perfect, true);
+    close(perfect.percent, cap + 10);
+    assert.equal(perfect.bonus, Math.floor(cap + 10));
+    close(resonance(100, 30, level).percent, 5);
+  }
+});
+
+test('resonance interpolation is symmetric, monotonic and excludes premature perfection', () => {
+  for (let level = 1; level <= 5; level++) {
+    let previous = 0;
+    for (let pm = 1; pm <= 100; pm++) {
+      const result = resonance(100, pm, level);
+      const opposite = resonance(pm, 100, level);
+      close(result.percent, opposite.percent);
+      assert.equal(result.bonus, opposite.bonus);
+      assert.ok(result.percent >= previous);
+      previous = result.percent;
+    }
+  }
+  close(resonance(100, 50).percent, 5 + 25 * 20 / 70);
+  close(resonance(100, 70, 5).percent, 25);
+  const almost = resonance(100.00000000000001, 100);
+  assert.equal(almost.perfect, false);
+  close(almost.percent, 30);
+  assert.equal(api.resonanceProximityLabel(almost), '< 100 %');
+});
+
+test('zero or negative powers never grant resonance and small bonuses can floor to zero', () => {
+  for (const [physical, magical] of [[0, 0], [100, 0], [0, 100], [-10, 10], [-2, -2]]) {
+    const result = resonance(physical, magical);
+    assert.equal(result.eligible, false);
+    assert.equal(result.perfect, false);
+    assert.equal(result.bonus, 0);
+    assert.ok(Number.isFinite(result.percent));
+  }
+  const tiny = resonance(1, 1);
+  assert.equal(tiny.perfect, true);
+  assert.equal(tiny.bonus, 0);
+  assert.match(api.resonanceStatus(tiny), /gain nul/);
+});
+
+test('resonance belongs only to offensive red-blue compositions, not prism or support', () => {
+  for (const colors of [[], ['red'], ['blue'], ['yellow'], ['red','yellow'], ['blue','yellow'], ['red','blue','yellow']]) {
+    assert.equal(api.resonanceBonus(api.resolveAttack(input(colors)), {}).bonus, 0);
+  }
+  for (const attackFunction of ['support','summon']) {
+    const model = api.resolveAttack(input(['red','blue'], {attackFunction}));
+    assert.equal(model.signature, 'none');
+    assert.equal(api.resonanceBonus(model, {}).applicable, false);
+    assert.equal(api.calculateImpact(model, {}).applicable, false);
+  }
+});
+
+test('unmatched essences keep their damage shares without granting extra resonance levels', () => {
+  const model = api.resolveAttack(input([...Array(9).fill('red'), 'blue']));
+  const result = api.calculateImpact(model, { powers: {red: 100, blue: 100} });
+  assert.equal(result.resonance.level, 1);
+  assert.equal(result.resonance.perfect, true);
+  assert.equal(result.resonance.bonus, 40);
+  close(result.components[0].raw, 126);
+  close(result.components[1].raw, 14);
+  close(result.total, 140);
+});
+
+test('hybrid bonus is based on existing weighted power and then split once', () => {
+  const model = api.resolveAttack(input(['red','red','red','blue']));
+  const result = api.calculateImpact(model, { powers: {red: 100, blue: 50}, ratio: 2 });
+  close(result.resonance.reference, 87.5);
+  assert.equal(result.resonance.bonus, 10);
+  close(result.components[0].resonancePower, 7.5);
+  close(result.components[1].resonancePower, 2.5);
+  close(result.raw, 195);
+  assert.equal(result.components.length, 2);
+  assert.ok(result.components.every(component => !component.secondary));
+});
+
+test('resonance floors the added power once, not its rate, each component or final damage', () => {
+  const result = api.calculateImpact(hybrid(1), {powers: {red: 103, blue: 103}, ratio: .6});
+  close(result.resonance.unroundedBonus, 41.2);
+  assert.equal(result.resonance.bonus, 41);
+  close(result.components[0].resonancePower, 20.5);
+  close(result.components[1].resonancePower, 20.5);
+  close(result.raw, 86.4);
+  close(result.total, 86.4);
+  assert.equal(resonance(12.499999999, 12.499999999).bonus, 4);
+  assert.equal(resonance(12.5, 12.5).bonus, 5);
+  assert.equal(resonance(15, 45, 5).bonus, 2);
+  assert.equal(resonance(36, 104, 4).bonus, 5);
+});
+
+test('decimal flooring matches exact rational arithmetic across integer power pairs', () => {
+  const models = [1,2,3,4,5].map(level => hybrid(level));
+  for (let pp = 1; pp <= 120; pp++) for (let pm = 1; pm <= 120; pm++) for (let level = 1; level <= 5; level++) {
+    const min = BigInt(Math.min(pp, pm));
+    const max = BigInt(Math.max(pp, pm));
+    const sum = BigInt(pp + pm);
+    const capTwice = BigInt(60 + 5 * (level - 1));
+    const expected = 10n * min < 3n * max ? 0 : pp === pm
+      ? Number(sum * (capTwice + 20n) / 400n)
+      : Number(sum * (70n * max + (capTwice - 10n) * (10n * min - 3n * max)) / (2800n * max));
+    const actual = api.resonanceBonus(models[level - 1], {powers: {red: pp, blue: pm}});
+    assert.equal(actual.bonus, expected, `PP ${pp} PM ${pm} L${level}`);
+  }
+});
+
+test('resonance floor is safe for scientific notation and extreme permitted powers', () => {
+  assert.equal(resonance(1e-300, 1e-300, 5).bonus, 0);
+  assert.equal(resonance(1e-300, 1, 5).bonus, 0);
+  assert.equal(resonance(1e9, 1e9, 5).bonus, 5e8);
+  assert.equal(resonance(1e-7, 1e-7).perfect, true);
+});
+
+test('resonance precedes armor, distance and per-nature resistance without extra procs', () => {
+  const model = hybrid(1);
+  model.range = 'range';
+  const result = api.calculateImpact(model, { armor:40, rangePercent:50, physicalResistance:70, magicalResistance:0 });
+  assert.equal(result.resonance.bonus, 40);
+  close(result.absorbed, 40);
+  close(result.components[0].afterArmor, 50);
+  close(result.components[1].afterArmor, 50);
+  close(result.components[0].damage, 12.5);
+  close(result.components[1].damage, 50);
+  close(result.total, 62.5);
+});
+
+test('repeated resonance simulation neither compounds its bonus nor mutates powers', () => {
+  const model = hybrid(5);
+  const values = {powers: {red: 100, blue: 100}};
+  const before = JSON.stringify([model, values]);
+  for(let index=0; index<5; index++) {
+    const result = api.calculateImpact(model, values);
+    assert.equal(result.resonance.bonus, 50);
+    close(result.total, 150);
+  }
+  assert.equal(JSON.stringify([model, values]), before);
 });
