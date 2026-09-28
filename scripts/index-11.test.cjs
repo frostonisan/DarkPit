@@ -296,11 +296,11 @@ test('invalid inputs and zero damage remain finite and nonnegative', () => {
   }
 });
 
-test('nature traits distinguish perforation, dodge immunity and projectile transport', () => {
+test('nature traits distinguish perforation and projectile transport without dodge immunity', () => {
   assert.ok(traits(['yellow']).includes('perforation'));
   assert.ok(traits(['yellow']).includes('transpiercing'));
   assert.ok(!traits(['blue']).includes('perforation'));
-  assert.ok(traits(['blue']).includes('undodgeable'));
+  assert.ok(!traits(['blue']).includes('undodgeable'));
   assert.ok(traits(['blue']).includes('broken-spell'));
   assert.ok(!traits(['blue'], { attackFunction: 'support' }).includes('broken-spell'));
   assert.ok(!traits(['red', 'yellow']).includes('perforation'));
@@ -442,7 +442,7 @@ test('partial perforation and armor conserve raw damage before resistance and di
   close(result.total, 8);
 });
 
-test('yellow recovery base grows from ten to fifteen without changing mixed recovery', () => {
+test('yellow recovery scales with yellow count and retains the pure bonus', () => {
   for (let level = 1; level <= 10; level++) {
     const model = api.resolveAttack(input(Array(level).fill('yellow')));
     close(model.profile.recoveryBase, 10 + (level - 1) * 5 / 9);
@@ -451,7 +451,109 @@ test('yellow recovery base grows from ten to fifteen without changing mixed reco
     assert.equal(perforation.name.includes('imblocable'), level === 10);
     assert.ok(effects.some(effect => effect.id === 'transpiercing-recovery'));
   }
-  assert.equal(api.resolveAttack(input(['red', ...Array(9).fill('yellow')])).profile.recoveryBase, 5);
+  for (const color of ['red', 'blue']) for (let yellow = 1; yellow <= 9; yellow++) {
+    const model = api.resolveAttack(input([color, ...Array(yellow).fill('yellow')]));
+    close(model.profile.recoveryBase, 5 + (yellow - 1) * 5 / 9);
+    assert.equal(model.signatureLevel, 1);
+    const effect = api.getNatureEffects(model).find(effect => effect.id === 'piercing-recovery');
+    assert.match(effect.name, new RegExp(`Récupération perçante ${yellow} ·`));
+  }
+  const prism = api.resolveAttack(input(['red', 'blue', 'yellow', 'yellow']));
+  close(prism.profile.recoveryBase, 5 + 5 / 9);
+  assert.equal(prism.signatureLevel, 1);
+});
+
+test('all offensive ranged compositions allow dodge separately from launch success', () => {
+  const compositions = [['red'], ['blue'], ['yellow'], ['red','blue'], ['red','yellow'], ['blue','yellow'], ['red','blue','yellow']];
+  for (const colors of compositions) {
+    const effects = api.getNatureEffects(api.resolveAttack(input(colors, {range: 'range'})));
+    assert.ok(!effects.some(effect => effect.id === 'undodgeable'));
+    const range = effects.find(effect => effect.id === 'range');
+    assert.match(range.description, /cible peut esquiver/);
+    assert.match(range.description, /Pas de jet de réussite/);
+  }
+  const heal = api.getNatureEffects(api.resolveAttack(input(['blue'], {range: 'range', attackFunction: 'support'})));
+  assert.doesNotMatch(heal.find(effect => effect.id === 'range').description, /esquiver/);
+});
+
+test('transpiercing damage scales independently from armor perforation', () => {
+  for (let level = 1; level <= 10; level++) {
+    const model = api.resolveAttack(input(Array(level).fill('yellow')));
+    close(model.profile.transpiercingDamagePercent, 5 + (level - 1) * 25 / 9);
+    close(model.profile.armorBypass, level * 10);
+    const effects = api.getNatureEffects(model);
+    const damage = effects.find(effect => effect.id === 'transpiercing');
+    const perforation = effects.find(effect => effect.id === 'perforation');
+    assert.match(damage.name, new RegExp(`Transperçant ${level} ·`));
+    assert.match(damage.description, /Agilité/);
+    assert.match(perforation.name, new RegExp(`Perforation · ${level * 10} %`));
+    assert.match(perforation.description, /contournent l’armure sans la consommer/);
+    close(api.calculateImpact(model, {}).raw, 100);
+  }
+  for (const colors of [[], ['red'], ['red','yellow'], ['blue','yellow'], ['red','blue','yellow']]) {
+    const model = api.resolveAttack(input(colors));
+    assert.equal(model.profile.transpiercingDamagePercent, 0);
+    assert.equal(model.profile.armorBypass, 0);
+    assert.ok(!api.getNatureEffects(model).some(effect => ['transpiercing','perforation'].includes(effect.id)));
+  }
+});
+
+test('transpiercing adds floored agility damage after the attack ratio before defenses', () => {
+  const pure = api.resolveAttack(input(Array(10).fill('yellow')));
+  const result = api.calculateImpact(pure, {powers: {yellow: 200}, agility: 100});
+  close(result.agilityBonus, 30);
+  close(result.raw, 230);
+  close(result.total, 230);
+  close(api.calculateImpact(pure, {powers: {yellow: 400}, ratio: .5, agility: 100}).raw, 230);
+  close(api.calculateImpact(pure, {powers: {yellow: 200}, agility: 101}).agilityBonus, 30);
+  for (let level = 1; level <= 10; level++) for (let agility = 0; agility <= 120; agility++) {
+    const model = api.resolveAttack(input(Array(level).fill('yellow')));
+    const actual = api.calculateImpact(model, {agility});
+    const expected = Number(BigInt(agility) * BigInt(45 + (level - 1) * 25) / 900n);
+    assert.equal(actual.agilityBonus, expected);
+    close(actual.raw, 100 + expected);
+    assert.equal(actual.components.length, 1);
+  }
+  const protectedTarget = api.calculateImpact(pure, {powers: {yellow: 200}, agility: 100, armor: 1000, physicalResistance: 0, magicalResistance: 200});
+  close(protectedTarget.absorbed, 0);
+  close(protectedTarget.total, 92);
+  const partial = impact(['yellow'], {agility: 100, armor: 1000});
+  close(partial.agilityBonus, 5);
+  close(partial.raw, 105);
+  close(partial.total, 10.5);
+  for (const colors of [['red','yellow'], ['blue','yellow'], ['red','blue','yellow']]) {
+    assert.equal(impact(colors, {agility: 100}).agilityBonus, 0);
+  }
+  for (const agility of [-100, NaN, Infinity, '', 1e-100]) {
+    assert.equal(api.calculateImpact(pure, {agility}).agilityBonus, 0);
+  }
+});
+
+test('magical overload risk reduction is relative, linear and exclusive to blue purity', () => {
+  for (let level = 1; level <= 10; level++) {
+    const model = api.resolveAttack(input(Array(level).fill('blue')));
+    close(model.profile.surchargeReductionPercent, (level - 1) * 50 / 9);
+    const effect = api.getNatureEffects(model).find(effect => effect.id === 'broken-spell');
+    assert.match(effect.name, new RegExp(`Surcharge magique ${level}`));
+    assert.match(effect.description, /ne réduit pas les dégâts du retour/);
+  }
+  const reduction = api.resolveAttack(input(Array(10).fill('blue'))).profile.surchargeReductionPercent;
+  close(30 * (1 - reduction / 100), 15);
+  for (const colors of [[], ['red'], ['yellow'], ['blue','yellow'], ['red','blue'], ['red','blue','yellow']]) {
+    const model = api.resolveAttack(input(colors));
+    assert.equal(model.profile.surchargeReductionPercent, 0);
+    assert.ok(!api.getNatureEffects(model).some(effect => effect.id === 'broken-spell'));
+  }
+});
+
+test('disabling a yellow essence removes its recovery level without retaining pure bonuses', () => {
+  const state = input(['red', 'yellow', 'yellow']);
+  state.slots[2].active = false;
+  const model = api.resolveAttack(state);
+  assert.equal(model.profile.yellow, 1);
+  assert.equal(model.profile.recoveryBase, 5);
+  assert.equal(model.profile.transpiercingDamagePercent, 0);
+  assert.equal(model.profile.armorBypass, 0);
 });
 
 test('signature levels are bounded and disabled colors cannot preserve a stale signature', () => {

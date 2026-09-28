@@ -80,8 +80,20 @@
     .signature { padding: 8px 0 8px 14px; border-left: 3px solid var(--gold); margin-top: 14px; }
     .signature h3 { color: var(--gold); font-size: 22px; }
     .signature p { margin-top: 6px; }
-    .signature[data-signature="rupture"] { border-color: var(--red); }
-    .signature[data-signature="dissolution"] { border-color: var(--blue); }
+    .signature[data-signature="rupture"] { border-color: #ffab57; }
+    .signature[data-signature="rupture"] h3, .nature[data-composition="rupture"] { color: #ffab57; }
+    .signature[data-signature="dissolution"] { border-color: #93db75; }
+    .signature[data-signature="dissolution"] h3, .nature[data-composition="dissolution"] { color: #93db75; }
+    .signature[data-signature="discharge"] h3, .nature[data-composition="discharge"] {
+      font-size: 22px;
+      width: fit-content;
+      max-width: 100%;
+      background: linear-gradient(90deg, #ff4d48 0%, #b295e7 50%, #ffda24 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      -webkit-text-fill-color: transparent;
+    }
     .signature[data-signature="resonance"] { border-color: #cb9adf; }
     .signature[data-signature="none"] { border-color: var(--line); }
     .resonance-trigger { display: inline-flex; align-items: center; gap: 8px; padding: 0; min-height: 28px; border: 0; border-radius: 0; border-bottom: 1px dotted currentColor; color: #dfb3ed; background: transparent; font: inherit; text-align: left; cursor: help; }
@@ -162,6 +174,7 @@
             <div class="purity"><span class="eyebrow" id="level-label">Pureté</span><strong id="purity-level"></strong><span class="subtle" id="purity-bonus"></span></div>
           </div>
           <div class="bars" id="shares" aria-label="Répartition des essences"></div>
+          <p class="source-help" id="damage-distribution" hidden></p>
           <div class="signature" id="signature" aria-live="polite"></div>
         </div>
         <div class="bonus-grid">
@@ -189,7 +202,7 @@
                 <label class="field"><span>Pénétration magique (%)</span><input id="sim-pen-magical" type="number" min="0" max="100" step="1" value="0"></label>
                 <label class="field"><span>Armure actuelle</span><input id="sim-armor" type="number" min="0" max="1000000000" step="1" value="0"></label>
               </div>
-              <p class="source-help">Pourcentages finaux de pénétration, pas les points de stat. L'armure absorbe les dégâts bruts ; seule la fraction transperçante (10 % par niveau de pureté jaune) la contourne.</p>
+              <p class="source-help">La pénétration physique réduit la résistance physique ; la pénétration magique réduit la résistance magique. La composante perçante utilise ensuite leur différentiel. Ces pourcentages ne divisent pas les dégâts : la répartition par nature est affichée plus haut. L'armure absorbe les dégâts bruts ; Perforation seule la contourne (10 % par niveau de pureté jaune).</p>
             </details>
             <details>
               <summary>Affaiblissements déjà présents sur la cible</summary>
@@ -210,13 +223,13 @@
           <div id="sim-results" aria-live="polite">
             <div class="sim-totals"><div><span>Dégâts bruts</span><output id="sim-raw"></output></div><div><span>Armure absorbée</span><output id="sim-absorbed"></output></div><div class="total"><span>Total dégâts HP</span><output id="sim-total"></output></div></div>
             <details><summary>Détail du calcul</summary>
-            <div class="sim-step"><span>Puissance × ratio × part de nature</span><span>Dégâts bruts</span><span>Armure, sauf fraction transperçante</span><span id="range-step" hidden>Ratio distance</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
+            <div class="sim-step"><span>Puissance × ratio × part de nature</span><span id="transpiercing-step" hidden>+ Bonus Transperçant</span><span>Dégâts bruts</span><span>Armure, sauf fraction transperçante</span><span id="range-step" hidden>Ratio distance</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
             <p class="subtle" id="effective-resistances"></p>
             <div id="damage-components"></div>
-            <p class="source-help">Bonus de puissance de Résonance arrondi à l'entier inférieur avant ajout et répartition. Le reste du calcul conserve sa précision ; seuls les nombres affichés sont arrondis. Les pertes de composantes pendant le vol et les déclenchements aléatoires ne sont pas simulés.</p>
+            <p class="source-help">Résonance : bonus de puissance arrondi à l'entier inférieur avant ajout et répartition. Transperçant : bonus d'Agilité arrondi à l'entier inférieur, ajouté aux dégâts bruts après le ratio d'attaque. Le reste du calcul conserve sa précision ; seuls les nombres affichés sont arrondis. Les pertes de composantes pendant le vol et les déclenchements aléatoires ne sont pas simulés.</p>
             </details>
           </div>
-          <p class="source-help">Puissances avant Résonance : les autres bonus de puissance sont déjà inclus dans les valeurs saisies. Un impact réussi, sans critique ni proc défensif. Résonance, perforation et niveau de Décharge s'appliquent automatiquement.</p>
+          <p class="source-help">Puissances avant Résonance et Transperçant : les autres bonus de puissance sont déjà inclus dans les valeurs saisies. Un impact réussi, sans critique ni jet d'esquive simulé. Résonance, bonus d'Agilité Transperçant, Perforation et niveau de Décharge s'appliquent automatiquement.</p>
         </section>
     <section class="advanced-settings" id="aides" aria-labelledby="aides-title">
       <h2 id="aides-title">Aides &amp; réglages</h2>
@@ -235,7 +248,11 @@
             <ul class="rules">
               <li>Pureté = nombre d'essences actives d'une couleur unique. Niveau mixte = nombre de combinaisons complètes : minimum des quantités de chaque couleur présente. Plafonds : pureté 10, duo 5, prismatique 3.</li>
               <li>Fracassante et Psionique : +15 × (pureté − 1) / 9 points de base, de 0 à +15. Les ratios d'attributs ne changent pas.</li>
-              <li>Transperçante : 10 % des dégâts bruts contournent l'armure par niveau, jusqu'à 100 %. Le reste peut être absorbé. Récupération transperçante : base de 10 à 15 %, contribution d'Agilité inchangée.</li>
+              <li>Perforation : réservée au jaune pur. 10 % des dégâts bruts contournent l'armure par niveau, jusqu'à 100 %. Le reste peut être absorbé. Elle est distincte du bonus de dégâts Transperçant.</li>
+              <li>Transperçant : convertit 5 % de l'Agilité en dégâts perçants supplémentaires au niveau 1 de pureté jaune, jusqu'à 30 % au niveau 10. Progression linéaire : 5 + (niveau − 1) × 25 / 9. Bonus arrondi à l'inférieur et ajouté après le ratio d'attaque, avant armure et résistances. Exemple au niveau 10 : 200 dégâts bruts + 30 % de 100 Agilité = 230 dégâts bruts perçants.</li>
+              <li>Récupération perçante : niveau = nombre d'essences jaunes actives, même en composition mixte. Base de 5 %, renforcée de 5 × (jaunes − 1) / 9 points ; le jaune pur conserve 5 points supplémentaires, soit une base de 10 à 15 %. La contribution d'Agilité ne change pas.</li>
+              <li>Surcharge magique : le risque diminue avec la pureté bleue, de 0 % de réduction au niveau 1 à 50 % au niveau 10, linéairement. Réduction relative : risque final = risque initial × (1 − réduction / 100). Cela ne réduit pas les dégâts du retour de magie. Le simulateur ne réalise pas ce jet.</li>
+              <li>Un tir n'effectue plus de jet de réussite, mais reste soumis à l'esquive de la cible à l'impact. Le guidage n'accorde aucune immunité à l'esquive. Quitter la case visée peut aussi éviter un projectile balistique.</li>
               <li>Rupture et Dissolution : réduction par stack = 5 + (niveau − 1), cinq stacks, huit secondes par défaut. Décharge : 1,5 + 0,5 × (niveau − 1) % des PV max.</li>
               <li>Une seule signature : rouge / bleu donne Résonance, rouge / jaune Rupture, bleu / jaune Dissolution, les trois couleurs Décharge. La prismatique ne cumule aucune autre signature. Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
               <li>Résonance : proximité = min(PP, PM) / max(PP, PM). Puissances strictement positives, avant Résonance et sans arrondi. Aucun bonus sous 30 % ; +5 % à ce seuil, puis croissance linéaire vers un plafond de 30 à 40 % selon le niveau 1 à 5. À égalité exacte : +10 points, soit +40 à +50 %.</li>
@@ -309,7 +326,7 @@
       return integer ? Math.floor(number) : number;
     }
     function resolveProfile(slots) {
-      const profile = { red: 0, blue: 0, yellow: 0, total: 0, pure: null, level: 0, bonus: 0, combinationLevel: 0, maxLevel: 0, armorBypass: 0, recoveryBase: 0 };
+      const profile = { red: 0, blue: 0, yellow: 0, total: 0, pure: null, level: 0, bonus: 0, combinationLevel: 0, maxLevel: 0, armorBypass: 0, recoveryBase: 0, transpiercingDamagePercent: 0, surchargeReductionPercent: 0 };
       for (const slot of slots.slice(0,10)) {
         if (!slot.active || !Object.hasOwn(COLORS, slot.color)) continue;
         profile[slot.color] += 1;
@@ -323,10 +340,11 @@
         profile.level = profile.total;
         if (profile.pure === 'yellow') {
           profile.armorBypass = profile.level * 10;
-          profile.recoveryBase = 10 + (profile.level - 1) * 5 / 9;
+          profile.transpiercingDamagePercent = 5 + (profile.level - 1) * 25 / 9;
         } else profile.bonus = (profile.level - 1) * 15 / 9;
+        if (profile.pure === 'blue') profile.surchargeReductionPercent = (profile.level - 1) * 50 / 9;
       }
-      if (!profile.pure && profile.yellow) profile.recoveryBase = 5;
+      if (profile.yellow) profile.recoveryBase = (profile.pure === 'yellow' ? 10 : 5) + (profile.yellow - 1) * 5 / 9;
       return profile;
     }
     function natureName(p) {
@@ -381,6 +399,13 @@
       const scale = decimals - Number(exponent);
       const units = BigInt(mantissa.replace('.', ''));
       return { units: scale < 0 ? units * 10n ** BigInt(-scale) : units, denominator: scale > 0 ? 10n ** BigInt(scale) : 1n };
+    }
+    function transpiercingDamageBonus(profile, agility) {
+      if (profile.pure !== 'yellow') return 0;
+      const agi = decimalParts(bounded(agility, 0, 0, 1e9));
+      // Keep the linear 5-to-30 percent coefficient exact until the final floor.
+      const coefficient = BigInt(45 + (profile.level - 1) * 25);
+      return Number(agi.units * coefficient / (agi.denominator * 900n));
     }
     function resonanceBonus(model, values) {
       const p = model.profile;
@@ -460,12 +485,15 @@
       const magical = Math.max(0, magicalBase - dissolution.reduction) * (1 - magicalPen / 100);
       const armor = bounded(values.armor, 0, 0, 1e9);
       const resonance = resonanceBonus(model, values);
+      const agility = bounded(values.agility, 0, 0, 1e9);
+      const agilityBonus = transpiercingDamageBonus(p, agility);
       const components = Object.keys(COLORS).filter(color => p[color] > 0).map(color => {
         const power = bounded(values.powers?.[color], 100, 0, 1e9);
         const share = p[color] / p.total;
         // Split the already floored hybrid bonus once, before the attack ratio.
         const resonancePower = resonance.bonus * share;
-        return { color, power, ratio, share, resonancePower, raw: (power * share + resonancePower) * ratio, secondary: false, bypassFraction: p.armorBypass / 100 };
+        const transpiercingBonus = color === 'yellow' ? agilityBonus : 0;
+        return { color, power, ratio, share, resonancePower, transpiercingBonus, raw: (power * share + resonancePower) * ratio + transpiercingBonus, secondary: false, bypassFraction: p.armorBypass / 100 };
       });
       const discharge = model.signature === 'discharge' ? signatureStats('discharge', model.signatureLevel, config) : null;
       if (model.signature === 'discharge') {
@@ -487,7 +515,7 @@
         component.damage = component.beforeResistance * component.multiplier;
       }
       return { applicable: true, components, physicalBase, magicalBase, physicalPen, magicalPen, physical, magical,
-        delta: physical - magical, rupture, dissolution, discharge, resonance, armor, absorbed, armorAfter: armor - absorbed,
+        delta: physical - magical, rupture, dissolution, discharge, resonance, agility, agilityBonus, armor, absorbed, armorAfter: armor - absorbed,
         raw: components.reduce((sum, component) => sum + component.raw, 0),
         total: components.reduce((sum, component) => sum + component.damage, 0) };
     }
@@ -500,21 +528,20 @@
       if (p.pure === 'red') add('fracassante', 'brutality', `Fracassante ${p.level}`, `Bonus natif de puissance physique.${reinforcement}`);
       if (p.pure === 'blue') add('psionique', 'intellect', `Psionique ${p.level}`, `Bonus natif de puissance magique.${reinforcement}`);
       if (p.pure === 'yellow') {
-        add('transpiercing', 'transpiercing-damage', `Transperçante ${p.level} · ${p.armorBypass} %`, `${p.armorBypass} % des dégâts bruts contournent l'armure. Bonus natif de dégâts lié à l'Agilité conservé.`);
-        add('perforation', 'perforation', p.armorBypass === 100 ? "Perforation intégrale · imblocable par l'armure" : `Perforation partielle · ${p.armorBypass} %`, 'La fraction traversante ne consomme pas l’armure. Le différentiel des résistances s’applique toujours.');
-        add('transpiercing-recovery', 'recuperationTime', `Récupération transperçante · −${fmt(p.recoveryBase)} % de base`, 'Contribution d’Agilité inchangée ; base de 10 à 15 % selon la pureté.');
-      } else if (p.yellow) add('piercing-recovery', 'recuperationTime', 'Récupération perçante · −5 % de base', 'Contribution d’Agilité conservée ; pas de progression avec le niveau de signature.');
+        add('transpiercing', 'transpiercing-damage', `Transperçant ${p.level} · ${fmt(p.transpiercingDamagePercent)} % d’Agilité`, `Ajoute ${fmt(p.transpiercingDamagePercent)} % de l’Agilité du porteur aux dégâts bruts perçants, après le ratio d’attaque et avant armure et résistances. Bonus arrondi à l’inférieur. De 5 à 30 % selon la pureté jaune.`);
+        add('perforation', 'perforation', `Perforation · ${p.armorBypass} %${p.armorBypass === 100 ? ' · imblocable par l’armure' : ''}`, `${p.armorBypass} % des dégâts bruts contournent l’armure sans la consommer. 10 % par essence jaune en nature pure, jusqu’à 100 %. Le différentiel des résistances s’applique toujours.`);
+        add('transpiercing-recovery', 'recuperationTime', `Récupération perçante ${p.yellow} · −${fmt(p.recoveryBase)} % de base`, 'Niveau déterminé par les essences jaunes. Contribution d’Agilité inchangée ; le jaune pur ajoute 5 points à la base commune, soit de 10 à 15 %.');
+      } else if (p.yellow) add('piercing-recovery', 'recuperationTime', `Récupération perçante ${p.yellow} · −${fmt(p.recoveryBase)} % de base`, 'Chaque essence jaune renforce la base de récupération, indépendamment du niveau de la combinaison. Contribution d’Agilité inchangée.');
       if (model.range === 'melee') add('short-range', 'melee', 'Courte portée', 'Bonus natif de vitesse d’exécution. Le clone suit la cible ; la mort du lanceur avant l’impact annule le coup.');
       else {
-        add('range', 'range', 'Distance', 'Récupération dès le départ du projectile, sans attendre son impact. Aucun jet aléatoire de ratage.');
+        add('range', 'range', 'Distance', `Récupération dès le départ du projectile, sans attendre son impact.${model.attackFunction === 'offense' ? ' Pas de jet de réussite du tir, mais la cible peut esquiver à l’impact, même un projectile guidé.' : ''}`);
         if (p.red && p.blue && p.yellow) add('prismatic-flight', 'hybrid-damage', 'Guidage prismatique', 'Le projectile suit la cible et conserve toutes ses composantes après la mort du lanceur.');
         else if (p.blue && (p.red || p.yellow)) add('hybrid-flight', 'hybrid-damage', 'Guidage hybride', 'Guidé tant que le lanceur vit. À sa mort, la part magique se disperse et le reste poursuit vers la dernière case visée ; un déplacement peut alors l’éviter.');
         else if (p.blue) add('magic-flight', 'range', 'Projectile magique guidé', 'Suit la cible ; se dissipe si le lanceur meurt avant l’impact.');
         else add('physical-flight', 'range', 'Projectile balistique', 'Vise la case au lancement. Un déplacement permet de l’éviter ; un nouvel occupant peut être touché. Le tir persiste après la mort du lanceur.');
         if (p.red || p.yellow) add('range-ratio', 'range', 'Ratio distance', 'Le pourcentage conservé à distance affecte les composantes physiques et perçantes du coup, pas sa composante magique.');
       }
-      if (p.pure === 'blue' || model.range === 'range') add('undodgeable', 'undodgeable', 'Inesquivable au jet', 'Aucun jet d’esquive. Cela n’empêche pas d’éviter un projectile balistique en quittant sa case.');
-      if (p.pure === 'blue' && model.attackFunction === 'offense') add('broken-spell', 'broken-spell', 'Surcharge magique', 'Risque d’échec magique et de dégâts retournés au lanceur. Le simulateur décrit un impact réussi.');
+      if (p.pure === 'blue' && model.attackFunction === 'offense') add('broken-spell', 'broken-spell', `Surcharge magique ${p.level}${p.surchargeReductionPercent ? ` · risque −${fmt(p.surchargeReductionPercent)} %` : ''}`, `Risque d’échec magique et de dégâts retournés au lanceur. La pureté réduit le risque, jusqu’à le diviser par deux au niveau 10 ; elle ne réduit pas les dégâts du retour. Risque final = risque initial × ${fmtFactor(1 - p.surchargeReductionPercent / 100)}. Le simulateur décrit un impact réussi.`);
       const blood = model.access.find(entry => entry.id === 'bloodFury');
       if (model.attackFunction === 'offense' && blood.available) {
         add('lifesteal', 'bloodThirsty', 'Soif de sang', 'Vol de vie sur les HP réellement retirés, y compris à distance. Aucun vol de vie sur l’armure absorbée.');
@@ -605,7 +632,8 @@
         slotsRoot.append(slot);
       }
       $('sources').innerHTML = UMBRAS.map(umbra => `<tr data-source="${umbra.id}"><td><span class="source-name ${umbra.color}">${icon(umbra.icon)}${umbra.name} ${umbra.tier}</span></td>${['learned','equipment','direct'].map(source => `<td><input type="checkbox" data-source-kind="${source}" ${source === 'learned' ? 'checked' : ''} aria-label="${source === 'learned' ? 'Appris : ' : source === 'equipment' ? 'Stuff : ' : 'Autonome : '}${source === 'direct' ? umbra.direct : umbra.name}" title="${source === 'direct' ? umbra.direct : umbra.name}"></td>`).join('')}</tr>`).join('');
-      $('power-fields').innerHTML = Object.entries(COLORS).map(([color,data]) => `<label class="field" data-power-field="${color}"><span class="${color}">Puissance ${color === 'yellow' ? 'perçante' : data.damage.toLowerCase()}</span><input id="sim-power-${color}" type="number" min="0" max="1000000000" step="any" value="100"></label>`).join('');
+      $('power-fields').innerHTML = Object.entries(COLORS).map(([color,data]) => `<label class="field" data-power-field="${color}"><span class="${color}">Puissance ${color === 'yellow' ? 'perçante (hors Transperçant)' : data.damage.toLowerCase()}</span><input id="sim-power-${color}" type="number" min="0" max="1000000000" step="any" value="100"></label>`).join('')
+        + '<label class="field" data-power-field="yellow" data-pure-only="yellow"><span>Agilité du porteur</span><input id="sim-agility" type="number" min="0" max="1000000000" step="any" value="0"></label>';
       $('signature-settings').innerHTML = ['rupture','dissolution'].map(key => `<h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'}</h3><div class="settings-grid">
         <label class="field"><span>Durée X (s)</span><input id="${key}-duration" type="number" min="0.1" max="120" step="0.1" value="${DEFAULTS[key].duration}"></label>
         <label class="field"><span>Stacks max Y</span><input id="${key}-cap" type="number" min="1" max="100" step="1" value="${DEFAULTS[key].cap}"></label>
@@ -634,6 +662,7 @@
     }
     function readImpactValues() {
       return { powers: Object.fromEntries(Object.keys(COLORS).map(color => [color, $(`sim-power-${color}`).value])),
+        agility: $('sim-agility').value,
         ratio: $('sim-ratio').value, rangePercent: $('sim-range-percent').value, physicalResistance: $('sim-res-physical').value, magicalResistance: $('sim-res-magical').value,
         physicalPen: $('sim-pen-physical').value, magicalPen: $('sim-pen-magical').value, armor: $('sim-armor').value,
         ruptureStacks: $('sim-rupture').value, ruptureLevel: $('sim-rupture-level').value,
@@ -658,6 +687,7 @@
       const p = model.profile;
       $('slot-count').textContent = `${p.total}/10 essences actives`;
       $('effective-nature').textContent = natureName(p);
+      $('effective-nature').dataset.composition = signatureFor(p, 'offense');
       $('profile').textContent = Object.keys(COLORS).map(color => `${COLORS[color].label} ${p[color]}`).join(' / ');
       $('level-label').textContent = p.pure ? 'Pureté' : 'Combinaison';
       $('purity-level').textContent = p.total ? `Niveau ${p.combinationLevel} / ${p.maxLevel}` : 'Aucune';
@@ -672,6 +702,9 @@
         const percent = p.total ? p[color]/p.total*100 : 0;
         return `<div class="bar-row ${color}"><span>${data.damage}</span><div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div><span class="bar-share">${fmt(percent)} %</span></div>`;
       }).join('');
+      const shares = Object.entries(COLORS).filter(([color]) => p[color]);
+      $('damage-distribution').hidden = shares.length < 2;
+      $('damage-distribution').textContent = shares.length < 2 ? '' : `Répartition : ${shares.map(([color, data]) => `${fmt(p[color] / p.total * 100)} % ${data.damage.toLowerCase()}`).join(' / ')}. Chaque part pondère sa puissance avant le ratio d'attaque ; les dégâts reçus dépendent ensuite des défenses.`;
       Array.from(slotsRoot.children).forEach((slot,i) => {
         const data = input.slots[i];
         const active = Boolean(data.active && data.color);
@@ -736,7 +769,8 @@
       }).join('');
     }
     function renderImpact(model, result) {
-      for (const field of $('power-fields').children) field.hidden = !model.profile[field.dataset.powerField];
+      for (const field of $('power-fields').children) field.hidden = !model.profile[field.dataset.powerField] || Boolean(field.dataset.pureOnly && field.dataset.pureOnly !== model.profile.pure);
+      $('transpiercing-step').hidden = model.profile.pure !== 'yellow';
       const rangedPhysical = model.range === 'range' && (model.profile.red > 0 || model.profile.yellow > 0);
       $('range-input').hidden = !rangedPhysical;
       $('range-step').hidden = !rangedPhysical;
@@ -764,6 +798,8 @@
           ? `Décharge ${result.discharge.level} : ${fmt(result.discharge.maxHP)} PV max × ${fmt(result.discharge.percent)} % = ${fmt(component.raw)} dégâts bruts`
           : component.resonancePower > 0
             ? `(${fmt(component.power)} puissance × ${fmt(component.share * 100)} % de part + ${fmtFactor(component.resonancePower)} Résonance) × ${fmt(component.ratio)} ratio ≈ ${fmt(component.raw)} dégâts bruts`
+            : component.transpiercingBonus > 0
+              ? `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio + ${fmt(component.transpiercingBonus)} Transperçant (entier inférieur de ${fmt(result.agility)} Agilité × ${fmt(model.profile.transpiercingDamagePercent)} %) ≈ ${fmt(component.raw)} dégâts bruts`
             : `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio × ${fmt(component.share * 100)} % de part ≈ ${fmt(component.raw)} dégâts bruts`;
         const encaissement = component.color === 'yellow'
           ? `Écart : ${fmt(result.physical)} − ${fmt(result.magical)} = ${fmt(result.delta)}. ${modifier >= 0 ? '+' : ''}${fmt(modifier)} % de dégâts.`
