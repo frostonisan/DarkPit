@@ -827,8 +827,9 @@ if (hasMovementStat && hasShiftObject) {
 
   const baseExtraCur = baseExtraNorm?.current ?? 0;
 
-  const modExtra = toNonNegInt(basePlusMods.extraLife ?? 0);
-  const extraMax = baseExtraMax + modExtra;
+  // Preserve reductions until they have been applied to the native life pool.
+  const modExtra = Number(basePlusMods.extraLife) || 0;
+  const extraMax = toNonNegInt(baseExtraMax + modExtra);
 
   const prevExtraCur =
     (prevExtraLifeObj && typeof prevExtraLifeObj === "object")
@@ -838,7 +839,7 @@ if (hasMovementStat && hasShiftObject) {
   let extraCur;
   if (prevExtraCur !== null) extraCur = Math.min(prevExtraCur, extraMax);
   else if (explicitExtraCurrent !== null) extraCur = Math.min(explicitExtraCurrent, extraMax);
-  else extraCur = Math.min(baseExtraCur + modExtra, extraMax);
+  else extraCur = Math.min(toNonNegInt(baseExtraCur + modExtra), extraMax);
 
   if (extraCur > extraMax) extraCur = extraMax;
 
