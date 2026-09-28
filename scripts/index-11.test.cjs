@@ -8,10 +8,10 @@ const html = fs.readFileSync(path.join(__dirname, '../docs/index-11.html'), 'utf
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 new vm.Script(script);
 const context = vm.createContext({ Intl });
-vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, stackProjection, dischargeProjection, bounded };', context);
+vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects };', context);
 const { api } = context;
 function input(colors, extras = {}) {
-  return { slots: colors.map(color => ({ color, active: true })), range: 'melee', attackFunction: 'offense', oldHypercognition: true,
+  return { slots: colors.map(color => ({ color, active: true })), range: 'melee', attackFunction: 'offense',
     sources: Object.fromEntries(api.UMBRAS.map(entry => [entry.id, { learned: true }])), ...extras };
 }
 const entry = (model, id) => model.access.find(value => value.id === id);
@@ -122,15 +122,9 @@ test('range does not block compatible blood fury, crit or ambidextry', () => {
   assert.equal(entry(yellow, 'ambidextry').available, true);
 });
 
-test('legacy comparator preserves actual v10 conditions, without invented absent rules', () => {
-  const model = api.resolveAttack(input(['red', 'yellow']));
-  assert.equal(entry(model, 'brutality').legacy, true);
-  assert.equal(entry(model, 'brutality').available, false);
-  assert.equal(entry(model, 'ambidextry').legacy, true);
-  assert.equal(entry(model, 'ambidextry').available, false);
-  assert.equal(entry(model, 'vigueur').legacy, null);
-  assert.equal(entry(model, 'hypercognition').legacy, true);
-  assert.equal(entry(api.resolveAttack(input(['red'], { oldHypercognition: false })), 'hypercognition').legacy, false);
+test('the page contains only the current logic and no inactive comparison renderer', () => {
+  assert.doesNotMatch(html, /index-10|\bV10\b|legacyAccess|comparisonRow|oldHypercognition/);
+  assert.match(html, /model\.access\.filter\(entry => entry\.available\)/);
 });
 
 test('projections are bounded and preserve the configured values', () => {
@@ -152,4 +146,195 @@ test('resolving one attack does not mutate entity sources or slots', () => {
   const before = JSON.stringify(state);
   api.resolveAttack(state);
   assert.equal(JSON.stringify(state), before);
+});
+
+const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-8, `${actual} != ${expected}`);
+const impact = (colors, values = {}, config = api.DEFAULTS) => api.calculateImpact(api.resolveAttack(input(colors)), values, config);
+const traits = (colors, extra = {}) => api.getNatureEffects(api.resolveAttack(input(colors, extra))).map(effect => effect.id);
+
+test('piercing reaches the agreed -60% and x2 anchors', () => {
+  close(impact(['yellow'], { physicalResistance: 0, magicalResistance: 200 }).total, 40);
+  close(impact(['yellow'], { physicalResistance: 500, magicalResistance: 0 }).total, 200);
+  close(impact(['yellow'], { physicalResistance: 50, magicalResistance: 50 }).total, 100);
+  close(impact(['yellow'], { physicalResistance: 500, magicalResistance: 500 }).total, 100);
+});
+
+test('piercing is continuous, monotonic and bounded on both sides', () => {
+  let previous = 0;
+  for (let delta = -10000; delta <= 10000; delta += 10) {
+    const value = api.piercingMultiplier(Math.max(0, delta), Math.max(0, -delta));
+    assert.ok(value >= previous && value > .1 && value < 2.2);
+    previous = value;
+  }
+  close(api.piercingMultiplier(1e-10, 0), 1);
+  close(api.piercingMultiplier(0, 1e-10), 1);
+});
+
+test('power, attack ratio and essence weight each apply exactly once', () => {
+  close(impact(['yellow'], { powers: { yellow: 100 }, ratio: .6 }).raw, 60);
+  const split = impact(['red', 'red', 'blue'], { powers: { red: 200, blue: 50 }, ratio: .6 });
+  close(split.raw, 90);
+  close(split.components[0].raw, 80);
+  close(split.components[1].raw, 10);
+  close(split.total, 90);
+});
+
+test('physical and magical use the existing constant 70, not the piercing curve', () => {
+  close(impact(['red'], { physicalResistance: 70, magicalResistance: 900 }).total, 50);
+  close(impact(['blue'], { magicalResistance: 70, physicalResistance: 900 }).total, 50);
+  close(impact(['red'], { physicalResistance: 100 }).total, 100 * 70 / 170);
+});
+
+test('mixed components receive their own defensive treatment then sum', () => {
+  const result = impact(['red', 'yellow'], { physicalResistance: 100, magicalResistance: 20 });
+  close(result.total, 50 * 70 / 170 + 50 * (1 + 1.2 * 80 / 180));
+  assert.equal(result.components.length, 2);
+});
+
+test('penetration applies before the piercing differential for both resistances', () => {
+  const values = { physicalResistance: 100, magicalResistance: 20 };
+  const base = impact(['yellow'], values);
+  const physicalPen = impact(['yellow'], { ...values, physicalPen: 50 });
+  const magicalPen = impact(['yellow'], { ...values, magicalPen: 100 });
+  close(physicalPen.physical, 50);
+  close(physicalPen.delta, 30);
+  assert.ok(physicalPen.total < base.total);
+  assert.ok(magicalPen.total > base.total);
+  close(impact(['red'], { physicalResistance: 100, physicalPen: 100 }).total, 100);
+});
+
+test('Rupture benefits physical damage but weakens piercing for the same target', () => {
+  const values = { physicalResistance: 100, magicalResistance: 20 };
+  const base = impact(['red', 'yellow'], values);
+  const weakened = impact(['red', 'yellow'], { ...values, ruptureStacks: 5 });
+  close(weakened.physical, 75);
+  assert.ok(weakened.components[0].damage > base.components[0].damage);
+  assert.ok(weakened.components[1].damage < base.components[1].damage);
+});
+
+test('Dissolution benefits both magical and piercing components', () => {
+  const values = { physicalResistance: 50, magicalResistance: 100 };
+  const base = impact(['blue', 'yellow'], values);
+  const weakened = impact(['blue', 'yellow'], { ...values, dissolutionStacks: 5 });
+  assert.ok(weakened.components.every((component, index) => component.damage > base.components[index].damage));
+});
+
+test('target debuffs are shared and cannot lower effective resistance below zero', () => {
+  const result = impact(['yellow'], { physicalResistance: 10, magicalResistance: -50, ruptureStacks: 999, physicalPen: 50 });
+  close(result.physical, 0);
+  close(result.magical, 0);
+  close(result.rupture.count, 5);
+  close(result.total, 100);
+});
+
+test('the triggering hit does not automatically gain its own new stack', () => {
+  const result = impact(['red', 'yellow'], { physicalResistance: 100 });
+  assert.equal(result.rupture.count, 0);
+  close(result.physical, 100);
+});
+
+test('armor absorbs raw damage before resistance for ordinary attacks', () => {
+  const result = impact(['red'], { physicalResistance: 70, armor: 40 });
+  close(result.absorbed, 40);
+  close(result.armorAfter, 0);
+  close(result.total, 30);
+  const fullyBlocked = impact(['red'], { armor: 200 });
+  close(fullyBlocked.total, 0);
+  close(fullyBlocked.armorAfter, 100);
+});
+
+test('pure piercing ignores armor but still undergoes its defensive differential', () => {
+  const result = impact(['yellow'], { armor: 1000, physicalResistance: 0, magicalResistance: 200 });
+  close(result.absorbed, 0);
+  close(result.armorAfter, 1000);
+  close(result.total, 40);
+  assert.equal(result.components[0].bypass, true);
+});
+
+test('mixed piercing is blockable and armor is distributed proportionally', () => {
+  const result = impact(['red', 'yellow'], { armor: 50 });
+  assert.ok(result.components.every(component => !component.bypass));
+  close(result.components[0].afterArmor, 25);
+  close(result.components[1].afterArmor, 25);
+  close(result.total, 50);
+});
+
+test('prismatic discharge is one separate typed component, not a recursive proc or pure attack', () => {
+  for (const dischargeNature of ['red', 'blue', 'yellow']) {
+    const result = impact(['red', 'blue', 'yellow'], { dischargeNature });
+    assert.equal(result.components.length, 4);
+    const proc = result.components.find(component => component.secondary);
+    assert.equal(proc.color, dischargeNature);
+    close(proc.raw, 150);
+    assert.equal(proc.bypass, false);
+    close(result.total, 250);
+  }
+  close(impact(['red', 'blue', 'yellow'], { dischargeNature: 'yellow', armor: 1000 }).total, 0);
+});
+
+test('discharge uses target max HP then the selected nature defensive formula', () => {
+  const values = { powers: { red: 0, blue: 0, yellow: 0 }, physicalResistance: 70, magicalResistance: 0 };
+  close(impact(['red', 'blue', 'yellow'], { ...values, dischargeNature: 'red' }).total, 75);
+  close(impact(['red', 'blue', 'yellow'], { ...values, dischargeNature: 'blue' }).total, 150);
+  close(impact(['red', 'blue', 'yellow'], { ...values, dischargeNature: 'yellow' }).total, 150 * api.piercingMultiplier(70, 0));
+});
+
+test('nonoffensive attacks and empty compositions have no simulated offensive damage', () => {
+  for (const attackFunction of ['support', 'summon']) {
+    const model = api.resolveAttack(input(['red', 'blue', 'yellow'], { attackFunction }));
+    assert.equal(api.calculateImpact(model, {}).applicable, false);
+  }
+  assert.equal(impact([]).total, 0);
+});
+
+test('invalid inputs and zero damage remain finite and nonnegative', () => {
+  for (const values of [{ powers: { red: 0 }, armor: 0 }, { powers: { red: -50 }, ratio: -5 }, { powers: { red: NaN }, physicalResistance: Infinity, armor: NaN }]) {
+    const result = impact(['red'], values);
+    assert.ok(Number.isFinite(result.total) && result.total >= 0);
+  }
+});
+
+test('nature traits distinguish perforation, dodge immunity and projectile transport', () => {
+  assert.ok(traits(['yellow']).includes('perforation'));
+  assert.ok(traits(['yellow']).includes('transpiercing'));
+  assert.ok(!traits(['blue']).includes('perforation'));
+  assert.ok(traits(['blue']).includes('undodgeable'));
+  assert.ok(traits(['blue']).includes('broken-spell'));
+  assert.ok(!traits(['blue'], { attackFunction: 'support' }).includes('broken-spell'));
+  assert.ok(!traits(['red', 'yellow']).includes('perforation'));
+  assert.ok(traits(['red'], { range: 'range' }).includes('physical-flight'));
+  assert.ok(traits(['blue'], { range: 'range' }).includes('magic-flight'));
+  assert.ok(traits(['red', 'blue'], { range: 'range' }).includes('hybrid-flight'));
+  assert.ok(traits(['red', 'blue', 'yellow'], { range: 'range' }).includes('prismatic-flight'));
+  assert.equal(traits([]).length, 0);
+});
+
+test('ranged blood fury retains lifesteal without melee-only effects', () => {
+  const active = traits(['red'], { range: 'range' });
+  assert.ok(active.includes('lifesteal'));
+  assert.ok(!active.includes('blood-melee'));
+  assert.ok(traits(['red']).includes('blood-melee'));
+});
+
+test('simulation is repeatable and never changes model, target inputs or settings', () => {
+  const model = api.resolveAttack(input(['red', 'blue', 'yellow']));
+  const values = { physicalResistance: 100, magicalResistance: 20, armor: 10, ruptureStacks: 2 };
+  const config = JSON.parse(JSON.stringify(api.DEFAULTS));
+  const before = JSON.stringify([model, values, config]);
+  const first = api.calculateImpact(model, values, config);
+  const second = api.calculateImpact(model, values, config);
+  close(first.total, second.total);
+  assert.equal(JSON.stringify([model, values, config]), before);
+});
+
+test('range scales only the physical and piercing primary components after armor', () => {
+  const model = api.resolveAttack(input(['red', 'blue', 'yellow'], { range: 'range' }));
+  const result = api.calculateImpact(model, { rangePercent: 50, dischargeNature: 'red' });
+  close(result.components[0].beforeResistance, 100 / 6);
+  close(result.components[1].beforeResistance, 100 / 3);
+  close(result.components[2].beforeResistance, 100 / 6);
+  close(result.components[3].beforeResistance, 150);
+  const red = api.resolveAttack(input(['red'], { range: 'range' }));
+  close(api.calculateImpact(red, { armor: 40, rangePercent: 50 }).total, 30);
+  close(impact(['red'], { rangePercent: 0 }).total, 100);
 });
