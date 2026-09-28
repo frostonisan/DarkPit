@@ -473,3 +473,13 @@ test('bonuses precede the simulator and help, with individual sockets collapsed'
   assert.match(html, /<details><summary>Chasses individuelles<\/summary>/);
   assert.doesNotMatch(html, /<details open/);
 });
+
+test('individual sockets and damage shares remain in the top composition area', () => {
+  const sockets = html.indexOf('id="essence-slots"');
+  const results = html.indexOf('<section class="results"');
+  const shares = html.indexOf('id="shares"');
+  assert.ok(sockets > html.indexOf('id="composition-counts"') && sockets < results);
+  assert.ok(shares > results && shares < html.indexOf('id="signature"'));
+  assert.equal(html.match(/id="essence-slots"/g).length, 1);
+  assert.equal(html.match(/id="shares"/g).length, 1);
+});
