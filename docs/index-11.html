@@ -188,7 +188,7 @@
           <p id="sim-empty" class="subtle" hidden></p>
           <div id="sim-controls">
             <div class="sim-fields powers" id="power-fields"></div>
-            <div class="resonance-readout" id="resonance-readout" hidden><button class="resonance-trigger" type="button" data-resonance-helper><img src="./media/assets/ui/picto-hybrid-damage.svg" alt="">Résonance</button><output id="resonance-status" aria-live="polite"></output></div>
+            <div class="resonance-readout" id="resonance-readout" hidden><button class="resonance-trigger" type="button" data-resonance-helper><img src="./media/assets/ui/picto-hybrid-damage.svg" alt=""><span id="resonance-label">Résonance</span></button><output id="resonance-status" aria-live="polite"></output></div>
             <div class="sim-fields">
               <label class="field"><span>Ratio de l'attaque</span><input id="sim-ratio" type="number" min="0" max="100" step="0.1" value="1"></label>
               <label class="field"><span>Résistance physique</span><input id="sim-res-physical" type="number" min="-1000000" max="1000000" step="1" value="100"></label>
@@ -529,7 +529,7 @@
       if (p.pure === 'blue') add('psionique', 'intellect', `Psionique ${p.level}`, `Bonus natif de puissance magique.${reinforcement}`);
       if (p.pure === 'yellow') {
         add('transpiercing', 'transpiercing-damage', `Transperçant ${p.level} · ${fmt(p.transpiercingDamagePercent)} % d’Agilité`, `Ajoute ${fmt(p.transpiercingDamagePercent)} % de l’Agilité du porteur aux dégâts bruts perçants, après le ratio d’attaque et avant armure et résistances. Bonus arrondi à l’inférieur. De 5 à 30 % selon la pureté jaune.`);
-        add('perforation', 'perforation', `Perforation · ${p.armorBypass} %${p.armorBypass === 100 ? ' · imblocable par l’armure' : ''}`, `${p.armorBypass} % des dégâts bruts contournent l’armure sans la consommer. 10 % par essence jaune en nature pure, jusqu’à 100 %. Le différentiel des résistances s’applique toujours.`);
+        add('perforation', 'perforation', `Perforation ${p.level} · ${p.armorBypass} %${p.armorBypass === 100 ? ' · imblocable par l’armure' : ''}`, `${p.armorBypass} % des dégâts bruts contournent l’armure sans la consommer. 10 % par essence jaune en nature pure, jusqu’à 100 %. Le différentiel des résistances s’applique toujours.`);
         add('transpiercing-recovery', 'recuperationTime', `Récupération perçante ${p.yellow} · −${fmt(p.recoveryBase)} % de base`, 'Niveau déterminé par les essences jaunes. Contribution d’Agilité inchangée ; le jaune pur ajoute 5 points à la base commune, soit de 10 à 15 %.');
       } else if (p.yellow) add('piercing-recovery', 'recuperationTime', `Récupération perçante ${p.yellow} · −${fmt(p.recoveryBase)} % de base`, 'Chaque essence jaune renforce la base de récupération, indépendamment du niveau de la combinaison. Contribution d’Agilité inchangée.');
       if (model.range === 'melee') add('short-range', 'melee', 'Courte portée', 'Bonus natif de vitesse d’exécution. Le clone suit la cible ; la mort du lanceur avant l’impact annule le coup.');
@@ -776,6 +776,7 @@
       $('range-step').hidden = !rangedPhysical;
       $('discharge-inputs').hidden = model.signature !== 'discharge';
       $('resonance-readout').hidden = !result.resonance?.applicable;
+      $('resonance-label').textContent = result.resonance?.applicable ? `Résonance ${result.resonance.level}` : 'Résonance';
       $('resonance-status').textContent = result.resonance?.applicable ? resonanceStatus(result.resonance) : '';
       $('sim-empty').hidden = result.applicable;
       $('sim-controls').hidden = !result.applicable;
@@ -797,18 +798,18 @@
         const rawFormula = component.secondary
           ? `Décharge ${result.discharge.level} : ${fmt(result.discharge.maxHP)} PV max × ${fmt(result.discharge.percent)} % = ${fmt(component.raw)} dégâts bruts`
           : component.resonancePower > 0
-            ? `(${fmt(component.power)} puissance × ${fmt(component.share * 100)} % de part + ${fmtFactor(component.resonancePower)} Résonance) × ${fmt(component.ratio)} ratio ≈ ${fmt(component.raw)} dégâts bruts`
+            ? `(${fmt(component.power)} puissance × ${fmt(component.share * 100)} % de part + ${fmtFactor(component.resonancePower)} Résonance ${result.resonance.level}) × ${fmt(component.ratio)} ratio ≈ ${fmt(component.raw)} dégâts bruts`
             : component.transpiercingBonus > 0
-              ? `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio + ${fmt(component.transpiercingBonus)} Transperçant (entier inférieur de ${fmt(result.agility)} Agilité × ${fmt(model.profile.transpiercingDamagePercent)} %) ≈ ${fmt(component.raw)} dégâts bruts`
+              ? `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio + ${fmt(component.transpiercingBonus)} Transperçant ${model.profile.level} (entier inférieur de ${fmt(result.agility)} Agilité × ${fmt(model.profile.transpiercingDamagePercent)} %) ≈ ${fmt(component.raw)} dégâts bruts`
             : `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio × ${fmt(component.share * 100)} % de part ≈ ${fmt(component.raw)} dégâts bruts`;
         const encaissement = component.color === 'yellow'
           ? `Écart : ${fmt(result.physical)} − ${fmt(result.magical)} = ${fmt(result.delta)}. ${modifier >= 0 ? '+' : ''}${fmt(modifier)} % de dégâts.`
           : `Résistance effective : ${fmt(component.color === 'red' ? result.physical : result.magical)}. Atténuation : ${fmt(Math.max(0, -modifier))} %.`;
         const distance = component.rangeFactor !== 1 ? `<p>Distance : ${fmt(component.afterArmor)} × ${fmt(component.rangeFactor * 100)} % = ${fmt(component.beforeResistance)} avant résistances.</p>` : '';
         const armor = component.bypassFraction > 0
-          ? `Perforation ${fmt(component.bypassFraction * 100)} % : ${fmt(component.bypassedRaw)} contournent l’armure, ${fmt(component.raw - component.bypassedRaw)} peuvent être absorbés. Après armure : ${fmt(component.afterArmor)}.`
+          ? `Perforation ${model.profile.level} · ${fmt(component.bypassFraction * 100)} % : ${fmt(component.bypassedRaw)} contournent l’armure, ${fmt(component.raw - component.bypassedRaw)} peuvent être absorbés. Après armure : ${fmt(component.afterArmor)}.`
           : `${fmt(component.afterArmor)} dégâts passent l’armure.`;
-        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? 'Décharge · ' : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${armor}</p>${distance}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
+        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? `Décharge ${result.discharge.level} · ` : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${armor}</p>${distance}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
       }).join('');
     }
     function update() {

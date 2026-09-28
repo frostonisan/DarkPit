@@ -486,7 +486,7 @@ test('transpiercing damage scales independently from armor perforation', () => {
     const perforation = effects.find(effect => effect.id === 'perforation');
     assert.match(damage.name, new RegExp(`Transperçant ${level} ·`));
     assert.match(damage.description, /Agilité/);
-    assert.match(perforation.name, new RegExp(`Perforation · ${level * 10} %`));
+    assert.match(perforation.name, new RegExp(`Perforation ${level} · ${level * 10} %`));
     assert.match(perforation.description, /contournent l’armure sans la consommer/);
     close(api.calculateImpact(model, {}).raw, 100);
   }
@@ -495,6 +495,21 @@ test('transpiercing damage scales independently from armor perforation', () => {
     assert.equal(model.profile.transpiercingDamagePercent, 0);
     assert.equal(model.profile.armorBypass, 0);
     assert.ok(!api.getNatureEffects(model).some(effect => ['transpiercing','perforation'].includes(effect.id)));
+  }
+});
+
+test('all purity-scaled nature bonuses display their actual level from one to ten', () => {
+  const effectsByColor = {
+    red: [['fracassante', 'Fracassante']],
+    blue: [['psionique', 'Psionique'], ['broken-spell', 'Surcharge magique']],
+    yellow: [['transpiercing', 'Transperçant'], ['perforation', 'Perforation'], ['transpiercing-recovery', 'Récupération perçante']]
+  };
+  for (const [color, names] of Object.entries(effectsByColor)) for (let level = 1; level <= 10; level++) {
+    const model = api.resolveAttack(input(Array(level).fill(color)));
+    const effects = api.getNatureEffects(model);
+    for (const [id, name] of names) {
+      assert.match(effects.find(effect => effect.id === id).name, new RegExp(`^${name} ${level}(?: ·|$)`));
+    }
   }
 });
 
