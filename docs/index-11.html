@@ -18,22 +18,34 @@
     button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: #29251c; }
     input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--gold); vertical-align: middle; }
     input[type="number"], select { width: 100%; padding: 5px 7px; }
-    .app { max-width: 1550px; margin: auto; padding: 24px; }
-    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .app { max-width: 1550px; margin: auto; padding: 18px 24px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
     h1, h2, h3, p { margin: 0; }
     h1 { color: var(--gold); font-size: 30px; font-weight: normal; }
     h2 { color: var(--gold); font-size: 19px; font-weight: normal; }
     h3 { font-size: 17px; font-weight: normal; }
     .eyebrow { font: 12px/1.5 system-ui, sans-serif; color: var(--muted); text-transform: uppercase; }
     .subtle { color: var(--muted); font-size: 13px; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0 18px; }
     .preset-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 3px; background: currentColor; }
     .red { color: var(--red); } .blue { color: var(--blue); } .yellow { color: var(--yellow); }
-    .layout { display: grid; grid-template-columns: minmax(340px, .8fr) minmax(0, 1.7fr); gap: 28px; align-items: start; }
+    .layout { display: grid; grid-template-columns: minmax(270px, .65fr) minmax(0, 2fr); gap: 24px; align-items: start; }
     .builder, .results { min-width: 0; }
     .builder { border-right: 1px solid var(--line); padding-right: 24px; }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
     .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .composition-counts { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .composition-counts .field > span { display: flex; gap: 4px; align-items: center; color: inherit; }
+    .composition-counts img { width: 24px; height: 24px; object-fit: contain; }
+    .composition-counts .blue img { filter: hue-rotate(175deg); }
+    .composition-counts input { text-align: center; font-variant-numeric: tabular-nums; }
+    .bonus-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; }
+    .bonus-grid .section { padding-top: 14px; border-bottom: 0; }
+    .bonus-grid .section-head { margin-bottom: 0; flex-wrap: wrap; gap: 3px; }
+    .quick-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+    #simulator { margin-top: 20px; border-top: 1px solid var(--line); }
+    .advanced-settings { margin-top: 24px; }
+    .help-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
     .field { display: grid; align-content: start; gap: 5px; min-width: 0; }
     .field > span, .field > label { font-size: 13px; color: var(--muted); }
     .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
@@ -54,8 +66,8 @@
     .source-name img { width: 20px; height: 20px; object-fit: contain; }
     .source-help { margin-top: 10px; color: var(--muted); font-size: 13px; }
     .section { padding: 16px 0; border-bottom: 1px solid var(--line); }
-    .section:first-child { padding-top: 0; }
-    .summary-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .results > .section:first-child { padding-top: 0; }
+    .summary-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 12px; margin-bottom: 10px; }
     .nature { font-size: 25px; color: var(--text); line-height: 1.2; margin: 5px 0; }
     .profile { color: var(--muted); font-size: 13px; }
     .purity { text-align: right; }
@@ -65,7 +77,7 @@
     .bar-track { height: 6px; background: #24272b; }
     .bar-fill { height: 100%; background: currentColor; transition: width .15s ease; }
     .bar-share { text-align: right; font-variant-numeric: tabular-nums; }
-    .signature { padding: 14px 0 14px 14px; border-left: 3px solid var(--gold); margin-top: 14px; }
+    .signature { padding: 8px 0 8px 14px; border-left: 3px solid var(--gold); margin-top: 14px; }
     .signature h3 { color: var(--gold); font-size: 22px; }
     .signature p { margin-top: 6px; }
     .signature[data-signature="rupture"] { border-color: var(--red); }
@@ -76,6 +88,8 @@
     .effect-list img { width: 24px; height: 24px; object-fit: contain; }
     .effect-list strong { font-weight: normal; color: var(--text); }
     .effect-list small { display: block; color: var(--muted); font-size: 13px; }
+    #umbra-results { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+    #umbra-results li > div { min-width: 0; overflow-wrap: anywhere; }
     .sim-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
     .sim-fields.powers { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
     .sim-step { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0; color: var(--muted); font-size: 13px; }
@@ -102,8 +116,8 @@
     .rules li { margin: 6px 0; }
     footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 14px; margin-top: 28px; }
     [hidden] { display: none !important; }
-    @media (max-width: 1050px) { .layout { grid-template-columns: minmax(290px,.85fr) minmax(0,1.3fr); gap: 18px; } .builder { padding-right: 16px; } }
-    @media (max-width: 780px) { .app { padding: 16px; } .topbar { align-items: start; flex-direction: column; gap: 12px; } .layout { grid-template-columns: 1fr; } .builder { padding-right: 0; border-right: 0; } .results { border-top: 1px solid var(--line); padding-top: 20px; } }
+    @media (max-width: 1050px) { .layout { grid-template-columns: minmax(250px,.75fr) minmax(0,1.6fr); gap: 18px; } .builder { padding-right: 16px; } .bonus-grid { grid-template-columns: 1fr; gap: 0; } }
+    @media (max-width: 780px) { .app { padding: 12px 16px; } .topbar { align-items: start; flex-direction: column; gap: 8px; } .layout { grid-template-columns: 1fr; } .builder { padding-right: 0; border-right: 0; } .results { border-top: 1px solid var(--line); padding-top: 14px; } .help-columns { grid-template-columns: 1fr; gap: 0; } }
     @media (max-width: 560px) { .sim-fields { grid-template-columns: 1fr 1fr; } .sim-totals { gap: 8px; } .sim-totals output { font-size: 19px; } }
     @media (max-width: 380px) { .slot-grid { grid-template-columns: 1fr; } .summary-grid { grid-template-columns: 1fr; } .purity { text-align: left; } }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -113,57 +127,34 @@
   <main class="app">
     <header class="topbar">
       <div><div class="eyebrow">Constructeur d'essences · Version 11</div><h1>Essences d'attaque</h1></div>
-      <span class="subtle">Puissance · Dégâts bruts · Encaissement</span>
+      <nav class="quick-links" aria-label="Sections"><a href="#result-title">Bonus actifs</a><a href="#simulator">Simulateur</a><a href="#aides">Aides &amp; réglages</a></nav>
     </header>
     <div class="toolbar" id="presets" aria-label="Compositions d'essences"></div>
     <div class="layout">
       <section class="builder" aria-labelledby="builder-title">
         <div class="section-head"><h2 id="builder-title">Composition</h2><span id="slot-count" class="subtle" aria-live="polite"></span></div>
+        <div class="composition-counts" id="composition-counts" aria-label="Nombre d'essences par couleur"></div>
         <div class="controls">
           <label class="field"><span>Portée</span><select id="attack-range"><option value="melee">Mêlée</option><option value="range">Distance</option></select></label>
           <label class="field"><span>Fonction de l'impact</span><select id="attack-function"><option value="offense">Offensif direct</option><option value="support">Soin / aide</option><option value="summon">Invocation</option></select></label>
         </div>
-        <div class="slot-grid" id="essence-slots" aria-label="Chasses d'essences"></div>
-        <details>
-          <summary>Sources de l'entité</summary>
-          <table class="source-table">
-            <thead><tr><th>Umbra / contribution</th><th title="Umbra apprise, soumise aux essences">Appris</th><th title="Seule la contribution de l'objet est conservée">Stuff</th><th title="Bonus direct indépendant de l'Umbra, du même type">Autonome</th></tr></thead>
-            <tbody id="sources"></tbody>
-          </table>
-          <p class="source-help">Chaque case cochée représente une contribution positive possédée. Le stuff n'accorde que sa propre contribution ; une stat autonome ne débloque pas l'Umbra qui peut aussi la procurer.</p>
-        </details>
-        <details>
-          <summary>Équilibrage des signatures <span class="subtle">· valeurs d'essai</span></summary>
-          <div id="signature-settings"></div>
-        </details>
-        <details>
-          <summary>Règles retenues dans cette variante</summary>
-          <ul class="rules">
-            <li>Pure : tous les paliers offensifs appris de sa couleur. Mixte : palier accessible = nombre d'essences de cette couleur, jusqu'à 3.</li>
-            <li>Stuff et stats autonomes restent distincts des Umbras apprises. Défense et utilitaire ne sont pas filtrés.</li>
-            <li>Sans essence : aucun bonus d'attaque. Les essences supplémentaires pures ajoutent 3 points à la base des bonus de pureté, au maximum 15, sans augmenter leurs ratios d'attributs.</li>
-            <li>Une seule signature de combinaison. La prismatique ne cumule pas Rupture et Dissolution.</li>
-            <li>Rupture réduit la résistance physique : les dégâts physiques augmentent, tandis que l'avantage perçant diminue. Dissolution réduit la résistance magique et favorise aussi le perçant.</li>
-            <li>Les pénétrations s'appliquent avant le différentiel perçant. Les résistances effectives ne descendent pas sous zéro, comme dans le calcul courant du jeu.</li>
-            <li>Hypothèse d'essai : chaque impact offensif direct réussi ajoute un stack après ses dégâts, y compris un second impact d'ambidextrie ou un coup absorbé par l'armure. Pas de stack sur un échec, un soin, une invocation, un DOT ou un dégât secondaire.</li>
-            <li>Hypothèse d'essai : compteur commun à la cible, durée entière rafraîchie à chaque application. Tous les stacks expirent ensemble ; pas de modification permanente des statistiques de base.</li>
-            <li>Décharge : PV max à l'impact, tirage équiprobable physique / magique / perçant, défenses habituelles. Aucun bonus de pureté accordé par ce tirage, ni proc récursif, ni point de maîtrise supplémentaire.</li>
-          </ul>
-        </details>
       </section>
       <section class="results" aria-labelledby="result-title">
         <div class="section">
           <div class="summary-grid">
             <div><div class="eyebrow" id="result-title">Nature effective</div><div class="nature" id="effective-nature"></div><div class="profile" id="profile"></div></div>
-            <div class="purity"><span class="eyebrow">Pureté</span><strong id="purity-level"></strong><span class="subtle" id="purity-bonus"></span></div>
+            <div class="purity"><span class="eyebrow" id="level-label">Pureté</span><strong id="purity-level"></strong><span class="subtle" id="purity-bonus"></span></div>
           </div>
-          <div class="bars" id="shares" aria-label="Répartition des essences"></div>
           <div class="signature" id="signature" aria-live="polite"></div>
         </div>
+        <div class="bonus-grid">
+          <section class="section" id="nature-section"><h2>Bonus &amp; propriétés actifs</h2><ul class="effect-list" id="nature-effects"></ul></section>
+          <section class="section" id="access-section"><div class="section-head"><h2>Contributions offensives</h2><span class="subtle" id="access-count"></span></div><ul class="effect-list" id="umbra-results"></ul></section>
+        </div>
+      </section>
+    </div>
         <section class="section" id="simulator" aria-labelledby="sim-title">
           <h2 id="sim-title">Simulation d'un impact</h2>
-          <p class="source-help">Puissances finales : bonus d'essences, d'Umbras et d'équipement déjà inclus dans les valeurs saisies. Un impact réussi, sans critique ni proc défensif.</p>
-          <div class="sim-step"><span>Puissance × ratio × part de nature</span><span>Dégâts bruts</span><span>Armure, sauf perforation</span><span id="range-step" hidden>Ratio distance</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
           <p id="sim-empty" class="subtle" hidden></p>
           <div id="sim-controls">
             <div class="sim-fields powers" id="power-fields"></div>
@@ -180,28 +171,42 @@
                 <label class="field"><span>Pénétration magique (%)</span><input id="sim-pen-magical" type="number" min="0" max="100" step="1" value="0"></label>
                 <label class="field"><span>Armure actuelle</span><input id="sim-armor" type="number" min="0" max="1000000000" step="1" value="0"></label>
               </div>
-              <p class="source-help">Pourcentages finaux de pénétration, pas les points de stat. L'armure absorbe les dégâts bruts avant les résistances ; les dégâts transperçants la traversent.</p>
+              <p class="source-help">Pourcentages finaux de pénétration, pas les points de stat. L'armure absorbe les dégâts bruts ; seule la fraction transperçante (10 % par niveau de pureté jaune) la contourne.</p>
             </details>
             <details>
               <summary>Affaiblissements déjà présents sur la cible</summary>
               <div class="sim-fields">
                 <label class="field"><span>Stacks de Rupture</span><input id="sim-rupture" type="number" min="0" max="5" step="1" value="0"></label>
+                <label class="field"><span>Niveau de la Rupture présente</span><input id="sim-rupture-level" type="number" min="1" max="5" step="1" value="1"></label>
                 <label class="field"><span>Stacks de Dissolution</span><input id="sim-dissolution" type="number" min="0" max="5" step="1" value="0"></label>
+                <label class="field"><span>Niveau de la Dissolution présente</span><input id="sim-dissolution-level" type="number" min="1" max="5" step="1" value="1"></label>
               </div>
-              <p class="source-help">Effets de toute l'armée, quelle que soit la nature de cette attaque. Le nouveau stack d'un impact s'applique après ses dégâts, au prochain impact.</p>
+              <p class="source-help">Effets de toute l'armée : leur niveau est indépendant de l'attaque simulée. Le nouveau stack d'un impact s'applique après ses dégâts, au prochain impact.</p>
             </details>
             <div class="sim-fields" id="discharge-inputs" hidden>
               <label class="field"><span>Nature tirée pour la Décharge</span><select id="sim-discharge-nature"><option value="red">Physique</option><option value="blue">Magique</option><option value="yellow">Perçante</option></select></label>
+              <label class="field"><span>PV maximum de la cible</span><input id="discharge-maxHP" type="number" min="1" max="1000000000" step="1" value="10000"></label>
               <p class="subtle">Une chance sur trois par nature. Le calcul montre le tirage choisi, pas une moyenne.</p>
             </div>
           </div>
           <div id="sim-results" aria-live="polite">
             <div class="sim-totals"><div><span>Dégâts bruts</span><output id="sim-raw"></output></div><div><span>Armure absorbée</span><output id="sim-absorbed"></output></div><div class="total"><span>Total dégâts HP</span><output id="sim-total"></output></div></div>
+            <details><summary>Détail du calcul</summary>
+            <div class="sim-step"><span>Puissance × ratio × part de nature</span><span>Dégâts bruts</span><span>Armure, sauf fraction transperçante</span><span id="range-step" hidden>Ratio distance</span><span>Résistances effectives</span><span>Dégâts HP</span></div>
             <p class="subtle" id="effective-resistances"></p>
             <div id="damage-components"></div>
             <p class="source-help">Calcul en précision complète ; seuls les nombres affichés sont arrondis. Les pertes de composantes pendant le vol et les déclenchements aléatoires ne sont pas simulés.</p>
+            </details>
           </div>
-          <details open>
+          <p class="source-help">Puissances finales : les bonus de puissance sont déjà inclus dans les valeurs saisies. Un impact réussi, sans critique ni proc défensif. La perforation et le niveau de Décharge s'appliquent automatiquement.</p>
+        </section>
+    <section class="advanced-settings" id="aides" aria-labelledby="aides-title">
+      <h2 id="aides-title">Aides &amp; réglages</h2>
+      <div class="help-columns">
+        <div>
+          <details><summary>Chasses individuelles</summary><div class="slot-grid" id="essence-slots" aria-label="Chasses d'essences"></div></details>
+          <details><summary>Répartition des dégâts</summary><div class="bars" id="shares" aria-label="Répartition des essences"></div></details>
+          <details>
             <summary>Les trois encaissements</summary>
             <div class="encaissement-rules">
               <div><strong class="red">Atténuation physique</strong>La résistance physique amortit la violence des coups.<br><span class="formula">Dégâts × 70 / (70 + résistance physique effective)</span></div>
@@ -209,11 +214,36 @@
               <div><strong class="yellow">Exploitation des résistances</strong>Le perçant retourne la résistance physique contre la cible. Une résistance magique supérieure le réduit.<br><span class="formula">Écart = résistance physique effective − résistance magique effective.<br>Multiplicateur = 1 + A × écart / (100 + |écart|).<br>A = 1,2 si l'écart est positif ; A = 0,9 s'il est négatif.</span><br>À 0 / 200 : −60 %. À 500 / 0 : ×2. À égalité : aucun changement. Limites approchées : ×0,1 et ×2,2.</div>
             </div>
           </details>
-        </section>
-        <section class="section" id="nature-section"><h2>Spécificités actives de l'attaque</h2><ul class="effect-list" id="nature-effects"></ul></section>
-        <section class="section" id="access-section"><div class="section-head"><h2>Contributions offensives actives</h2><span class="subtle" id="access-count"></span></div><ul class="effect-list" id="umbra-results"></ul></section>
-      </section>
-    </div>
+          <details>
+            <summary>Niveaux, essences &amp; signatures</summary>
+            <ul class="rules">
+              <li>Pureté = nombre d'essences actives d'une couleur unique. Niveau mixte = nombre de combinaisons complètes : minimum des quantités de chaque couleur présente. Plafonds : pureté 10, duo 5, prismatique 3.</li>
+              <li>Fracassante et Psionique : +15 × (pureté − 1) / 9 points de base, de 0 à +15. Les ratios d'attributs ne changent pas.</li>
+              <li>Transperçante : 10 % des dégâts bruts contournent l'armure par niveau, jusqu'à 100 %. Le reste peut être absorbé. Récupération transperçante : base de 10 à 15 %, contribution d'Agilité inchangée.</li>
+              <li>Rupture et Dissolution : réduction par stack = 5 + (niveau − 1), cinq stacks, huit secondes par défaut. Décharge : 1,5 + 0,5 × (niveau − 1) % des PV max.</li>
+              <li>Une seule signature : la prismatique ne cumule pas Rupture et Dissolution. L'hybride rouge / bleu ne gagne pas de nouveau bonus chiffré. Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
+              <li>Umbras : en pureté, tous les paliers offensifs appris de sa couleur ; en mixte, palier accessible = nombre d'essences de la couleur, jusqu'à 3. Les niveaux de signature n'augmentent pas les Umbras.</li>
+              <li>Stuff et stats autonomes restent distincts des Umbras apprises. Défense et utilitaire ne sont pas filtrés. Sans essence : aucun bonus d'attaque.</li>
+              <li>Rupture favorise le physique, mais diminue l'avantage perçant. Dissolution favorise le magique et le perçant. Pénétrations avant le différentiel ; résistances effectives au minimum à zéro.</li>
+              <li>Chaque impact offensif direct réussi ajoute un stack après ses dégâts, y compris ambidextrie et coup absorbé. Aucun stack sur un échec, soin, invocation, DOT ou dégât secondaire.</li>
+              <li>Stacks communs à la cible, pas par lanceur ; durée entière rafraîchie à chaque application, expiration simultanée. Le simulateur lit les affaiblissements déjà présents, sans rejouer leur historique.</li>
+              <li>Décharge : PV max à l'impact, un tirage équiprobable physique / magique / perçant, défenses habituelles. Aucun bonus de pureté, proc récursif ou point de maîtrise supplémentaire.</li>
+            </ul>
+          </details>
+        </div>
+        <div>
+          <details>
+            <summary>Sources de l'entité</summary>
+            <table class="source-table">
+              <thead><tr><th>Umbra / contribution</th><th title="Umbra apprise, soumise aux essences">Appris</th><th title="Seule la contribution de l'objet est conservée">Stuff</th><th title="Bonus direct indépendant de l'Umbra, du même type">Autonome</th></tr></thead>
+              <tbody id="sources"></tbody>
+            </table>
+            <p class="source-help">Chaque case cochée représente une contribution positive possédée. Le stuff n'accorde que sa propre contribution ; une stat autonome ne débloque pas l'Umbra qui peut aussi la procurer.</p>
+          </details>
+          <details><summary>Équilibrage des signatures</summary><div id="signature-settings"></div></details>
+        </div>
+      </div>
+    </section>
     <footer>V11 expérimentale, isolée du jeu et des sauvegardes. Courbe perçante validée : K = 100, amplification = 1,2, réduction = 0,9. Valeurs des signatures encore réglables pour l'équilibrage.</footer>
   </main>
   <script>
@@ -245,9 +275,9 @@
       { id: 'ambidextry', name: 'Ambidextrie', color: 'yellow', tier: 3, icon: 'ambidextry', direct: 'Chance ambidextrie', description: 'Second impact si une contribution effective existe. L’agilité seule ne débloque pas cet effet.' }
     ];
     const DEFAULTS = {
-      rupture: { duration: 8, cap: 5, amount: 5 },
-      dissolution: { duration: 8, cap: 5, amount: 5 },
-      discharge: { percent: 1.5, maxHP: 10000 }
+      rupture: { duration: 8, cap: 5, amount: 5, perLevel: 1 },
+      dissolution: { duration: 8, cap: 5, amount: 5, perLevel: 1 },
+      discharge: { percent: 1.5, perLevel: .5, maxHP: 10000 }
     };
     const DAMAGE_RULES = { resistanceConstant: 70, piercingK: 100, piercingIncrease: 1.2, piercingDecrease: .9 };
     const ENCAISSEMENT = { red: 'Atténuation physique', blue: 'Atténuation mentale', yellow: 'Exploitation des résistances' };
@@ -259,18 +289,24 @@
       return integer ? Math.floor(number) : number;
     }
     function resolveProfile(slots) {
-      const profile = { red: 0, blue: 0, yellow: 0, total: 0, pure: null, level: 0, bonus: 0 };
+      const profile = { red: 0, blue: 0, yellow: 0, total: 0, pure: null, level: 0, bonus: 0, combinationLevel: 0, maxLevel: 0, armorBypass: 0, recoveryBase: 0 };
       for (const slot of slots.slice(0,10)) {
         if (!slot.active || !Object.hasOwn(COLORS, slot.color)) continue;
         profile[slot.color] += 1;
         profile.total += 1;
       }
       const colors = Object.keys(COLORS).filter(color => profile[color] > 0);
+      profile.combinationLevel = colors.length ? Math.min(...colors.map(color => profile[color])) : 0;
+      profile.maxLevel = colors.length ? Math.floor(10 / colors.length) : 0;
       if (colors.length === 1) {
         profile.pure = colors[0];
         profile.level = profile.total;
-        profile.bonus = Math.min(15, (profile.level - 1) * 3);
+        if (profile.pure === 'yellow') {
+          profile.armorBypass = profile.level * 10;
+          profile.recoveryBase = 10 + (profile.level - 1) * 5 / 9;
+        } else profile.bonus = (profile.level - 1) * 15 / 9;
       }
+      if (!profile.pure && profile.yellow) profile.recoveryBase = 5;
       return profile;
     }
     function natureName(p) {
@@ -298,8 +334,20 @@
         return { ...umbra, directLabel: umbra.direct, compatible, learned, equipment, direct, available: learned || equipment || direct,
           missing: Math.max(0, umbra.tier - profile[umbra.color]) };
       });
+      const signature = signatureFor(profile, input.attackFunction);
       return { profile, access, range: input.range, attackFunction: input.attackFunction,
-        signature: signatureFor(profile, input.attackFunction) };
+        signature, signatureLevel: signature === 'none' ? 0 : profile.combinationLevel };
+    }
+    function signatureStats(key, level, config = DEFAULTS) {
+      const base = config[key];
+      const defaults = DEFAULTS[key];
+      const rank = bounded(level, 1, 1, key === 'discharge' ? 3 : 5, true);
+      const perLevel = bounded(base.perLevel, defaults.perLevel, 0, 100);
+      if (key === 'discharge') return { level: rank,
+        percent: Math.min(100, bounded(base.percent, defaults.percent, 0, 100) + (rank - 1) * perLevel),
+        maxHP: bounded(base.maxHP, defaults.maxHP, 1, 1e9) };
+      return { level: rank, amount: bounded(base.amount, defaults.amount, 0, 10000) + (rank - 1) * perLevel,
+        cap: bounded(base.cap, defaults.cap, 1, 100, true), duration: bounded(base.duration, defaults.duration, .1, 120) };
     }
     function stackProjection(config, stacks) {
       const count = bounded(stacks, 0, 0, config.cap, true);
@@ -321,8 +369,8 @@
       const p = model.profile;
       if (!p.total || model.attackFunction !== 'offense') return { applicable: false, components: [], raw: 0, absorbed: 0, total: 0 };
       const ratio = bounded(values.ratio, 1, 0, 100);
-      const rupture = stackProjection(config.rupture, values.ruptureStacks);
-      const dissolution = stackProjection(config.dissolution, values.dissolutionStacks);
+      const rupture = stackProjection(signatureStats('rupture', values.ruptureLevel, config), values.ruptureStacks);
+      const dissolution = stackProjection(signatureStats('dissolution', values.dissolutionLevel, config), values.dissolutionStacks);
       const physicalBase = bounded(values.physicalResistance, 0, -1e6, 1e6);
       const magicalBase = bounded(values.magicalResistance, 0, -1e6, 1e6);
       const physicalPen = bounded(values.physicalPen, 0, 0, 100);
@@ -333,27 +381,29 @@
       const components = Object.keys(COLORS).filter(color => p[color] > 0).map(color => {
         const power = bounded(values.powers?.[color], 100, 0, 1e9);
         const share = p[color] / p.total;
-        return { color, power, ratio, share, raw: power * ratio * share, secondary: false, bypass: p.pure === 'yellow' };
+        return { color, power, ratio, share, raw: power * ratio * share, secondary: false, bypassFraction: p.armorBypass / 100 };
       });
+      const discharge = model.signature === 'discharge' ? signatureStats('discharge', model.signatureLevel, config) : null;
       if (model.signature === 'discharge') {
         const color = Object.hasOwn(COLORS, values.dischargeNature) ? values.dischargeNature : 'red';
-        const raw = bounded(config.discharge.maxHP, 10000, 1, 1e9) * bounded(config.discharge.percent, 1.5, 0, 100) / 100;
+        const raw = dischargeProjection(discharge);
         // The secondary typed damage neither gains purity nor triggers another signature.
-        components.push({ color, raw, secondary: true, bypass: false });
+        components.push({ color, raw, secondary: true, bypassFraction: 0 });
       }
-      const blockable = components.filter(component => !component.bypass).reduce((sum, component) => sum + component.raw, 0);
+      const blockable = components.reduce((sum, component) => sum + component.raw * (1 - component.bypassFraction), 0);
       const absorbed = Math.min(armor, blockable);
       const armorFactor = blockable > 0 ? (blockable - absorbed) / blockable : 1;
       const rangeFactor = model.range === 'range' ? bounded(values.rangePercent, 100, 0, 100) / 100 : 1;
       for (const component of components) {
-        component.afterArmor = component.raw * (component.bypass ? 1 : armorFactor);
+        component.bypassedRaw = component.raw * component.bypassFraction;
+        component.afterArmor = component.bypassedRaw + (component.raw - component.bypassedRaw) * armorFactor;
         component.rangeFactor = !component.secondary && component.color !== 'blue' ? rangeFactor : 1;
         component.beforeResistance = component.afterArmor * component.rangeFactor;
         component.multiplier = damageMultiplier(component.color, physical, magical);
         component.damage = component.beforeResistance * component.multiplier;
       }
       return { applicable: true, components, physicalBase, magicalBase, physicalPen, magicalPen, physical, magical,
-        delta: physical - magical, rupture, dissolution, armor, absorbed, armorAfter: armor - absorbed,
+        delta: physical - magical, rupture, dissolution, discharge, armor, absorbed, armorAfter: armor - absorbed,
         raw: components.reduce((sum, component) => sum + component.raw, 0),
         total: components.reduce((sum, component) => sum + component.damage, 0) };
     }
@@ -362,13 +412,14 @@
       if (!p.total) return [];
       const effects = [];
       const add = (id, icon, name, description) => effects.push({ id, icon, name, description });
-      const reinforcement = p.bonus ? ` Base renforcée de +${p.bonus} points, ratios d'attributs inchangés.` : '';
+      const reinforcement = p.bonus ? ` Base renforcée de +${fmt(p.bonus)} points, ratios d'attributs inchangés.` : '';
       if (p.pure === 'red') add('fracassante', 'brutality', `Fracassante ${p.level}`, `Bonus natif de puissance physique.${reinforcement}`);
       if (p.pure === 'blue') add('psionique', 'intellect', `Psionique ${p.level}`, `Bonus natif de puissance magique.${reinforcement}`);
       if (p.pure === 'yellow') {
-        add('transpiercing', 'transpiercing-damage', `Transpercement ${p.level}`, `Dégâts perçants renforcés et récupération transperçante accélérée.${reinforcement}`);
-        add('perforation', 'perforation', "Perforation · imblocable par l'armure", "Traverse l'armure sans la consommer. Le différentiel des résistances s'applique toujours ; les autres défenses ne sont pas ignorées. Une Décharge perçante n'acquiert pas cette propriété.");
-      } else if (p.yellow) add('piercing-recovery', 'recuperationTime', 'Récupération perçante', 'Réduction de récupération liée à la composante perçante.');
+        add('transpiercing', 'transpiercing-damage', `Transperçante ${p.level} · ${p.armorBypass} %`, `${p.armorBypass} % des dégâts bruts contournent l'armure. Bonus natif de dégâts lié à l'Agilité conservé.`);
+        add('perforation', 'perforation', p.armorBypass === 100 ? "Perforation intégrale · imblocable par l'armure" : `Perforation partielle · ${p.armorBypass} %`, 'La fraction traversante ne consomme pas l’armure. Le différentiel des résistances s’applique toujours.');
+        add('transpiercing-recovery', 'recuperationTime', `Récupération transperçante · −${fmt(p.recoveryBase)} % de base`, 'Contribution d’Agilité inchangée ; base de 10 à 15 % selon la pureté.');
+      } else if (p.yellow) add('piercing-recovery', 'recuperationTime', 'Récupération perçante · −5 % de base', 'Contribution d’Agilité conservée ; pas de progression avec le niveau de signature.');
       if (model.range === 'melee') add('short-range', 'melee', 'Courte portée', 'Bonus natif de vitesse d’exécution. Le clone suit la cible ; la mort du lanceur avant l’impact annule le coup.');
       else {
         add('range', 'range', 'Distance', 'Récupération dès le départ du projectile, sans attendre son impact. Aucun jet aléatoire de ratage.');
@@ -395,6 +446,7 @@
     const emptySources = () => Object.fromEntries(UMBRAS.map(umbra => [umbra.id, { learned: true, equipment: false, direct: false }]));
     function createControls() {
       $('presets').innerHTML = Object.entries(PRESETS).map(([key,preset]) => `<button type="button" data-preset="${key}" aria-pressed="false">${preset.colors.map(color => `<span class="preset-dot ${color}" aria-hidden="true"></span>`).join('')} ${preset.label}</button>`).join('');
+      $('composition-counts').innerHTML = Object.entries(COLORS).map(([color, data]) => `<label class="field ${color}"><span><img src="./media/assets/misc/${data.sprite}" alt="">${data.label}</span><input type="number" id="count-${color}" data-count-color="${color}" min="0" max="10" step="1" value="0" aria-label="Nombre d'essences ${data.label.toLowerCase()}"></label>`).join('');
       for (let i = 0; i < 10; i++) {
         const slot = document.createElement('div');
         slot.className = 'slot';
@@ -406,9 +458,10 @@
       $('signature-settings').innerHTML = ['rupture','dissolution'].map(key => `<h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'}</h3><div class="settings-grid">
         <label class="field"><span>Durée X (s)</span><input id="${key}-duration" type="number" min="0.1" max="120" step="0.1" value="${DEFAULTS[key].duration}"></label>
         <label class="field"><span>Stacks max Y</span><input id="${key}-cap" type="number" min="1" max="100" step="1" value="${DEFAULTS[key].cap}"></label>
-        <label class="field"><span>Réduction W</span><input id="${key}-amount" type="number" min="0" max="10000" step="1" value="${DEFAULTS[key].amount}"></label>
+        <label class="field"><span>Réduction / stack au niveau 1</span><input id="${key}-amount" type="number" min="0" max="10000" step="1" value="${DEFAULTS[key].amount}"></label>
+        <label class="field"><span>Gain / niveau</span><input id="${key}-per-level" type="number" min="0" max="100" step="0.1" value="${DEFAULTS[key].perLevel}"></label>
       </div><div class="projection"><output id="${key}-projection"></output></div>`).join('') + `
-      <h3>Décharge convergente</h3><div class="settings-grid"><label class="field"><span>PV max (%)</span><input id="discharge-percent" type="number" min="0" max="100" step="0.1" value="1.5"></label><label class="field wide"><span>PV maximum de la cible</span><input id="discharge-maxHP" type="number" min="1" max="1000000000" step="1" value="10000"></label></div><div class="projection"><output id="discharge-projection"></output></div>`;
+      <h3>Décharge convergente</h3><div class="settings-grid"><label class="field"><span>PV max (%) au niveau 1</span><input id="discharge-percent" type="number" min="0" max="100" step="0.1" value="1.5"></label><label class="field"><span>Gain / niveau (points)</span><input id="discharge-per-level" type="number" min="0" max="100" step="0.1" value="0.5"></label></div><div class="projection"><output id="discharge-projection"></output></div>`;
     }
     function readState() {
       const sources = emptySources();
@@ -421,33 +474,50 @@
       for (const key of ['rupture','dissolution']) config[key] = {
         duration: bounded($(`${key}-duration`).value, DEFAULTS[key].duration, .1, 120),
         cap: bounded($(`${key}-cap`).value, DEFAULTS[key].cap, 1, 100, true),
-        amount: bounded($(`${key}-amount`).value, DEFAULTS[key].amount, 0, 10000)
+        amount: bounded($(`${key}-amount`).value, DEFAULTS[key].amount, 0, 10000),
+        perLevel: bounded($(`${key}-per-level`).value, DEFAULTS[key].perLevel, 0, 100)
       };
-      config.discharge = { percent: bounded($('discharge-percent').value, 1.5, 0, 100), maxHP: bounded($('discharge-maxHP').value, 10000, 1, 1e9, true) };
+      config.discharge = { percent: bounded($('discharge-percent').value, 1.5, 0, 100),
+        perLevel: bounded($('discharge-per-level').value, .5, 0, 100), maxHP: bounded($('discharge-maxHP').value, 10000, 1, 1e9, true) };
       return config;
     }
     function readImpactValues() {
       return { powers: Object.fromEntries(Object.keys(COLORS).map(color => [color, $(`sim-power-${color}`).value])),
         ratio: $('sim-ratio').value, rangePercent: $('sim-range-percent').value, physicalResistance: $('sim-res-physical').value, magicalResistance: $('sim-res-magical').value,
         physicalPen: $('sim-pen-physical').value, magicalPen: $('sim-pen-magical').value, armor: $('sim-armor').value,
-        ruptureStacks: $('sim-rupture').value, dissolutionStacks: $('sim-dissolution').value, dischargeNature: $('sim-discharge-nature').value };
+        ruptureStacks: $('sim-rupture').value, ruptureLevel: $('sim-rupture-level').value,
+        dissolutionStacks: $('sim-dissolution').value, dissolutionLevel: $('sim-dissolution-level').value,
+        dischargeNature: $('sim-discharge-nature').value };
     }
-    function applyPreset(key) {
-      const colors = PRESETS[key].colors;
+    function setComposition(colors) {
       Array.from(slotsRoot.children).forEach((slot,i) => {
         slot.querySelector('select').value = colors[i] || '';
         slot.querySelector('input').checked = Boolean(colors[i]);
       });
       update();
     }
+    function applyPreset(key) { setComposition(PRESETS[key].colors); }
+    function changeColorCount(input) {
+      const p = resolveProfile(readState().slots);
+      const color = input.dataset.countColor;
+      p[color] = bounded(input.value, 0, 0, 10 - p.total + p[color], true);
+      setComposition(Object.keys(COLORS).flatMap(key => Array(p[key]).fill(key)));
+    }
     function renderSummary(model, input) {
       const p = model.profile;
       $('slot-count').textContent = `${p.total}/10 essences actives`;
       $('effective-nature').textContent = natureName(p);
       $('profile').textContent = Object.keys(COLORS).map(color => `${COLORS[color].label} ${p[color]}`).join(' / ');
-      $('purity-level').textContent = p.pure ? `Niveau ${p.level}` : p.total ? 'Mixte' : 'Aucune';
-      $('purity-bonus').textContent = p.pure ? `+${p.bonus} points de base` : 'Pas de bonus de pureté';
-      $('shares').innerHTML = Object.entries(COLORS).map(([color,data]) => {
+      $('level-label').textContent = p.pure ? 'Pureté' : 'Combinaison';
+      $('purity-level').textContent = p.total ? `Niveau ${p.combinationLevel} / ${p.maxLevel}` : 'Aucune';
+      $('purity-bonus').textContent = p.pure === 'yellow' ? `${p.armorBypass} % traversent l’armure`
+        : p.pure ? `+${fmt(p.bonus)} points de base` : p.total ? `${p.combinationLevel} combinaison(s) complète(s)` : '';
+      for (const color of Object.keys(COLORS)) {
+        const count = $(`count-${color}`);
+        count.value = p[color];
+        count.max = 10 - p.total + p[color];
+      }
+      $('shares').innerHTML = Object.entries(COLORS).filter(([color]) => p[color]).map(([color,data]) => {
         const percent = p.total ? p[color]/p.total*100 : 0;
         return `<div class="bar-row ${color}"><span>${data.damage}</span><div class="bar-track"><div class="bar-fill" style="width:${percent}%"></div></div><span class="bar-share">${fmt(percent)} %</span></div>`;
       }).join('');
@@ -473,19 +543,23 @@
       if (key === 'none') {
         root.replaceChildren();
       } else if (key === 'discharge') {
-        root.innerHTML = `<div class="eyebrow">Signature de combinaison</div><h3>Décharge convergente</h3><p>+${fmt(config.discharge.percent)} % des PV max de la cible en dégâts bruts à chaque impact réussi.</p><p class="subtle">Physique, magique ou perçant : 1 chance sur 3. Les dégâts hybrides normaux sont conservés. Pas de Rupture ni de Dissolution en supplément.</p>`;
+        const cfg = signatureStats(key, model.signatureLevel, config);
+        root.innerHTML = `<h3>Décharge convergente ${cfg.level}</h3><p>+${fmt(cfg.percent)} % des PV max en dégâts bruts par impact réussi.</p><p class="subtle">Physique, magique ou perçant : 1 chance sur 3, puis défenses habituelles.</p>`;
       } else {
-        const cfg = config[key];
+        const cfg = signatureStats(key, model.signatureLevel, config);
         const defense = key === 'dissolution' ? 'résistance magique' : 'résistance physique';
-        root.innerHTML = `<div class="eyebrow">Signature de combinaison</div><h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'}</h3><p>−${fmt(cfg.amount)} ${defense} par stack, jusqu'à ${cfg.cap} stacks : −${fmt(cfg.amount * cfg.cap)} au maximum.</p><p class="subtle">Durée ${fmt(cfg.duration)} s, rafraîchie à chaque impact. Réduction commune à la cible, utile à tout le groupe. Tous les stacks expirent ensemble.</p>`;
+        root.innerHTML = `<h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'} ${cfg.level}</h3><p>−${fmt(cfg.amount)} ${defense} / stack · ${cfg.cap} stacks · −${fmt(cfg.amount * cfg.cap)} au maximum.</p><p class="subtle">Durée ${fmt(cfg.duration)} s, rafraîchie à chaque impact. Réduction commune à la cible.</p>`;
       }
       for (const effect of ['rupture','dissolution']) {
         const input = $(`sim-${effect}`);
         input.max = config[effect].cap;
         if (Number(input.value) > config[effect].cap) input.value = config[effect].cap;
-        $(`${effect}-projection`).textContent = `Réduction maximale : ${fmt(config[effect].cap * config[effect].amount)} · ${fmt(config[effect].duration)} s`;
+        $(`${effect}-projection`).textContent = [1,2,3,4,5].map(level => {
+          const cfg = signatureStats(effect, level, config);
+          return `Niv. ${level} : −${fmt(cfg.amount)} / stack (−${fmt(cfg.amount * cfg.cap)} max)`;
+        }).join(' · ');
       }
-      $('discharge-projection').textContent = `${fmt(config.discharge.maxHP)} × ${fmt(config.discharge.percent)} % = ${fmt(dischargeProjection(config.discharge))} dégâts avant défenses`;
+      $('discharge-projection').textContent = [1,2,3].map(level => `Niv. ${level} : ${fmt(signatureStats('discharge', level, config).percent)} % des PV max`).join(' · ');
     }
     function renderNature(model) {
       const effects = getNatureEffects(model);
@@ -493,17 +567,16 @@
       $('nature-effects').innerHTML = effects.map(effect => `<li data-effect="${effect.id}">${icon(effect.icon)}<div><strong>${effect.name}</strong><small>${effect.description}</small></div></li>`).join('');
     }
     function renderAccess(model) {
-      const p = model.profile;
       const active = model.access.filter(entry => entry.available);
       $('access-section').hidden = !active.length;
       $('access-count').textContent = `${active.length} contribution(s)`;
       $('umbra-results').innerHTML = active.map(entry => {
         const origins = [];
-        if (entry.learned) origins.push(p.pure ? 'Umbra apprise · essence pure' : `Umbra apprise · ${p[entry.color]} essence(s) ${COLORS[entry.color].attribute}`);
-        if (entry.equipment) origins.push('contribution du stuff');
-        if (entry.direct) origins.push(`stat autonome : ${entry.directLabel}`);
+        if (entry.learned) origins.push('Appris');
+        if (entry.equipment) origins.push('Stuff');
+        if (entry.direct) origins.push('Autonome');
         const name = entry.direct && !entry.learned && !entry.equipment ? entry.directLabel : entry.name;
-        return `<li data-umbra="${entry.id}">${icon(entry.icon)}<div><strong>${name}</strong><div class="source-origin">${origins.join(' + ')}</div><small>${entry.description}</small></div></li>`;
+        return `<li data-umbra="${entry.id}" title="${entry.description}">${icon(entry.icon)}<div><strong>${name}</strong><div class="source-origin">${origins.join(' + ')}</div></div></li>`;
       }).join('');
     }
     function renderImpact(model, config) {
@@ -531,13 +604,16 @@
       $('damage-components').innerHTML = result.components.map(component => {
         const modifier = (component.multiplier - 1) * 100;
         const rawFormula = component.secondary
-          ? `${fmt(config.discharge.maxHP)} PV max × ${fmt(config.discharge.percent)} % = ${fmt(component.raw)} dégâts bruts`
+          ? `Décharge ${result.discharge.level} : ${fmt(result.discharge.maxHP)} PV max × ${fmt(result.discharge.percent)} % = ${fmt(component.raw)} dégâts bruts`
           : `${fmt(component.power)} puissance × ${fmt(component.ratio)} ratio × ${fmt(component.share * 100)} % de part ≈ ${fmt(component.raw)} dégâts bruts`;
         const encaissement = component.color === 'yellow'
           ? `Écart : ${fmt(result.physical)} − ${fmt(result.magical)} = ${fmt(result.delta)}. ${modifier >= 0 ? '+' : ''}${fmt(modifier)} % de dégâts.`
           : `Résistance effective : ${fmt(component.color === 'red' ? result.physical : result.magical)}. Atténuation : ${fmt(Math.max(0, -modifier))} %.`;
         const distance = component.rangeFactor !== 1 ? `<p>Distance : ${fmt(component.afterArmor)} × ${fmt(component.rangeFactor * 100)} % = ${fmt(component.beforeResistance)} avant résistances.</p>` : '';
-        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? 'Décharge · ' : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${component.bypass ? 'Perforation : armure ignorée.' : `${fmt(component.afterArmor)} dégâts passent l’armure.`}</p>${distance}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
+        const armor = component.bypassFraction > 0
+          ? `Perforation ${fmt(component.bypassFraction * 100)} % : ${fmt(component.bypassedRaw)} contournent l’armure, ${fmt(component.raw - component.bypassedRaw)} peuvent être absorbés. Après armure : ${fmt(component.afterArmor)}.`
+          : `${fmt(component.afterArmor)} dégâts passent l’armure.`;
+        return `<article class="damage-component" data-damage-color="${component.color}"><header><strong class="${component.color}">${component.secondary ? 'Décharge · ' : ''}${COLORS[component.color].damage}</strong><strong>${fmt(component.damage)} HP</strong></header><p class="formula">${rawFormula}</p><p>${armor}</p>${distance}<p><span class="${component.color}">${ENCAISSEMENT[component.color]}</span> · ${encaissement}</p><p class="formula">${fmt(component.beforeResistance)} × ${fmtFactor(component.multiplier)} ≈ ${fmt(component.damage)} dégâts HP</p></article>`;
       }).join('');
     }
     function update() {
@@ -556,6 +632,7 @@
       if (button) applyPreset(button.dataset.preset);
     });
     document.addEventListener('change', event => {
+      if (event.target.matches('[data-count-color]')) { changeColorCount(event.target); return; }
       const slot = event.target.closest('.slot');
       if (slot && event.target.matches('.slot-select')) slot.querySelector('input').checked = Boolean(event.target.value);
       if (event.target.type === 'number') {
@@ -565,7 +642,8 @@
       update();
     });
     document.addEventListener('input', event => {
-      if (event.target.type === 'number') update();
+      if (event.target.matches('[data-count-color]')) changeColorCount(event.target);
+      else if (event.target.type === 'number') update();
     });
     applyPreset('rupture');
   </script>

@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, '../docs/index-11.html'), 'utf
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 new vm.Script(script);
 const context = vm.createContext({ Intl });
-vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects };', context);
+vm.runInContext(script.split('// DOM bindings:')[0] + '\nglobalThis.api = { UMBRAS, DEFAULTS, resolveProfile, resolveAttack, natureName, signatureFor, signatureStats, stackProjection, dischargeProjection, bounded, calculateImpact, piercingMultiplier, damageMultiplier, getNatureEffects };', context);
 const { api } = context;
 function input(colors, extras = {}) {
   return { slots: colors.map(color => ({ color, active: true })), range: 'melee', attackFunction: 'offense',
@@ -93,12 +93,14 @@ test('no essence has no offensive bonus even with external sources', () => {
   assert.equal(model.signature, 'none');
 });
 
-test('pure strengthening caps at 15 points and disappears for mixtures', () => {
-  for (let count = 1; count <= 10; count++) {
-    const model = api.resolveAttack(input(Array(count).fill('red')));
-    assert.equal(model.profile.bonus, Math.min(15, (count - 1) * 3));
+test('physical and magical purity strengthen progressively to 15 points at level ten', () => {
+  for (const color of ['red', 'blue']) for (let count = 1; count <= 10; count++) {
+    const model = api.resolveAttack(input(Array(count).fill(color)));
+    close(model.profile.bonus, (count - 1) * 15 / 9);
+    if (count < 10) assert.ok(model.profile.bonus < 15);
   }
   assert.equal(api.resolveAttack(input(['red', 'red', 'blue'])).profile.bonus, 0);
+  assert.equal(api.resolveAttack(input(Array(10).fill('yellow'))).profile.bonus, 0);
 });
 
 test('disabled, empty and invalid sockets do not contribute; ten is the hard limit', () => {
@@ -243,17 +245,17 @@ test('armor absorbs raw damage before resistance for ordinary attacks', () => {
   close(fullyBlocked.armorAfter, 100);
 });
 
-test('pure piercing ignores armor but still undergoes its defensive differential', () => {
-  const result = impact(['yellow'], { armor: 1000, physicalResistance: 0, magicalResistance: 200 });
+test('pure piercing at level ten ignores armor but still undergoes its defensive differential', () => {
+  const result = impact(Array(10).fill('yellow'), { armor: 1000, physicalResistance: 0, magicalResistance: 200 });
   close(result.absorbed, 0);
   close(result.armorAfter, 1000);
   close(result.total, 40);
-  assert.equal(result.components[0].bypass, true);
+  assert.equal(result.components[0].bypassFraction, 1);
 });
 
 test('mixed piercing is blockable and armor is distributed proportionally', () => {
   const result = impact(['red', 'yellow'], { armor: 50 });
-  assert.ok(result.components.every(component => !component.bypass));
+  assert.ok(result.components.every(component => component.bypassFraction === 0));
   close(result.components[0].afterArmor, 25);
   close(result.components[1].afterArmor, 25);
   close(result.total, 50);
@@ -266,7 +268,7 @@ test('prismatic discharge is one separate typed component, not a recursive proc 
     const proc = result.components.find(component => component.secondary);
     assert.equal(proc.color, dischargeNature);
     close(proc.raw, 150);
-    assert.equal(proc.bypass, false);
+    assert.equal(proc.bypassFraction, 0);
     close(result.total, 250);
   }
   close(impact(['red', 'blue', 'yellow'], { dischargeNature: 'yellow', armor: 1000 }).total, 0);
@@ -337,4 +339,137 @@ test('range scales only the physical and piercing primary components after armor
   const red = api.resolveAttack(input(['red'], { range: 'range' }));
   close(api.calculateImpact(red, { armor: 40, rangePercent: 50 }).total, 30);
   close(impact(['red'], { rangePercent: 0 }).total, 100);
+});
+
+test('all compositions count complete combinations with limits 10, 5 and 3', () => {
+  for (let red = 0; red <= 10; red++) for (let blue = 0; blue <= 10 - red; blue++) for (let yellow = 0; yellow <= 10 - red - blue; yellow++) {
+    const counts = { red, blue, yellow };
+    const colors = Object.keys(counts).flatMap(color => Array(counts[color]).fill(color));
+    const model = api.resolveAttack(input(colors));
+    const nonzero = Object.values(counts).filter(Boolean);
+    assert.equal(model.profile.combinationLevel, nonzero.length ? Math.min(...nonzero) : 0);
+    assert.equal(model.profile.maxLevel, nonzero.length ? Math.floor(10 / nonzero.length) : 0);
+    assert.equal(model.signatureLevel, model.signature === 'none' ? 0 : Math.min(...nonzero));
+    assert.ok(model.profile.combinationLevel <= model.profile.maxLevel);
+  }
+});
+
+test('extra unmatched essences do not increase signature level or create extra signatures', () => {
+  for (const [colors, signature, level] of [
+    [['red', 'red', 'yellow', 'yellow'], 'rupture', 2],
+    [['red', 'red', 'red', 'yellow'], 'rupture', 1],
+    [['blue', 'blue', 'blue', 'yellow', 'yellow'], 'dissolution', 2],
+    [['red', 'blue', 'yellow', 'red', 'blue', 'yellow', 'red'], 'discharge', 2]
+  ]) {
+    const model = api.resolveAttack(input(colors));
+    assert.equal(model.signature, signature);
+    assert.equal(model.signatureLevel, level);
+    assert.equal(model.profile.bonus, 0);
+    assert.equal(model.profile.armorBypass, 0);
+  }
+});
+
+test('debuff levels scale strength only, not stack capacity or duration', () => {
+  for (const key of ['rupture', 'dissolution']) for (let level = 1; level <= 5; level++) {
+    const stats = api.signatureStats(key, level);
+    assert.equal(stats.level, level);
+    close(stats.amount, 4 + level);
+    assert.equal(stats.cap, 5);
+    assert.equal(stats.duration, 8);
+    close(api.stackProjection(stats, 5).reduction, (4 + level) * 5);
+  }
+});
+
+test('signature settings remain configurable and have one scaling path', () => {
+  const config = JSON.parse(JSON.stringify(api.DEFAULTS));
+  config.rupture = { amount: 8, perLevel: 2, duration: 9, cap: 4 };
+  config.discharge = { percent: 2, perLevel: .25, maxHP: 20000 };
+  const rupture = api.signatureStats('rupture', 3, config);
+  close(rupture.amount, 12);
+  close(api.stackProjection(rupture, 10).reduction, 48);
+  assert.equal(rupture.duration, 9);
+  const result = impact(['red', 'blue', 'yellow', 'red', 'blue', 'yellow'], {}, config);
+  close(result.discharge.percent, 2.25);
+  close(result.components.at(-1).raw, 450);
+  close(result.total, 550);
+});
+
+test('prismatic levels add one scaled discharge, never extra discharges or primary power', () => {
+  for (let level = 1; level <= 3; level++) {
+    const colors = Array.from({ length: level }, () => ['red', 'blue', 'yellow']).flat();
+    for (const dischargeNature of ['red', 'blue', 'yellow']) {
+      const result = impact(colors, { dischargeNature });
+      close(result.discharge.percent, 1.5 + (level - 1) * .5);
+      close(result.components.at(-1).raw, 150 + (level - 1) * 50);
+      close(result.total, 250 + (level - 1) * 50);
+      assert.equal(result.components.filter(component => component.secondary).length, 1);
+      assert.equal(result.components.length, 4);
+      assert.ok(result.components.every(component => component.bypassFraction === 0));
+    }
+  }
+});
+
+test('target debuff levels remain independent from the attacking combination', () => {
+  const values = { physicalResistance: 100, magicalResistance: 100, ruptureStacks: 5, dissolutionStacks: 3, ruptureLevel: 5, dissolutionLevel: 3 };
+  const result = impact(['red'], values);
+  close(result.physical, 55);
+  close(result.magical, 79);
+  close(result.total, 100 * 70 / 125);
+  const highRupture = impact([...Array(5).fill('red'), ...Array(5).fill('yellow')], { physicalResistance: 100, ruptureStacks: 5 });
+  close(highRupture.physical, 75);
+});
+
+test('partial perforation bypasses 10 percent per purity level without consuming that armor', () => {
+  for (let level = 1; level <= 10; level++) {
+    const result = impact(Array(level).fill('yellow'), { armor: 1000, physicalResistance: 50, magicalResistance: 50 });
+    close(result.components[0].bypassFraction, level / 10);
+    close(result.components[0].bypassedRaw, 10 * level);
+    close(result.absorbed, 100 - 10 * level);
+    close(result.armorAfter, 900 + 10 * level);
+    close(result.total, 10 * level);
+  }
+});
+
+test('partial perforation and armor conserve raw damage before resistance and distance', () => {
+  for (const armor of [0, 20, 60, 1000]) {
+    const result = impact(Array(4).fill('yellow'), { armor });
+    close(result.total, 100 - Math.min(60, armor));
+    close(result.absorbed + result.total, result.raw);
+  }
+  const model = api.resolveAttack(input(Array(4).fill('yellow'), { range: 'range' }));
+  const result = api.calculateImpact(model, { armor: 1000, rangePercent: 50, physicalResistance: 0, magicalResistance: 200 });
+  close(result.absorbed, 60);
+  close(result.total, 8);
+});
+
+test('yellow recovery base grows from ten to fifteen without changing mixed recovery', () => {
+  for (let level = 1; level <= 10; level++) {
+    const model = api.resolveAttack(input(Array(level).fill('yellow')));
+    close(model.profile.recoveryBase, 10 + (level - 1) * 5 / 9);
+    const effects = api.getNatureEffects(model);
+    const perforation = effects.find(effect => effect.id === 'perforation');
+    assert.equal(perforation.name.includes('imblocable'), level === 10);
+    assert.ok(effects.some(effect => effect.id === 'transpiercing-recovery'));
+  }
+  assert.equal(api.resolveAttack(input(['red', ...Array(9).fill('yellow')])).profile.recoveryBase, 5);
+});
+
+test('signature levels are bounded and disabled colors cannot preserve a stale signature', () => {
+  assert.equal(api.signatureStats('rupture', 999).level, 5);
+  assert.equal(api.signatureStats('discharge', 999).level, 3);
+  assert.equal(api.signatureStats('discharge', -5).level, 1);
+  const state = input(['red', 'blue', 'yellow', 'red', 'blue', 'yellow']);
+  state.slots.filter(slot => slot.color === 'red').forEach(slot => { slot.active = false; });
+  const model = api.resolveAttack(state);
+  assert.equal(model.signature, 'dissolution');
+  assert.equal(model.signatureLevel, 2);
+  assert.equal(api.calculateImpact(model, {}).discharge, null);
+});
+
+test('bonuses precede the simulator and help, with individual sockets collapsed', () => {
+  assert.ok(html.indexOf('id="nature-section"') < html.indexOf('id="simulator"'));
+  assert.ok(html.indexOf('id="access-section"') < html.indexOf('id="simulator"'));
+  assert.ok(html.indexOf('id="simulator"') < html.indexOf('id="aides"'));
+  assert.match(html, /<details><summary>Chasses individuelles<\/summary>/);
+  assert.doesNotMatch(html, /<details open/);
 });
