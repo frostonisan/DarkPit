@@ -110,9 +110,15 @@ test('disabled, empty and invalid sockets do not contribute; ten is the hard lim
   assert.equal(profile.pure, 'blue');
 });
 
-test('support and summons cannot trigger offensive signatures', () => {
-  for (const attackFunction of ['support', 'summon']) for (const colors of [['red', 'yellow'], ['blue', 'yellow'], ['red', 'blue', 'yellow']]) {
-    assert.equal(api.resolveAttack(input(colors, { attackFunction })).signature, 'none');
+test('support signatures mirror the offensive signatures without becoming damage signatures', () => {
+  for (const [colors, signature] of [
+    [['red', 'yellow'], 'consolidation'],
+    [['blue', 'yellow'], 'cohesion'],
+    [['red', 'blue'], 'resonance'],
+    [['red', 'blue', 'yellow'], 'effusion']
+  ]) assert.equal(api.resolveAttack(input(colors, { attackFunction: 'support' })).signature, signature);
+  for (const colors of [['red', 'yellow'], ['blue', 'yellow'], ['red', 'blue', 'yellow']]) {
+    assert.equal(api.resolveAttack(input(colors, { attackFunction: 'summon' })).signature, 'none');
   }
 });
 
@@ -730,14 +736,14 @@ test('zero or negative powers never grant resonance and small bonuses can floor 
   assert.match(api.resonanceStatus(tiny), /gain nul/);
 });
 
-test('resonance belongs only to offensive red-blue compositions, not prism or support', () => {
+test('resonance remains shared by offensive and support red-blue compositions, not prism or summons', () => {
   for (const colors of [[], ['red'], ['blue'], ['yellow'], ['red','yellow'], ['blue','yellow'], ['red','blue','yellow']]) {
     assert.equal(api.resonanceBonus(api.resolveAttack(input(colors)), {}).bonus, 0);
   }
   for (const attackFunction of ['support','summon']) {
     const model = api.resolveAttack(input(['red','blue'], {attackFunction}));
-    assert.equal(model.signature, 'none');
-    assert.equal(api.resonanceBonus(model, {}).applicable, false);
+    assert.equal(model.signature, attackFunction === 'support' ? 'resonance' : 'none');
+    assert.equal(api.resonanceBonus(model, {}).applicable, attackFunction === 'support');
     assert.equal(api.calculateImpact(model, {}).applicable, false);
   }
 });

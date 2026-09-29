@@ -265,7 +265,8 @@
               <li>Surcharge magique : le risque diminue avec la pureté bleue, de 0 % de réduction au niveau 1 à 50 % au niveau 10, linéairement. Réduction relative : risque final = risque initial × (1 − réduction / 100). Cela ne réduit pas les dégâts du retour de magie. Le simulateur ne réalise pas ce jet.</li>
               <li>Un tir n'effectue plus de jet de réussite, mais reste soumis à l'esquive de la cible à l'impact. Le guidage n'accorde aucune immunité à l'esquive. Quitter la case visée peut aussi éviter un projectile balistique.</li>
               <li>Rupture et Dissolution : réduction par stack = 5 + (niveau − 1), cinq stacks, huit secondes par défaut. Décharge : 1,5 + 0,5 × (niveau − 1) % des PV max.</li>
-              <li>Une seule signature : rouge / bleu donne Résonance, rouge / jaune Rupture, bleu / jaune Dissolution, les trois couleurs Décharge. La prismatique ne cumule aucune autre signature. Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
+              <li>En soutien, rouge / jaune donne Consolidation (+ résistance physique), bleu / jaune Cohésion (+ résistance magique), rouge / bleu conserve Résonance, et les trois couleurs donnent Effusion convergente (soin en pourcentage des PV max). Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
+              <li>Une seule signature offensive : rouge / bleu donne Résonance, rouge / jaune Rupture, bleu / jaune Dissolution, les trois couleurs Décharge. La prismatique ne cumule aucune autre signature.</li>
               <li>Résonance : proximité = min(PP, PM) / max(PP, PM). Puissances strictement positives, avant Résonance et sans arrondi. Aucun bonus sous 30 % ; +5 % à ce seuil, puis croissance linéaire vers un plafond de 30 à 40 % selon le niveau 1 à 5. À égalité exacte : +10 points, soit +40 à +50 %.</li>
               <li>Dans la V11, la puissance hybride de référence est PP × part rouge + PM × part bleue. Le bonus vaut cette base × taux de Résonance, arrondi à l'entier inférieur une seule fois. Il est réparti selon les essences à la production, puis suit le ratio d'attaque, l'armure et la distance. À l'encaissement, le total hybride restant est traité moitié physique et moitié magique. Aucun impact ni déclenchement supplémentaire ; jamais de Résonance sur son propre bonus.</li>
               <li>Umbras : en pureté, tous les paliers offensifs appris de sa couleur ; en mixte, palier accessible = nombre d'essences de la couleur, jusqu'à 3. Les niveaux de signature n'augmentent pas les Umbras.</li>
@@ -392,10 +393,10 @@
       };
     }
     function signatureFor(p, attackFunction) {
-      if (attackFunction !== 'offense' || p.pure || !p.total) return 'none';
-      if (p.red && p.blue && p.yellow) return 'discharge';
-      if (p.red && p.yellow) return 'rupture';
-      if (p.blue && p.yellow) return 'dissolution';
+      if (p.pure || !p.total || !['offense', 'support'].includes(attackFunction)) return 'none';
+      if (p.red && p.blue && p.yellow) return attackFunction === 'support' ? 'effusion' : 'discharge';
+      if (p.red && p.yellow) return attackFunction === 'support' ? 'consolidation' : 'rupture';
+      if (p.blue && p.yellow) return attackFunction === 'support' ? 'cohesion' : 'dissolution';
       if (p.red && p.blue) return 'resonance';
       return 'none';
     }
@@ -415,11 +416,12 @@
         signature, signatureLevel: signature === 'none' ? 0 : profile.combinationLevel };
     }
     function signatureStats(key, level, config = DEFAULTS) {
-      const base = config[key];
-      const defaults = DEFAULTS[key];
-      const rank = bounded(level, 1, 1, key === 'discharge' ? 3 : 5, true);
+      const baseKey = { consolidation: 'rupture', cohesion: 'dissolution', effusion: 'discharge' }[key] || key;
+      const base = config[baseKey];
+      const defaults = DEFAULTS[baseKey];
+      const rank = bounded(level, 1, 1, baseKey === 'discharge' ? 3 : 5, true);
       const perLevel = bounded(base.perLevel, defaults.perLevel, 0, 100);
-      if (key === 'discharge') return { level: rank,
+      if (baseKey === 'discharge') return { level: rank,
         percent: Math.min(100, bounded(base.percent, defaults.percent, 0, 100) + (rank - 1) * perLevel),
         maxHP: bounded(base.maxHP, defaults.maxHP, 1, 1e9) };
       return { level: rank, amount: bounded(base.amount, defaults.amount, 0, 10000) + (rank - 1) * perLevel,
@@ -774,13 +776,20 @@
       let markup = '';
       if (!root.hidden && key === 'resonance') {
         markup = `<h3><button type="button" class="resonance-trigger" data-resonance-helper>${icon('hybrid-damage')}Résonance ${resonance.perfect ? 'parfaite ' : ''}${resonance.level}</button></h3><p>+${fmt(resonance.bonus)} puissance hybride · taux +${fmtFactor(resonance.percent)} %.</p><p class="subtle">Proximité ${resonanceProximityLabel(resonance)} · bonus arrondi à l'inférieur avant répartition.</p>`;
-      } else if (!root.hidden && key === 'discharge') {
+      } else if (!root.hidden && (key === 'discharge' || key === 'effusion')) {
         const cfg = signatureStats(key, model.signatureLevel, config);
-        markup = `<h3>Décharge convergente ${cfg.level}</h3><p>+${fmt(cfg.percent)} % des PV max en dégâts bruts par impact réussi.</p><p class="subtle">Physique, magique ou perçant : 1 chance sur 3, puis défenses habituelles.</p>`;
+        markup = key === 'effusion'
+          ? `<h3>Effusion convergente ${cfg.level}</h3><p>Soigne la cible de ${fmt(cfg.percent)} % de ses PV maximum par soutien réussi.</p><p class="subtle">Le pourcentage progresse avec le niveau de la signature.</p>`
+          : `<h3>Décharge convergente ${cfg.level}</h3><p>+${fmt(cfg.percent)} % des PV max en dégâts bruts par impact réussi.</p><p class="subtle">Physique, magique ou perçant : 1 chance sur 3, puis défenses habituelles.</p>`;
       } else if (!root.hidden) {
         const cfg = signatureStats(key, model.signatureLevel, config);
-        const defense = key === 'dissolution' ? 'résistance magique' : 'résistance physique';
-        markup = `<h3>${key === 'rupture' ? 'Rupture' : 'Dissolution'} ${cfg.level}</h3><p>−${fmt(cfg.amount)} ${defense} / stack · ${cfg.cap} stacks · −${fmt(cfg.amount * cfg.cap)} au maximum.</p><p class="subtle">Durée ${fmt(cfg.duration)} s, rafraîchie à chaque impact. Réduction commune à la cible.</p>`;
+        const supportSignature = key === 'consolidation' || key === 'cohesion';
+        const name = key === 'rupture' ? 'Rupture' : key === 'dissolution' ? 'Dissolution' : key === 'consolidation' ? 'Consolidation' : 'Cohésion';
+        const defense = key === 'dissolution' || key === 'cohesion' ? 'résistance magique' : 'résistance physique';
+        const sign = supportSignature ? '+' : '−';
+        const maximum = supportSignature ? `+${fmt(cfg.amount * cfg.cap)}` : `−${fmt(cfg.amount * cfg.cap)}`;
+        const action = supportSignature ? 'Renforcement' : 'Réduction';
+        markup = `<h3>${name} ${cfg.level}</h3><p>${sign}${fmt(cfg.amount)} ${defense} / stack · ${cfg.cap} stacks · ${maximum} au maximum.</p><p class="subtle">Durée ${fmt(cfg.duration)} s, rafraîchie à chaque impact. ${action} commun à la cible.</p>`;
       }
       if (signatureMarkup !== markup) {
         root.innerHTML = markup;
