@@ -242,13 +242,13 @@
           <details>
             <summary>Modes d'encaissement &amp; résistances</summary>
             <div class="encaissement-rules">
-              <div><strong>Encaissement physique</strong>Les dégâts arrivent entièrement sous forme physique. La résistance physique les atténue après le traitement de l'armure.</div>
-              <div><strong>Encaissement magique</strong>Les dégâts arrivent entièrement sous forme magique. La résistance magique les atténue après le traitement de l'armure.</div>
-              <div><strong>Encaissement perçant</strong>Les dégâts arrivent entièrement sous forme perçante. Ils ne suivent pas l'atténuation physique ou magique : leur multiplicateur dépend de l'écart entre résistance physique et résistance magique.</div>
-              <div><strong>Encaissement hybride 50/50</strong>Les dégâts rouges et bleus sont produits selon les essences, puis encaissés en deux parts égales : 50 % physiques et 50 % magiques. Chaque moitié rencontre sa résistance propre.</div>
-              <div><strong>Encaissement physique + perçant</strong>La part physique et la part perçante restent séparées. La première rencontre la résistance physique ; la seconde exploite le différentiel des résistances.</div>
-              <div><strong>Encaissement magique + perçant</strong>La part magique et la part perçante restent séparées. La première rencontre la résistance magique ; la seconde exploite le différentiel des résistances.</div>
-              <div><strong>Encaissement prismatique</strong>Les trois composantes restent séparées et conservent leur traitement propre : physique, magique et perçant. La Décharge convergente est un dégât secondaire, encaissé séparément selon la nature tirée.</div>
+              <div><strong>Encaissement physique</strong>L'attaque est encaissée par la cible selon sa résistance physique.</div>
+              <div><strong>Encaissement magique</strong>L'attaque est encaissée par la cible selon sa résistance magique.</div>
+              <div><strong>Encaissement perçant</strong>L'attaque retourne la force de l'adversaire contre lui. Elle exploite sa résistance physique.</div>
+              <div><strong>Encaissement hybride 50/50</strong>Les dégâts de l'attaque sont encaissés par la cible comme 50 % physiques et 50 % magiques.</div>
+              <div><strong>Encaissement physique + perçant</strong>L'attaque est encaissée comme étant physique et perçante, en proportion des essences de l'attaquant. Exemple : 1 essence rouge et 2 essences jaunes = 33 % physique et 67 % perçant.</div>
+              <div><strong>Encaissement magique + perçant</strong>L'attaque est encaissée comme étant magique et perçante, en proportion des essences de l'attaquant. Exemple : 1 essence bleue et 2 essences jaunes = 33 % magique et 67 % perçant.</div>
+              <div><strong>Encaissement prismatique</strong>L'attaque est encaissée comme étant physique, magique et perçante, en proportion des essences de l'attaquant. Chaque nature conserve son propre traitement.</div>
               <div><strong class="red">Atténuation physique</strong>La résistance physique amortit la violence des coups.<br><span class="formula">Dégâts × 70 / (70 + résistance physique effective)</span></div>
               <div><strong class="blue">Atténuation mentale</strong>La résistance magique protège l'esprit des chocs magiques.<br><span class="formula">Dégâts × 70 / (70 + résistance magique effective)</span></div>
               <div><strong class="yellow">Exploitation des résistances</strong>Le perçant retourne la résistance physique contre la cible. Une résistance magique supérieure le réduit.<br><span class="formula">Écart = résistance physique effective − résistance magique effective.<br>Multiplicateur = 1 + A × écart / (100 + |écart|).<br>A = 1,2 si l'écart est positif ; A = 0,9 s'il est négatif.</span><br>À 0 / 200 : −60 %. À 500 / 0 : ×2. À égalité : aucun changement. Limites approchées : ×0,1 et ×2,2.</div>
@@ -372,21 +372,23 @@
     function intakeMode(profile) {
       if (!profile.total) return { key: 'none', name: 'Aucun encaissement', rule: '' };
       if (profile.pure) return {
-        red: { key: 'physical', name: 'Encaissement physique', rule: 'Les dégâts sont encaissés comme des dégâts physiques : la résistance physique les atténue.' },
-        blue: { key: 'magical', name: 'Encaissement magique', rule: 'Les dégâts sont encaissés comme des dégâts magiques : la résistance magique les atténue.' },
-        yellow: { key: 'piercing', name: 'Encaissement perçant', rule: 'Les dégâts sont encaissés comme des dégâts perçants : le différentiel résistance physique − résistance magique les augmente ou les réduit.' }
+        red: { key: 'physical', name: 'Encaissement physique', rule: "L'attaque est encaissée par la cible selon sa résistance physique." },
+        blue: { key: 'magical', name: 'Encaissement magique', rule: "L'attaque est encaissée par la cible selon sa résistance magique." },
+        yellow: { key: 'piercing', name: 'Encaissement perçant', rule: "L'attaque retourne la force de l'adversaire contre lui. Elle exploite sa résistance physique." }
       }[profile.pure];
       if (!profile.yellow) return {
         key: 'hybrid',
         name: 'Encaissement hybride 50/50',
-        rule: 'Les dégâts hybrides sont séparés en deux parts égales à l’encaissement : 50 % physiques et 50 % magiques. Chaque part rencontre sa résistance propre ; la proportion rouge/bleu ne change pas cette règle finale.'
+        rule: "Les dégâts de l'attaque sont encaissés par la cible comme 50 % physiques et 50 % magiques."
       };
       const prism = profile.red && profile.blue;
       const proportions = Object.entries(COLORS).filter(([color]) => profile[color]).map(([color, data]) => `${fmt(profile[color] / profile.total * 100)} % ${data.damage.toLowerCase()}`).join(' / ');
       return {
         key: prism ? 'prismatic' : profile.red ? 'physical-piercing' : 'magical-piercing',
         name: prism ? 'Encaissement prismatique' : profile.red ? 'Encaissement physique + perçant' : 'Encaissement magique + perçant',
-        rule: `Répartition produite par les essences : ${proportions}. Chaque composante conserve sa nature jusqu’à l’encaissement : le physique ou le magique est atténué par sa résistance, le perçant exploite le différentiel des deux. Il n’y a pas de redistribution en 50/50.${prism ? ' La Décharge convergente est encaissée séparément selon la nature tirée.' : ''}`
+        rule: prism
+          ? `L'attaque est encaissée comme étant physique, magique et perçante, en proportion des essences de l'attaquant : ${proportions}. Chaque nature conserve son propre traitement.${' La Décharge convergente est encaissée séparément selon la nature tirée.'}`
+          : `L'attaque est encaissée comme étant ${profile.red ? 'physique et perçante' : 'magique et perçante'}, en proportion des essences de l'attaquant : ${proportions}.`
       };
     }
     function signatureFor(p, attackFunction) {
