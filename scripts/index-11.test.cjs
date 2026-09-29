@@ -117,9 +117,8 @@ test('support signatures mirror the offensive signatures without becoming damage
     [['red', 'blue'], 'resonance'],
     [['red', 'blue', 'yellow'], 'effusion']
   ]) assert.equal(api.resolveAttack(input(colors, { attackFunction: 'support' })).signature, signature);
-  for (const colors of [['red', 'yellow'], ['blue', 'yellow'], ['red', 'blue', 'yellow']]) {
-    assert.equal(api.resolveAttack(input(colors, { attackFunction: 'summon' })).signature, 'none');
-  }
+  assert.equal(api.resolveAttack(input(['red', 'yellow'], { attackFunction: 'offense', targetDomain: 'invocateur' })).signature, 'rupture');
+  assert.equal(api.resolveAttack(input(['red', 'yellow'], { attackFunction: 'support', targetDomain: 'invocateur' })).signature, 'consolidation');
 });
 
 test('range does not block compatible blood fury, crit or ambidextry', () => {
@@ -353,10 +352,8 @@ test('discharge uses target max HP then the selected nature defensive formula', 
 });
 
 test('nonoffensive attacks and empty compositions have no simulated offensive damage', () => {
-  for (const attackFunction of ['support', 'summon']) {
-    const model = api.resolveAttack(input(['red', 'blue', 'yellow'], { attackFunction }));
-    assert.equal(api.calculateImpact(model, {}).applicable, false);
-  }
+  const support = api.resolveAttack(input(['red', 'blue', 'yellow'], { attackFunction: 'support' }));
+  assert.equal(api.calculateImpact(support, {}).applicable, false);
   assert.equal(impact([]).total, 0);
 });
 
@@ -654,15 +651,15 @@ test('signature levels are bounded and disabled colors cannot preserve a stale s
   assert.equal(api.calculateImpact(model, {}).discharge, null);
 });
 
-test('bonuses precede the simulator and help, with individual sockets collapsed', () => {
+test('bonuses precede the simulator and help, with composition controls visible', () => {
   assert.ok(html.indexOf('id="nature-section"') < html.indexOf('id="simulator"'));
   assert.ok(html.indexOf('id="access-section"') < html.indexOf('id="simulator"'));
   assert.ok(html.indexOf('id="simulator"') < html.indexOf('id="aides"'));
-  assert.match(html, /<details><summary>Chasses individuelles<\/summary>/);
+  assert.doesNotMatch(html, /Chasses individuelles/);
   assert.doesNotMatch(html, /<details open/);
 });
 
-test('individual sockets and damage shares remain in the top composition area', () => {
+test('composition controls and damage shares remain in the top composition area', () => {
   const sockets = html.indexOf('id="essence-slots"');
   const results = html.indexOf('<section class="results"');
   const shares = html.indexOf('id="shares"');

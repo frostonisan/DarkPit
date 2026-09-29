@@ -33,7 +33,7 @@
     .builder, .results { min-width: 0; }
     .builder { border-right: 1px solid var(--line); padding-right: 24px; }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+    .controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
     .composition-counts { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
     .composition-counts .field > span { display: flex; gap: 4px; align-items: center; color: inherit; }
     .composition-counts img { width: 24px; height: 24px; object-fit: contain; }
@@ -165,10 +165,11 @@
         <div class="section-head"><h2 id="builder-title">Composition</h2><span id="slot-count" class="subtle" aria-live="polite"></span></div>
         <div class="composition-counts" id="composition-counts" aria-label="Nombre d'essences par couleur"></div>
         <div class="controls">
+          <label class="field"><span>Domaine de ciblage</span><select id="attack-domain"><option value="combatant">Combattant · cible une entité</option><option value="invocateur">Invocateur · cible le terrain</option><option value="necro">Nécro · cible un cadavre</option></select></label>
           <label class="field"><span>Portée</span><select id="attack-range"><option value="melee">Mêlée</option><option value="range">Distance</option></select></label>
-          <label class="field"><span>Fonction de l'impact</span><select id="attack-function"><option value="offense">Offensif direct</option><option value="support">Soin / aide</option><option value="summon">Invocation</option></select></label>
+          <label class="field"><span>Fonction de l'impact</span><select id="attack-function"><option value="offense">Attaquant · dégâts</option><option value="support">Support · soin / aide</option></select></label>
         </div>
-        <details><summary>Chasses individuelles</summary><div class="slot-grid" id="essence-slots" aria-label="Chasses d'essences"></div></details>
+        <div class="slot-grid" id="essence-slots" hidden aria-hidden="true"></div>
       </section>
       <section class="results" aria-labelledby="result-title">
         <div class="section">
@@ -183,7 +184,7 @@
         </div>
         <div class="bonus-grid">
           <section class="section" id="nature-section"><h2>Bonus &amp; propriétés actifs</h2><ul class="effect-list" id="nature-effects"></ul></section>
-          <section class="section" id="access-section"><div class="section-head"><h2>Contributions offensives</h2><span class="subtle" id="access-count"></span></div><ul class="effect-list" id="umbra-results"></ul></section>
+          <section class="section" id="access-section"><div class="section-head"><h2>Contributions de l'attaque</h2><span class="subtle" id="access-count"></span></div><ul class="effect-list" id="umbra-results"></ul></section>
         </div>
       </section>
     </div>
@@ -267,6 +268,7 @@
               <li>Rupture et Dissolution : réduction par stack = 5 + (niveau − 1), cinq stacks, huit secondes par défaut. Décharge : 1,5 + 0,5 × (niveau − 1) % des PV max.</li>
               <li>En soutien, rouge / jaune donne Consolidation (+ résistance physique), bleu / jaune Cohésion (+ résistance magique), rouge / bleu conserve Résonance, et les trois couleurs donnent Effusion convergente (soin en pourcentage des PV max). Guidage, persistance, esquive et règles de mêlée restent fixes.</li>
               <li>Une seule signature offensive : rouge / bleu donne Résonance, rouge / jaune Rupture, bleu / jaune Dissolution, les trois couleurs Décharge. La prismatique ne cumule aucune autre signature.</li>
+              <li>Une invocation transmet sa nature et sa signature à l'effet qu'elle crée directement sur le terrain, qu'il s'agisse d'un objet ou d'une entité vivante. Les attaques autonomes d'une entité invoquée utilisent ensuite leurs propres essences.</li>
               <li>Résonance : proximité = min(PP, PM) / max(PP, PM). Puissances strictement positives, avant Résonance et sans arrondi. Aucun bonus sous 30 % ; +5 % à ce seuil, puis croissance linéaire vers un plafond de 30 à 40 % selon le niveau 1 à 5. À égalité exacte : +10 points, soit +40 à +50 %.</li>
               <li>Dans la V11, la puissance hybride de référence est PP × part rouge + PM × part bleue. Le bonus vaut cette base × taux de Résonance, arrondi à l'entier inférieur une seule fois. Il est réparti selon les essences à la production, puis suit le ratio d'attaque, l'armure et la distance. À l'encaissement, le total hybride restant est traité moitié physique et moitié magique. Aucun impact ni déclenchement supplémentaire ; jamais de Résonance sur son propre bonus.</li>
               <li>Umbras : en pureté, tous les paliers offensifs appris de sa couleur ; en mixte, palier accessible = nombre d'essences de la couleur, jusqu'à 3. Les niveaux de signature n'augmentent pas les Umbras.</li>
@@ -412,7 +414,7 @@
           missing: Math.max(0, umbra.tier - profile[umbra.color]) };
       });
       const signature = signatureFor(profile, input.attackFunction);
-      return { profile, access, range: input.range, attackFunction: input.attackFunction,
+      return { profile, access, targetDomain: input.targetDomain || 'combatant', range: input.range, attackFunction: input.attackFunction,
         signature, signatureLevel: signature === 'none' ? 0 : profile.combinationLevel };
     }
     function signatureStats(key, level, config = DEFAULTS) {
@@ -691,7 +693,7 @@
       const sources = emptySources();
       for (const row of $('sources').rows) for (const input of row.querySelectorAll('input')) sources[row.dataset.source][input.dataset.sourceKind] = input.checked;
       return { slots: Array.from(slotsRoot.children, slot => ({ color: slot.querySelector('select').value, active: slot.querySelector('input').checked })),
-        sources, range: $('attack-range').value, attackFunction: $('attack-function').value };
+        sources, targetDomain: $('attack-domain').value, range: $('attack-range').value, attackFunction: $('attack-function').value };
     }
     function readConfig() {
       const config = {};
@@ -732,8 +734,11 @@
       const p = model.profile;
       $('slot-count').textContent = `${p.total}/10 essences actives`;
       $('effective-nature').textContent = natureName(p);
-      $('effective-nature').dataset.composition = signatureFor(p, 'offense');
-      $('profile').textContent = Object.keys(COLORS).map(color => `${COLORS[color].label} ${p[color]}`).join(' / ');
+      $('effective-nature').dataset.composition = signatureFor(p, model.attackFunction);
+      const domainLabel = { combatant: 'Combattant', invocateur: 'Invocateur', necro: 'Nécro' }[model.targetDomain] || 'Combattant';
+      const functionLabel = model.attackFunction === 'support' ? 'Support' : 'Attaquant';
+      const rangeLabel = model.range === 'range' ? 'Distance' : 'Mêlée';
+      $('profile').textContent = `${domainLabel} · ${functionLabel} · ${rangeLabel} · ${Object.keys(COLORS).map(color => `${COLORS[color].label} ${p[color]}`).join(' / ')}`;
       $('level-label').textContent = p.pure ? 'Pureté' : 'Combinaison';
       $('purity-level').textContent = p.total ? `Niveau ${p.combinationLevel} / ${p.maxLevel}` : 'Aucune';
       $('purity-bonus').textContent = p.pure === 'yellow' ? `${p.armorBypass} % traversent l’armure`
