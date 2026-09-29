@@ -198,9 +198,9 @@ test('each composition has a distinct named intake mode', () => {
     [['red'], 'physical', 'Encaissement physique'],
     [['blue'], 'magical', 'Encaissement magique'],
     [['yellow'], 'piercing', 'Encaissement perçant'],
-    [['red','blue'], 'hybrid', 'Encaissement hybride'],
-    [['red','yellow'], 'physical-piercing', 'Encaissement physique-perçant'],
-    [['blue','yellow'], 'magical-piercing', 'Encaissement magique-perçant'],
+    [['red','blue'], 'hybrid', 'Encaissement hybride 50/50'],
+    [['red','yellow'], 'physical-piercing', 'Encaissement physique + perçant'],
+    [['blue','yellow'], 'magical-piercing', 'Encaissement magique + perçant'],
     [['red','blue','yellow'], 'prismatic', 'Encaissement prismatique']
   ];
   for (const [colors, key, name] of modes) {
