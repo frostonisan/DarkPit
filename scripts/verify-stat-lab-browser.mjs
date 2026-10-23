@@ -17,8 +17,14 @@ const check = (condition, message) => { assert.ok(condition, message); checks++;
 check(scripts.length === 2, 'model and UI inline');
 check(!/<script[^>]+src=|<link[^>]+stylesheet|<iframe|\bimport\s*\(/.test(html), 'no external runtime files');
 for (const script of scripts) new vm.Script(script);
-const sandbox = { window: {}, Intl, console };
-vm.runInNewContext(scripts[0], sandbox);
+const sandbox = vm.createContext({ window: {}, Intl, console });
+vm.runInContext(scripts[0], sandbox);
+const helper = (entries, target, part) => {
+  const changed = sandbox.testEntries !== entries;
+  sandbox.testEntries = entries; sandbox.testTarget = target; sandbox.testPart = part;
+  if (changed) vm.runInContext('labSnapshot = calculateLab(testEntries)', sandbox);
+  return vm.runInContext('labHelper(testTarget, testPart)', sandbox);
+};
 const { calculate, catalogs } = sandbox.window.statLab;
 const source = (kind, key, value) => ({ id: `${kind}:${key}:${value}`, kind, key, value });
 const normal = (key, value) => source('normal', key, value);
@@ -78,6 +84,22 @@ for (const spec of catalogs.umbra) for (const amount of [0, 1, 15, 80, 150, 1000
 const all = [...catalogs.normal.map(spec => normal(spec.key, spec.key === 'speed' ? .5 : 10)), ...catalogs.improved.map(spec => plus(spec.key, 10)), ...catalogs.umbra.map(spec => umbra(spec.key, 10))];
 check(calculate(all).rows.every(row => Number.isFinite(row.value)), 'complete composition finite');
 for (const result of calculate(all).rows) check(Math.abs(result.parts.reduce((total, part) => total + part.value, 0) - result.value) < .000001, `helper parts equal total: ${result.id}`);
+for (const target of [...catalogs.normal.map(spec => spec.key), ...catalogs.umbra.map(spec => spec.key), ...calculate(all).rows.map(row => row.id)]) {
+  const rendered = helper(all, target);
+  check(!!rendered.html && !/NaN|undefined|Infinity/.test(rendered.html), `game helper content valid: ${target}`);
+  for (const match of rendered.html.matchAll(/data-umbra-calculation="([^"]+)" data-umbra-part="(\d+)"/g)) {
+    const detail = helper(all, target, { calculation: match[1], index: Number(match[2]) });
+    check(!!detail.html && !/NaN|undefined|Infinity/.test(detail.html), `game ratio content valid: ${target}/${match[1]}/${match[2]}`);
+  }
+}
+check(helper([umbra('vigueur', 15), ...attributes], 'vigueur').html.includes('La Vigueur permet'), 'original Vigueur text');
+check(helper([umbra('haste', 15), ...attributes], 'haste').html.includes('durée de préparation'), 'original Haste text');
+check(/0\.5/.test(helper(mixed, 'physicalDamage', { calculation: 'physicalDamage/improved', index: 2 }).html), 'true strength ratio, not inferred from result');
+check(helper([umbra('hypercognition', 20)], 'hypercognition', { calculation: 'cognitiveGenerator/improved', index: 0 }).html.includes('Palier 2'), 'current cognitive milestone');
+check(!helper([umbra('hypercognition', 20)], 'hypercognition').html.includes('Prochain palier'), 'no future milestone');
+check(helper([umbra('hypercognition', 20)], 'hypercognition').html.includes('data-umbra-calculation="hypercognitionEssences"'), 'generator has complete source model');
+check(/>5 %</.test(helper([umbra('precision', 10), plus('criticalDamage', 1)], 'precision').html), 'Precision shows its active critical damage contribution');
+check(helper([umbra('precision', 10)], 'precision', { calculation: 'critPrecisionBonus', index: 0 }).html.includes('Bonus inactif.'), 'inactive Precision critical bonus identified');
 
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const errors = [], requests = [];
@@ -118,6 +140,12 @@ try {
   check(/6\s*%/.test(await page.locator('#lab-helper .lab-helper-source').last().innerText()), '6% source visible in X helper');
   check(/7\s*%/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'pooled improved subtotal visible');
   await page.screenshot({ path: resolve(output, 'system2-penetration-x-helper.png') });
+  await page.locator('#lab-helper [data-umbra-calculation="magicalPen/improved"]').last().hover();
+  await page.waitForSelector('#lab-helper .lab-detail [data-umbra-calculation="magicalPen/points"]');
+  await page.locator('#lab-helper .lab-detail [data-umbra-calculation="magicalPen/points"]').last().hover();
+  await page.waitForSelector('#lab-helper .lab-detail .lab-detail .stat-hover-body');
+  check(/0\.5/.test(await page.locator('#lab-helper .lab-detail .lab-detail').innerText()), 'conversion exposes underlying attribute ratio');
+  await page.screenshot({ path: resolve(output, 'game-helper-conversion.png') });
   await page.keyboard.press('Escape');
   await page.locator('#sources-tab').click();
   check(await page.locator('#lab-sources .lab-unit').allTextContents().then(units => units.every(unit => unit === '%')), 'all penetration source units are percentages');
@@ -156,10 +184,13 @@ try {
   check(await page.locator('#lab-helper .lab-helper-source').count() === 4, 'X helper shows normal, both improved inputs and Umbra');
   check(await page.locator('#lab-helper [data-source-kind=umbra]').count() === 1, 'Umbra source listed once');
   check(await page.locator('#lab-helper [data-source-key=strength]').count() === 0, 'ratio attribute not counted as a direct source');
-  check(/0[.,]5/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'shared attribute calculation visible in X helper');
+  check(/10/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'shared attribute contribution visible in X helper');
+  check(await page.evaluate(() => pinned), 'click pins long helper without covering its trigger');
   await page.locator('#lab-helper [data-umbra-part]').last().hover();
   await page.waitForSelector('#lab-helper .lab-detail .stat-hover-body');
   check(/0[.,]5/.test(await page.locator('#lab-helper .lab-detail').innerText()), 'actual ratio shown');
+  check((await page.locator('#lab-helper .lab-detail').innerText()).includes('Détail du ratio : Force'), 'named game ratio header');
+  check((await page.locator('#lab-helper .lab-detail').innerText()).includes('La valeur finale est arrondie.'), 'rounding footer');
   await page.keyboard.press('Escape');
   await page.screenshot({ path: resolve(output, 'system2-desktop.png'), fullPage: true });
   for (const width of [1280, 900, 390]) {
@@ -186,14 +217,36 @@ try {
     const helper = labHelper(target); return !helper.html || /NaN|undefined|Infinity/.test(helper.html);
   }));
   check(helperAudit.length === 0, `all helpers valid: ${helperAudit}`);
+  for (const key of ['haste', 'hypercognition', 'robustness', 'movement']) {
+    await page.locator(`#umbra-list [data-key="${key}"] .lab-name`).click();
+    await page.waitForSelector('#lab-helper:not([hidden])');
+    check(await page.evaluate(() => pinned), `game Umbra helper pins: ${key}`);
+    check(await page.locator('#lab-helper [data-umbra-part]').count() > 0, `game Umbra contributions: ${key}`);
+    check(await page.locator('#lab-helper').evaluate(node => node.scrollWidth <= node.clientWidth), `game Umbra content fits: ${key}`);
+    await page.screenshot({ path: resolve(output, `game-helper-${key}.png`) });
+    await page.keyboard.press('Escape');
+  }
   const images = await page.evaluate(async () => {
     const urls = new Set([...document.images].map(image => image.src));
     for (const icon of document.querySelectorAll('.lab-row > .picto-stat, .lab-result > .picto-stat')) for (const match of getComputedStyle(icon).backgroundImage.matchAll(/url\(["']?(.*?)["']?\)/g)) urls.add(match[1]);
+    const probe = document.createElement('div'); probe.className = 'lab-helper'; probe.hidden = true; document.body.append(probe);
+    const missing = new Set();
+    for (const target of [...catalogs.normal.map(spec => spec.key), ...catalogs.umbra.map(spec => spec.key), ...snapshot.rows.map(row => row.id)]) {
+      probe.innerHTML = labHelper(target).html;
+      for (const icon of probe.querySelectorAll('.picto-stat')) {
+        if (icon.classList.contains('neutral')) continue;
+        const background = getComputedStyle(icon).backgroundImage;
+        if (background === 'none') missing.add(icon.className);
+        for (const match of background.matchAll(/url\(["']?(.*?)["']?\)/g)) urls.add(match[1]);
+      }
+    }
+    probe.remove();
     const failed = [];
     for (const url of urls) { const image = new Image(); image.src = url; try { await image.decode(); } catch { failed.push(url.slice(0, 70)); } }
-    return { count: urls.size, failed };
+    return { count: urls.size, failed, missing: [...missing] };
   });
   check(images.failed.length === 0 && images.count > 40, `embedded pictos: ${JSON.stringify(images)}`);
+  check(images.missing.length === 0, `no empty game helper pictograms: ${images.missing}`);
   await page.locator('#sources-tab').click();
   const input = page.locator('#lab-sources input').first();
   await input.fill('17'); await input.press('Tab');
@@ -211,7 +264,10 @@ try {
   console.log(JSON.stringify({ status: 'passed', checks, offline: true, output }, null, 2));
   await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, requests, images }, null, 2));
 } catch (error) {
-  if (page) await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
+  if (page) {
+    console.log(await page.evaluate(() => ({ pinned, helperTarget, status: document.getElementById('lab-status').textContent, helper: document.getElementById('lab-helper').outerHTML })).catch(() => null));
+    await page.screenshot({ path: resolve(output, 'failure.png') }).catch(() => {});
+  }
   await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, requests, error: error.stack }, null, 2));
   throw error;
 } finally { await browser.close(); }
