@@ -31,6 +31,14 @@ check(catalogs.normal.length === 46 && catalogs.improved.length === 34 && catalo
 check(calculate([]).rows.length === 0, 'no default results');
 check(calculate([normal('physicalPen', 1)]).rows.length === 1, 'only selected result');
 check(row([normal('physicalPen', 5), ...attributes], 'physicalPen').value === 5, 'normal penetration stays final percent');
+for (const [key, umbraValue] of Object.entries({ physicalPen: 12, magicalPen: 12, physicalResistance: 27, magicalResistance: 27, dodge: 30.5, velocity: 25 })) {
+  const spec = catalogs.improved.find(spec => spec.key === key);
+  check(spec.unit === '%' && spec.step === .01, `+ percentage input ${key}`);
+  check(row([normal(key, 1), plus(key, 1), plus(key, 6)], key).value === 8, `1% normal + 1% improved + 6% improved: ${key}`);
+  check(row([plus(key, 6.5)], key).value === 6.5, `decimal improved percentage preserved: ${key}`);
+  check(row([...attributes, umbra(spec.origin, 15)], key).value === umbraValue, `existing Umbra curve preserved: ${key}`);
+  check(row([...attributes, umbra(spec.origin, 15), plus(key, 1), plus(key, 6), normal(key, 1)], key).value === umbraValue + 8, `attribute improvement once, autonomous percentages preserved: ${key}`);
+}
 check(row([plus('physicalDamage', 5), ...attributes], 'physicalDamage').value === 15, 'independent + has strength ratio');
 check(row([plus('physicalDamage', 5)], 'physicalDamage').state === '+', '+ state');
 check(row([normal('physicalDamage', 2), normal('physicalDamage', 4)], 'physicalDamage').value === 6, 'normal sum');
@@ -98,6 +106,40 @@ try {
   check(await page.locator('#lab-totals .lab-result').count() === 1, 'one visible result');
   await page.locator('[data-result=physicalPen] .lab-remove').click();
   await settle(0);
+  await add('normal', 'magicalPen', 1);
+  await add('improved', 'magicalPen', 1);
+  await add('improved', 'magicalPen', 6);
+  check(await getValue('magicalPen') === 8, 'reported penetration example totals 8%');
+  check(await page.locator('#improved-list [data-key=magicalPen] .lab-unit').innerText() === '%', 'improved penetration visibly uses percent');
+  await page.locator('[data-result=magicalPen] .lab-name').click();
+  await page.waitForSelector('#lab-helper:not([hidden])');
+  check(await page.locator('#lab-helper .lab-helper-source').count() === 3, 'X helper lists all three sources separately');
+  check(await page.locator('#lab-helper [data-source-kind=normal]').count() === 1 && await page.locator('#lab-helper [data-source-kind=improved]').count() === 2, 'X helper distinguishes normal and improved');
+  check(/6\s*%/.test(await page.locator('#lab-helper .lab-helper-source').last().innerText()), '6% source visible in X helper');
+  check(/7\s*%/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'pooled improved subtotal visible');
+  await page.screenshot({ path: resolve(output, 'system2-penetration-x-helper.png') });
+  await page.keyboard.press('Escape');
+  await page.locator('#sources-tab').click();
+  check(await page.locator('#lab-sources .lab-unit').allTextContents().then(units => units.every(unit => unit === '%')), 'all penetration source units are percentages');
+  const penetrationInput = page.locator('#lab-sources input').last();
+  await penetrationInput.fill('6.5'); await penetrationInput.press('Tab');
+  await page.waitForFunction(() => document.querySelector('[data-result=magicalPen]').dataset.value === '8.5');
+  await page.locator('#totals-tab').click();
+  await page.locator('[data-result=magicalPen] .lab-name').click();
+  await page.waitForSelector('#lab-helper:not([hidden])');
+  check(/6,5\s*%/.test(await page.locator('#lab-helper .lab-helper-source').last().innerText()), 'edited source updated in X helper');
+  await page.keyboard.press('Escape');
+  await page.locator('#sources-tab').click();
+  await page.locator('#lab-sources .lab-remove').last().click();
+  await settle(2);
+  await page.locator('#totals-tab').click();
+  check(await getValue('magicalPen') === 2, 'removed source no longer counted');
+  await page.locator('[data-result=magicalPen] .lab-name').click();
+  await page.waitForSelector('#lab-helper:not([hidden])');
+  check(await page.locator('#lab-helper .lab-helper-source').count() === 2, 'removed source absent from X helper');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-result=magicalPen] .lab-remove').click();
+  await settle(0);
   await add('normal', 'strength', 20);
   await add('improved', 'physicalDamage', 4);
   check(await getValue('physicalDamage') === 14, '+ without Umbra');
@@ -111,6 +153,10 @@ try {
   await page.locator('[data-result=physicalDamage] .lab-name').click();
   await page.waitForSelector('#lab-helper:not([hidden])');
   check((await page.locator('#lab-helper').innerText()).includes('38'), 'helper total');
+  check(await page.locator('#lab-helper .lab-helper-source').count() === 4, 'X helper shows normal, both improved inputs and Umbra');
+  check(await page.locator('#lab-helper [data-source-kind=umbra]').count() === 1, 'Umbra source listed once');
+  check(await page.locator('#lab-helper [data-source-key=strength]').count() === 0, 'ratio attribute not counted as a direct source');
+  check(/0[.,]5/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'shared attribute calculation visible in X helper');
   await page.locator('#lab-helper [data-umbra-part]').last().hover();
   await page.waitForSelector('#lab-helper .lab-detail .stat-hover-body');
   check(/0[.,]5/.test(await page.locator('#lab-helper .lab-detail').innerText()), 'actual ratio shown');
@@ -123,6 +169,8 @@ try {
     await page.waitForSelector('#lab-helper:not([hidden])');
     const box = await page.locator('#lab-helper').boundingBox();
     check(box.x >= 0 && box.x + box.width <= width + 1 && box.y >= 0 && box.y + box.height <= 851, `helper bounds ${width}`);
+    check(await page.locator('#lab-helper').evaluate(node => node.scrollWidth <= node.clientWidth), `X source details fit ${width}`);
+    await page.screenshot({ path: resolve(output, `system2-x-helper-${width}.png`) });
     await page.keyboard.press('Escape');
     await page.screenshot({ path: resolve(output, `system2-${width}.png`), fullPage: true });
   }

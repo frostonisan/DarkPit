@@ -79,6 +79,9 @@ body.stat-lab { display: block; width: auto; height: auto; min-height: 100dvh; m
 .lab-helper [data-umbra-part] { border-bottom: 1px dotted #72777d; cursor: help; }
 .lab-helper .lab-detail { display: block; margin: 12px 0 0; padding-top: 8px; border-top: 1px solid #44403a; }
 .lab-helper .lab-detail:empty { display: none; }
+.lab-helper-sources { margin-top: 10px; }
+.lab-helper-source { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 5px 0; }
+.lab-helper-calculation { margin-top: 10px; padding-top: 8px; border-top: 1px solid #44403a; }
 @media (max-width: 1250px) {
   .lab-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 0; }
   .lab-column:nth-child(3) { padding-left: 0; border-left: 0; }
@@ -2210,11 +2213,10 @@ const round = (value, decimals = 6) => native.roundBalance(value, decimals);
 const clampValue = (value, max = Infinity) => Math.min(max, Math.max(0, value));
 const attributeKeys = ['strength', 'intelligence', 'agility', 'will'];
 const convertedKeys = new Set(['physicalPen', 'magicalPen', 'physicalResistance', 'magicalResistance', 'dodge', 'velocity']);
-for (const spec of CATALOGS.normal) {
+for (const spec of [...CATALOGS.normal, ...CATALOGS.improved]) {
   if (convertedKeys.has(spec.key)) { spec.unit = '%'; spec.step = .01; }
   spec.scale = 1;
 }
-for (const spec of CATALOGS.improved) spec.scale = 1;
 const specs = new Map([...CATALOGS.normal, ...CATALOGS.umbra].map(spec => [spec.key, spec]));
 const figure = (key, value, unit = '') => {
   const visual = specs.get(key)?.icon || formulaRules.get(key)?.icon || key;
@@ -2250,7 +2252,8 @@ for (const [origin, config] of Object.entries(B.generatedUmbraStats.sources)) {
   addRule(config.target, origin, {
     base: ctx => ctx.umbra * config.ratios.source,
     bonus: ctx => [product(ctx, config.attribute, config.ratios.attribute)],
-    finish: value => (conversions[config.target] || (n => n))(round(value, config.decimals)),
+    convert: conversions[config.target] ? value => conversions[config.target](round(value, config.decimals)) : null,
+    finish: value => round(value, conversions[config.target] ? 6 : config.decimals),
     max: convertedKeys.has(config.target) ? config.target === 'velocity' ? 65 : 100 : Infinity,
     inputUnit: 'pts',
   });
@@ -2378,7 +2381,10 @@ function calculateLab(input, level = 1) {
     const base = active && rule.base ? rule.base(context) : 0;
     const fixed = active ? rule.fixed || 0 : 0;
     const bonuses = active && rule.bonus ? rule.bonus(context) : [];
-    const before = plus + base + fixed + bonuses.reduce((sum, contribution) => sum + contribution.value, 0);
+    const generated = base + fixed + bonuses.reduce((sum, contribution) => sum + contribution.value, 0);
+    // Autonomous inputs already use the output unit; only Umbra/attribute points need conversion.
+    const improvement = rule.convert ? rule.convert(generated) : generated;
+    const before = plus + improvement;
     const enhanced = active ? clampValue((rule.finish || round)(before), rule.max) : 0;
     const uncapped = normal + enhanced;
     const value = round(clampValue(uncapped, rule.max));
@@ -2391,12 +2397,16 @@ function calculateLab(input, level = 1) {
     if (hasNormal) parts.push(term(key, normalApplied, `${sumHTML(relevant('normal'), spec.unit)} ${normalApplied < normal ? '→' : '='} ${figure(key, normalApplied, spec.unit)}${normalApplied < normal ? ' · Max atteint.' : ''}`));
     if (hasPlus) {
       const terms = [];
-      if (Object.hasOwn(sums.improved, key)) terms.push(sumHTML(relevant('improved'), rule.inputUnit || spec.unit));
+      const inputs = Object.hasOwn(sums.improved, key) ? sumHTML(relevant('improved'), spec.unit) : '';
+      if (inputs && !rule.convert) terms.push(inputs);
       if (umbra > 0) terms.push(figure(origin, base, rule.inputUnit || spec.unit));
       if (fixed) terms.push(figure('neutral', fixed, rule.inputUnit || spec.unit));
       for (const contribution of bonuses) terms.push(contribution.html);
       const expression = terms.join(' + ') || figure(key, 0);
-      parts.push(term(key, enhanced, `${expression} ${rule.inputUnit && conversions[key] ? '→' : '='} ${figure(key, enhanced, spec.unit)}${enhanced < (rule.finish || round)(before) ? ' · Max atteint.' : ''}`));
+      const calculation = rule.convert
+        ? `${expression} → ${figure(key, improvement, spec.unit)}${inputs ? `<br>${inputs} + ${figure(key, improvement, spec.unit)}` : ''}`
+        : expression;
+      parts.push(term(key, enhanced, `${calculation} = ${figure(key, enhanced, spec.unit)}${enhanced < (rule.finish || round)(before) ? ' · Max atteint.' : ''}`));
     }
     const row = { id: key, key: specs.has(key) ? key : origin, name: spec.name || key, icon: spec.icon || key,
       unit: spec.unit || 'pts', value, normal: normalApplied, normalInput: normal, enhanced, state, improved: state !== 'normal',
@@ -2421,8 +2431,15 @@ function labHelper(target, part) {
   if (part && row?.parts[part.index]) return { title: 'Détail du calcul', html: row.parts[part.index].html, footer: '' };
   if (row) {
     const pieces = row.parts.map((entry, index) => `<span tabindex="0" data-umbra-part="${index}" data-umbra-calculation="total">${figure(row.icon, entry.value, row.unit)}</span>`);
+    const sources = row.state === 'X' ? labSnapshot.entries.filter(entry => entry.kind === 'umbra' ? entry.key === row.origin : entry.key === row.id) : [];
+    const lines = sources.map(entry => {
+      const source = CATALOGS[entry.kind].find(spec => spec.key === entry.key);
+      const label = entry.kind === 'umbra' ? 'Umbra' : entry.kind === 'improved' ? 'Stat autonome +' : 'Stat autonome';
+      return `<div class="lab-helper-source" data-source-kind="${entry.kind}" data-source-key="${entry.key}"><span class="${source.icon}">${source.name}${entry.kind === 'improved' ? ' +' : ''}<small class="lab-source-kind">${label}</small></span>${figure(source.key, entry.value, source.unit)}</div>`;
+    }).join('');
+    const details = lines ? `<div class="lab-helper-sources">${lines}</div><div class="lab-helper-calculation"><div class="lab-source-kind">Calcul commun +</div>${row.parts[1].html}</div>` : '';
     return { title: `${row.name}${row.state === 'normal' ? '' : ` ${row.state}`}`,
-      html: `${figure(row.icon, row.value, row.unit)}${pieces.length ? ` (${pieces.join(' + ')})` : ''}${row.maxReached ? '<br>Max atteint.' : ''}`,
+      html: `${figure(row.icon, row.value, row.unit)}${pieces.length ? ` (${pieces.join(' + ')})` : ''}${row.maxReached ? '<br>Max atteint.' : ''}${details}`,
       footer: [row.originName ? `Umbra : ${row.originName}` : '', row.count ? `${row.count} source${row.count > 1 ? 's' : ''} autonome${row.count > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') };
   }
   const effects = labSnapshot.rows.filter(row => row.origin === target);
