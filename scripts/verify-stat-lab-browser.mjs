@@ -1,0 +1,169 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import vm from 'node:vm';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const path = resolve('docs/index-13.html');
+const output = resolve('outputs/stat-lab');
+await mkdir(output, { recursive: true });
+const html = await readFile(path, 'utf8');
+const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
+let checks = 0;
+const check = (condition, message) => { assert.ok(condition, message); checks++; };
+check(scripts.length === 2, 'model and UI inline');
+check(!/<script[^>]+src=|<link[^>]+stylesheet|<iframe|\bimport\s*\(/.test(html), 'no external runtime files');
+for (const script of scripts) new vm.Script(script);
+const sandbox = { window: {}, Intl, console };
+vm.runInNewContext(scripts[0], sandbox);
+const { calculate, catalogs } = sandbox.window.statLab;
+const source = (kind, key, value) => ({ id: `${kind}:${key}:${value}`, kind, key, value });
+const normal = (key, value) => source('normal', key, value);
+const plus = (key, value) => source('improved', key, value);
+const umbra = (key, value) => source('umbra', key, value);
+const row = (entries, key) => calculate(entries).rows.find(row => row.id === key);
+const signature = entries => JSON.stringify(calculate(entries).rows.map(row => [row.id, row.value, row.state]).sort());
+const attributes = [normal('strength', 20), normal('intelligence', 20), normal('agility', 20)];
+check(catalogs.normal.length === 46 && catalogs.improved.length === 34 && catalogs.umbra.length === 27, 'complete catalogs');
+check(calculate([]).rows.length === 0, 'no default results');
+check(calculate([normal('physicalPen', 1)]).rows.length === 1, 'only selected result');
+check(row([normal('physicalPen', 5), ...attributes], 'physicalPen').value === 5, 'normal penetration stays final percent');
+check(row([plus('physicalDamage', 5), ...attributes], 'physicalDamage').value === 15, 'independent + has strength ratio');
+check(row([plus('physicalDamage', 5)], 'physicalDamage').state === '+', '+ state');
+check(row([normal('physicalDamage', 2), normal('physicalDamage', 4)], 'physicalDamage').value === 6, 'normal sum');
+check(row([normal('physicalDamage', 2)], 'physicalDamage').state === 'normal', 'normal state');
+const mixed = [...attributes, normal('physicalDamage', 2), normal('physicalDamage', 4), plus('physicalDamage', 4), plus('physicalDamage', 3)];
+check(row(mixed, 'physicalDamage').value === 23, 'normal 6 + improved 7 + strength 10 once');
+check(row(mixed, 'physicalDamage').state === 'X', 'X state');
+check(signature(mixed) === signature([...mixed].reverse()), 'order independent');
+check(row([...mixed, umbra('vigueur', 15)], 'physicalDamage').value === 38, 'Umbra does not repeat attribute bonus');
+check(row([plus('armor', 2), plus('armor', 3)], 'armor').value === 15, 'common armor base once');
+check(row([normal('armor', 5)], 'armor').value === 5, 'normal armor has no extra base');
+check(row([plus('physicalDamage', 0), ...attributes], 'physicalDamage').value === 0, 'zero + does not grant a free bonus');
+check(row([normal('criticalChance', 90), plus('criticalChance', 20)], 'criticalChance').value === 100, 'final probability cap');
+check(row([normal('cognitiveGenerator', 8), plus('cognitiveGenerator', 6)], 'cognitiveGenerator').value === 10, 'generator cap');
+check(row([plus('bloodFuryExecutionChance', 4), plus('bloodFuryExecutionChance', 3), normal('bloodFuryExecutionChance', 6), normal('strength', 20)], 'bloodFuryExecutionChance').value === 23, 'execution strength ratio once');
+check(row([plus('criticalDamage', 4), plus('criticalDamage', 3)], 'criticalDamage').value === 57, 'common critical base once');
+check(row([plus('hpBattleRegen', 4), normal('strength', 150)], 'hpBattleRegen').value === 9, 'combat regen + activates strength ratio without an Umbra');
+const capped = row([normal('criticalChance', 90), plus('criticalChance', 20)], 'criticalChance');
+check(capped.parts.reduce((sum, part) => sum + part.value, 0) === capped.value, 'displayed contributions sum to capped total');
+check(!/localStorage|sessionStorage|indexedDB/.test(scripts.join('\n')), 'standalone never touches game storage');
+for (const spec of catalogs.normal) {
+  const amount = spec.key === 'speed' ? .5 : 7;
+  check(row([normal(spec.key, amount)], spec.key).value === amount, `normal ${spec.key} is final`);
+}
+for (const spec of catalogs.improved) {
+  const split = [...attributes, plus(spec.key, 4), plus(spec.key, 3)];
+  check(signature(split) === signature([...attributes, plus(spec.key, 7)]), `+ pooling ${spec.key}`);
+  const entries = [...split, normal(spec.key, 2)];
+  check(row(entries, spec.key).state === 'X', `X ${spec.key}`);
+  check(signature(entries) === signature([...entries].reverse()), `order ${spec.key}`);
+  check(signature([...split, umbra(spec.origin, 15)]) === signature([...attributes, plus(spec.key, 7), umbra(spec.origin, 15)]), `Umbra pooling ${spec.key}`);
+}
+for (const spec of catalogs.umbra) for (const amount of [0, 1, 15, 80, 150, 1000]) {
+  check(calculate([...attributes, umbra(spec.key, amount)]).rows.every(row => Number.isFinite(row.value)), `finite ${spec.key} ${amount}`);
+  check(signature([...attributes, umbra(spec.key, amount), umbra(spec.key, amount)]) === signature([...attributes, umbra(spec.key, amount * 2)]), `Umbra sum ${spec.key} ${amount}`);
+}
+const all = [...catalogs.normal.map(spec => normal(spec.key, spec.key === 'speed' ? .5 : 10)), ...catalogs.improved.map(spec => plus(spec.key, 10)), ...catalogs.umbra.map(spec => umbra(spec.key, 10))];
+check(calculate(all).rows.every(row => Number.isFinite(row.value)), 'complete composition finite');
+for (const result of calculate(all).rows) check(Math.abs(result.parts.reduce((total, part) => total + part.value, 0) - result.value) < .000001, `helper parts equal total: ${result.id}`);
+
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+const errors = [], requests = [];
+let page;
+try {
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 }, offline: true });
+  page = await context.newPage();
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (!/^(file|data):/.test(request.url())) requests.push(request.url()); });
+  await page.goto(pathToFileURL(path).href);
+  await page.waitForSelector('body[data-ready=true]', { timeout: 20000 });
+  let count = 0;
+  async function settle(next) {
+    count = next;
+    await page.waitForFunction(count => document.getElementById('lab-status').textContent.startsWith(`${count} source`), count);
+    check(await page.locator('#lab-status').getAttribute('data-error') === 'false', `UI calculation ${count}`);
+  }
+  async function add(kind, key, value) {
+    const field = page.locator(`#${kind}-list [data-key="${key}"]`);
+    await field.locator('input').fill(String(value));
+    await field.locator('button[type=submit]').click();
+    await settle(count + 1);
+  }
+  const getValue = async key => Number(await page.locator(`[data-result="${key}"]`).getAttribute('data-value'));
+  await add('normal', 'physicalPen', 1);
+  check(await page.locator('#lab-totals .lab-result').count() === 1, 'one visible result');
+  await page.locator('[data-result=physicalPen] .lab-remove').click();
+  await settle(0);
+  await add('normal', 'strength', 20);
+  await add('improved', 'physicalDamage', 4);
+  check(await getValue('physicalDamage') === 14, '+ without Umbra');
+  await add('improved', 'physicalDamage', 3);
+  check(await getValue('physicalDamage') === 17, 'second + only adds its base');
+  await add('normal', 'physicalDamage', 6);
+  check(await getValue('physicalDamage') === 23, 'normal joins after ratio');
+  check((await page.locator('[data-result=physicalDamage] .lab-name').innerText()).endsWith(' X'), 'visible X label');
+  await add('umbra', 'vigueur', 15);
+  check(await getValue('physicalDamage') === 38, 'Umbra joins once');
+  await page.locator('[data-result=physicalDamage] .lab-name').click();
+  await page.waitForSelector('#lab-helper:not([hidden])');
+  check((await page.locator('#lab-helper').innerText()).includes('38'), 'helper total');
+  await page.locator('#lab-helper [data-umbra-part]').last().hover();
+  await page.waitForSelector('#lab-helper .lab-detail .stat-hover-body');
+  check(/0[.,]5/.test(await page.locator('#lab-helper .lab-detail').innerText()), 'actual ratio shown');
+  await page.keyboard.press('Escape');
+  await page.screenshot({ path: resolve(output, 'system2-desktop.png'), fullPage: true });
+  for (const width of [1280, 900, 390]) {
+    await page.setViewportSize({ width, height: 850 });
+    check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `no overflow ${width}`);
+    await page.locator('[data-result=physicalDamage] .lab-name').click();
+    await page.waitForSelector('#lab-helper:not([hidden])');
+    const box = await page.locator('#lab-helper').boundingBox();
+    check(box.x >= 0 && box.x + box.width <= width + 1 && box.y >= 0 && box.y + box.height <= 851, `helper bounds ${width}`);
+    await page.keyboard.press('Escape');
+    await page.screenshot({ path: resolve(output, `system2-${width}.png`), fullPage: true });
+  }
+  await page.locator('[data-result=physicalDamage] .lab-remove').click();
+  await settle(1);
+  check(await page.locator('#lab-totals .lab-result').count() === 1, 'minus preserves unrelated strength');
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.locator('#lab-reset').click();
+  await settle(0);
+  for (const entry of all) await add(entry.kind, entry.key, entry.value);
+  check(await page.locator('#lab-totals .lab-result > .lab-remove').count() === await page.locator('#lab-totals .lab-result').count(), 'minus on all results');
+  const helperAudit = await page.evaluate(() => [...new Set([...document.querySelectorAll('[data-helper-target]')].map(node => node.dataset.helperTarget))].filter(target => {
+    const helper = labHelper(target); return !helper.html || /NaN|undefined|Infinity/.test(helper.html);
+  }));
+  check(helperAudit.length === 0, `all helpers valid: ${helperAudit}`);
+  const images = await page.evaluate(async () => {
+    const urls = new Set([...document.images].map(image => image.src));
+    for (const icon of document.querySelectorAll('.lab-row > .picto-stat, .lab-result > .picto-stat')) for (const match of getComputedStyle(icon).backgroundImage.matchAll(/url\(["']?(.*?)["']?\)/g)) urls.add(match[1]);
+    const failed = [];
+    for (const url of urls) { const image = new Image(); image.src = url; try { await image.decode(); } catch { failed.push(url.slice(0, 70)); } }
+    return { count: urls.size, failed };
+  });
+  check(images.failed.length === 0 && images.count > 40, `embedded pictos: ${JSON.stringify(images)}`);
+  await page.locator('#sources-tab').click();
+  const input = page.locator('#lab-sources input').first();
+  await input.fill('17'); await input.press('Tab');
+  await page.waitForFunction(() => document.getElementById('lab-status').textContent !== 'Calcul en cours…');
+  check(await input.inputValue() === '17', 'source remains editable');
+  await page.locator('#totals-tab').click();
+  await page.screenshot({ path: resolve(output, 'system2-complete.png'), fullPage: true });
+  check(requests.length === 0, `no network requests: ${requests}`);
+  check(errors.length === 0, `no browser exceptions: ${errors}`);
+  const redirect = await context.newPage();
+  await redirect.goto(pathToFileURL(resolve('docs/index-12.html')).href);
+  await redirect.waitForURL('**/index-13.html');
+  await redirect.waitForSelector('body[data-ready=true]');
+  check(true, 'index-12 redirects to standalone index-13');
+  console.log(JSON.stringify({ status: 'passed', checks, offline: true, output }, null, 2));
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, requests, images }, null, 2));
+} catch (error) {
+  if (page) await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, requests, error: error.stack }, null, 2));
+  throw error;
+} finally { await browser.close(); }
