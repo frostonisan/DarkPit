@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dark pit - diagnostic mobile</title>
+  <script>
+    (function () {
+      var started = Date.now();
+      var entries = [];
+      var errors = 0;
+      var timer;
+      function record(label, detail, failed) {
+        if (failed) errors += 1;
+        entries.push(((Date.now() - started) / 1000).toFixed(1) + ' s | ' + label +
+          (detail ? '\n' + String(detail) : ''));
+        if (entries.length > 80) entries.shift();
+        render();
+      }
+      function render() {
+        var panel = document.getElementById('startup-diagnostic');
+        var report = document.getElementById('startup-diagnostic-report');
+        if (!panel || !report) return;
+        var game = document.getElementById('game-windows');
+        var style = game ? getComputedStyle(game) : null;
+        var bounds = game ? game.getBoundingClientRect() : null;
+        var visible = game && Number(style.opacity) > 0.9 && style.display !== 'none' &&
+          style.visibility !== 'hidden' && bounds.width > 0 && bounds.height > 0;
+        var status = !game ? 'missing' : visible ? 'ready' : 'hidden';
+        panel.setAttribute('data-game-status', status);
+        panel.setAttribute('data-error-count', String(errors));
+        panel.style.width = document.documentElement.clientWidth + 'px';
+        panel.style.maxHeight = Math.max(180, Math.min(420, document.documentElement.clientHeight * 0.55)) + 'px';
+        var storage;
+        try { storage = localStorage.length >= 0 ? 'accessible' : 'indisponible'; }
+        catch (error) { storage = error.name + ': ' + error.message; }
+        var lines = [
+          'DIAGNOSTIC DU DEMARRAGE',
+          'Interface : ' + (!game ? 'absente' : visible ? 'visible' : 'creee mais masquee'),
+          'Erreurs : ' + errors + ' | Document : ' + document.readyState,
+          'Adresse : ' + location.href,
+          'Navigateur : ' + navigator.userAgent,
+          'Ecran visible : ' + document.documentElement.clientWidth + ' x ' + document.documentElement.clientHeight +
+            ' | innerWidth : ' + innerWidth + ' | DPR : ' + devicePixelRatio,
+          'Stockage : ' + storage,
+          'Modules : ' + ('noModule' in document.createElement('script')) +
+            ' | structuredClone : ' + typeof window.structuredClone +
+            ' | ResizeObserver : ' + typeof window.ResizeObserver,
+          game ? 'Jeu : ' + Math.round(bounds.width) + ' x ' + Math.round(bounds.height) +
+            ' | opacity : ' + style.opacity + ' | display : ' + style.display +
+            ' | transform : ' + style.transform : '',
+          '',
+          entries.length ? entries.join('\n\n') : 'En attente des scripts du jeu...'
+        ];
+        report.textContent = lines.join('\n');
+      }
+      window.addEventListener('error', function (event) {
+        if (event.target && event.target !== window) {
+          var resource = event.target;
+          record('RESSOURCE NON CHARGEE', resource.tagName + ' ' + (resource.src || resource.href || ''), true);
+        } else {
+          record('ERREUR JAVASCRIPT', (event.message || '') + '\n' + (event.filename || '') + ':' +
+            (event.lineno || 0) + ':' + (event.colno || 0) + '\n' +
+            (event.error && event.error.stack ? event.error.stack : ''), true);
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        record('ERREUR ASYNCHRONE', String(reason) + (reason && reason.stack ? '\n' + reason.stack : ''), true);
+      });
+      document.addEventListener('load', function (event) {
+        if (event.target && event.target.tagName === 'SCRIPT' && event.target.src) {
+          record('MODULE CHARGE', event.target.src);
+        }
+      }, true);
+      document.addEventListener('DOMContentLoaded', function () {
+        record('DOM PRET');
+        var button = document.getElementById('startup-diagnostic-copy');
+        button.addEventListener('click', function () {
+          var text = document.getElementById('startup-diagnostic-report').textContent;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { button.textContent = 'Copie'; }, function () {
+              button.textContent = 'Copie indisponible';
+            });
+          } else button.textContent = 'Copie indisponible';
+        });
+        timer = setInterval(render, 1000);
+        setTimeout(function () { clearInterval(timer); render(); }, 60000);
+      });
+      window.addEventListener('load', function () { record('PAGE CHARGEE'); });
+      window.addEventListener('resize', render);
+    }());
+  </script>
+  <link rel="stylesheet" href="css/board.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animation.css">
+  <link rel="stylesheet" href="css/monstre.css">
+  <link rel="stylesheet" href="css/battle-infos.css">
+  <link rel="stylesheet" href="css/spell.css">
+  <link rel="stylesheet" href="css/monstre-hitbox.css">
+  <style>
+    #startup-diagnostic {
+      position: fixed; left: 0; top: 0; z-index: 2147483647; box-sizing: border-box;
+      width: 100%; max-height: 55vh; padding: 12px; overflow: auto;
+      border: 1px solid #92a4b2; background: #14191f; color: #dce1e6;
+      text-align: left; font: 13px/1.45 monospace; user-select: text;
+    }
+    #startup-diagnostic-report { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+    #startup-diagnostic-copy { padding: 6px 12px; background: #303a43; color: #fff; border: 1px solid #92a4b2; cursor: pointer; }
+    #startup-diagnostic[data-error-count]:not([data-error-count="0"]) { border-color: #ff7575; }
+  </style>
+  <script type="module" src="./js/GameInit.js"></script>
+  <script type="module" src="./js/admin.js"></script>
+  <script type="module" src="./js/newgame.js"></script>
+</head>
+<body>
+  <section id="startup-diagnostic" aria-label="Diagnostic du demarrage">
+    <button id="startup-diagnostic-copy" type="button">Copier le diagnostic</button>
+    <pre id="startup-diagnostic-report">Chargement du diagnostic...</pre>
+    <noscript>JavaScript est desactive. Le jeu ne peut pas demarrer.</noscript>
+  </section>
+</body>
+</html>
