@@ -19,7 +19,7 @@ check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game s
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
 vm.runInContext(scripts[0], sandbox);
-const { calculate, initialState, effects, umbras, attributes, multiplier, ceiling } = sandbox.window.umbraLab;
+const { calculate, initialState, effects, umbras, attributes, multiplier, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
 equal(umbras.length, 9, 'Exactly nine level-one Umbras');
@@ -37,6 +37,17 @@ equal(row(addPlus).coefficient, row(example).coefficient, 'PP+ cannot grow its c
 const addUmbra = clone(example); addUmbra.umbras.vigueur += 10;
 equal(row(addUmbra).total, 108, '+10 Vigueur adds 28 in the reference build');
 equal(row(addUmbra).attributeGain, 58, 'Fractional Force contribution is rounded upward');
+const lineExample=initialState();
+lineExample.attributes.strength=10; lineExample.umbras.vigueur=10;
+lineExample.fixed.physicalDamage=10; lineExample.plus.physicalDamage=10;
+equal(row(lineExample).total,48,'User example has 48 total PP');
+const lineParts=contributions(row(lineExample));
+equal(lineParts.fixed,10,'Fixed PP row displays its own ten-point contribution');
+equal(lineParts.plus,10,'PP+ does not count the Umbra attribute ratio again');
+equal(lineParts.umbra,28,'Vigueur row displays its gift and generated capacity');
+equal(lineParts.x,18,'X is an included capacity, not another acquisition');
+const noUmbraLines=clone(lineExample); noUmbraLines.umbras.vigueur=0;
+equal(contributions(row(noUmbraLines)).plus,15,'Without Umbra, plus carries its own attribute contribution');
 const withoutUmbra = initialState(); withoutUmbra.attributes.strength = 25;
 equal(row(withoutUmbra).total, 0, 'Force alone does not activate a PP capacity');
 withoutUmbra.fixed.physicalDamage = 10;
@@ -176,6 +187,12 @@ for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15
     const expected=spec.type==='precision'?reference.nativeE.calculatePrecisionPercent(u):reference.nativeCalculate(inputs,spec.key).value;
     near(snapshot.results[spec.key].total, expected, `Current JS parity: ${spec.key}, U=${u}, A=${attribute}, fixe=${fixed}, +=${plus}`);
     equal(snapshot.results[spec.key].gift, 0, `Current ${spec.key} has no concept grant`);
+    for(const mode of ['current','concept']) {
+      const result=calculate({...state,mode}).results[spec.key], parts=contributions(result,mode);
+      near(parts.fixed+parts.plus+parts.umbra,result.total,`${mode} ${spec.key}: exclusive contributions reconcile after rounding and caps`);
+      check(Object.values(parts).every(value=>Number.isFinite(value)&&value>=0),`${mode} ${spec.key}: contributions are nonnegative`);
+      check(parts.x<=parts.umbra+1e-8,`${mode} ${spec.key}: X is already included in its Umbra`);
+    }
   }
 }
 const currentExample={...initialState(true),mode:'current'};
@@ -198,7 +215,7 @@ if (!process.argv.includes('--model-only')) {
     page.on('request', request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
     await page.route('**/*', route => /^https?:/.test(route.request().url()) ? route.abort() : route.continue());
     await page.goto(pathToFileURL(path).href);
-    const total = id => page.locator(`[data-total="${id}"]`).innerText();
+    const total = id => page.locator(`[data-stat-total="${id.slice(id.indexOf('-')+1)}"]`).innerText();
     const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
     const fill = (group, key, value) => field(group, key).fill(String(value));
     const add = async (catalog, id, query = '') => {
@@ -370,6 +387,95 @@ if (!process.argv.includes('--model-only')) {
     await statsPicker.locator('summary').click();
     await statsPicker.locator('input').fill('pp');
     await page.screenshot({ path: resolve(output, 'dropdown.png'), fullPage: true });
+    await statsPicker.locator('input').press('Escape');
+
+    const first=page.locator('[data-entity-id="entity-1"]');
+    const entityTotal=entity=>entity.locator('[data-stat-total="physicalDamage"]').innerText();
+    const entityFill=(entity,group,key,value)=>entity.locator(`input[data-group="${group}"][data-key="${key}"]`).fill(String(value));
+    const settings=entity=>entity.locator('input:not([type="search"])').evaluateAll(nodes=>nodes.map(node=>[node.dataset.ui||node.dataset.group||'name',node.dataset.key||'',node.value]));
+    const rowNumber=(entity,id)=>entity.locator(`[data-total="${id}"]`).evaluate(node=>node.firstChild.textContent.trim());
+    await first.locator('.entity-name').fill('Porc Vigueur');
+    await first.locator('[data-ui="example"]').click();
+    for(const [group,key] of [['attributes','strength'],['umbras','vigueur'],['fixed','physicalDamage'],['plus','physicalDamage']])await entityFill(first,group,key,10);
+    equal(await entityTotal(first),'48','User screenshot build has a separate 48 PP total');
+    equal(await rowNumber(first,'fixed-physicalDamage'),'10','Fixed row no longer repeats the global total');
+    equal(await rowNumber(first,'plus-physicalDamage'),'10','Plus row shows its exclusive contribution');
+    equal(await first.locator('[data-total="umbra-vigueur"] [data-contribution-stat="physicalDamage"]').evaluate(node=>node.firstChild.textContent),'28','Umbra row shows 28 PP');
+    equal(await rowNumber(first,'x-physicalDamage'),'18','X displays its included capacity');
+    equal(await first.locator('[data-stat-total="physicalDamage"]').count(),1,'Exactly one PP total despite four related rows');
+    check((await first.locator('[data-breakdown="physicalDamage"]').innerText()).includes('Fixe 10 + Stat+ 10 + Vigueur 28'),'Total explains the non-duplicated sum');
+
+    const firstBefore=await settings(first);
+    await page.locator('#add-entity').click();
+    const second=page.locator('[data-entity-id="entity-2"]');
+    equal(await page.locator('.entity').count(),2,'Two entities are displayed simultaneously');
+    equal(await second.locator('[data-entry]').count(),0,'New entity starts independently');
+    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Creating an entity preserves the first build');
+    await second.locator('.entity-name').fill('Porc PP+');
+    await second.locator('[data-ui="example"]').click();
+    await entityFill(second,'attributes','strength',10);
+    await entityFill(second,'umbras','vigueur',0);
+    await entityFill(second,'fixed','physicalDamage',10);
+    await entityFill(second,'plus','physicalDamage',20);
+    equal(await entityTotal(second),'35','Second entity computes its own build');
+    equal(await rowNumber(second,'plus-physicalDamage'),'25','Without Umbra, the plus row includes its attribute ratio');
+    equal(await entityTotal(first),'48','Second entity edits do not affect the first');
+    await second.locator('[data-ui="level"]').fill('12');
+    await second.locator('[data-ui="limit"]').fill('80');
+    await second.locator('details.rules > summary').click();
+    await second.locator('[data-ui="curve-k"]').fill('45');
+    await second.locator('[data-ui="curve-max"]').fill('4');
+    await second.locator('[data-ui="concept-settings"] > details > summary').click();
+    await entityFill(second,'gifts','physicalDamage',2);
+    await entityFill(second,'umbras','vigueur',10);
+    equal(await entityTotal(second),'68','Each entity has its own curve and grants');
+    const secondBefore=await settings(second);
+    await second.locator('[data-ui="mode-toggle"]').click();
+    equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
+    equal(await first.locator('[data-ui="mode-name"]').innerText(),'Concept','Calculation mode is isolated per entity');
+    equal(JSON.stringify(await settings(second)),JSON.stringify(secondBefore),'Mode switch preserves name, levels, limit, curve, grants and every input');
+    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Switching another entity preserves all first-entity settings');
+    await second.locator('[data-ui="mode-toggle"]').click();
+    equal(await entityTotal(second),'68','Returning to concept restores the same second result');
+    equal(JSON.stringify(await settings(second)),JSON.stringify(secondBefore),'Round trip preserves all second-entity settings');
+    await first.locator('[data-ui="mode-toggle"]').click();
+    equal(await entityTotal(first),'35','First entity switches independently');
+    equal(await entityTotal(second),'68','Second entity remains unchanged');
+    await first.locator('[data-ui="mode-toggle"]').click();
+    await entityFill(first,'fixed','physicalDamage',11);
+    equal(await entityTotal(first),'49','First entity still updates independently');
+    equal(await entityTotal(second),'68','No input selector leaks to the other entity');
+    await entityFill(first,'fixed','physicalDamage',10);
+    check(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);return new Set(ids).size===ids.length;}),'Multiple entities have unique DOM and detail identifiers');
+    await second.locator('details.rules > summary').click();
+    const firstBox=await first.boundingBox(), secondBox=await second.boundingBox();
+    check(secondBox.x>firstBox.x && Math.abs(secondBox.y-firstBox.y)<2,'Entity tables are side by side on desktop');
+    await page.screenshot({path:resolve(output,'multiple-entities.png'),fullPage:true});
+    for(const entity of [first,second])for(const catalog of ['stats','plus','x','umbras','attributes']) {
+      const picker=entity.locator(`[data-catalog="${catalog}"]`);
+      await picker.locator('summary').click();
+      check(await picker.locator('.picker-panel').evaluate(node=>{const panel=node.getBoundingClientRect(),card=node.closest('.entity').getBoundingClientRect();return panel.left>=card.left&&panel.right<=card.right;}),'Dropdown remains inside its owning entity');
+      await picker.locator('input').press('Escape');
+    }
+    await page.setViewportSize({width:390,height:844});
+    check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Multiple entities do not overflow on mobile');
+    await page.screenshot({path:resolve(output,'multiple-entities-mobile.png'),fullPage:true});
+    await first.locator('[data-ui="clear"]').click();
+    check(await first.locator('[data-ui="empty"]').isVisible(),'Clear only empties its own entity');
+    equal(await first.locator('.entity-name').inputValue(),'Porc Vigueur','Clear preserves the entity name');
+    equal(await entityTotal(second),'68','Clearing another entity leaves the second build untouched');
+    await first.locator('[data-remove-entity]').click();
+    equal(await page.locator('.entity').count(),1,'Minus Entity removes only the intended entity');
+    equal(await entityTotal(second),'68','Remaining entity retains results and settings');
+    await page.locator('#add-entity').click();
+    const third=page.locator('[data-entity-id="entity-3"]');
+    equal(await third.locator('[data-entry]').count(),0,'Entity created after removal is fresh');
+    equal(await third.locator('[data-ui="curve-k"]').inputValue(),'30','A fresh entity does not inherit another entity’s settings');
+    await third.locator('[data-remove-entity]').click();
+    await second.locator('[data-remove-entity]').click();
+    check(await page.locator('#no-entities').isVisible(),'Removing the final entity leaves the add action available');
+    await page.locator('#add-entity').click();
+    equal(await page.locator('.entity').count(),1,'An entity can be created again after removing all');
     equal(errors.length, 0, `No browser errors: ${errors.join('; ')}`);
     equal(network.length, 0, 'Standalone page makes no external requests');
     await writeFile(resolve(output, 'verification.json'), JSON.stringify({ checks, errors, network }, null, 2));

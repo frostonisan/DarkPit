@@ -8,7 +8,7 @@
 :root { color-scheme: dark; --bg:#101316; --panel:#181d21; --line:#343e46; --text:#edf0f1; --muted:#a8b4bc; --gold:#ddc68d; --force:#ff8c86; --intelligence:#a99cff; --agility:#e1cc74; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
-main { max-width:1280px; margin:auto; padding:20px; }
+main { max-width:1900px; margin:auto; padding:20px; }
 h1,h2,p { margin:0; } h1 { font:26px Georgia,serif; } h2 { font-size:14px; font-weight:600; }
 button,input { font:inherit; color:inherit; }
 button { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer; }
@@ -19,15 +19,27 @@ header,.controls,.tools { display:flex; gap:12px; align-items:center; flex-wrap:
 header { justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--line); }
 .subtitle,.muted,small { color:var(--muted); } .subtitle { margin-top:5px; }
 .controls { margin:15px 0 8px; gap:10px 22px; } .controls label { display:flex; gap:8px; align-items:center; }
-#mode-toggle { border-color:var(--gold); } #mode-toggle[aria-pressed=true] { border-color:#87badb; color:#b9def4; }
-input:disabled { opacity:.5; } #current-rules { margin-top:12px; }
+[data-ui=mode-toggle] { border-color:var(--gold); } [data-ui=mode-toggle][aria-pressed=true] { border-color:#87badb; color:#b9def4; }
+input:disabled { opacity:.5; } [data-ui=current-rules] { margin-top:12px; }
+.entity-toolbar,.entity-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+.entity-toolbar { margin:18px 0; }
+.entities { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,640px),1fr)); gap:18px; align-items:start; }
+.entity { min-width:0; padding:16px; border:1px solid var(--line); border-radius:6px; container:entity / inline-size; }
+.entity-header { padding-bottom:12px; border-bottom:1px solid var(--line); }
+.entity-header label { min-width:0; flex:1 1 180px; color:var(--muted); font-size:12px; }
+.entity-name { display:block; width:100%; max-width:320px; margin-top:4px; font-size:17px; }
+.entity-header .tools { gap:5px; } .entity-header button { font-size:12px; }
+.stat-totals { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; margin:12px 0; }
+.stat-total { padding:10px 12px; background:var(--panel); border:1px solid var(--line); border-radius:4px; }
+.stat-total>span { display:block; font-size:12px; } .stat-total output { display:block; color:var(--gold); font-size:21px; font-weight:600; }
+.stat-total small { display:block; margin-top:4px; line-height:1.5; }
 .context { margin-bottom:15px; font-size:12px; color:var(--muted); }
 .pickers { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:18px 0; }
 .picker { position:relative; min-width:0; }
 .picker>summary { padding:11px 13px; border:1px solid var(--line); border-radius:5px; background:var(--panel); }
 .picker[open]>summary { border-color:var(--gold); }
 .picker-panel { position:absolute; top:calc(100% + 5px); left:0; width:100%; min-width:255px; z-index:10; padding:10px; background:var(--panel); border:1px solid var(--line); border-radius:5px; box-shadow:0 8px 18px #0006; }
-.picker:last-child .picker-panel { left:auto; right:0; }
+.picker:nth-last-child(-n+2) .picker-panel { left:auto; right:0; }
 .picker input { width:100%; } .picker-options { max-height:265px; overflow-y:auto; margin:8px 0 0; padding:0; list-style:none; }
 .picker-options button { width:100%; display:flex; justify-content:space-between; gap:8px; padding:8px; text-align:left; border:0; }
 .picker-options button:hover,.picker-options button:focus-visible { background:#293139; }
@@ -55,7 +67,7 @@ td input { width:65px!important; } .effect-name { border:0; background:transpare
 .calculation .result { color:var(--gold); font-weight:600; } .description { margin-bottom:8px; }
 .milestones { margin-top:12px; max-width:650px; } .milestones th,.milestones td { padding:5px 8px; font-size:12px; }
 .milestones tr[data-current=true] { color:var(--gold); } .compare { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
-.notice { margin-top:8px; color:var(--muted); font-size:12px; } #status { min-height:22px; margin-top:12px; color:var(--gold); }
+.notice { margin-top:8px; color:var(--muted); font-size:12px; } [data-ui=status] { min-height:22px; margin-top:12px; color:var(--gold); }
 details.rules { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:12px; }
 summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } .rules li { margin:5px 0; }
 .rules .controls { margin:10px 0; } footer { margin-top:16px; color:var(--muted); font-size:12px; }
@@ -63,33 +75,43 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .gift-settings label { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .gift-settings input { flex:0 0 65px; width:65px; }
 .source-effect { margin:10px 0; padding:10px; border:1px solid var(--line); }
-@media(max-width:760px) {
-  main { padding:14px; } .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:760px) { main { padding:14px; } .entity { padding:12px; } }
+@container entity (max-width:640px) {
+  .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .picker:nth-child(even) .picker-panel { left:auto; right:0; } .gift-settings { grid-template-columns:1fr; }
   .picker:nth-child(odd) .picker-panel { left:0; right:auto; }
   .table-wrap { max-width:100%; }
-  #effects-table,#effects-table>caption,#effects { display:block; } #effects-table>thead { display:none; }
-  #effects>tr[data-entry] { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; margin-top:12px; padding:12px; border:1px solid var(--line); }
-  #effects>tr[data-entry]>td { padding:0; border:0; min-width:0; }
-  #effects>tr[data-entry]>td:first-child { grid-column:1; grid-row:1; }
-  #effects>tr[data-entry]>td:last-child { grid-column:2; grid-row:1; text-align:right; }
-  #effects>tr[data-entry]>td:nth-child(3) { grid-column:1/-1; }
-  #effects>tr[data-entry]>td:nth-child(4) { grid-column:1/-1; }
-  #effects>tr[data-entry]>td[data-label]:not(:first-child)::before { content:attr(data-label); display:block; margin-bottom:4px; color:var(--muted); font-size:10px; font-weight:400; }
+  [data-ui=effects-table],[data-ui=effects-table]>caption,[data-ui=effects] { display:block; } [data-ui=effects-table]>thead { display:none; }
+  [data-ui=effects]>tr[data-entry] { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; margin-top:12px; padding:12px; border:1px solid var(--line); }
+  [data-ui=effects]>tr[data-entry]>td { padding:0; border:0; min-width:0; }
+  [data-ui=effects]>tr[data-entry]>td:first-child { grid-column:1; grid-row:1; }
+  [data-ui=effects]>tr[data-entry]>td:last-child { grid-column:2; grid-row:1; text-align:right; }
+  [data-ui=effects]>tr[data-entry]>td:nth-child(3) { grid-column:1/-1; }
+  [data-ui=effects]>tr[data-entry]>td:nth-child(4) { grid-column:1/-1; }
+  [data-ui=effects]>tr[data-entry]>td[data-label]:not(:first-child)::before { content:attr(data-label); display:block; margin-bottom:4px; color:var(--muted); font-size:10px; font-weight:400; }
   .ratio { max-width:none; }
   .detail-row:not([hidden]),.detail-row>td { display:block; }
   .detail-row>td { padding:12px; } .milestones { max-width:100%; }
   .milestones th,.milestones td { padding:5px 3px; font-size:11px; } .compare,.description { overflow-wrap:anywhere; }
 }
-@media(max-width:460px) { .calculation { grid-template-columns:1fr; gap:3px; } .calculation dd { margin-bottom:7px; } h1 { font-size:23px; } }
+@container entity (max-width:460px) { .calculation { grid-template-columns:1fr; gap:3px; } .calculation dd { margin-bottom:7px; } }
+@media(max-width:460px) { h1 { font-size:23px; } }
 </style>
 </head>
 <body>
 <main>
   <header>
     <div><h1>Atelier des Umbras I</h1><p class="subtitle">Index 14 · Acquisition, ratios et calculs en direct.</p></div>
-    <div class="tools"><button type="button" id="example">Exemple PP</button><button type="button" id="clear">Vider</button></div>
   </header>
+  <div class="entity-toolbar"><h2>Entités</h2><button type="button" id="add-entity">+ Entité</button></div>
+  <div class="entities" id="entities"></div>
+  <p class="empty" id="no-entities" hidden>Ajoutez une entité pour commencer.</p>
+  <template id="entity-template">
+  <section class="entity">
+  <div class="entity-header">
+    <label>Nom de l’entité<input class="entity-name" type="text" maxlength="100" autocomplete="off"></label>
+    <div class="tools"><button type="button" id="example">Exemple PP</button><button type="button" id="clear">Vider</button><button type="button" data-remove-entity>− Entité</button></div>
+  </div>
   <div class="controls">
     <button type="button" id="mode-toggle" aria-pressed="false" aria-label="Passer à la version actuelle">Calculs : <strong id="mode-name">Concept</strong> ⇄</button>
     <label>Niveau <input id="level" type="number" min="1" step="1" value="1"></label>
@@ -97,11 +119,12 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   </div>
   <section class="pickers" aria-label="Ajouter au tableau" id="pickers"></section>
   <section aria-label="Calcul des statistiques">
+    <div class="stat-totals" id="stat-totals" aria-label="Totaux des statistiques"></div>
     <p class="empty" id="empty">Choisissez un élément dans une liste pour l’ajouter au tableau.</p>
     <div class="table-wrap">
       <table id="effects-table" hidden>
-        <caption>Stats X calculées par leurs Umbras. Cliquez sur un nom pour le détail.</caption>
-        <thead><tr><th scope="col">Élément</th><th scope="col">Points</th><th scope="col">Ratio / effet</th><th scope="col">Total de l’entité</th><th scope="col"><span class="muted">Retirer</span></th></tr></thead>
+        <caption>Apport de chaque ligne. Les vues X sont déjà comprises dans l’Umbra. Cliquez sur un nom pour le détail.</caption>
+        <thead><tr><th scope="col">Élément</th><th scope="col">Points</th><th scope="col">Ratio / effet</th><th scope="col">Contribution de la ligne</th><th scope="col"><span class="muted">Retirer</span></th></tr></thead>
         <tbody id="effects"></tbody>
       </table>
     </div>
@@ -129,7 +152,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       <p>Ratios, arrondis et plafonds propres à chaque effet. Le don fixe supplémentaire, la courbe globale et la limite commune du concept ne s’appliquent pas.</p>
       <p>Les mêmes saisies sont conservées dans les deux modes. La réduction d’esquive adverse vient directement de Précision ; ses apports fixe/+ du concept n’ont pas d’équivalent actuel.</p>
     </div>
+    <p class="notice">Les totaux additionnent les apports une seule fois. Si un plafond est atteint, les contributions affichées sont réparties dans l’ordre : fixe, stat+, Umbra.</p>
   </details>
+  </section>
+  </template>
   <footer>Simulation autonome · Aucune lecture ni écriture des sauvegardes du jeu.</footer>
 </main>
 <script>
@@ -278,17 +304,35 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     }
     return {mode:'current',level:Math.max(1,Math.floor(number(input.level))),limit:number(input.limit??150),attributes,umbras,results};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, ceiling, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  function contributions(row,mode='concept') {
+    const fixed=Math.min(row.total,Math.max(0,row.fixedApplied??row.fixed));
+    const hasUmbra=row.u>0 && row.active;
+    let plusClaim=row.plusApplied??row.plus;
+    if(!hasUmbra)plusClaim=row.total-fixed;
+    else if(mode==='current' && row.type==='critical')plusClaim+=row.common+row.attributeGain;
+    const plus=Math.min(Math.max(0,row.total-fixed),Math.max(0,plusClaim));
+    const umbra=Math.max(0,row.total-fixed-plus);
+    // X is a view of the capability already carried by its Umbra, never a
+    // fourth acquisition. Apply effect caps once, then reconcile the parts.
+    const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
+    return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
+  }
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
 (() => {
   'use strict';
+  function mountEntity(root,serial) {
   const Lab=window.umbraLab;
-  const $=selector=>document.querySelector(selector);
+  const domId=id=>serial===1?id:`entity-${serial}-${id}`;
+  for(const node of root.querySelectorAll('[id]')) { node.dataset.ui=node.id; node.id=domId(node.id); }
+  const $=selector=>root.querySelector(selector.replace(/#([\w-]+)/g,(_,id)=>`[data-ui="${id}"]`));
   const fmt=(value,decimals=2)=>new Intl.NumberFormat('fr-FR',{ maximumFractionDigits:decimals }).format(value);
   const names=Object.fromEntries([...Lab.attributes,...Lab.umbras,...Lab.effects].map(spec=>[spec.key,spec.name]));
   let state=Lab.initialState(), open=new Set(), selected=new Map();
+  root.querySelector('.entity-name').value=`Entité ${serial}`;
+  root.setAttribute('aria-label',`Entité ${serial}`);
   const isConcept=()=>state.mode!=='current';
   const aliases={ physicalDamage:'PP', magicalDamage:'PM', piercingDamage:'puissance percante', HP:'points de vie' };
   const entry=(category,kind,group,spec,name)=>({id:`${kind}-${spec.key}`,category,kind,group,key:spec.key,name,spec});
@@ -351,18 +395,18 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     selected.set(item.id,item);
     const row=document.createElement('tr'); row.dataset.entry=item.id;
     const title=document.createElement('button'); title.type='button'; title.className='effect-name'; title.dataset.detail=item.id;
-    title.setAttribute('aria-controls',`detail-${item.id}`); title.textContent=item.name;
+    title.setAttribute('aria-controls',domId(`detail-${item.id}`)); title.textContent=item.name;
     const name=cell('Élément',title), source=document.createElement('span'); source.className='source-name'; source.textContent=kindNames[item.kind]; name.append(source); row.append(name);
     const points=cell('Points');
     if(item.group)points.append(stepper(item.group,item.key,state[item.group][item.key]||0,item.name,item.spec.unit?.includes('%')?.1:1));
     else { points.textContent='Calculés'; points.className='muted'; }
     row.append(points);
     const ratio=cell('Ratio / effet'); ratio.className='ratio'; ratio.dataset.ratio=item.id; row.append(ratio);
-    const total=cell('Total de l’entité'); total.className='total'; total.dataset.total=item.id; row.append(total);
+    const total=cell('Contribution de la ligne'); total.className='total'; total.dataset.total=item.id; row.append(total);
     const remove=document.createElement('button'); remove.type='button'; remove.className='remove'; remove.dataset.remove=item.id;
     remove.textContent='×'; remove.setAttribute('aria-label',`Retirer ${item.name}`); row.append(cell(null,remove));
     row.lastElementChild.removeAttribute('data-label');
-    const detail=document.createElement('tr'); detail.className='detail-row'; detail.id=`detail-${item.id}`; detail.hidden=true;
+    const detail=document.createElement('tr'); detail.className='detail-row'; detail.dataset.ui=`detail-${item.id}`; detail.id=domId(detail.dataset.ui); detail.hidden=true;
     const content=document.createElement('td'); content.colSpan=5; detail.append(content);
     $('#effects').append(row,detail);
     return true;
@@ -443,9 +487,29 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     }
     if(item.kind==='umbra') {
       const effects=Object.values(snapshot.results).filter(row=>row.source===item.key);
-      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]} · niveau 1</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(Lab.multiplier(snapshot.umbras[item.key],state.curve),6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} X · ${fmt(row.total)}${row.unit} au total</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
+      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]} · niveau 1</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(Lab.multiplier(snapshot.umbras[item.key],state.curve),6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} · contribution : ${fmt(Lab.contributions(row,snapshot.mode).umbra)}${row.unit}</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
     }
-    return detailHTML(snapshot.results[item.key],snapshot);
+    const row=snapshot.results[item.key], part=Lab.contributions(row,snapshot.mode)[item.kind];
+    return `<p class="description">${item.kind==='x'?'Capacité déjà comprise dans '+names[row.source]:'Contribution de cette ligne'} : ${fmt(part)}${row.unit}.</p>${detailHTML(row,snapshot)}`;
+  }
+  function renderStatTotals(snapshot) {
+    const watched=new Set();
+    for(const item of selected.values()) {
+      if(item.kind==='umbra')for(const spec of Lab.effects)if(spec.source===item.key)watched.add(spec.key);
+      if(['fixed','plus','x'].includes(item.kind))watched.add(item.key);
+    }
+    const totals=$('#stat-totals'); totals.replaceChildren();
+    const labels={physicalDamage:'PP totale',magicalDamage:'PM totale',piercingDamage:'Puissance perçante totale'};
+    for(const spec of Lab.effects)if(watched.has(spec.key)) {
+      const row=snapshot.results[spec.key], parts=Lab.contributions(row,snapshot.mode);
+      const box=document.createElement('div'); box.className='stat-total'; box.dataset.statSummary=spec.key;
+      const label=document.createElement('span'); label.textContent=labels[spec.key]||`${spec.name} · total`;
+      const output=document.createElement('output'); output.dataset.statTotal=spec.key; output.textContent=`${fmt(row.total)}${row.unit}`;
+      output.setAttribute('aria-label',label.textContent);
+      const detail=document.createElement('small'); detail.dataset.breakdown=spec.key;
+      detail.textContent=`Fixe ${fmt(parts.fixed)} + Stat+ ${fmt(parts.plus)} + ${names[row.source]} ${fmt(parts.umbra)}${row.unit}${row.capped?' · plafond atteint':''}`;
+      box.append(label,output,detail); totals.append(box);
+    }
   }
   function render() {
     const snapshot=Lab.calculate(state);
@@ -457,19 +521,20 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     for(const [id,value] of [['level',state.level],['limit',state.limit],['curve-k',state.curve.k],['curve-max',state.curve.max]]) {
       if(document.activeElement!==$(`#${id}`))$(`#${id}`).value=value;
     }
-    for(const input of document.querySelectorAll('input[data-group]')) {
+    for(const input of root.querySelectorAll('input[data-group]')) {
       const {group,key}=input.dataset; if(document.activeElement!==input)input.value=state[group][key]||0;
       if(isConcept() && ['attributes','umbras'].includes(group))input.max=state.limit;else input.removeAttribute('max');
       input.disabled=!isConcept() && (group==='gifts' || (['fixed','plus'].includes(group) && key==='precisionReduction'));
     }
-    for(const button of document.querySelectorAll('button[data-delta]')) {
+    for(const button of root.querySelectorAll('button[data-delta]')) {
       const {group,key,delta}=button.dataset, value=state[group][key]||0;
       button.disabled=(!isConcept() && ['fixed','plus'].includes(group) && key==='precisionReduction') || (Number(delta)<0 ? value<=0 : isConcept() && ['attributes','umbras'].includes(group) && value>=state.limit);
     }
     $('#empty').hidden=selected.size>0; $('#effects-table').hidden=selected.size===0;
-    for(const button of document.querySelectorAll('[data-add]'))button.querySelector('small').textContent=selected.has(button.dataset.add)?'Ajouté':'';
+    for(const button of root.querySelectorAll('[data-add]'))button.querySelector('small').textContent=selected.has(button.dataset.add)?'Ajouté':'';
+    renderStatTotals(snapshot);
     for(const item of selected.values()) {
-      const tr=document.querySelector(`[data-entry="${item.id}"]`), title=tr.querySelector('.effect-name');
+      const tr=$(`[data-entry="${item.id}"]`), title=tr.querySelector('.effect-name');
       title.setAttribute('aria-expanded',String(open.has(item.id)));
       const ratio=tr.querySelector('.ratio'), total=tr.querySelector('.total');
       if(item.kind==='attribute') {
@@ -477,7 +542,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       } else if(item.kind==='umbra') {
         const u=snapshot.umbras[item.key];
         ratio.innerHTML=isConcept()?`M(U) = ×${fmt(Lab.multiplier(u,state.curve),4)}<small>${fmt(u)} / ${fmt(state.limit)} points retenus</small>`:'Ratios des JS actuels<small>Sans multiplicateur global</small>';
-        total.innerHTML=Object.values(snapshot.results).filter(row=>row.source===item.key).map(row=>`<span>${fmt(row.total)}${row.unit}<small>${row.name}</small></span>`).join('');
+        total.innerHTML=Object.values(snapshot.results).filter(row=>row.source===item.key).map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra)}${row.unit}<small>${row.name}</small></span>`).join('');
       } else {
         const row=snapshot.results[item.key];
         const coefficient=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}` : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %` : 'Montant calculé';
@@ -485,9 +550,12 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
         if(item.kind==='plus')ratio.innerHTML=`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
         if(item.kind==='x')ratio.innerHTML=row.u>0 && row.active?`Capacité : ${fmt(row.generated)}${row.unit}<small>${coefficient} · ${names[row.source]}</small>`:!isConcept() && row.type==='critical'?'Inactive · nécessite Dégâts critiques +':`Inactive · nécessite ${names[row.source]}`;
         if(!isConcept() && !row.supportsDirect && item.kind!=='x')ratio.textContent='Aucun apport direct équivalent dans les JS actuels';
-        total.textContent=`${fmt(row.total)}${row.unit}`; total.title=row.capped?`Plafond : ${row.cap}${row.unit}`:'';
+        const parts=Lab.contributions(row,snapshot.mode);
+        total.textContent=`${fmt(parts[item.kind])}${row.unit}`;
+        if(item.kind==='x') { const note=document.createElement('small'); note.textContent=`Déjà compris dans ${names[row.source]}`; total.append(note); }
+        total.title=row.capped?`Part retenue après le plafond de ${row.cap}${row.unit}`:'';
       }
-      const detail=document.getElementById(`detail-${item.id}`); detail.hidden=!open.has(item.id);
+      const detail=$(`#detail-${item.id}`); detail.hidden=!open.has(item.id);
       if(open.has(item.id)) {
         const expanded=[...detail.querySelectorAll('[data-detail-panel][open]')].map(panel=>panel.dataset.detailPanel);
         detail.firstElementChild.innerHTML=entryDetail(item,snapshot);
@@ -495,8 +563,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       }
     }
   }
-  document.addEventListener('input',event=>{
+  root.addEventListener('input',event=>{
     const input=event.target;
+    if(input.matches('.entity-name')) { root.setAttribute('aria-label',input.value.trim()||`Entité ${serial}`); return; }
     if(input.matches('.picker input')) { filterPicker(input.closest('.picker')); return; }
     if(!input.matches('input[type=number]'))return;
     if(input.value==='' || input.validity.badInput)return;
@@ -505,36 +574,35 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       const {group,key}=input.dataset, bounded=isConcept() && ['attributes','umbras'].includes(group);
       state[group][key]=bounded?Math.min(state.limit,value):value;
       if(state[group][key]!==Number(input.value))input.value=state[group][key];
-    } else if(input.id==='limit') {
+    } else if(input.dataset.ui==='limit') {
       state.limit=value; let reduced=false;
       for(const group of ['attributes','umbras'])for(const key of Object.keys(state[group]))if(state[group][key]>value){state[group][key]=value;reduced=true;}
       $('#status').textContent=reduced?'Valeurs directrices ramenées à la nouvelle limite. Les apports fixes sont conservés.':'Nouvelle limite appliquée aux attributs et aux neuf Umbras.';
-    } else if(input.id==='level')state.level=Math.max(1,Math.floor(value));
-    else if(input.id==='curve-k')state.curve.k=Math.max(.01,value);
-    else if(input.id==='curve-max')state.curve.max=Math.max(1,value);
+    } else if(input.dataset.ui==='level')state.level=Math.max(1,Math.floor(value));
+    else if(input.dataset.ui==='curve-k')state.curve.k=Math.max(.01,value);
+    else if(input.dataset.ui==='curve-max')state.curve.max=Math.max(1,value);
     render();
   });
-  document.addEventListener('change',event=>{
+  root.addEventListener('change',event=>{
     const input=event.target;
     if(!input.matches('input[type=number]'))return;
     if(input.dataset.group) {
       const {group,key}=input.dataset;
       if(input.value==='')state[group][key]=0;
       input.value=state[group][key]||0;
-    } else input.value=({'level':state.level,'limit':state.limit,'curve-k':state.curve.k,'curve-max':state.curve.max})[input.id];
+    } else input.value=({'level':state.level,'limit':state.limit,'curve-k':state.curve.k,'curve-max':state.curve.max})[input.dataset.ui];
     render();
   });
-  document.addEventListener('click',event=>{
-    if(!event.target.closest('.picker'))for(const picker of document.querySelectorAll('.picker'))picker.open=false;
+  root.addEventListener('click',event=>{
     const button=event.target.closest('button'); if(!button)return;
-    if(button.id==='mode-toggle') {
+    if(button.dataset.ui==='mode-toggle') {
       state.mode=isConcept()?'current':'concept'; render();
       $('#status').textContent=`Calculs : ${isConcept()?'Concept':'Version actuelle'} · saisies conservées.`;
     }
     if(button.dataset.add) {
       const item=entries[button.dataset.add], added=addEntry(item);
       const picker=button.closest('.picker'); picker.open=false; picker.querySelector('input').value=''; filterPicker(picker); render();
-      const row=document.querySelector(`[data-entry="${item.id}"]`); (row.querySelector('input')||row.querySelector('.effect-name')).focus({preventScroll:true}); row.scrollIntoView({block:'nearest'});
+      const row=$(`[data-entry="${item.id}"]`); (row.querySelector('input')||row.querySelector('.effect-name')).focus({preventScroll:true}); row.scrollIntoView({block:'nearest'});
       $('#status').textContent=added?`${item.name} ajouté au tableau.`:`${item.name} est déjà dans le tableau.`;
     }
     if(button.dataset.delta){const {group,key,delta}=button.dataset;const limit=isConcept() && ['attributes','umbras'].includes(group)?state.limit:Infinity;state[group][key]=Math.max(0,Math.min(limit,Number(((state[group][key]||0)+Number(delta)).toFixed(8))));render();}
@@ -543,21 +611,36 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       const item=selected.get(button.dataset.remove); if(!item)return;
       if(item.group)state[item.group][item.key]=0;
       selected.delete(item.id); open.delete(item.id);
-      document.querySelector(`[data-entry="${item.id}"]`).remove(); document.getElementById(`detail-${item.id}`).remove(); render();
+      $(`[data-entry="${item.id}"]`).remove(); $(`#detail-${item.id}`).remove(); render();
       $(`[data-catalog="${item.category}"]>summary`).focus(); $('#status').textContent=`${item.name} retiré du tableau.`;
     }
-    if(button.id==='example' || button.id==='clear') {
-      state={...Lab.initialState(button.id==='example'),mode:state.mode}; open.clear(); selected.clear(); $('#effects').replaceChildren();
-      if(button.id==='example')for(const id of ['attribute-strength','fixed-physicalDamage','plus-physicalDamage','umbra-vigueur','x-physicalDamage'])addEntry(entries[id],false);
-      for(const picker of document.querySelectorAll('.picker')){picker.open=false;picker.querySelector('input').value='';filterPicker(picker);}
-      $('#status').textContent=button.id==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Tableau vidé.'; render();
+    if(button.dataset.ui==='example' || button.dataset.ui==='clear') {
+      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode}; open.clear(); selected.clear(); $('#effects').replaceChildren();
+      if(button.dataset.ui==='example')for(const id of ['attribute-strength','fixed-physicalDamage','plus-physicalDamage','umbra-vigueur','x-physicalDamage'])addEntry(entries[id],false);
+      for(const picker of root.querySelectorAll('.picker')){picker.open=false;picker.querySelector('input').value='';filterPicker(picker);}
+      $('#status').textContent=button.dataset.ui==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Tableau vidé.'; render();
     }
   });
-  document.addEventListener('keydown',event=>{
+  root.addEventListener('keydown',event=>{
     const picker=event.target.closest('.picker');
     if(event.key==='Escape' && picker){picker.open=false;picker.querySelector('summary').focus();event.preventDefault();}
   });
   render();
+  }
+  let serial=0;
+  const entities=document.getElementById('entities'), template=document.getElementById('entity-template');
+  function addEntity(focus=false) {
+    const root=template.content.firstElementChild.cloneNode(true); root.dataset.entityId=`entity-${++serial}`;
+    entities.append(root); mountEntity(root,serial); document.getElementById('no-entities').hidden=true;
+    if(focus) { const name=root.querySelector('.entity-name'); name.focus(); name.select(); }
+  }
+  document.getElementById('add-entity').addEventListener('click',()=>addEntity(true));
+  document.addEventListener('click',event=>{
+    for(const picker of document.querySelectorAll('.picker'))if(!picker.contains(event.target))picker.open=false;
+    const remove=event.target.closest('[data-remove-entity]');
+    if(remove) { remove.closest('.entity').remove(); document.getElementById('no-entities').hidden=entities.children.length>0; document.getElementById('add-entity').focus(); }
+  });
+  addEntity();
 })();
 </script>
 </body>
