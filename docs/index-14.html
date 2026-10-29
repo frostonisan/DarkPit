@@ -20,7 +20,7 @@ header { justify-content:space-between; padding-bottom:16px; border-bottom:1px s
 .subtitle,.muted,small { color:var(--muted); } .subtitle { margin-top:5px; }
 .controls { margin:15px 0 8px; gap:10px 22px; } .controls label { display:flex; gap:8px; align-items:center; }
 [data-ui=mode-toggle] { border-color:var(--gold); } [data-ui=mode-toggle][aria-pressed=true] { border-color:#87badb; color:#b9def4; }
-input:disabled { opacity:.5; } [data-ui=current-rules] { margin-top:12px; }
+[data-ui=current-rules] { margin-top:12px; }
 .entity-toolbar,.entity-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .entity-toolbar { margin:18px 0; }
 .entities { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,640px),1fr)); gap:18px; align-items:start; }
@@ -117,6 +117,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <label>Niveau <input id="level" type="number" min="1" step="1" value="1"></label>
     <label>Limite de l’entité <input id="limit" type="number" min="0" step="1" value="150"></label>
   </div>
+  <p class="notice">Mêmes éléments et mêmes saisies dans les deux modes. Seuls les calculs appliqués changent.</p>
   <section class="pickers" aria-label="Ajouter au tableau" id="pickers"></section>
   <section aria-label="Calcul des statistiques">
     <div class="stat-totals" id="stat-totals" aria-label="Totaux des statistiques"></div>
@@ -133,13 +134,14 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   <details class="rules">
     <summary>Règles et paramètres communs</summary>
     <div id="concept-settings">
+    <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
     <div class="controls"><label>Demi-progression K <input id="curve-k" type="number" min="0.01" step="1" value="30"></label><label>Multiplicateur maximal <input id="curve-max" type="number" min="1" step="0.1" value="3"></label></div>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
       <li>Multiplicateur M(U) = 1 + (maximum − 1) × U / (U + K). U est le nombre de points de l’Umbra concernée.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
-      <li>Chaque attribut et chaque Umbra partage la limite de l’entité. Une hausse de limite ne change pas les valeurs déjà acquises ni la forme de la courbe. Une baisse ramène les saisies à la nouvelle limite.</li>
+      <li>Dans le concept, chaque attribut et chaque Umbra partage la limite de l’entité. Les points retenus pour le calcul sont plafonnés ; les points saisis restent intacts, même en cas de baisse de limite.</li>
       <li>Les gains fixes n’ont pas de plafond d’acquisition. Les plafonds d’effet restent 100 % pour les résistances et l’esquive, et 95 % pour les effets de Hâte.</li>
       <li>Chaque contribution d’attribut est arrondie au supérieur après multiplication : 25 × 0,5 → 13. Les coefficients restent précis pendant le calcul.</li>
       <li>Les courbes natives des effets sont conservées. Les ratios d’attributs utilisent M(U). Vitalité conserve sa régénération liée aux HP ; Précision conserve son bonus applicable aux coups critiques.</li>
@@ -147,7 +149,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       <li>Le niveau est un repère manuel, sans gain automatique. Retirer une ligne retire son apport ; retirer une stat X ferme seulement sa vue calculée.</li>
     </ul>
     </div>
-    <div id="current-rules" hidden>
+    <div id="current-rules">
       <p>Version actuelle : formules des JS du projet (statSystem.js, damagesCalcul.js, entites.js et balanceData.js).</p>
       <p>Ratios, arrondis et plafonds propres à chaque effet. Le don fixe supplémentaire, la courbe globale et la limite commune du concept ne s’appliquent pas.</p>
       <p>Les mêmes saisies sont conservées dans les deux modes. La réduction d’esquive adverse vient directement de Précision ; ses apports fixe/+ du concept n’ont pas d’équivalent actuel.</p>
@@ -348,17 +350,15 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const normalize=text=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
   const cell=(label,child)=>{ const td=document.createElement('td'); td.dataset.label=label; if(child)td.append(child); return td; };
-  function inputNumber(group,key,value,label,{ bounded=false,step=1 }={}) {
+  function inputNumber(group,key,value,label,{ step=1 }={}) {
     const input=document.createElement('input'); input.type='number'; input.min='0'; input.step=String(step);
     input.value=String(value); input.setAttribute('aria-label',label); input.dataset.group=group; input.dataset.key=key;
-    if(bounded && isConcept()) input.max=String(state.limit);
     return input;
   }
   function stepper(group,key,value,label,step=1) {
     const box=document.createElement('div'); box.className='stepper';
-    const bounded=['attributes','umbras'].includes(group);
     for(const delta of [-1,0,1]) {
-      if(!delta) { box.append(inputNumber(group,key,value,label,{bounded,step})); continue; }
+      if(!delta) { box.append(inputNumber(group,key,value,label,{step})); continue; }
       const button=document.createElement('button'); button.type='button'; button.textContent=delta<0 ? '−' : '+';
       button.setAttribute('aria-label',`${delta<0?'Diminuer':'Augmenter'} ${label}`);
       Object.assign(button.dataset,{group,key,delta:String(delta*step)}); box.append(button);
@@ -391,7 +391,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   }
   function addEntry(item,acquire=true) {
     if(selected.has(item.id))return false;
-    if(item.group && acquire && !state[item.group][item.key])state[item.group][item.key]=isConcept() && ['attributes','umbras'].includes(item.group)?Math.min(1,state.limit):1;
+    if(item.group && acquire && !state[item.group][item.key])state[item.group][item.key]=1;
     selected.set(item.id,item);
     const row=document.createElement('tr'); row.dataset.entry=item.id;
     const title=document.createElement('button'); title.type='button'; title.className='effect-name'; title.dataset.detail=item.id;
@@ -516,19 +516,16 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     $('#mode-name').textContent=isConcept()?'Concept':'Version actuelle';
     $('#mode-toggle').setAttribute('aria-pressed',String(!isConcept()));
     $('#mode-toggle').setAttribute('aria-label',isConcept()?'Passer à la version actuelle':'Passer au concept');
-    $('#concept-settings').hidden=!isConcept(); $('#current-rules').hidden=isConcept();
-    $('#limit').disabled=!isConcept(); $('#limit').title=isConcept()?'Limite commune du concept':'Propre au concept ; plafonds des JS appliqués en version actuelle';
+    $('#limit').title='Limite appliquée au calcul Concept ; les points saisis sont conservés dans les deux modes.';
     for(const [id,value] of [['level',state.level],['limit',state.limit],['curve-k',state.curve.k],['curve-max',state.curve.max]]) {
       if(document.activeElement!==$(`#${id}`))$(`#${id}`).value=value;
     }
     for(const input of root.querySelectorAll('input[data-group]')) {
       const {group,key}=input.dataset; if(document.activeElement!==input)input.value=state[group][key]||0;
-      if(isConcept() && ['attributes','umbras'].includes(group))input.max=state.limit;else input.removeAttribute('max');
-      input.disabled=!isConcept() && (group==='gifts' || (['fixed','plus'].includes(group) && key==='precisionReduction'));
     }
     for(const button of root.querySelectorAll('button[data-delta]')) {
       const {group,key,delta}=button.dataset, value=state[group][key]||0;
-      button.disabled=(!isConcept() && ['fixed','plus'].includes(group) && key==='precisionReduction') || (Number(delta)<0 ? value<=0 : isConcept() && ['attributes','umbras'].includes(group) && value>=state.limit);
+      button.disabled=Number(delta)<0 && value<=0;
     }
     $('#empty').hidden=selected.size>0; $('#effects-table').hidden=selected.size===0;
     for(const button of root.querySelectorAll('[data-add]'))button.querySelector('small').textContent=selected.has(button.dataset.add)?'Ajouté':'';
@@ -571,13 +568,12 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     if(input.value==='' || input.validity.badInput)return;
     const value=readNumber(input);
     if(input.dataset.group) {
-      const {group,key}=input.dataset, bounded=isConcept() && ['attributes','umbras'].includes(group);
-      state[group][key]=bounded?Math.min(state.limit,value):value;
+      const {group,key}=input.dataset;
+      state[group][key]=value;
       if(state[group][key]!==Number(input.value))input.value=state[group][key];
     } else if(input.dataset.ui==='limit') {
-      state.limit=value; let reduced=false;
-      for(const group of ['attributes','umbras'])for(const key of Object.keys(state[group]))if(state[group][key]>value){state[group][key]=value;reduced=true;}
-      $('#status').textContent=reduced?'Valeurs directrices ramenées à la nouvelle limite. Les apports fixes sont conservés.':'Nouvelle limite appliquée aux attributs et aux neuf Umbras.';
+      state.limit=value;
+      $('#status').textContent='Limite du calcul Concept modifiée. Toutes les saisies sont conservées.';
     } else if(input.dataset.ui==='level')state.level=Math.max(1,Math.floor(value));
     else if(input.dataset.ui==='curve-k')state.curve.k=Math.max(.01,value);
     else if(input.dataset.ui==='curve-max')state.curve.max=Math.max(1,value);
@@ -605,7 +601,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       const row=$(`[data-entry="${item.id}"]`); (row.querySelector('input')||row.querySelector('.effect-name')).focus({preventScroll:true}); row.scrollIntoView({block:'nearest'});
       $('#status').textContent=added?`${item.name} ajouté au tableau.`:`${item.name} est déjà dans le tableau.`;
     }
-    if(button.dataset.delta){const {group,key,delta}=button.dataset;const limit=isConcept() && ['attributes','umbras'].includes(group)?state.limit:Infinity;state[group][key]=Math.max(0,Math.min(limit,Number(((state[group][key]||0)+Number(delta)).toFixed(8))));render();}
+    if(button.dataset.delta){const {group,key,delta}=button.dataset;state[group][key]=Math.max(0,Number(((state[group][key]||0)+Number(delta)).toFixed(8)));render();}
     if(button.dataset.detail){const key=button.dataset.detail;if(open.has(key))open.delete(key);else open.add(key);render();}
     if(button.dataset.remove) {
       const item=selected.get(button.dataset.remove); if(!item)return;

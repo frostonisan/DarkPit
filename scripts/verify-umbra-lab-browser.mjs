@@ -225,6 +225,16 @@ if (!process.argv.includes('--model-only')) {
       await picker.locator(`[data-add="${id}"]`).click();
     };
     const remove = id => page.locator(`[data-remove="${id}"]`).click();
+    const sharedEditor = () => page.locator('.entity').evaluate(entity => ({
+      rows: [...entity.querySelectorAll('[data-entry]')].map(node => node.dataset.entry),
+      inputs: [...entity.querySelectorAll('input')].map(node => ({
+        id: node.id, group: node.dataset.group, key: node.dataset.key, value: node.value,
+        disabled: node.disabled, min: node.min, max: node.max, step: node.step,
+        visible: node.checkVisibility(),
+      })),
+      buttons: [...entity.querySelectorAll('button:not([data-ui="mode-toggle"])')].map(node => [node.textContent, node.disabled]),
+      settings: [...entity.querySelectorAll('[data-ui="concept-settings"], [data-ui="current-rules"]')].map(node => [node.dataset.ui, node.checkVisibility()]),
+    }));
     equal(await page.locator('.picker').count(), 5, 'Five searchable dropdowns including attributes');
     equal(await page.locator('[data-entry]').count(), 0, 'No initial rows or default acquisitions');
     check(await page.locator('#empty').isVisible(), 'Empty state guides selection');
@@ -270,10 +280,12 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('[data-detail="x-physicalDamage"]').click();
     check((await page.locator('#detail-x-physicalDamage').innerText()).includes('108 PP'), 'Comparison remains available on demand');
     const ownedBefore = await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]));
+    const conceptEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '45', 'Switch selects the current JS calculation');
     equal(await page.locator('#mode-name').innerText(), 'Version actuelle', 'Active calculation mode is explicit');
-    check(await page.locator('#limit').isDisabled(), 'Concept limit is unavailable in current mode');
+    check(await page.locator('#limit').isEnabled(), 'Same limit setting remains editable in current mode');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(conceptEditor), 'Mode changes calculations only, preserving the entire editor');
     check((await page.locator('#detail-x-physicalDamage').innerText()).includes('55 PP'), 'Comparison follows the current formula');
     check(!(await page.locator('#detail-x-physicalDamage').innerText()).includes('arrondi supérieur'), 'Current helper does not claim the concept rounding rule');
     equal(JSON.stringify(await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]))), JSON.stringify(ownedBefore), 'Switch preserves every input');
@@ -285,8 +297,14 @@ if (!process.argv.includes('--model-only')) {
     equal(await total('x-physicalDamage'), '500', 'Concept applies its own limit to the same stored inputs');
     equal(await field('attributes', 'strength').inputValue(), '250', 'Switching back does not overwrite out-of-limit acquisition');
     equal(await field('umbras', 'vigueur').inputValue(), '250', 'Switching preserves raw Umbra acquisition');
+    const aboveLimitEditor = await sharedEditor();
+    await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).click();
+    equal(await field('umbras', 'vigueur').inputValue(), '251', 'Concept stepper retains shared acquisitions above its calculation limit');
+    equal(await total('x-physicalDamage'), '500', 'Calculation limit still caps effective concept points');
+    await page.getByRole('button', { name: 'Diminuer Vigueur', exact: true }).click();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '375', 'Round-trip switch restores the same current result');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(aboveLimitEditor), 'Above-limit inputs have the same values and controls in both modes');
     await page.locator('#example').click();
     equal(await total('x-physicalDamage'), '45', 'Example retains the chosen mode');
     await page.locator('#mode-toggle').click();
@@ -302,10 +320,10 @@ if (!process.argv.includes('--model-only')) {
     equal(await total('x-physicalDamage'), '118', 'Changing limit alone preserves total');
     await fill('fixed', 'physicalDamage', 1000);
     await page.locator('#limit').fill('10');
-    equal(await field('attributes', 'strength').inputValue(), '10', 'Limit clamps selected attributes');
-    equal(await field('umbras', 'vigueur').inputValue(), '10', 'Limit clamps selected Umbras');
+    equal(await field('attributes', 'strength').inputValue(), '60', 'Lower concept limit preserves shared attribute acquisition');
+    equal(await field('umbras', 'vigueur').inputValue(), '25', 'Lower concept limit preserves shared Umbra acquisition');
     equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1038', 'Fixed acquisition survives limit reduction');
-    check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isDisabled(), 'Umbra stepper stops at its limit');
+    check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isEnabled(), 'Same Umbra editing remains available beyond the calculation limit');
     await page.getByRole('button', { name: 'Augmenter Puissance physique fixe', exact: true }).click();
     await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
     equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1040', 'Fixed and plus steppers remain unlimited');
@@ -345,11 +363,18 @@ if (!process.argv.includes('--model-only')) {
     const allDetails = await page.locator('#effects').textContent();
     check(!/undefined|NaN|Infinity/.test(allDetails), 'Every selected entry renders valid labels and calculations');
     equal(await page.locator('.detail-row:visible').count(), 58, 'Every entry exposes a detail');
+    const allEntriesEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     check(!/undefined|NaN|Infinity/.test(await page.locator('#effects').textContent()), 'Every current-mode detail renders correctly');
-    check(await field('fixed', 'precisionReduction').isDisabled(), 'Unavailable current direct precision effect is explicit');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(allEntriesEditor), 'All 58 entries keep identical editable controls in current mode');
+    check(await field('fixed', 'precisionReduction').isEnabled(), 'Direct precision input stays editable even without a current formula');
+    const currentPrecision = await total('fixed-precisionReduction');
+    await fill('fixed', 'precisionReduction', 7);
+    await fill('plus', 'precisionReduction', 9);
+    equal(await total('fixed-precisionReduction'), currentPrecision, 'Current formula ignores unsupported direct bonuses without removing the inputs');
     await page.locator('#mode-toggle').click();
-    check(await field('fixed', 'precisionReduction').isEnabled(), 'Concept-only input is restored when switching back');
+    equal(await field('fixed', 'precisionReduction').inputValue(), '7', 'Concept receives the fixed precision edited in current mode');
+    equal(await field('plus', 'precisionReduction').inputValue(), '9', 'Concept receives the plus precision edited in current mode');
 
     await page.locator('#example').click();
     await page.locator('details.rules > summary').click();
@@ -360,11 +385,26 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#concept-settings > details > summary').click();
     await fill('gifts', 'physicalDamage', 2);
     equal(await total('x-physicalDamage'), '95', 'Fixed grants remain adjustable inside settings');
+    const openSettingsEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '45', 'Current mode ignores the concept grant setting');
-    check(await page.locator('#current-rules').isVisible(), 'Rules switch with the calculation mode');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(openSettingsEditor), 'Open parameters keep the same visibility and editing in current mode');
+    check(await page.locator('#concept-settings').isVisible(), 'Concept settings remain displayed in current mode');
+    check(await page.locator('#current-rules').isVisible(), 'Calculation rules for both modes remain accessible');
+    await page.locator('#limit').fill('10');
+    await page.locator('#curve-k').fill('15');
+    await page.locator('#curve-max').fill('4');
+    await fill('gifts', 'physicalDamage', 3);
+    equal(await total('x-physicalDamage'), '45', 'Editing concept parameters in current mode leaves its JS calculation unchanged');
+    const currentSettingsEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '95', 'Concept grant setting survives the round trip');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(currentSettingsEditor), 'Current-mode edits are used directly by concept without an alternate build');
+    equal(await total('x-physicalDamage'), '51', 'Concept uses the newly edited limit, curve and grant on the same points');
+    await page.locator('#limit').fill('150');
+    await page.locator('#curve-k').fill('30');
+    await page.locator('#curve-max').fill('3');
+    await fill('gifts', 'physicalDamage', 2);
+    equal(await total('x-physicalDamage'), '95', 'Restoring concept parameters recovers the unchanged acquisitions');
     await fill('gifts', 'physicalDamage', 1);
     await page.locator('details.rules > summary').click();
     for (const width of [1440, 768, 390, 320]) {
