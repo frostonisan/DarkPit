@@ -24,6 +24,8 @@ header { justify-content:space-between; padding-bottom:16px; border-bottom:1px s
 .attribute { padding:10px; background:var(--panel); border-radius:5px; justify-content:space-between; }
 .attribute label { font-weight:600; } .attribute[data-key=strength] label { color:var(--force); }
 .attribute[data-key=intelligence] label { color:var(--intelligence); } .attribute[data-key=agility] label { color:var(--agility); }
+.physical-inputs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:18px; }
+.physical-inputs label { display:block; color:var(--force); } .physical-inputs small { display:block; margin-top:3px; }
 .stepper { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
 .stepper button { padding:3px; width:26px; min-height:32px; } .stepper input { width:64px; text-align:center; }
 .stepper input::-webkit-inner-spin-button { appearance:none; }
@@ -74,7 +76,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   .detail-row>td { padding:12px; } .milestones { max-width:100%; }
   .milestones th,.milestones td { padding:5px 3px; font-size:11px; } .compare,.description { overflow-wrap:anywhere; }
 }
-@media(max-width:460px) { .attributes { grid-template-columns:1fr; } .umbra-list { grid-template-columns:repeat(2,minmax(0,1fr)); } .calculation { grid-template-columns:1fr; gap:3px; } .calculation dd { margin-bottom:7px; } h1 { font-size:23px; } }
+@media(max-width:460px) { .attributes,.physical-inputs { grid-template-columns:1fr; } .umbra-list { grid-template-columns:repeat(2,minmax(0,1fr)); } .calculation { grid-template-columns:1fr; gap:3px; } .calculation dd { margin-bottom:7px; } h1 { font-size:23px; } }
 </style>
 </head>
 <body>
@@ -90,6 +92,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   </div>
   <p class="context">Le niveau est un repère manuel : aucun gain automatique. Seuls les points de l’Umbra font évoluer ses ratios.</p>
   <section class="attributes" aria-label="Attributs de l’entité" id="attributes"></section>
+  <section class="physical-inputs" aria-label="Apports en puissance physique" id="physical-inputs"></section>
   <div class="workspace">
     <aside aria-label="Umbras de niveau 1"><h2>Points d’Umbra · niveau 1</h2><div class="umbra-list" id="umbras"></div></aside>
     <section aria-label="Calcul des statistiques">
@@ -236,8 +239,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   }
   function stepper(group,key,value,label) {
     const box=document.createElement('div'); box.className='stepper';
+    const bounded=['attributes','umbras'].includes(group);
     for(const delta of [-1,0,1]) {
-      if(!delta) { box.append(inputNumber(group,key,value,label,{bounded:true})); continue; }
+      if(!delta) { box.append(inputNumber(group,key,value,label,{bounded})); continue; }
       const button=document.createElement('button'); button.type='button'; button.textContent=delta<0 ? '−' : '+';
       button.setAttribute('aria-label',`${delta<0?'Diminuer':'Augmenter'} ${label}`);
       Object.assign(button.dataset,{group,key,delta:String(delta)}); box.append(button);
@@ -249,6 +253,17 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const label=document.createElement('label'); label.textContent=spec.name; label.htmlFor=`attribute-${spec.key}`;
     const controls=stepper('attributes',spec.key,state.attributes[spec.key],spec.name);
     controls.querySelector('input').id=label.htmlFor; box.append(label,controls); $('#attributes').append(box);
+  }
+  for(const [group,label,description] of [
+    ['fixed','PP fixe','Ajoute directement des points de puissance physique.'],
+    ['plus','Puissance physique +','Ajoute des PP et donne accès au ratio de Force.'],
+  ]) {
+    const box=document.createElement('div'); box.className='attribute';
+    const info=document.createElement('div');
+    info.innerHTML=`<label for="physical-${group}">${label}</label><small>${description}</small>`;
+    const controls=stepper(group,'physicalDamage',state[group].physicalDamage||0,label);
+    controls.querySelector('input').id=`physical-${group}`;
+    box.append(info,controls); $('#physical-inputs').append(box);
   }
   for(const spec of Lab.umbras) {
     const box=document.createElement('div'); box.className='umbra'; box.dataset.axis=spec.axis; box.dataset.source=spec.key;
@@ -262,7 +277,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     title.setAttribute('aria-controls',`detail-${spec.key}`); title.innerHTML=`${spec.name}<span class="state"></span>`;
     const name=cell('Statistique',title), source=document.createElement('span'); source.className='source-name'; source.textContent=names[spec.source]; name.append(source); row.append(name);
     for(const [group,label,step] of [['fixed','Fixe',spec.unit.includes('%')?.1:1],['plus','Stat+',spec.unit.includes('%')?.1:1],['gifts','Don/U',.1]]) {
-      row.append(cell(label,inputNumber(group,spec.key,state[group][spec.key]||0,`${spec.name} · ${label}${spec.unit}`,{step})));
+      if(spec.key==='physicalDamage' && group!=='gifts') {
+        const output=document.createElement('output'); output.dataset.physicalSource=group;
+        output.setAttribute('for',`physical-${group}`); row.append(cell(label,output));
+      } else row.append(cell(label,inputNumber(group,spec.key,state[group][spec.key]||0,`${spec.name} · ${label}${spec.unit}`,{step})));
     }
     const ratio=cell('Ratio appliqué'); ratio.className='ratio'; ratio.dataset.ratio=spec.key; row.append(ratio);
     const total=cell('Total'); total.className='total'; total.dataset.total=spec.key; row.append(total);
@@ -320,8 +338,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     }
     for(const button of document.querySelectorAll('button[data-delta]')) {
       const {group,key,delta}=button.dataset, value=state[group][key]||0;
-      button.disabled=Number(delta)<0 ? value<=0 : value>=state.limit;
+      button.disabled=Number(delta)<0 ? value<=0 : ['attributes','umbras'].includes(group) && value>=state.limit;
     }
+    for(const output of document.querySelectorAll('[data-physical-source]'))output.value=fmt(state[output.dataset.physicalSource].physicalDamage||0);
     for(const source of Lab.umbras) {
       const u=snapshot.umbras[source.key], node=document.querySelector(`[data-source="${source.key}"] .multiplier`);
       node.textContent=`×${fmt(Lab.multiplier(u,state.curve),3)}${u>=state.limit?' · limite':''}`;
@@ -369,7 +388,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   });
   document.addEventListener('click',event=>{
     const button=event.target.closest('button'); if(!button)return;
-    if(button.dataset.delta){const {group,key,delta}=button.dataset;state[group][key]=Math.max(0,Math.min(state.limit,(state[group][key]||0)+Number(delta)));render();}
+    if(button.dataset.delta){const {group,key,delta}=button.dataset;const limit=['attributes','umbras'].includes(group)?state.limit:Infinity;state[group][key]=Math.max(0,Math.min(limit,(state[group][key]||0)+Number(delta)));render();}
     if(button.dataset.detail){const key=button.dataset.detail;if(open.has(key))open.delete(key);else open.add(key);render();}
     if(button.id==='example' || button.id==='clear'){state=Lab.initialState(button.id==='example');open=new Set(button.id==='example'?['physicalDamage']:[]);$('#status').textContent=button.id==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Saisies vidées.';render();}
   });

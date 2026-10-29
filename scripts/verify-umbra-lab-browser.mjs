@@ -144,6 +144,15 @@ if (!process.argv.includes('--model-only')) {
     const total = key => page.locator(`[data-total="${key}"]`).innerText();
     const fill = (group, key, value) => page.locator(`input[data-group="${group}"][data-key="${key}"]`).fill(String(value));
     equal(await total('physicalDamage'), '80', 'Example renders immediately');
+    check(await page.getByRole('spinbutton', { name: 'PP fixe', exact: true }).isVisible(), 'Explicit fixed PP control is visible');
+    check(await page.getByRole('spinbutton', { name: 'Puissance physique +', exact: true }).isVisible(), 'Explicit PP+ control is visible');
+    await page.getByRole('button', { name: 'Augmenter PP fixe', exact: true }).click();
+    equal(await total('physicalDamage'), '81', 'Fixed PP stepper adds its contribution');
+    await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
+    equal(await total('physicalDamage'), '82', 'PP+ stepper adds independently');
+    equal(await page.locator('[data-physical-source="fixed"]').innerText(), '1', 'Fixed PP acquisition is reflected in the table');
+    equal(await page.locator('[data-physical-source="plus"]').innerText(), '1', 'PP+ acquisition is reflected in the table');
+    await page.locator('#example').click();
     check((await page.locator('#detail-physicalDamage').innerText()).includes('Contribution de Force'), 'Attribute has its name in the detail');
     check((await page.locator('#detail-physicalDamage').innerText()).includes('108 PP'), 'PP comparison is rendered');
     await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
@@ -161,6 +170,11 @@ if (!process.argv.includes('--model-only')) {
     equal((await total('physicalDamage')).replace(/\s/g, ''), '1038', 'Clamping leaves fixed gains untouched');
     check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isDisabled(), 'Stepper stops at the limit');
     equal(await page.locator('[data-gain="physicalDamage"]').innerText(), 'Limite', 'Marginal gain reports limit');
+    await page.getByRole('button', { name: 'Augmenter PP fixe', exact: true }).click();
+    equal(await page.locator('#physical-fixed').inputValue(), '1001', 'Fixed PP can increase beyond the directing limit');
+    await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
+    equal(await page.locator('#physical-plus').inputValue(), '11', 'PP+ can increase beyond the directing limit');
+    equal((await total('physicalDamage')).replace(/\s/g, ''), '1040', 'Both uncapped additions update the shared total');
     await page.locator('#limit').fill('200');
     await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).click();
     equal(await page.locator('#umbra-vigueur').inputValue(), '11', 'New limit reopens the stepper');
