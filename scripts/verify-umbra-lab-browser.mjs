@@ -29,23 +29,23 @@ check(effects.every(spec => umbras.some(source => source.key === spec.source)), 
 check(Object.values(calculate(initialState()).results).every(effect => effect.total === 0), 'Empty inputs yield zero');
 
 const example = initialState(true);
-equal(row(example).attributeGain, 50, 'Force 60 and Vigueur 15 give 50 through the attribute ratio');
-equal(row(example).total, 80, 'Example has native 15 + fixed grant 15 + Force 50');
+equal(row(example).attributeGain, 33, 'Force 60 and Vigueur 15 give 33 through the gentler attribute ratio');
+equal(row(example).total, 63, 'Example has native 15 + fixed grant 15 + Force 33');
 const addPlus = clone(example); addPlus.plus.physicalDamage = 10;
-equal(row(addPlus).total, 90, '+10 PP+ adds 10 once an Umbra supplies the ratio');
+equal(row(addPlus).total, 73, '+10 PP+ adds 10 once an Umbra supplies the ratio');
 equal(row(addPlus).coefficient, row(example).coefficient, 'PP+ cannot grow its coefficient');
 const addUmbra = clone(example); addUmbra.umbras.vigueur += 10;
-equal(row(addUmbra).total, 108, '+10 Vigueur adds 28 in the reference build');
-equal(row(addUmbra).attributeGain, 58, 'Fractional Force contribution is rounded upward');
+equal(row(addUmbra).total, 84, '+10 Vigueur adds 21 in the reference build');
+equal(row(addUmbra).attributeGain, 34, 'Fractional Force contribution is rounded upward');
 const lineExample=initialState();
 lineExample.attributes.strength=10; lineExample.umbras.vigueur=10;
 lineExample.fixed.physicalDamage=10; lineExample.plus.physicalDamage=10;
-equal(row(lineExample).total,48,'User example has 48 total PP');
+equal(row(lineExample).total,46,'User example has 46 total PP with the gentler curve');
 const lineParts=contributions(row(lineExample));
 equal(lineParts.fixed,10,'Fixed PP row displays its own ten-point contribution');
 equal(lineParts.plus,10,'PP+ does not count the Umbra attribute ratio again');
-equal(lineParts.umbra,28,'Vigueur row displays its gift and generated capacity');
-equal(lineParts.x,18,'X is an included capacity, not another acquisition');
+equal(lineParts.umbra,26,'Vigueur row displays its gift and generated capacity');
+equal(lineParts.x,16,'X is an included capacity, not another acquisition');
 const noUmbraLines=clone(lineExample); noUmbraLines.umbras.vigueur=0;
 equal(contributions(row(noUmbraLines)).plus,15,'Without Umbra, plus carries its own attribute contribution');
 const withoutUmbra = initialState(); withoutUmbra.attributes.strength = 25;
@@ -79,8 +79,14 @@ equal(row({ ...example, level: 99 }).total, row(example).total, 'Level is manual
 const unrelated = clone(example); unrelated.umbras.esprit = 100; unrelated.attributes.intelligence = 120;
 equal(row(unrelated).coefficient, row(example).coefficient, 'Another Umbra cannot influence PP ratio');
 equal(row(unrelated).total, row(example).total, 'Another attribute cannot influence PP total');
-equal(multiplier(30), 2, 'K is the midpoint between multiplier one and three');
-equal(multiplier(30, {}), 2, 'Partial settings preserve defaults');
+equal(multiplier(75), 1.25, 'K is the midpoint between multiplier one and one and a half');
+equal(multiplier(75, {}), 1.25, 'Partial settings preserve defaults');
+for (const [points, coefficient] of [[0, .5], [10, 9 / 17], [50, .6], [75, .625], [150, 2 / 3]]) {
+  near(.5 * multiplier(points), coefficient, `Gentler Force ratio at ${points} Vigueur`);
+  if (points > 0) check(multiplier(points) < multiplier(points, { k:30, max:3 }), 'New defaults grow less than the previous curve');
+}
+check(multiplier(1000000) < 1.5, 'The new default multiplier approaches but never exceeds 1.5');
+check(row(addUmbra).total - row(example).total > row(addPlus).total - row(example).total, 'Umbra remains stronger than the same number of plus points');
 
 for (const spec of effects) {
   const state = initialState();
@@ -112,8 +118,8 @@ vitality.fixed.HP = 1000;
 equal(row(vitality, 'dayHpRegen').total, 7, 'Fixed HP propagates to regeneration in the same calculation');
 const haste = initialState(); haste.umbras.haste = 15;
 haste.attributes.strength = 60; haste.attributes.intelligence = 60; haste.attributes.agility = 60;
-equal(row(haste, 'attackExecutionReduc').attributeGain, 17, 'Haste boosts the original execution coefficient');
-check(row(haste, 'attackProjectileSpeed').total > 20, 'Projectile time reduction converts to speed gain');
+equal(row(haste, 'attackExecutionReduc').attributeGain, 11, 'Haste boosts the original execution coefficient with the shared gentler curve');
+equal(row(haste, 'attackProjectileSpeed').total, 12.36, 'Projectile time reduction converts to speed gain');
 for (const key of ['physicalResistance', 'dodge', 'attackPreparationReduc']) {
   const state = initialState(); state.fixed[key] = 1000;
   const effect = row(state, key);
@@ -266,7 +272,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('[data-entry="umbra-vigueur"]').count(), 0, 'Selecting X never silently adds an Umbra');
     await add('umbras', 'umbra-vigueur', 'vig');
     await fill('umbras', 'vigueur', 15);
-    equal(await total('x-physicalDamage'), '53', 'Selected Umbra activates shared X calculation');
+    equal(await total('x-physicalDamage'), '46', 'Selected Umbra activates shared X calculation');
     await add('umbras', 'umbra-vigueur', 'vig');
     equal(await page.locator('[data-entry]').count(), 5, 'Repeated selection never duplicates a row');
     equal(await field('umbras', 'vigueur').inputValue(), '15', 'Repeated selection preserves quantity');
@@ -275,10 +281,10 @@ if (!process.argv.includes('--model-only')) {
 
     await page.locator('#example').click();
     equal(await page.locator('[data-entry]').count(), 5, 'Example adds only its five relevant rows');
-    equal(await total('x-physicalDamage'), '80', 'Example retains its known total');
+    equal(await total('x-physicalDamage'), '63', 'Example uses the gentler default curve');
     await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
     await page.locator('[data-detail="x-physicalDamage"]').click();
-    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('108 PP'), 'Comparison remains available on demand');
+    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('84 PP'), 'Comparison remains available on demand');
     const ownedBefore = await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]));
     const conceptEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
@@ -294,13 +300,13 @@ if (!process.argv.includes('--model-only')) {
     await fill('umbras', 'vigueur', 250);
     equal(await total('x-physicalDamage'), '375', 'Current mode uses its own acquisition rules');
     await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '500', 'Concept applies its own limit to the same stored inputs');
+    equal(await total('x-physicalDamage'), '400', 'Concept applies its own limit to the same stored inputs');
     equal(await field('attributes', 'strength').inputValue(), '250', 'Switching back does not overwrite out-of-limit acquisition');
     equal(await field('umbras', 'vigueur').inputValue(), '250', 'Switching preserves raw Umbra acquisition');
     const aboveLimitEditor = await sharedEditor();
     await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).click();
     equal(await field('umbras', 'vigueur').inputValue(), '251', 'Concept stepper retains shared acquisitions above its calculation limit');
-    equal(await total('x-physicalDamage'), '500', 'Calculation limit still caps effective concept points');
+    equal(await total('x-physicalDamage'), '400', 'Calculation limit still caps effective concept points');
     await page.getByRole('button', { name: 'Diminuer Vigueur', exact: true }).click();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '375', 'Round-trip switch restores the same current result');
@@ -308,27 +314,27 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#example').click();
     equal(await total('x-physicalDamage'), '45', 'Example retains the chosen mode');
     await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '80', 'Returning to concept restores its example');
+    equal(await total('x-physicalDamage'), '63', 'Returning to concept restores its example');
     await page.locator('[data-detail="x-physicalDamage"]').click();
     await page.locator('#detail-x-physicalDamage details > summary').click();
     await fill('plus', 'physicalDamage', 10);
-    equal(await total('x-physicalDamage'), '90', 'Live PP+ retains correct shared ratio');
+    equal(await total('x-physicalDamage'), '73', 'Live PP+ retains correct shared ratio');
     check(await page.locator('#detail-x-physicalDamage details').evaluate(node => node.open), 'Open progression survives recalculation');
     await fill('umbras', 'vigueur', 25);
-    equal(await total('x-physicalDamage'), '118', 'Live Umbra coefficient is not counted twice');
+    equal(await total('x-physicalDamage'), '94', 'Live Umbra coefficient is not counted twice');
     await page.locator('#limit').fill('200');
-    equal(await total('x-physicalDamage'), '118', 'Changing limit alone preserves total');
+    equal(await total('x-physicalDamage'), '94', 'Changing limit alone preserves total');
     await fill('fixed', 'physicalDamage', 1000);
     await page.locator('#limit').fill('10');
     equal(await field('attributes', 'strength').inputValue(), '60', 'Lower concept limit preserves shared attribute acquisition');
     equal(await field('umbras', 'vigueur').inputValue(), '25', 'Lower concept limit preserves shared Umbra acquisition');
-    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1038', 'Fixed acquisition survives limit reduction');
+    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1036', 'Fixed acquisition survives limit reduction');
     check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isEnabled(), 'Same Umbra editing remains available beyond the calculation limit');
     await page.getByRole('button', { name: 'Augmenter Puissance physique fixe', exact: true }).click();
     await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
-    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1040', 'Fixed and plus steppers remain unlimited');
+    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1038', 'Fixed and plus steppers remain unlimited');
     await remove('x-physicalDamage');
-    equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1040', 'Removing X closes its view without changing the build');
+    equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1038', 'Removing X closes its view without changing the build');
     await add('x', 'x-physicalDamage');
     await remove('umbra-vigueur');
     equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1017', 'Removing Umbra removes its gift and native gain and restores the plus coefficient');
@@ -380,11 +386,11 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('details.rules > summary').click();
     await page.locator('#curve-max').fill('');
     await page.locator('#curve-max').pressSequentially('2.5');
-    equal(await total('x-physicalDamage'), '75', 'Typed decimal curve parameter recalculates the table');
-    await page.locator('#curve-max').fill('3');
+    equal(await total('x-physicalDamage'), '68', 'Typed decimal curve parameter recalculates the table');
+    await page.locator('#curve-max').fill('1.5');
     await page.locator('#concept-settings > details > summary').click();
     await fill('gifts', 'physicalDamage', 2);
-    equal(await total('x-physicalDamage'), '95', 'Fixed grants remain adjustable inside settings');
+    equal(await total('x-physicalDamage'), '78', 'Fixed grants remain adjustable inside settings');
     const openSettingsEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '45', 'Current mode ignores the concept grant setting');
@@ -401,10 +407,10 @@ if (!process.argv.includes('--model-only')) {
     equal(JSON.stringify(await sharedEditor()), JSON.stringify(currentSettingsEditor), 'Current-mode edits are used directly by concept without an alternate build');
     equal(await total('x-physicalDamage'), '51', 'Concept uses the newly edited limit, curve and grant on the same points');
     await page.locator('#limit').fill('150');
-    await page.locator('#curve-k').fill('30');
-    await page.locator('#curve-max').fill('3');
+    await page.locator('#curve-k').fill('75');
+    await page.locator('#curve-max').fill('1.5');
     await fill('gifts', 'physicalDamage', 2);
-    equal(await total('x-physicalDamage'), '95', 'Restoring concept parameters recovers the unchanged acquisitions');
+    equal(await total('x-physicalDamage'), '78', 'Restoring concept parameters recovers the unchanged acquisitions');
     await fill('gifts', 'physicalDamage', 1);
     await page.locator('details.rules > summary').click();
     for (const width of [1440, 768, 390, 320]) {
@@ -437,13 +443,13 @@ if (!process.argv.includes('--model-only')) {
     await first.locator('.entity-name').fill('Porc Vigueur');
     await first.locator('[data-ui="example"]').click();
     for(const [group,key] of [['attributes','strength'],['umbras','vigueur'],['fixed','physicalDamage'],['plus','physicalDamage']])await entityFill(first,group,key,10);
-    equal(await entityTotal(first),'48','User screenshot build has a separate 48 PP total');
+    equal(await entityTotal(first),'46','User build has a separate 46 PP total with the gentler curve');
     equal(await rowNumber(first,'fixed-physicalDamage'),'10','Fixed row no longer repeats the global total');
     equal(await rowNumber(first,'plus-physicalDamage'),'10','Plus row shows its exclusive contribution');
-    equal(await first.locator('[data-total="umbra-vigueur"] [data-contribution-stat="physicalDamage"]').evaluate(node=>node.firstChild.textContent),'28','Umbra row shows 28 PP');
-    equal(await rowNumber(first,'x-physicalDamage'),'18','X displays its included capacity');
+    equal(await first.locator('[data-total="umbra-vigueur"] [data-contribution-stat="physicalDamage"]').evaluate(node=>node.firstChild.textContent),'26','Umbra row shows 26 PP');
+    equal(await rowNumber(first,'x-physicalDamage'),'16','X displays its included capacity');
     equal(await first.locator('[data-stat-total="physicalDamage"]').count(),1,'Exactly one PP total despite four related rows');
-    check((await first.locator('[data-breakdown="physicalDamage"]').innerText()).includes('Fixe 10 + Stat+ 10 + Vigueur 28'),'Total explains the non-duplicated sum');
+    check((await first.locator('[data-breakdown="physicalDamage"]').innerText()).includes('Fixe 10 + Stat+ 10 + Vigueur 26'),'Total explains the non-duplicated sum');
 
     const firstBefore=await settings(first);
     await page.locator('#add-entity').click();
@@ -459,7 +465,7 @@ if (!process.argv.includes('--model-only')) {
     await entityFill(second,'plus','physicalDamage',20);
     equal(await entityTotal(second),'35','Second entity computes its own build');
     equal(await rowNumber(second,'plus-physicalDamage'),'25','Without Umbra, the plus row includes its attribute ratio');
-    equal(await entityTotal(first),'48','Second entity edits do not affect the first');
+    equal(await entityTotal(first),'46','Second entity edits do not affect the first');
     await second.locator('[data-ui="level"]').fill('12');
     await second.locator('[data-ui="limit"]').fill('80');
     await second.locator('details.rules > summary').click();
@@ -483,7 +489,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await entityTotal(second),'68','Second entity remains unchanged');
     await first.locator('[data-ui="mode-toggle"]').click();
     await entityFill(first,'fixed','physicalDamage',11);
-    equal(await entityTotal(first),'49','First entity still updates independently');
+    equal(await entityTotal(first),'47','First entity still updates independently');
     equal(await entityTotal(second),'68','No input selector leaks to the other entity');
     await entityFill(first,'fixed','physicalDamage',10);
     check(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);return new Set(ids).size===ids.length;}),'Multiple entities have unique DOM and detail identifiers');
@@ -510,7 +516,8 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#add-entity').click();
     const third=page.locator('[data-entity-id="entity-3"]');
     equal(await third.locator('[data-entry]').count(),0,'Entity created after removal is fresh');
-    equal(await third.locator('[data-ui="curve-k"]').inputValue(),'30','A fresh entity does not inherit another entity’s settings');
+    equal(await third.locator('[data-ui="curve-k"]').inputValue(),'75','A fresh entity uses the gentler defaults, independently of other entities');
+    equal(await third.locator('[data-ui="curve-max"]').inputValue(),'1.5','A fresh entity uses the gentler multiplier ceiling');
     await third.locator('[data-remove-entity]').click();
     await second.locator('[data-remove-entity]').click();
     check(await page.locator('#no-entities').isVisible(),'Removing the final entity leaves the add action available');

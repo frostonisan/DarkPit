@@ -135,10 +135,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <summary>Règles et paramètres communs</summary>
     <div id="concept-settings">
     <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
-    <div class="controls"><label>Demi-progression K <input id="curve-k" type="number" min="0.01" step="1" value="30"></label><label>Multiplicateur maximal <input id="curve-max" type="number" min="1" step="0.1" value="3"></label></div>
+    <div class="controls"><label>Demi-progression K <input id="curve-k" type="number" min="0.01" step="1" value="75"></label><label>Multiplicateur maximal <input id="curve-max" type="number" min="1" step="0.1" value="1.5"></label></div>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
       <li>Multiplicateur M(U) = 1 + (maximum − 1) × U / (U + K). U est le nombre de points de l’Umbra concernée.</li>
+      <li>Courbe commune par défaut : K = 75, maximum = ×1,5. Pour la PP, le ratio de Force passe de 0,5 à environ 0,53 à 10 Vigueur, 0,60 à 50 et 0,67 à 150. Augmenter K ralentit la progression.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
       <li>Dans le concept, chaque attribut et chaque Umbra partage la limite de l’entité. Les points retenus pour le calcul sont plafonnés ; les points saisis restent intacts, même en cas de baisse de limite.</li>
@@ -204,9 +205,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     return Math.ceil(scaled - Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4) / factor || 0;
   };
   const nearest = (value, decimals=0) => Math.round(value * 10 ** decimals) / 10 ** decimals;
-  const multiplier = (points, curve={}) => 1 + (Math.max(1, number(curve.max ?? 3)) - 1) * points / (points + Math.max(.01, number(curve.k ?? 30)));
+  const DEFAULT_CURVE = Object.freeze({ k:75, max:1.5 });
+  const multiplier = (points, curve={}) => 1 + (Math.max(1, number(curve.max ?? DEFAULT_CURVE.max)) - 1) * points / (points + Math.max(.01, number(curve.k ?? DEFAULT_CURVE.k)));
   function initialState(example=false) {
-    return { mode:'concept', level:example ? 51 : 1, limit:150, curve:{ k:30, max:3 },
+    return { mode:'concept', level:example ? 51 : 1, limit:150, curve:{ ...DEFAULT_CURVE },
       attributes:Object.fromEntries(ATTRIBUTES.map(a => [a.key, example && a.key==='strength' ? 60 : 0])),
       umbras:Object.fromEntries(UMBRAS.map(u => [u.key, example && u.key==='vigueur' ? 15 : 0])),
       fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])) };
