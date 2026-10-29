@@ -208,28 +208,29 @@ if (!process.argv.includes('--model-only')) {
       await picker.locator(`[data-add="${id}"]`).click();
     };
     const remove = id => page.locator(`[data-remove="${id}"]`).click();
-    equal(await page.locator('.picker').count(), 4, 'Exactly four searchable dropdowns');
+    equal(await page.locator('.picker').count(), 5, 'Five searchable dropdowns including attributes');
     equal(await page.locator('[data-entry]').count(), 0, 'No initial rows or default acquisitions');
     check(await page.locator('#empty').isVisible(), 'Empty state guides selection');
     equal(await page.locator('.picker[open]').count(), 0, 'Dropdowns begin closed');
     await page.screenshot({ path: resolve(output, 'empty.png'), fullPage: true });
     const statsPicker = page.locator('[data-catalog="stats"]');
-    await statsPicker.locator('summary').click();
-    await statsPicker.locator('input').fill('AGILITE');
-    equal(await statsPicker.locator('li:visible').count(), 1, 'Search ignores case and accents');
-    check(await statsPicker.locator('[data-add="attribute-agility"]').isVisible(), 'Attributes are in Stats');
-    await statsPicker.locator('input').fill('zzzz-no-match');
-    check(await statsPicker.locator('.no-match').isVisible(), 'Empty search has feedback');
-    await statsPicker.locator('input').press('Escape');
+    const attributesPicker = page.locator('[data-catalog="attributes"]');
+    await attributesPicker.locator('summary').click();
+    await attributesPicker.locator('input').fill('AGILITE');
+    equal(await attributesPicker.locator('li:visible').count(), 1, 'Search ignores case and accents');
+    check(await attributesPicker.locator('[data-add="attribute-agility"]').isVisible(), 'Attributes have their own searchable list');
+    await attributesPicker.locator('input').fill('zzzz-no-match');
+    check(await attributesPicker.locator('.no-match').isVisible(), 'Empty search has feedback');
+    await attributesPicker.locator('input').press('Escape');
     equal(await page.locator('.picker[open]').count(), 0, 'Escape closes the search');
-    check(await statsPicker.locator('summary').evaluate(node => document.activeElement === node), 'Escape restores keyboard focus');
+    check(await attributesPicker.locator('summary').evaluate(node => document.activeElement === node), 'Escape restores keyboard focus');
 
     await add('stats', 'fixed-physicalDamage', 'PP fixe');
     equal(await page.locator('[data-entry]').count(), 1, 'Click adds only the selected row');
     equal(await total('fixed-physicalDamage'), '1', 'Fixed PP starts at one point');
     await add('plus', 'plus-physicalDamage', 'pp');
     equal(await total('plus-physicalDamage'), '2', 'PP+ adds without a hidden attribute');
-    await add('stats', 'attribute-strength', 'force');
+    await add('attributes', 'attribute-strength', 'force');
     await fill('attributes', 'strength', 25);
     equal(await total('plus-physicalDamage'), '15', 'Selected Force drives ceil(12.5), plus and fixed');
     await add('x', 'x-physicalDamage', 'pp');
@@ -352,7 +353,7 @@ if (!process.argv.includes('--model-only')) {
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `No page overflow at ${width}px`);
-      for (const catalog of ['stats', 'plus', 'x', 'umbras']) {
+      for (const catalog of ['stats', 'plus', 'x', 'umbras', 'attributes']) {
         const picker = page.locator(`[data-catalog="${catalog}"]`);
         await picker.locator('summary').click();
         check(await picker.locator('.picker-panel').evaluate(node => { const box = node.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }), `${catalog} dropdown fits at ${width}px`);

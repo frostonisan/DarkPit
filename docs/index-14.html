@@ -22,7 +22,7 @@ header { justify-content:space-between; padding-bottom:16px; border-bottom:1px s
 #mode-toggle { border-color:var(--gold); } #mode-toggle[aria-pressed=true] { border-color:#87badb; color:#b9def4; }
 input:disabled { opacity:.5; } #current-rules { margin-top:12px; }
 .context { margin-bottom:15px; font-size:12px; color:var(--muted); }
-.pickers { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:18px 0; }
+.pickers { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:18px 0; }
 .picker { position:relative; min-width:0; }
 .picker>summary { padding:11px 13px; border:1px solid var(--line); border-radius:5px; background:var(--panel); }
 .picker[open]>summary { border-color:var(--gold); }
@@ -66,6 +66,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 @media(max-width:760px) {
   main { padding:14px; } .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .picker:nth-child(even) .picker-panel { left:auto; right:0; } .gift-settings { grid-template-columns:1fr; }
+  .picker:nth-child(odd) .picker-panel { left:0; right:auto; }
   .table-wrap { max-width:100%; }
   #effects-table,#effects-table>caption,#effects { display:block; } #effects-table>thead { display:none; }
   #effects>tr[data-entry] { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; margin-top:12px; padding:12px; border:1px solid var(--line); }
@@ -99,7 +100,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <p class="empty" id="empty">Choisissez un élément dans une liste pour l’ajouter au tableau.</p>
     <div class="table-wrap">
       <table id="effects-table" hidden>
-        <caption>Attributs dans « Stats ». Stats X calculées par leurs Umbras. Cliquez sur un nom pour le détail.</caption>
+        <caption>Stats X calculées par leurs Umbras. Cliquez sur un nom pour le détail.</caption>
         <thead><tr><th scope="col">Élément</th><th scope="col">Points</th><th scope="col">Ratio / effet</th><th scope="col">Total de l’entité</th><th scope="col"><span class="muted">Retirer</span></th></tr></thead>
         <tbody id="effects"></tbody>
       </table>
@@ -292,10 +293,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const aliases={ physicalDamage:'PP', magicalDamage:'PM', piercingDamage:'puissance percante', HP:'points de vie' };
   const entry=(category,kind,group,spec,name)=>({id:`${kind}-${spec.key}`,category,kind,group,key:spec.key,name,spec});
   const catalogs=[
-    {id:'stats',name:'Stats',entries:[...Lab.attributes.map(spec=>entry('stats','attribute','attributes',spec,spec.name)),...Lab.effects.map(spec=>entry('stats','fixed','fixed',spec,`${spec.name} fixe`))]},
+    {id:'stats',name:'Stats',entries:Lab.effects.map(spec=>entry('stats','fixed','fixed',spec,`${spec.name} fixe`))},
     {id:'plus',name:'Stats +',entries:Lab.effects.map(spec=>entry('plus','plus','plus',spec,`${spec.name} +`))},
     {id:'x',name:'Stats X',entries:Lab.effects.map(spec=>entry('x','x',null,spec,`${spec.name} X`))},
     {id:'umbras',name:'Umbras',entries:Lab.umbras.map(spec=>entry('umbras','umbra','umbras',spec,spec.name))},
+    {id:'attributes',name:'Attributs',entries:Lab.attributes.map(spec=>entry('attributes','attribute','attributes',spec,spec.name))},
   ];
   const entries=Object.fromEntries(catalogs.flatMap(catalog=>catalog.entries.map(item=>[item.id,item])));
   const kindNames={attribute:'Attribut',fixed:'Stat fixe',plus:'Stat +',x:'Stat X · calculée',umbra:'Umbra · niveau 1'};
