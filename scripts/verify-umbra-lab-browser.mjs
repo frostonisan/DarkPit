@@ -128,7 +128,64 @@ for (const limit of [0, 1, 30, 150, 300]) {
   }
 }
 
-console.log(`Model: ${checks} checks passed.`);
+// Compare the current-mode snapshot with the project's actual numerical JS.
+// Import side effects are excluded; formula bodies and the source-pooling
+// engine are read verbatim from the files, rather than recreated as expectations.
+const [balanceSource, entitySource, damageSource, ruleSource, systemSource] = await Promise.all([
+  'docs/js/data/balanceData.js', 'docs/js/entites.js', 'docs/js/damagesCalcul.js',
+  'docs/js/entite/entityRules.js', 'docs/js/entite/statSystem.js',
+].map(file => readFile(resolve(file), 'utf8')));
+const unexport = source => source.replace(/^export default[^\n]+/gm, '').replace(/\bexport (?=(?:const|let|var|function)\b)/g, '');
+const functionBody = (source, name) => {
+  const match = source.match(new RegExp(`(?:export )?function ${name}\\([^]*?^}`, 'm'));
+  assert.ok(match, `Native function ${name} must exist`);
+  return unexport(match[0]);
+};
+const entityFunctions = ['calculateVitalityBonus', 'calculateDodgePercent', 'calculatePrecisionPercent', 'calculateHastePercent', 'calculateCritChancePercent'];
+const damageFunctions = ['calculateStrength', 'calculateAgility', 'calculateIntelligence', 'getHastePoints', 'calculateHasteIntelRatio',
+  'calculateHasteCDReduc', 'calculateHasteRecupReduc', 'calculateHastePrepReduc', 'calculateHasteExecReduc', 'calculateHasteProjectilSpeed',
+  'calculateVitalityRegenPercent', 'calculateVitalityRegenAmount', 'toNumber', 'calculateCritRatioBonus'];
+const reference = vm.createContext({});
+vm.runInContext(unexport(balanceSource), reference);
+vm.runInContext(`
+  const getSafe = (entity, key, fallback=0) => entity.stats[key] ?? fallback;
+  ${damageSource.match(/^const clamp = .*;$/m)[0]}
+  ${damageSource.match(/^const round1 = .*;$/m)[0]}
+  ${damageSource.match(/^const scalePercentRounded = [^]*?^};/m)[0]}
+  ${ruleSource.match(/^const toPositiveNumber = .*;$/m)[0]}
+  ${['getResistanceConstant', 'calculateResistanceReductionRatio', 'calculateResistanceReductionPercent'].map(name => functionBody(ruleSource, name)).join('\n')}
+  ${entityFunctions.map(name => functionBody(entitySource, name)).join('\n')}
+  ${damageFunctions.map(name => functionBody(damageSource, name)).join('\n')}
+  globalThis.nativeE = {${entityFunctions.join(',')}};
+  globalThis.nativeD = {${damageFunctions.join(',')}};
+  globalThis.nativeCalculate = (() => {
+    const B = balanceData, E = nativeE, D = nativeD;
+    ${unexport(systemSource.replace(/^import .*;\r?\n/gm, ''))}
+    return calculateStatSources;
+  })();
+`, reference);
+for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15,25,3,7],
+  [1,3,0,.25],[.4,12.49,.25,.35],[150,150,0,0],[250,250,1000,7],[15,26.125,.23,.71]]) {
+  const state=initialState(); state.mode='current'; state.limit=7; state.curve={k:1,max:100};
+  for (const spec of attributes) state.attributes[spec.key]=attribute;
+  for (const spec of umbras) state.umbras[spec.key]=u;
+  for (const spec of effects) { state.fixed[spec.key]=fixed; state.plus[spec.key]=plus; state.gifts[spec.key]=99; }
+  const inputs={...state.attributes,...state.umbras,...state.fixed,...Object.fromEntries(effects.map(spec=>[`${spec.key}Plus`,plus]))};
+  const snapshot=calculate(state);
+  for (const spec of effects) {
+    const expected=spec.type==='precision'?reference.nativeE.calculatePrecisionPercent(u):reference.nativeCalculate(inputs,spec.key).value;
+    near(snapshot.results[spec.key].total, expected, `Current JS parity: ${spec.key}, U=${u}, A=${attribute}, fixe=${fixed}, +=${plus}`);
+    equal(snapshot.results[spec.key].gift, 0, `Current ${spec.key} has no concept grant`);
+  }
+}
+const currentExample={...initialState(true),mode:'current'};
+equal(row(currentExample).total,45,'Current PP example remains Force × 0.5 + Vigueur');
+equal(row({...currentExample,plus:{physicalDamage:10}}).total,55,'Current +10 PP+ gain is ten');
+equal(row({...currentExample,umbras:{...currentExample.umbras,vigueur:25}}).total,55,'Current +10 Vigueur gain is also ten');
+const savedInputs=JSON.stringify(currentExample);
+calculate({...currentExample,mode:'concept'});
+equal(JSON.stringify(currentExample),savedInputs,'Changing calculator does not mutate owned values');
+console.log(`Model and current JS parity: ${checks} checks passed.`);
 if (!process.argv.includes('--model-only')) {
   const require = createRequire(import.meta.url);
   const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
@@ -194,6 +251,29 @@ if (!process.argv.includes('--model-only')) {
     await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
     await page.locator('[data-detail="x-physicalDamage"]').click();
     check((await page.locator('#detail-x-physicalDamage').innerText()).includes('108 PP'), 'Comparison remains available on demand');
+    const ownedBefore = await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]));
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '45', 'Switch selects the current JS calculation');
+    equal(await page.locator('#mode-name').innerText(), 'Version actuelle', 'Active calculation mode is explicit');
+    check(await page.locator('#limit').isDisabled(), 'Concept limit is unavailable in current mode');
+    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('55 PP'), 'Comparison follows the current formula');
+    check(!(await page.locator('#detail-x-physicalDamage').innerText()).includes('arrondi supérieur'), 'Current helper does not claim the concept rounding rule');
+    equal(JSON.stringify(await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]))), JSON.stringify(ownedBefore), 'Switch preserves every input');
+    await page.screenshot({ path: resolve(output, 'current-mode.png'), fullPage: true });
+    await fill('attributes', 'strength', 250);
+    await fill('umbras', 'vigueur', 250);
+    equal(await total('x-physicalDamage'), '375', 'Current mode uses its own acquisition rules');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '500', 'Concept applies its own limit to the same stored inputs');
+    equal(await field('attributes', 'strength').inputValue(), '250', 'Switching back does not overwrite out-of-limit acquisition');
+    equal(await field('umbras', 'vigueur').inputValue(), '250', 'Switching preserves raw Umbra acquisition');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '375', 'Round-trip switch restores the same current result');
+    await page.locator('#example').click();
+    equal(await total('x-physicalDamage'), '45', 'Example retains the chosen mode');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '80', 'Returning to concept restores its example');
+    await page.locator('[data-detail="x-physicalDamage"]').click();
     await page.locator('#detail-x-physicalDamage details > summary').click();
     await fill('plus', 'physicalDamage', 10);
     equal(await total('x-physicalDamage'), '90', 'Live PP+ retains correct shared ratio');
@@ -247,6 +327,11 @@ if (!process.argv.includes('--model-only')) {
     const allDetails = await page.locator('#effects').textContent();
     check(!/undefined|NaN|Infinity/.test(allDetails), 'Every selected entry renders valid labels and calculations');
     equal(await page.locator('.detail-row:visible').count(), 58, 'Every entry exposes a detail');
+    await page.locator('#mode-toggle').click();
+    check(!/undefined|NaN|Infinity/.test(await page.locator('#effects').textContent()), 'Every current-mode detail renders correctly');
+    check(await field('fixed', 'precisionReduction').isDisabled(), 'Unavailable current direct precision effect is explicit');
+    await page.locator('#mode-toggle').click();
+    check(await field('fixed', 'precisionReduction').isEnabled(), 'Concept-only input is restored when switching back');
 
     await page.locator('#example').click();
     await page.locator('details.rules > summary').click();
@@ -254,9 +339,14 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#curve-max').pressSequentially('2.5');
     equal(await total('x-physicalDamage'), '75', 'Typed decimal curve parameter recalculates the table');
     await page.locator('#curve-max').fill('3');
-    await page.locator('details.rules > details > summary').click();
+    await page.locator('#concept-settings > details > summary').click();
     await fill('gifts', 'physicalDamage', 2);
     equal(await total('x-physicalDamage'), '95', 'Fixed grants remain adjustable inside settings');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '45', 'Current mode ignores the concept grant setting');
+    check(await page.locator('#current-rules').isVisible(), 'Rules switch with the calculation mode');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'), '95', 'Concept grant setting survives the round trip');
     await fill('gifts', 'physicalDamage', 1);
     await page.locator('details.rules > summary').click();
     for (const width of [1440, 768, 390, 320]) {
