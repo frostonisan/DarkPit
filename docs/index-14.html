@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier des Umbras I · Index 14</title>
+<style>
+:root { color-scheme: dark; --bg:#101316; --panel:#181d21; --line:#343e46; --text:#edf0f1; --muted:#a8b4bc; --gold:#ddc68d; --force:#ff8c86; --intelligence:#a99cff; --agility:#e1cc74; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
+main { max-width:1560px; margin:auto; padding:20px; }
+h1,h2,p { margin:0; } h1 { font:26px Georgia,serif; } h2 { font-size:14px; font-weight:600; }
+button,input { font:inherit; color:inherit; }
+button { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer; }
+button:hover:not(:disabled) { border-color:var(--gold); } button:disabled { opacity:.35; cursor:default; }
+input { background:#101519; border:1px solid #46535e; border-radius:4px; padding:6px; min-width:0; font-variant-numeric:tabular-nums; }
+input[type=number] { width:80px; } :focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+header,.controls,.tools,.attribute,.umbra-title { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+header { justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--line); }
+.subtitle,.muted,small { color:var(--muted); } .subtitle { margin-top:5px; }
+.controls { margin:15px 0 8px; gap:10px 22px; } .controls label { display:flex; gap:8px; align-items:center; }
+.context { margin-bottom:15px; font-size:12px; color:var(--muted); }
+.attributes { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:14px 0; }
+.attribute { padding:10px; background:var(--panel); border-radius:5px; justify-content:space-between; }
+.attribute label { font-weight:600; } .attribute[data-key=strength] label { color:var(--force); }
+.attribute[data-key=intelligence] label { color:var(--intelligence); } .attribute[data-key=agility] label { color:var(--agility); }
+.stepper { display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+.stepper button { padding:3px; width:26px; min-height:32px; } .stepper input { width:64px; text-align:center; }
+.stepper input::-webkit-inner-spin-button { appearance:none; }
+.workspace { display:grid; grid-template-columns:250px minmax(0,1fr); gap:22px; align-items:start; }
+aside { position:sticky; top:14px; } .umbra-list { margin-top:8px; }
+.umbra { padding:10px 0; border-bottom:1px solid var(--line); }
+.umbra-title { justify-content:space-between; gap:5px; margin-bottom:6px; }
+.umbra[data-axis=strength] .umbra-name { color:var(--force); } .umbra[data-axis=intelligence] .umbra-name { color:var(--intelligence); }
+.umbra[data-axis=agility] .umbra-name { color:var(--agility); } .umbra-name { font-weight:600; }
+.umbra-meta { display:flex; justify-content:space-between; align-items:center; gap:5px; }
+.multiplier { font-variant-numeric:tabular-nums; color:var(--gold); }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+caption { text-align:left; margin-bottom:8px; color:var(--muted); font-size:12px; }
+th { color:var(--muted); font-size:11px; letter-spacing:.02em; text-align:left; font-weight:500; }
+th,td { padding:9px 7px; border-bottom:1px solid var(--line); vertical-align:middle; }
+th:first-child,td:first-child { padding-left:0; }
+td input { width:65px!important; } .effect-name { border:0; background:transparent; padding:0; text-align:left; font-weight:500; color:var(--text); text-decoration:underline dotted #71808b; text-underline-offset:4px; }
+.source-name { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
+.ratio { white-space:nowrap; font-size:12px; } .ratio small { display:block; font-size:10px; }
+.total { white-space:nowrap; font-size:16px; font-weight:600; } .total[data-active=true] { color:var(--gold); }
+.delta { white-space:nowrap; font-size:12px; color:#a9d6bd; }
+.state { display:inline-block; font-size:11px; color:var(--gold); margin-left:4px; }
+.detail-row[hidden] { display:none; } .detail-row td { padding:12px 14px; background:var(--panel); }
+.detail-title { color:var(--gold); margin-bottom:8px; }
+.calculation { display:grid; grid-template-columns:minmax(140px,.7fr) minmax(0,1.7fr); gap:5px 16px; }
+.calculation dt { color:var(--muted); } .calculation dd { margin:0; overflow-wrap:anywhere; }
+.calculation .result { color:var(--gold); font-weight:600; } .description { margin-bottom:8px; }
+.milestones { margin-top:12px; max-width:650px; } .milestones th,.milestones td { padding:5px 8px; font-size:12px; }
+.milestones tr[data-current=true] { color:var(--gold); } .compare { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+.notice { margin-top:8px; color:var(--muted); font-size:12px; } #status { min-height:22px; margin-top:12px; color:var(--gold); }
+details.rules { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:12px; }
+summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } .rules li { margin:5px 0; }
+.rules .controls { margin:10px 0; } footer { margin-top:16px; color:var(--muted); font-size:12px; }
+@media(max-width:1100px) { .attributes { grid-template-columns:repeat(2,minmax(0,1fr)); } .workspace { grid-template-columns:205px minmax(0,1fr); gap:15px; } .table-wrap>table { min-width:700px; } }
+@media(max-width:760px) {
+  main { padding:14px; } .workspace { display:block; } aside { position:static; margin-bottom:20px; }
+  .umbra-list { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 14px; }
+  .umbra-title { display:block; } .umbra-title small { display:block; } .umbra-meta { flex-wrap:wrap; }
+  .table-wrap { max-width:100%; } .table-wrap>table { min-width:0; }
+  #effects-table,#effects-table>caption,#effects { display:block; } #effects-table>thead { display:none; }
+  #effects>tr[data-effect] { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:12px; padding:12px; border:1px solid var(--line); }
+  #effects>tr[data-effect]>td { padding:0; border:0; min-width:0; }
+  #effects>tr[data-effect]>td:first-child { grid-column:1/-1; }
+  #effects>tr[data-effect]>td:not(:first-child)::before { content:attr(data-label); display:block; margin-bottom:4px; color:var(--muted); font-size:10px; font-weight:400; }
+  .ratio { white-space:normal; } .source-name { display:inline; margin-left:7px; }
+  .detail-row:not([hidden]),.detail-row>td { display:block; }
+  .detail-row>td { padding:12px; } .milestones { max-width:100%; }
+  .milestones th,.milestones td { padding:5px 3px; font-size:11px; } .compare,.description { overflow-wrap:anywhere; }
+}
+@media(max-width:460px) { .attributes { grid-template-columns:1fr; } .umbra-list { grid-template-columns:repeat(2,minmax(0,1fr)); } .calculation { grid-template-columns:1fr; gap:3px; } .calculation dd { margin-bottom:7px; } h1 { font-size:23px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Atelier des Umbras I</h1><p class="subtitle">Index 14 · Acquisition, ratios et calculs en direct.</p></div>
+    <div class="tools"><button type="button" id="example">Exemple PP</button><button type="button" id="clear">Vider</button></div>
+  </header>
+  <div class="controls">
+    <label>Niveau <input id="level" type="number" min="1" step="1" value="51"></label>
+    <label>Limite de l’entité <input id="limit" type="number" min="0" step="1" value="150"></label>
+    <span class="muted">Attributs et Umbras limités · Fixes et stats+ illimités</span>
+  </div>
+  <p class="context">Le niveau est un repère manuel : aucun gain automatique. Seuls les points de l’Umbra font évoluer ses ratios.</p>
+  <section class="attributes" aria-label="Attributs de l’entité" id="attributes"></section>
+  <div class="workspace">
+    <aside aria-label="Umbras de niveau 1"><h2>Points d’Umbra · niveau 1</h2><div class="umbra-list" id="umbras"></div></aside>
+    <section aria-label="Calcul des statistiques">
+      <div class="table-wrap">
+        <table id="effects-table">
+          <caption>Cliquer sur une statistique ouvre son calcul et sa progression. « Don/U » = gain fixe par point d’Umbra.</caption>
+          <thead><tr><th scope="col">Statistique</th><th scope="col">Fixe</th><th scope="col">Stat+</th><th scope="col">Don/U</th><th scope="col">Ratio appliqué</th><th scope="col">Total</th><th scope="col">+1 Umbra</th></tr></thead>
+          <tbody id="effects"></tbody>
+        </table>
+      </div>
+      <div id="status" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+  <details class="rules">
+    <summary>Règles et paramètres communs</summary>
+    <div class="controls"><label>Demi-progression K <input id="curve-k" type="number" min="0.01" step="1" value="30"></label><label>Multiplicateur maximal <input id="curve-max" type="number" min="1" step="0.1" value="3"></label></div>
+    <ul>
+      <li>Multiplicateur M(U) = 1 + (maximum − 1) × U / (U + K). U est le nombre de points de l’Umbra concernée.</li>
+      <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
+      <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
+      <li>Chaque attribut et chaque Umbra partage la limite de l’entité. Une hausse de limite ne change pas les valeurs déjà acquises ni la forme de la courbe. Une baisse ramène les saisies à la nouvelle limite.</li>
+      <li>Les gains fixes n’ont pas de plafond d’acquisition. Les plafonds d’effet restent 100 % pour les résistances et l’esquive, et 95 % pour les effets de Hâte.</li>
+      <li>Chaque contribution d’attribut est arrondie au supérieur après multiplication : 25 × 0,5 → 13. Les coefficients restent précis pendant le calcul.</li>
+      <li>Les courbes natives des effets sont conservées. Les ratios d’attributs utilisent M(U). Vitalité conserve sa régénération liée aux HP ; Précision conserve son bonus applicable aux coups critiques.</li>
+      <li>Volonté reste saisissable et limitée, mais ne pilote aucun effet de ce périmètre. Aucun archétype, cycle, équipement ou stock de ressources n’est simulé.</li>
+    </ul>
+  </details>
+  <footer>Simulation autonome · Aucune lecture ni écriture des sauvegardes du jeu.</footer>
+</main>
+<script>
+/* Standalone snapshot of rank-1 native effects. Source: balanceData.js,
+   entites.js, entityRules.js and damagesCalcul.js. Only this lab applies the
+   proposed acquisition limit, shared ratio curve and additional fixed grants. */
+(() => {
+  'use strict';
+  const ATTRIBUTES = [
+    { key:'strength', name:'Force' }, { key:'intelligence', name:'Intelligence' },
+    { key:'agility', name:'Agilité' }, { key:'will', name:'Volonté' },
+  ];
+  const UMBRAS = [
+    { key:'vigueur', name:'Vigueur', axis:'strength', role:'Attaque' },
+    { key:'constitution', name:'Constitution', axis:'strength', role:'Défense' },
+    { key:'vitality', name:'Vitalité', axis:'strength', role:'Utilitaire' },
+    { key:'esprit', name:'Esprit', axis:'intelligence', role:'Attaque' },
+    { key:'integrite', name:'Intégrité', axis:'intelligence', role:'Défense' },
+    { key:'haste', name:'Hâte', axis:'intelligence', role:'Utilitaire' },
+    { key:'finesse', name:'Finesse', axis:'agility', role:'Attaque' },
+    { key:'adresse', name:'Adresse', axis:'agility', role:'Défense' },
+    { key:'precision', name:'Précision', axis:'agility', role:'Utilitaire' },
+  ];
+  const EFFECTS = [
+    { key:'physicalDamage', name:'Puissance physique', source:'vigueur', type:'power', attribute:'strength', coefficient:.5, gift:1, unit:'', description:'Renforce les dégâts des attaques qui utilisent la puissance physique.' },
+    { key:'physicalResistance', name:'Résistance physique', source:'constitution', type:'resistance', attribute:'strength', coefficient:.5, gift:1, unit:' %', cap:100, description:'Réduit les dégâts physiques subis.' },
+    { key:'HP', name:'HP max', source:'vitality', type:'hp', gift:1, unit:'', description:'Détermine les points de vie maximum. Aucun ratio de Force n’est ajouté à cette mécanique.' },
+    { key:'dayHpRegen', name:'Régénération journalière', source:'vitality', type:'regen', gift:0, unit:' HP', description:'HP récupérés au début de la journée si l’entité est vivante. Utilise les HP max calculés ci-dessus.' },
+    { key:'magicalDamage', name:'Puissance magique', source:'esprit', type:'power', attribute:'intelligence', coefficient:.5, gift:1, unit:'', description:'Renforce les dégâts des attaques qui utilisent la puissance magique.' },
+    { key:'magicalResistance', name:'Résistance magique', source:'integrite', type:'resistance', attribute:'intelligence', coefficient:.5, gift:1, unit:' %', cap:100, description:'Réduit les dégâts magiques subis.' },
+    { key:'attackPreparationReduc', name:'Préparation', source:'haste', type:'preparation', attribute:'intelligence', coefficient:30/150, gift:1, unit:' %', cap:95, description:'Réduit la durée de préparation des attaques.' },
+    { key:'attackCooldownReduc', name:'Cooldown', source:'haste', type:'timing', attribute:'intelligence', coefficient:25/150, gift:0, unit:' %', cap:95, description:'Réduit le délai avant de pouvoir relancer une attaque.' },
+    { key:'attackExecutionReduc', name:'Exécution', source:'haste', type:'timing', attribute:'strength', coefficient:25/150, gift:0, unit:' %', cap:95, description:'Réduit la durée d’exécution des attaques.' },
+    { key:'attackRecoveryReduc', name:'Récupération', source:'haste', type:'timing', attribute:'agility', coefficient:25/150, gift:0, unit:' %', cap:95, description:'Réduit la durée de récupération après une attaque.' },
+    { key:'attackProjectileSpeed', name:'Vitesse des projectiles', source:'haste', type:'projectile', attribute:'strength', coefficient:25/150, gift:0, unit:' %', cap:95, description:'Augmente la vitesse des projectiles. Le ratio de Force est converti en accélération.' },
+    { key:'piercingDamage', name:'Puissance perçante', source:'finesse', type:'power', attribute:'agility', coefficient:.5, gift:1, unit:'', description:'Renforce les dégâts des attaques qui utilisent la puissance perçante.' },
+    { key:'dodge', name:'Esquive', source:'adresse', type:'dodge', attribute:'agility', coefficient:.5, gift:1, unit:' %', cap:100, description:'Chance d’esquiver les attaques esquivables.' },
+    { key:'precisionReduction', name:'Réduction d’esquive adverse', source:'precision', type:'precision', gift:1, unit:' %', cap:100, description:'Réduit l’esquive adverse. En combat, la cible conserve sa chance minimale d’esquiver.' },
+    { key:'criticalDamage', name:'Bonus de dégâts critiques', source:'precision', type:'critical', gift:0, unit:' %', description:'Bonus fourni par Précision aux attaques qui réalisent un coup critique. N’accorde aucune chance de critique.' },
+  ];
+  const number = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+  const ceiling = (value, decimals=0) => {
+    const factor = 10 ** decimals, scaled = value * factor;
+    return Math.ceil(scaled - Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4) / factor || 0;
+  };
+  const nearest = (value, decimals=0) => Math.round(value * 10 ** decimals) / 10 ** decimals;
+  const multiplier = (points, curve={}) => 1 + (Math.max(1, number(curve.max ?? 3)) - 1) * points / (points + Math.max(.01, number(curve.k ?? 30)));
+  function initialState(example=false) {
+    return { level:example ? 51 : 1, limit:150, curve:{ k:30, max:3 },
+      attributes:Object.fromEntries(ATTRIBUTES.map(a => [a.key, example && a.key==='strength' ? 60 : 0])),
+      umbras:Object.fromEntries(UMBRAS.map(u => [u.key, example && u.key==='vigueur' ? 15 : 0])),
+      fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])) };
+  }
+  // No random input, side effects, game imports or storage. Fixed inputs are
+  // never subjected to the acquisition limit; only effect outputs may be capped.
+  function calculate(input) {
+    const limit = number(input.limit ?? 150);
+    const attributes = Object.fromEntries(ATTRIBUTES.map(a => [a.key,Math.min(limit,number(input.attributes?.[a.key]))]));
+    const umbras = Object.fromEntries(UMBRAS.map(u => [u.key,Math.min(limit,number(input.umbras?.[u.key]))]));
+    const results = {};
+    for (const spec of EFFECTS) {
+      const u=umbras[spec.source], fixed=number(input.fixed?.[spec.key]), plus=number(input.plus?.[spec.key]);
+      const active=u>0 || plus>0, m=u>0 ? multiplier(u,input.curve) : 1;
+      const coefficient=active && spec.attribute ? spec.coefficient*m : 0;
+      const attributeValue=spec.attribute ? attributes[spec.attribute] : 0;
+      const attributeRaw=attributeValue*coefficient;
+      const attributeGain=ceiling(attributeRaw);
+      const giftRate=number(input.gifts?.[spec.key] ?? spec.gift);
+      const gift=ceiling(u*giftRate, spec.unit.includes('%') ? 2 : 0);
+      let native=0, generated=0, points=0, nativeRatio=0, common=0;
+      if (spec.type==='power') { native=u; generated=ceiling(native)+attributeGain; }
+      if (spec.type==='resistance' || spec.type==='dodge') {
+        native=u; points=ceiling(u)+attributeGain;
+        if (points>0) generated=spec.type==='resistance' ? ceiling(100*points/(points+70))
+          : points===1 ? 5 : Math.min(72,nearest(5+67*(1-Math.exp(-.02*(points-1))),1));
+      }
+      if (spec.type==='hp') { native=u<=0 ? 0 : u===1 ? 10 : Math.min(400,ceiling(10+390*(1-Math.exp(-.02*(u-1))))); generated=native; }
+      if (spec.type==='regen') {
+        // The original 150 is an explicit fixed conversion coefficient, not
+        // a second hidden acquisition cap or a denominator depending on limit.
+        nativeRatio=u*(5/150)/100;
+        common=active ? 1 : 0;
+        native=ceiling((results.HP?.total || 0)*nativeRatio);
+        generated=native+common;
+      }
+      if (spec.type==='preparation') { native=u<=0 ? 0 : u===1 ? 1.5 : Math.min(35,nearest(1.5+33.5*(1-Math.exp(-u/70)),1)); generated=native+attributeGain; }
+      if (spec.type==='timing') generated=attributeGain;
+      if (spec.type==='projectile') generated=ceiling(100*(1/(1-Math.min(95,attributeGain)/100)-1),2);
+      if (spec.type==='precision') { native=u<=0 ? 0 : u===1 ? 5 : Math.min(80,nearest(5+75*(1-Math.exp(-.025*(u-1))),1)); generated=native; }
+      if (spec.type==='critical') { native=ceiling(u*.5,1); generated=native; }
+      const uncapped=nearest(fixed+plus+gift+generated,8);
+      const total=Math.min(spec.cap ?? Infinity,uncapped);
+      results[spec.key]={ ...spec, u, fixed, plus, active, multiplier:m, coefficient, attributeValue, attributeRaw, attributeGain,
+        giftRate, gift, native, nativeRatio, common, generated, points, uncapped, total,
+        state:u>0 ? 'X' : plus>0 ? '+' : 'normal', capped:uncapped>total, capLoss:nearest(uncapped-total,8) };
+    }
+    return { level:Math.max(1,Math.floor(number(input.level))), limit, attributes, umbras, results };
+  }
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, ceiling, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+})();
+</script>
+<script>
+(() => {
+  'use strict';
+  const Lab=window.umbraLab;
+  const $=selector=>document.querySelector(selector);
+  const fmt=(value,decimals=2)=>new Intl.NumberFormat('fr-FR',{ maximumFractionDigits:decimals }).format(value);
+  const names=Object.fromEntries([...Lab.attributes,...Lab.umbras,...Lab.effects].map(spec=>[spec.key,spec.name]));
+  let state=Lab.initialState(true), open=new Set(['physicalDamage']);
+  const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
+  const cell=(label,child)=>{ const td=document.createElement('td'); td.dataset.label=label; if(child)td.append(child); return td; };
+  function inputNumber(group,key,value,label,{ bounded=false,step=1 }={}) {
+    const input=document.createElement('input'); input.type='number'; input.min='0'; input.step=String(step);
+    input.value=String(value); input.setAttribute('aria-label',label); input.dataset.group=group; input.dataset.key=key;
+    if(bounded) input.max=String(state.limit);
+    return input;
+  }
+  function stepper(group,key,value,label) {
+    const box=document.createElement('div'); box.className='stepper';
+    for(const delta of [-1,0,1]) {
+      if(!delta) { box.append(inputNumber(group,key,value,label,{bounded:true})); continue; }
+      const button=document.createElement('button'); button.type='button'; button.textContent=delta<0 ? '−' : '+';
+      button.setAttribute('aria-label',`${delta<0?'Diminuer':'Augmenter'} ${label}`);
+      Object.assign(button.dataset,{group,key,delta:String(delta)}); box.append(button);
+    }
+    return box;
+  }
+  for(const spec of Lab.attributes) {
+    const box=document.createElement('div'); box.className='attribute'; box.dataset.key=spec.key;
+    const label=document.createElement('label'); label.textContent=spec.name; label.htmlFor=`attribute-${spec.key}`;
+    const controls=stepper('attributes',spec.key,state.attributes[spec.key],spec.name);
+    controls.querySelector('input').id=label.htmlFor; box.append(label,controls); $('#attributes').append(box);
+  }
+  for(const spec of Lab.umbras) {
+    const box=document.createElement('div'); box.className='umbra'; box.dataset.axis=spec.axis; box.dataset.source=spec.key;
+    box.innerHTML=`<div class="umbra-title"><label class="umbra-name" for="umbra-${spec.key}">${spec.name}</label><small>${spec.role}</small></div><div class="umbra-meta"><output class="multiplier" aria-label="Multiplicateur de ${spec.name}"></output></div>`;
+    const controls=stepper('umbras',spec.key,state.umbras[spec.key],spec.name); controls.querySelector('input').id=`umbra-${spec.key}`;
+    box.querySelector('.umbra-meta').prepend(controls); $('#umbras').append(box);
+  }
+  for(const spec of Lab.effects) {
+    const row=document.createElement('tr'); row.dataset.effect=spec.key;
+    const title=document.createElement('button'); title.type='button'; title.className='effect-name'; title.dataset.detail=spec.key;
+    title.setAttribute('aria-controls',`detail-${spec.key}`); title.innerHTML=`${spec.name}<span class="state"></span>`;
+    const name=cell('Statistique',title), source=document.createElement('span'); source.className='source-name'; source.textContent=names[spec.source]; name.append(source); row.append(name);
+    for(const [group,label,step] of [['fixed','Fixe',spec.unit.includes('%')?.1:1],['plus','Stat+',spec.unit.includes('%')?.1:1],['gifts','Don/U',.1]]) {
+      row.append(cell(label,inputNumber(group,spec.key,state[group][spec.key]||0,`${spec.name} · ${label}${spec.unit}`,{step})));
+    }
+    const ratio=cell('Ratio appliqué'); ratio.className='ratio'; ratio.dataset.ratio=spec.key; row.append(ratio);
+    const total=cell('Total'); total.className='total'; total.dataset.total=spec.key; row.append(total);
+    const delta=cell('+1 Umbra'); delta.className='delta'; delta.dataset.gain=spec.key; row.append(delta);
+    const detail=document.createElement('tr'); detail.className='detail-row'; detail.id=`detail-${spec.key}`;
+    const content=document.createElement('td'); content.colSpan=7; content.dataset.calculation=spec.key; detail.append(content);
+    $('#effects').append(row,detail);
+  }
+  function withUmbra(key,value) { return {...state,umbras:{...state.umbras,[key]:Math.min(state.limit,value)}}; }
+  function formula(row,snapshot) {
+    const f=value=>fmt(value,6), n=row.native;
+    if(row.type==='power') return `${f(row.u)} × 1 → ${f(Math.ceil(row.u))}`;
+    if(row.type==='resistance') return `(${f(row.u)} → ${f(Math.ceil(row.u))}) + ${f(row.attributeGain)} = ${f(row.points)} points ; ${f(row.points)} / (${f(row.points)} + 70) × 100 → ${f(row.generated)} %`;
+    if(row.type==='dodge') return row.points<=0 ? '0' : row.points===1 ? 'Premier point : 5 %' : `${f(row.u)} + ${f(row.attributeGain)} = ${f(row.points)} points ; 5 + 67 × (1 − exp(−0,02 × (${f(row.points)} − 1))) → ${f(row.generated)} %`;
+    if(row.type==='hp') return row.u<=0 ? '0' : row.u===1 ? 'Premier point : 10 HP' : `10 + 390 × (1 − exp(−0,02 × (${f(row.u)} − 1))) → ${f(n)} HP`;
+    if(row.type==='regen') return `${f(snapshot.results.HP.total)} HP × (${f(row.u)} × 5 / 150) % → ${f(n)} HP ; base active : ${row.common} HP`;
+    if(row.type==='preparation') return row.u<=0 ? '0 %' : row.u===1 ? 'Premier point : 1,5 %' : `1,5 + 33,5 × (1 − exp(−${f(row.u)} / 70)) → ${f(n)} %`;
+    if(row.type==='projectile') return `(1 / (1 − min(${f(row.attributeGain)}, 95) / 100) − 1) × 100 → ${f(row.generated)} %`;
+    if(row.type==='precision') return row.u<=0 ? '0 %' : row.u===1 ? 'Premier point : 5 %' : `5 + 75 × (1 − exp(−0,025 × (${f(row.u)} − 1))) → ${f(n)} %`;
+    if(row.type==='critical') return `${f(row.u)} × 0,5 → ${f(n)} %`;
+    return 'Aucun montant natif supplémentaire.';
+  }
+  function detailHTML(row,snapshot) {
+    const unit=row.unit, f=value=>fmt(value,6);
+    const nativeLabel=['resistance','dodge','projectile'].includes(row.type) ? 'Conversion de la capacité' : 'Montant natif';
+    const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} / ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} / ${f(state.limit)}` : ''}`],
+      ['Multiplicateur de l’Umbra',row.u>0 ? `1 + (${f(state.curve.max)} − 1) × ${f(row.u)} / (${f(row.u)} + ${f(state.curve.k)}) = ×${f(row.multiplier)}` : '×1 · aucune Umbra active'],
+      ['Don fixe de l’Umbra',`${f(row.u)} × ${f(row.giftRate)} → ${f(row.gift)}${unit}`]];
+    if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
+      [`Contribution de ${names[row.attribute]}`,`${f(row.attributeValue)} × ${f(row.coefficient)} = ${f(row.attributeRaw)} → ${f(row.attributeGain)} (arrondi supérieur)`]);
+    else lines.push(['Ratio d’attribut',row.type==='regen' ? 'Mécanique native : proportion des HP pilotée uniquement par Vitalité.' : 'Aucun dans cette mécanique.']);
+    lines.push([nativeLabel,formula(row,snapshot)],['Capacité calculée',`${f(row.generated)}${unit}`],
+      ['Somme',`${f(row.fixed)} fixe + ${f(row.plus)} stat+ + ${f(row.gift)} don fixe + ${f(row.generated)} capacité = ${f(row.uncapped)}${unit}`]);
+    if(row.capped)lines.push(['Plafond de l’effet',`${f(row.uncapped)} → ${f(row.total)}${unit} · ${f(row.capLoss)}${unit} au-delà du plafond. Les apports fixes saisis restent conservés.`]);
+    lines.push(['Total',`${f(row.total)}${unit}`]);
+    const stops=[...new Set([0,1,5,15,25,50,100,150,state.limit,row.u].filter(value=>value<=state.limit))].sort((a,b)=>a-b);
+    const progression=stops.map(points=>{const target=Lab.calculate(withUmbra(row.source,points)).results[row.key];return `<tr data-current="${points===row.u}"><td>${f(points)}</td><td>×${f(target.multiplier)}</td><td>${target.attribute ? f(target.coefficient) : '—'}</td><td>${fmt(target.total)}${unit}</td></tr>`;}).join('');
+    let comparison='';
+    if(row.key==='physicalDamage') {
+      const plus=Lab.calculate({...state,plus:{...state.plus,physicalDamage:row.plus+10}}).results.physicalDamage;
+      const added=Math.min(10,Math.max(0,state.limit-row.u));
+      const umbra=Lab.calculate(withUmbra('vigueur',row.u+added)).results.physicalDamage;
+      comparison=`<div class="compare">À partir de ${fmt(row.total)} PP : <strong>+10 PP+ → ${fmt(plus.total)} PP</strong> (+${fmt(plus.total-row.total)}) · <strong>+${fmt(added)} Vigueur → ${fmt(umbra.total)} PP</strong> (+${fmt(umbra.total-row.total)}).${added<10 ? ' Ajout de Vigueur limité par le plafond.' : ''}</div>`;
+    }
+    return `<div class="detail-title">${row.name}${row.state==='normal'?'':` ${row.state}`} · ${names[row.source]}</div><p class="description">${row.description}</p><dl class="calculation">${lines.map(([label,value])=>`<dt>${label}</dt><dd${label==='Total'?' class="result"':''}>${value}</dd>`).join('')}</dl><div class="notice">La statistique peut être arrondie. Les coefficients affichés sont abrégés ; le calcul conserve leur précision.</div>${comparison}<table class="milestones"><caption>Progression de ${names[row.source]} · autres saisies constantes</caption><thead><tr><th>Points</th><th>M(U)</th><th>Coefficient</th><th>Total</th></tr></thead><tbody>${progression}</tbody></table>`;
+  }
+  function render() {
+    const snapshot=Lab.calculate(state);
+    for(const [id,value] of [['level',state.level],['limit',state.limit],['curve-k',state.curve.k],['curve-max',state.curve.max]]) {
+      if(document.activeElement!==$(`#${id}`))$(`#${id}`).value=value;
+    }
+    for(const input of document.querySelectorAll('input[data-group]')) {
+      const {group,key}=input.dataset; if(document.activeElement!==input)input.value=state[group][key]||0;
+      if(['attributes','umbras'].includes(group))input.max=state.limit;
+    }
+    for(const button of document.querySelectorAll('button[data-delta]')) {
+      const {group,key,delta}=button.dataset, value=state[group][key]||0;
+      button.disabled=Number(delta)<0 ? value<=0 : value>=state.limit;
+    }
+    for(const source of Lab.umbras) {
+      const u=snapshot.umbras[source.key], node=document.querySelector(`[data-source="${source.key}"] .multiplier`);
+      node.textContent=`×${fmt(Lab.multiplier(u,state.curve),3)}${u>=state.limit?' · limite':''}`;
+    }
+    const nextBySource=Object.fromEntries(Lab.umbras.map(source=>[source.key,Lab.calculate(withUmbra(source.key,snapshot.umbras[source.key]+1))]));
+    for(const row of Object.values(snapshot.results)) {
+      const tr=document.querySelector(`[data-effect="${row.key}"]`), title=tr.querySelector('.effect-name');
+      title.setAttribute('aria-expanded',String(open.has(row.key))); title.querySelector('.state').textContent=row.state==='normal'?'':row.state;
+      const ratio=tr.querySelector('.ratio');
+      ratio.innerHTML=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}<small>${row.u>0 ? names[row.source] : row.plus>0 ? 'Stat+ · coefficient fixe' : 'Inactif'}</small>`
+        : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %<small>Vitalité · natif</small>` : '—';
+      const total=tr.querySelector('.total'); total.textContent=`${fmt(row.total)}${row.unit}`; total.dataset.active=String(row.active); total.title=row.capped?`Plafond : ${row.cap}${row.unit}`:'';
+      const delta=tr.querySelector('.delta'); delta.textContent=row.u>=state.limit ? 'Limite' : `+${fmt(nextBySource[row.source].results[row.key].total-row.total)}${row.unit}`;
+      const detail=document.getElementById(`detail-${row.key}`); detail.hidden=!open.has(row.key);
+      if(open.has(row.key))detail.firstElementChild.innerHTML=detailHTML(row,snapshot);
+    }
+  }
+  document.addEventListener('input',event=>{
+    const input=event.target;
+    if(!input.matches('input[type=number]'))return;
+    if(input.value==='' || input.validity.badInput)return;
+    const value=readNumber(input);
+    if(input.dataset.group) {
+      const {group,key}=input.dataset, bounded=['attributes','umbras'].includes(group);
+      state[group][key]=bounded?Math.min(state.limit,value):value;
+      if(state[group][key]!==Number(input.value))input.value=state[group][key];
+    } else if(input.id==='limit') {
+      state.limit=value; let reduced=false;
+      for(const group of ['attributes','umbras'])for(const key of Object.keys(state[group]))if(state[group][key]>value){state[group][key]=value;reduced=true;}
+      $('#status').textContent=reduced?'Valeurs directrices ramenées à la nouvelle limite. Les apports fixes sont conservés.':'Nouvelle limite appliquée aux attributs et aux neuf Umbras.';
+    } else if(input.id==='level')state.level=Math.max(1,Math.floor(value));
+    else if(input.id==='curve-k')state.curve.k=Math.max(.01,value);
+    else if(input.id==='curve-max')state.curve.max=Math.max(1,value);
+    render();
+  });
+  document.addEventListener('change',event=>{
+    const input=event.target;
+    if(!input.matches('input[type=number]'))return;
+    if(input.dataset.group) {
+      const {group,key}=input.dataset;
+      if(input.value==='')state[group][key]=0;
+      input.value=state[group][key]||0;
+    } else input.value=({'level':state.level,'limit':state.limit,'curve-k':state.curve.k,'curve-max':state.curve.max})[input.id];
+    render();
+  });
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('button'); if(!button)return;
+    if(button.dataset.delta){const {group,key,delta}=button.dataset;state[group][key]=Math.max(0,Math.min(state.limit,(state[group][key]||0)+Number(delta)));render();}
+    if(button.dataset.detail){const key=button.dataset.detail;if(open.has(key))open.delete(key);else open.add(key);render();}
+    if(button.id==='example' || button.id==='clear'){state=Lab.initialState(button.id==='example');open=new Set(button.id==='example'?['physicalDamage']:[]);$('#status').textContent=button.id==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Saisies vidées.';render();}
+  });
+  render();
+})();
+</script>
+</body>
+</html>
