@@ -298,12 +298,14 @@ if (!process.argv.includes('--model-only')) {
     const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
     const fill = (group, key, value) => field(group, key).fill(String(value));
     const setCurve = (scope,key,value) => scope.locator(`[data-curve="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
-    const setCommonGain = async value => {
+    const setCommonValue = async (id,value) => {
       const panel=page.locator('#common-balancing'),wasOpen=await panel.evaluate(node=>node.open);
       if(!wasOpen)await panel.locator('summary').click();
-      await page.locator('#common-cycle-gain').fill(String(value));
+      await page.locator(`#${id}`).fill(String(value));
       if(!wasOpen)await panel.locator('summary').click();
     };
+    const setCommonGain = value => setCommonValue('common-cycle-gain',value);
+    const setCommonReference = value => setCommonValue('common-reference-limit',value);
     const baseField=(scope,id,group,key='physicalDamage')=>scope.locator(`[data-entry="${id}"] input[data-base-group="${group}"][data-base-effect="${key}"]`);
     const add = async (catalog, id, query = '') => {
       const picker = page.locator(`[data-catalog="${catalog}"]`);
@@ -367,7 +369,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('[data-curve]').count(),3,'Only curve shape, residual gain and center remain per entity');
     equal(await page.locator('[data-curve="cap"], [data-curve="interval"]').count(),0,'Gain and interval sliders are removed');
     equal(await page.locator('#common-cycle-gain').count(),1,'Cycle gain has one common editor');
-    equal(await page.locator('#reference-limit').textContent(),String(referenceLimit),'Common rules state the fixed reference limit');
+    equal(await page.locator('#common-reference-limit').inputValue(),String(referenceLimit),'Common reference limit starts at the model default');
     equal(await page.locator('#curve-points').inputValue(),'15','Chart points and table points share state');
     near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(15),'Chart marker displays the actual multiplier');
     check((await page.locator('#curve-attribute').innerText()).includes('44'),'Chart reports the actual rounded attribute gain');
@@ -777,6 +779,59 @@ if (!process.argv.includes('--model-only')) {
     check(await page.locator('#no-entities').isVisible(),'Removing the final entity leaves the add action available');
     await page.locator('#add-entity').click();
     equal(await page.locator('.entity').count(),1,'An entity can be created again after removing all');
+    const fourth=page.locator('[data-entity-id="entity-4"]');
+    await fourth.locator('[data-ui="example"]').click();
+    const fourthInputs=await settings(fourth);
+    await page.locator('#common-balancing > summary').click();
+    const referenceInput=page.locator('#common-reference-limit');
+    await referenceInput.fill('300');
+    check(await referenceInput.evaluate(node=>node===document.activeElement),'Reference recalculates while the input retains focus');
+    const referenceBuild=initialState(true);referenceBuild.curve.cap=50;referenceBuild.curve.interval=300;
+    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Reference change recalculates the existing entity immediately');
+    near(Number(await fourth.locator('[data-ui="curve-chart"]').getAttribute('data-current')),multiplier(15,referenceBuild.curve),'Curve uses the new reference cycle length');
+    equal(JSON.stringify(await settings(fourth)),JSON.stringify(fourthInputs),'Reference change preserves existing limits, points and local settings');
+    equal(await fourth.locator('[data-ui="curve-unlock"]').innerText(),'Débloquer +300 points','Unlock amount follows the common reference');
+    await referenceInput.fill('');await referenceInput.blur();
+    equal(await referenceInput.inputValue(),'300','An empty reference restores the last valid value');
+    await page.locator('#common-balancing > summary').click();
+    for(const type of ['j','sigmoid','exp']) {
+      await fourth.locator('[data-ui="curve-profile"]').selectOption(type);
+      referenceBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults,cap:50,interval:300};
+      equal(Number(await entityTotal(fourth)),row(referenceBuild).total,`${type}: inactive profiles also receive the new cycle length`);
+    }
+    await fourth.locator('[data-ui="curve-reset"]').click();
+    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Profile reset retains the common reference');
+    await fourth.locator('[data-ui="example"]').click();
+    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'300','Fresh example uses the current reference limit');
+    await fourth.locator('[data-ui="curve-fill"]').click();
+    const beforeReferenceUnlock=await entityTotal(fourth);
+    await fourth.locator('[data-ui="curve-unlock"]').click();
+    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'600','Unlock adds the configured 300-point cycle');
+    equal(await entityTotal(fourth),beforeReferenceUnlock,'Unlock does not stretch the completed 300-point cycle');
+    await page.locator('#add-entity').click();
+    const fifth=page.locator('[data-entity-id="entity-5"]');
+    equal(await fifth.locator('[data-ui="limit"]').inputValue(),'300','New entities inherit the configured reference');
+    await fifth.locator('[data-ui="example"]').click();
+    const beforeReferenceChange=[await settings(fourth),await settings(fifth)];
+    await setCommonReference(150);
+    referenceBuild.curve.interval=150;
+    equal(Number(await entityTotal(fifth)),row(referenceBuild).total,'Shared reference recalculates the second entity');
+    referenceBuild.limit=600;referenceBuild.umbras.vigueur=300;
+    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Shared reference recalculates all completed cycles on the first entity');
+    equal(JSON.stringify([await settings(fourth),await settings(fifth)]),JSON.stringify(beforeReferenceChange),'Both entities preserve their own limits when the shared reference changes');
+    await fifth.locator('[data-ui="mode-toggle"]').click();
+    await setCommonReference(75);
+    equal(await entityTotal(fifth),'45','Reference changes leave current-game calculations unchanged');
+    await fifth.locator('[data-ui="mode-toggle"]').click();
+    referenceBuild.umbras.vigueur=15;referenceBuild.curve.interval=75;
+    equal(Number(await entityTotal(fifth)),row(referenceBuild).total,'Returning to Concept uses the updated reference');
+    await setCommonReference(0);
+    equal(await referenceInput.inputValue(),'1','Zero reference is clamped to one point instead of dividing by zero');
+    check(!/NaN|Infinity/.test(await fifth.locator('[data-ui="curve-total"]').innerText()),'Minimum reference keeps finite calculations');
+    await setCommonReference(300);
+    await fifth.locator('[data-ui="clear"]').click();
+    equal(await fifth.locator('[data-ui="limit"]').inputValue(),'300','Cleared entities restart at the current reference');
+    equal(await referenceInput.inputValue(),'300','Clearing one entity preserves the common reference');
     equal(errors.length, 0, `No browser errors: ${errors.join('; ')}`);
     equal(network.length, 0, 'Standalone page makes no external requests');
     await writeFile(resolve(output, 'verification.json'), JSON.stringify({ checks, errors, network }, null, 2));

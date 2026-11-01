@@ -149,7 +149,17 @@ Un cycle correspond à la limite de référence. Plus tu augmentes ce gain, plus
 Exemple sans gain résiduel ni arrondis.</span></span></div>
       <input id="common-cycle-gain" type="number" min="0" max="200" step="any" inputmode="decimal" value="85">
     </div>
-    <p class="notice">Limite de référence : <strong id="reference-limit"></strong> points. Un cycle couvre cette quantité de points. Débloquer la limite d’une entité ouvre le cycle suivant ; cela n’étire pas les cycles précédents.</p>
+    <div class="curve-field balance-field">
+      <div class="curve-field-heading"><label for="common-reference-limit">Limite de référence (points)</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : limite de référence" aria-describedby="common-reference-help">i</button><span id="common-reference-help" class="setting-tooltip" role="tooltip">C’est le nombre de points d’Umbra qui forme un cycle.
+
+À 200, les cycles vont de 0 à 200, puis de 200 à 400. À 300, ils vont de 0 à 300, puis de 300 à 600.
+
+Plus cette valeur est grande, plus le bonus du cycle est étalé. Le bouton « Débloquer » ajoute aussi cette quantité à la limite de l’entité.
+
+Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les limites déjà saisies restent conservés.</span></span></div>
+      <input id="common-reference-limit" type="number" min="1" step="any" inputmode="decimal" value="200">
+    </div>
+    <p class="notice">Un cycle couvre la limite de référence. La modifier recalcule les ratios ; débloquer la limite d’une entité ajoute un cycle sans étirer les précédents. Les nouvelles entités démarrent avec cette limite.</p>
   </details>
   <div class="entity-toolbar"><h2>Entités</h2><button type="button" id="add-entity">+ Entité</button></div>
   <div class="entities" id="entities"></div>
@@ -423,15 +433,16 @@ Exemple sans gain résiduel ni arrondis.</span></span></div>
 <script>
 (() => {
   'use strict';
-  const Lab=window.umbraLab, balance={gain:Lab.initialState().curve.cap};
-  const profileDefaults=profile=>({...profile.defaults,cap:balance.gain,interval:Lab.referenceLimit});
+  const Lab=window.umbraLab, balance={gain:Lab.initialState().curve.cap,referenceLimit:Lab.referenceLimit};
+  const profileDefaults=profile=>({...profile.defaults,cap:balance.gain,interval:balance.referenceLimit});
+  const newEntityState=example=>({...Lab.initialState(example),limit:balance.referenceLimit});
   function mountEntity(root,serial) {
   const domId=id=>serial===1?id:`entity-${serial}-${id}`;
   for(const node of root.querySelectorAll('[id]')) { node.dataset.ui=node.id; node.id=domId(node.id); }
   const $=selector=>root.querySelector(selector.replace(/#([\w-]+)/g,(_,id)=>`[data-ui="${id}"]`));
   const fmt=(value,decimals=2)=>new Intl.NumberFormat('fr-FR',{ maximumFractionDigits:decimals }).format(value);
   const names=Object.fromEntries([...Lab.attributes,...Lab.umbras,...Lab.effects].map(spec=>[spec.key,spec.name]));
-  let state=Lab.initialState(), open=new Set(), selected=new Map(), curveEffect='physicalDamage', curveView='ratio';
+  let state=newEntityState(), open=new Set(), selected=new Map(), curveEffect='physicalDamage', curveView='ratio';
   const profileByType=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,profile]));
   let profileSettings;
   function resetProfiles() {
@@ -740,7 +751,7 @@ Exemple sans gain résiduel ni arrondis.</span></span></div>
     const row=snapshot.results[curveEffect], source=row.source, raw=state.umbras[source], retained=Math.min(raw,state.limit);
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
     $('#curve-profile').value=state.curve.type;
-    $('#curve-common-rules').textContent=`Cycle : ${fmt(Lab.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ, hors gain résiduel. Réglable dans les paramètres communs d’équilibrage, en haut de page.`;
+    $('#curve-common-rules').textContent=`Cycle : ${fmt(balance.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ, hors gain résiduel. Réglables dans les paramètres communs d’équilibrage, en haut de page.`;
     for(const [key,,min,,step] of curveControls) {
       const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key];
       // Keep precise typed values on the slider, while retaining its usual
@@ -901,7 +912,7 @@ Exemple sans gain résiduel ni arrondis.</span></span></div>
       $(`[data-catalog="${item.category}"]>summary`).focus(); $('#status').textContent=`${item.name} retiré du tableau.`;
     }
     if(button.dataset.ui==='example' || button.dataset.ui==='clear') {
-      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode};resetProfiles();curveEffect='physicalDamage';open.clear(); selected.clear(); $('#effects').replaceChildren();
+      state={...newEntityState(button.dataset.ui==='example'),mode:state.mode};resetProfiles();curveEffect='physicalDamage';open.clear(); selected.clear(); $('#effects').replaceChildren();
       if(button.dataset.ui==='example')for(const id of ['attribute-strength','fixed-physicalDamage','plus-physicalDamage','umbra-vigueur','x-physicalDamage'])addEntry(entries[id],false);
       for(const picker of root.querySelectorAll('.picker')){picker.open=false;picker.querySelector('input').value='';filterPicker(picker);}
       $('#status').textContent=button.dataset.ui==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Tableau vidé.'; render();
@@ -915,7 +926,7 @@ Exemple sans gain résiduel ni arrondis.</span></span></div>
   resizeObserver.observe($('#curve-chart'));
   root.disposeCurve=()=>resizeObserver.disconnect();
   root.refreshBalance=()=>{
-    for(const profile of Object.values(profileSettings)) { profile.cap=balance.gain;profile.interval=Lab.referenceLimit; }
+    for(const profile of Object.values(profileSettings)) { profile.cap=balance.gain;profile.interval=balance.referenceLimit; }
     render();
   };
   root.querySelector('.curve-panel').addEventListener('toggle',()=>drawCurve());
@@ -923,16 +934,16 @@ Exemple sans gain résiduel ni arrondis.</span></span></div>
   }
   let serial=0;
   const entities=document.getElementById('entities'), template=document.getElementById('entity-template');
-  document.getElementById('reference-limit').textContent=Lab.referenceLimit;
-  const gainInput=document.getElementById('common-cycle-gain');
-  gainInput.value=balance.gain;
-  function updateCommonGain() {
-    if(gainInput.value==='' || !Number.isFinite(gainInput.valueAsNumber))return;
-    balance.gain=Math.max(0,Math.min(200,gainInput.valueAsNumber));
-    for(const entity of entities.children)entity.refreshBalance();
+  for(const [id,key,min,max] of [['common-cycle-gain','gain',0,200],['common-reference-limit','referenceLimit',1,Number.MAX_SAFE_INTEGER]]) {
+    const input=document.getElementById(id);input.value=balance[key];input.max=max;
+    const update=()=>{
+      if(input.value==='' || !Number.isFinite(input.valueAsNumber))return;
+      balance[key]=Math.max(min,Math.min(max,input.valueAsNumber));
+      for(const entity of entities.children)entity.refreshBalance();
+    };
+    input.addEventListener('input',update);
+    input.addEventListener('change',()=>{update();input.value=balance[key];});
   }
-  gainInput.addEventListener('input',updateCommonGain);
-  gainInput.addEventListener('change',()=>{updateCommonGain();gainInput.value=balance.gain;});
   function addEntity(focus=false) {
     const root=template.content.firstElementChild.cloneNode(true); root.dataset.entityId=`entity-${++serial}`;
     entities.append(root); mountEntity(root,serial); document.getElementById('no-entities').hidden=true;
