@@ -634,11 +634,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   }
   function renderBaseSettings(item,box) {
     let specs=[];
-    if(item.kind==='attribute') {
-      const watched=selectedEffectKeys();
-      specs=Lab.effects.filter(spec=>spec.attribute===item.key && watched.has(spec.key));
-      if(!specs.length)specs=Lab.effects.filter(spec=>spec.attribute===item.key).slice(0,1);
-    } else if(item.kind==='umbra')specs=Lab.effects.filter(spec=>spec.source===item.key);
+    if(item.kind==='umbra')specs=Lab.effects.filter(spec=>spec.source===item.key);
     else if(item.kind==='plus'||item.kind==='x')specs=[item.spec];
     const controls=[];
     for(const spec of specs) {
