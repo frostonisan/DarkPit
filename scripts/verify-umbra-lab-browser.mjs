@@ -298,6 +298,7 @@ if (!process.argv.includes('--model-only')) {
     const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
     const fill = (group, key, value) => field(group, key).fill(String(value));
     const setCurve = (scope,key,value) => scope.locator(`[data-curve="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
+    const setGauge = (scope,key,value) => scope.locator(`[data-entity-setting="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
     const setCommonValue = async (id,value) => {
       const panel=page.locator('#common-balancing'),wasOpen=await panel.evaluate(node=>node.open);
       if(!wasOpen)await panel.locator('summary').click();
@@ -325,29 +326,34 @@ if (!process.argv.includes('--model-only')) {
       buttons: [...entity.querySelectorAll('button:not([data-ui="mode-toggle"])')].map(node => [node.textContent, node.disabled]),
       settings: [...entity.querySelectorAll('[data-ui="concept-settings"], [data-ui="current-rules"]')].map(node => [node.dataset.ui, node.checkVisibility()]),
     }));
-    equal(await page.locator('.picker').count(), 5, 'Five searchable dropdowns including attributes');
+    equal(await page.locator('.picker').count(), 4, 'Four searchable dropdowns for stats and Umbras');
+    equal(await page.locator('[data-catalog="attributes"]').count(),0,'Attribute dropdown is removed');
+    equal(await page.locator('.attribute-inputs input').count(),3,'Three attribute inputs are always available');
+    equal(await page.locator('.attribute-inputs input').evaluateAll(nodes=>nodes.map(node=>node.dataset.key).join(',')),'strength,intelligence,agility','Only Force, Intelligence and Agility are exposed');
+    check(await page.locator('.attribute-inputs img').evaluateAll(nodes=>nodes.length===3&&nodes.every(node=>node.complete&&node.naturalWidth>0&&node.src.startsWith('data:'))),'Three embedded game pictograms load without external dependencies');
+    check(await page.locator('.table-wrap').evaluate(node=>node.previousElementSibling.classList.contains('attribute-inputs')),'Attribute fields sit immediately above the table');
+    equal(await page.locator('#curve-points, #curve-position, [data-curve-add], #curve-fill, #curve-unlock, #curve-reset').count(),0,'Old curve point controls and action buttons are removed');
+    equal(await page.locator('[data-entity-setting]').count(),2,'Limit and level each have a gauge');
     equal(await page.locator('[data-entry]').count(), 0, 'No initial rows or default acquisitions');
     check(await page.locator('#empty').isVisible(), 'Empty state guides selection');
     equal(await page.locator('.picker[open]').count(), 0, 'Dropdowns begin closed');
     await page.screenshot({ path: resolve(output, 'empty.png'), fullPage: true });
     const statsPicker = page.locator('[data-catalog="stats"]');
-    const attributesPicker = page.locator('[data-catalog="attributes"]');
-    await attributesPicker.locator('summary').click();
-    await attributesPicker.locator('input').fill('AGILITE');
-    equal(await attributesPicker.locator('li:visible').count(), 1, 'Search ignores case and accents');
-    check(await attributesPicker.locator('[data-add="attribute-agility"]').isVisible(), 'Attributes have their own searchable list');
-    await attributesPicker.locator('input').fill('zzzz-no-match');
-    check(await attributesPicker.locator('.no-match').isVisible(), 'Empty search has feedback');
-    await attributesPicker.locator('input').press('Escape');
+    await statsPicker.locator('summary').click();
+    await statsPicker.locator('input').fill('RESISTANCE MAGIQUE');
+    equal(await statsPicker.locator('li:visible').count(), 1, 'Search ignores case and accents');
+    check(await statsPicker.locator('[data-add="fixed-magicalResistance"]').isVisible(), 'Stat search identifies the matching entry');
+    await statsPicker.locator('input').fill('zzzz-no-match');
+    check(await statsPicker.locator('.no-match').isVisible(), 'Empty search has feedback');
+    await statsPicker.locator('input').press('Escape');
     equal(await page.locator('.picker[open]').count(), 0, 'Escape closes the search');
-    check(await attributesPicker.locator('summary').evaluate(node => document.activeElement === node), 'Escape restores keyboard focus');
+    check(await statsPicker.locator('summary').evaluate(node => document.activeElement === node), 'Escape restores keyboard focus');
 
     await add('stats', 'fixed-physicalDamage', 'PP fixe');
     equal(await page.locator('[data-entry]').count(), 1, 'Click adds only the selected row');
     equal(await total('fixed-physicalDamage'), '1', 'Fixed PP starts at one point');
     await add('plus', 'plus-physicalDamage', 'pp');
     equal(await total('plus-physicalDamage'), '2', 'PP+ adds without a hidden attribute');
-    await add('attributes', 'attribute-strength', 'force');
     await fill('attributes', 'strength', 25);
     equal(await total('plus-physicalDamage'), '15', 'Selected Force drives ceil(12.5), plus and fixed');
     await add('x', 'x-physicalDamage', 'pp');
@@ -358,19 +364,42 @@ if (!process.argv.includes('--model-only')) {
     await fill('umbras', 'vigueur', 15);
     equal(await total('x-physicalDamage'), '58', 'Selected Umbra activates shared X calculation');
     await add('umbras', 'umbra-vigueur', 'vig');
-    equal(await page.locator('[data-entry]').count(), 5, 'Repeated selection never duplicates a row');
+    equal(await page.locator('[data-entry]').count(), 4, 'Repeated selection never duplicates a row');
     equal(await field('umbras', 'vigueur').inputValue(), '15', 'Repeated selection preserves quantity');
     equal(await page.locator('.detail-row:visible').count(), 0, 'Calculations remain collapsed by default');
     equal(await page.locator('.picker[open]').count(), 0, 'Selection closes its dropdown');
 
     await page.locator('#example').click();
-    equal(await page.locator('[data-entry]').count(), 5, 'Example adds only its five relevant rows');
+    equal(await page.locator('[data-entry]').count(), 4, 'Example adds four stat and Umbra rows');
     equal(await total('x-physicalDamage'), '81', 'Example uses both progressive ratios');
+    await setGauge(page,'level',20);
+    equal(await page.locator('#level').inputValue(),'20','Level gauge updates its numeric field');
+    equal(await total('x-physicalDamage'),'81','Level stays a manual reference without automatic bonuses');
+    await page.locator('#level').fill('135');
+    equal(await page.locator('[data-entity-setting="level"]').inputValue(),'135','Typed levels can extend the gauge range');
+    await setGauge(page,'level',120);
+    equal(await page.locator('[data-entity-setting="level"]').getAttribute('max'),'135','Dragging an extended level gauge keeps its scale stable');
+    await page.locator('[data-reset-setting="level"]').click();
+    equal(await page.locator('#level').inputValue(),'1','Level reset returns to one');
+    equal(await page.locator('[data-entity-setting="level"]').inputValue(),'1','Level reset synchronizes the gauge');
+    await page.locator('#level').fill('51');
+    await setGauge(page,'limit',10);
+    equal(await page.locator('#limit').inputValue(),'10','Limit gauge updates its numeric field');
+    equal(Number(await total('x-physicalDamage')),row({...initialState(true),limit:10}).total,'Limit gauge recalculates retained points immediately');
+    equal(await field('attributes','strength').inputValue(),'60','Lowering the limit preserves entered attribute points');
+    equal(await field('umbras','vigueur').inputValue(),'15','Lowering the limit preserves entered Umbra points');
+    await page.locator('#limit').fill('1500.5');
+    equal(await page.locator('[data-entity-setting="limit"]').inputValue(),'1500.5','Typed limits extend the gauge and preserve precision');
+    await setGauge(page,'limit',1400);
+    equal(await page.locator('[data-entity-setting="limit"]').getAttribute('max'),'1500.5','Dragging an extended limit gauge keeps its scale stable');
+    await page.locator('[data-reset-setting="limit"]').click();
+    equal(await page.locator('#limit').inputValue(),'200','Limit reset uses the shared reference');
+    equal(await total('x-physicalDamage'),'81','Resetting the limit restores the existing build calculation');
     equal(await page.locator('[data-curve]').count(),3,'Only curve shape, residual gain and center remain per entity');
     equal(await page.locator('[data-curve="cap"], [data-curve="interval"]').count(),0,'Gain and interval sliders are removed');
     equal(await page.locator('#common-cycle-gain').count(),1,'Cycle gain has one common editor');
     equal(await page.locator('#common-reference-limit').inputValue(),String(referenceLimit),'Common reference limit starts at the model default');
-    equal(await page.locator('#curve-points').inputValue(),'15','Chart points and table points share state');
+    equal(await field('umbras','vigueur').inputValue(),'15','Umbra points remain editable in the table');
     near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(15),'Chart marker displays the actual multiplier');
     check((await page.locator('#curve-attribute').innerText()).includes('44'),'Chart reports the actual rounded attribute gain');
     check((await page.locator('#curve-native').innerText()).includes('22'),'Chart reports the scaled Umbra gain');
@@ -383,32 +412,30 @@ if (!process.argv.includes('--model-only')) {
       equal(Number(await total('x-physicalDamage')),row(curveBuild).total,`${key}: table follows the same calculation`);
       equal(await field('umbras','vigueur').inputValue(),'15',`${key}: previously acquired points are conserved`);
     }
-    await page.locator('#curve-points').fill('25');
-    equal(await field('umbras','vigueur').inputValue(),'25','Editing curve progression changes the actual table source');
-    await page.locator('#curve-reset').click();
-    equal(await field('umbras','vigueur').inputValue(),'25','Curve reset preserves acquisitions');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Resetting an entity profile preserves the common gain');
+    await fill('umbras','vigueur',25);
+    equal(await page.locator('#curve-chart').getAttribute('data-points'),'25','Editing the Umbra table row updates curve progression');
+    await setCurve(page,'shape',10);await setCurve(page,'res',.0005);
+    equal(await field('umbras','vigueur').inputValue(),'25','Curve settings preserve acquisitions');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Local curve settings preserve the common gain');
     const resetBuild=initialState(true);resetBuild.umbras.vigueur=25;resetBuild.curve.cap=50;
-    equal(Number(await total('x-physicalDamage')),row(resetBuild).total,'Profile reset uses the current common gain');
+    equal(Number(await total('x-physicalDamage')),row(resetBuild).total,'Restored curve settings use the current common gain');
     await setCommonGain(85);
     equal(await total('x-physicalDamage'),'115','Reset recomputes both ratios with the source defaults');
-    check(await page.locator('#curve-unlock').isDisabled(),'Unlock requires reaching the common limit');
-    await page.locator('#curve-fill').click();
-    equal(await field('umbras','vigueur').inputValue(),'200','Max reaches the common limit');
+    await fill('umbras','vigueur',200);
     const atLimit=await total('x-physicalDamage');
-    await page.locator('#curve-unlock').click();
-    equal(await page.locator('#limit').inputValue(),'400','Unlock adds the original interval to the common cap');
-    equal(await total('x-physicalDamage'),atLimit,'Unlock alone does not change existing ratios or totals');
-    await page.locator('[data-curve-add="10"]').click();
+    await setGauge(page,'limit',400);
+    equal(await page.locator('#limit').inputValue(),'400','Limit gauge opens the next cycle');
+    equal(await total('x-physicalDamage'),atLimit,'Raising the limit alone does not change existing ratios or totals');
+    await fill('umbras','vigueur',210);
     equal(await field('umbras','vigueur').inputValue(),'210','Progression resumes on the next cumulative cycle');
-    await add('attributes','attribute-intelligence');await fill('attributes','intelligence',300);
+    await fill('attributes','intelligence',300);
     await add('umbras','umbra-esprit');await fill('umbras','esprit',300);
-    equal(await page.locator('[data-total="attribute-intelligence"]').innerText(),'300','Common unlock opens another attribute');
+    equal(await field('attributes','intelligence').inputValue(),'300','Direct Intelligence input supports the increased limit');
     check((await page.locator('[data-ratio="umbra-esprit"]').innerText()).includes('300 / 400'),'Common unlock opens another Umbra');
+    await add('umbras','umbra-vitality');
     await page.locator('#curve-effect').selectOption('dayHpRegen');
-    await page.locator('#curve-points').fill('15');
-    equal(await page.locator('#curve-effect').inputValue(),'dayHpRegen','Adding an Umbra from a secondary effect preserves the plotted statistic');
-    equal(await field('umbras','vitality').inputValue(),'15','Chart creates the actual Umbra row when needed');
+    await fill('umbras','vitality',15);
+    equal(await page.locator('#curve-effect').inputValue(),'dayHpRegen','Editing an Umbra keeps the selected secondary effect');
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'3','Secondary curve uses dependent HP totals');
     await page.locator('#example').click();
     equal(await page.locator('#curve-profile option').count(),3,'All three profiles can be selected');
@@ -455,12 +482,11 @@ if (!process.argv.includes('--model-only')) {
     const profileCurrentEditor=await sharedEditor();
     await page.locator('#mode-toggle').click();
     equal(JSON.stringify(await sharedEditor()),JSON.stringify(profileCurrentEditor),'Mode switch preserves the selected profile and all its controls');
-    await page.locator('#curve-reset').click();
-    equal(await page.locator('#curve-profile').inputValue(),'sigmoid','Reset affects the selected profile without switching family');
-    equal(await page.locator('[data-curve="mid"]').inputValue(),'50','Reset restores the selected sigmoid defaults');
-    equal(JSON.stringify(await acquisitions()),profileInputs,'Resetting a profile preserves the build and common limit');
+    await setCurve(page,'mid',50);
+    equal(await page.locator('#curve-profile').inputValue(),'sigmoid','Editing the center preserves the selected profile');
+    equal(JSON.stringify(await acquisitions()),profileInputs,'Editing a profile preserves the build and common limit');
     await page.locator('#curve-profile').selectOption('j');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Resetting sigmoid preserves common balance settings');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Editing sigmoid preserves common balance settings');
     check((await page.locator('#curve-common-rules').innerText()).includes('200 points'),'Cycle length stays at the reference despite an entity limit of 350');
     equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:tunedJ}).total,'Restored J settings recover its real calculation');
     await page.locator('#example').click();
@@ -469,7 +495,7 @@ if (!process.argv.includes('--model-only')) {
     equal(Number(await total('x-physicalDamage')),row(sharedExample).total,'Example recalculates with the shared balance settings');
     await setCommonGain(85);
     await page.locator('#curve-view').selectOption('ratio');
-    equal(await page.locator('[data-entry^="attribute-"] .base-settings input').count(),0,'Attribute rows do not expose ratio settings');
+    equal(await page.locator('[data-entry^="attribute-"]').count(),0,'Attributes no longer create table rows');
     equal(await baseField(page,'plus-physicalDamage','attributeBases').inputValue(),'0.5','Selected statistic row exposes its initial attribute base');
     equal(await baseField(page,'umbra-vigueur','umbraBases').inputValue(),'1','Selected Umbra row exposes its own initial base');
     equal(await page.locator('[data-entry="fixed-physicalDamage"] .base-settings input').count(),0,'Fixed points do not invent a ratio');
@@ -593,15 +619,15 @@ if (!process.argv.includes('--model-only')) {
     // Exercise every catalog entry and detail renderer, after the actual user flows above.
     await page.locator('#clear').click();
     await page.evaluate(() => { for (const button of document.querySelectorAll('[data-add]')) button.click(); });
-    equal(await page.locator('[data-entry]').count(), 58, 'All supported entries can coexist without duplicate sources');
+    equal(await page.locator('[data-entry]').count(), 54, 'All supported entries can coexist without duplicate sources');
     await page.evaluate(() => { for (const button of document.querySelectorAll('[data-detail]')) button.click(); });
     const allDetails = await page.locator('#effects').textContent();
     check(!/undefined|NaN|Infinity/.test(allDetails), 'Every selected entry renders valid labels and calculations');
-    equal(await page.locator('.detail-row:visible').count(), 58, 'Every entry exposes a detail');
+    equal(await page.locator('.detail-row:visible').count(), 54, 'Every entry exposes a detail');
     const allEntriesEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     check(!/undefined|NaN|Infinity/.test(await page.locator('#effects').textContent()), 'Every current-mode detail renders correctly');
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(allEntriesEditor), 'All 58 entries keep identical editable controls in current mode');
+    equal(JSON.stringify(await sharedEditor()), JSON.stringify(allEntriesEditor), 'All 54 entries keep identical editable controls in current mode');
     check(await field('fixed', 'precisionReduction').isEnabled(), 'Direct precision input stays editable even without a current formula');
     const currentPrecision = await total('fixed-precisionReduction');
     await fill('fixed', 'precisionReduction', 7);
@@ -644,7 +670,7 @@ if (!process.argv.includes('--model-only')) {
     for (const width of [1440, 768, 390, 320]) {
       await page.setViewportSize({ width, height: 900 });
       check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `No page overflow at ${width}px`);
-      for (const catalog of ['stats', 'plus', 'x', 'umbras', 'attributes']) {
+      for (const catalog of ['stats', 'plus', 'x', 'umbras']) {
         const picker = page.locator(`[data-catalog="${catalog}"]`);
         await picker.locator('summary').click();
         check(await picker.locator('.picker-panel').evaluate(node => { const box = node.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }), `${catalog} dropdown fits at ${width}px`);
@@ -722,6 +748,14 @@ if (!process.argv.includes('--model-only')) {
     await second.locator('[data-ui="curve-profile"]').selectOption('exp');
     equal(await second.locator('[data-curve="shape"]').inputValue(),'6','Switching profiles restores the second entity’s tuned exponential');
     equal(await entityTotal(second),'68','Restoring a profile preserves its per-entity bases and grants');
+    await second.locator('[data-reset-setting="level"]').click();
+    await second.locator('[data-reset-setting="limit"]').click();
+    equal(await second.locator('[data-ui="level"]').inputValue(),'1','Reset targets the second entity’s level');
+    equal(await second.locator('[data-ui="limit"]').inputValue(),'200','Reset targets the second entity’s limit');
+    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Another entity’s gauge resets preserve the first entity');
+    equal(await entityTotal(second),'68','Gauge resets preserve attributes, Umbra points, bases and curve settings');
+    await second.locator('[data-ui="level"]').fill('12');
+    await second.locator('[data-ui="limit"]').fill('80');
     const secondBefore=await settings(second);
     await second.locator('[data-ui="mode-toggle"]').click();
     equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
@@ -748,7 +782,7 @@ if (!process.argv.includes('--model-only')) {
     const firstBox=await first.boundingBox(), secondBox=await second.boundingBox();
     check(secondBox.x>firstBox.x && Math.abs(secondBox.y-firstBox.y)<2,'Entity tables are side by side on desktop');
     await page.screenshot({path:resolve(output,'multiple-entities.png'),fullPage:true});
-    for(const entity of [first,second])for(const catalog of ['stats','plus','x','umbras','attributes']) {
+    for(const entity of [first,second])for(const catalog of ['stats','plus','x','umbras']) {
       const picker=entity.locator(`[data-catalog="${catalog}"]`);
       await picker.locator('summary').click();
       check(await picker.locator('.picker-panel').evaluate(node=>{const panel=node.getBoundingClientRect(),card=node.closest('.entity').getBoundingClientRect();return panel.left>=card.left&&panel.right<=card.right;}),'Dropdown remains inside its owning entity');
@@ -790,7 +824,7 @@ if (!process.argv.includes('--model-only')) {
     equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Reference change recalculates the existing entity immediately');
     near(Number(await fourth.locator('[data-ui="curve-chart"]').getAttribute('data-current')),multiplier(15,referenceBuild.curve),'Curve uses the new reference cycle length');
     equal(JSON.stringify(await settings(fourth)),JSON.stringify(fourthInputs),'Reference change preserves existing limits, points and local settings');
-    equal(await fourth.locator('[data-ui="curve-unlock"]').innerText(),'Débloquer +300 points','Unlock amount follows the common reference');
+    equal(await fourth.locator('[data-entity-setting="limit"]').getAttribute('max'),'1200','Limit gauge range follows the common reference');
     await referenceInput.fill('');await referenceInput.blur();
     equal(await referenceInput.inputValue(),'300','An empty reference restores the last valid value');
     await page.locator('#common-balancing > summary').click();
@@ -799,15 +833,16 @@ if (!process.argv.includes('--model-only')) {
       referenceBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults,cap:50,interval:300};
       equal(Number(await entityTotal(fourth)),row(referenceBuild).total,`${type}: inactive profiles also receive the new cycle length`);
     }
-    await fourth.locator('[data-ui="curve-reset"]').click();
-    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Profile reset retains the common reference');
+    await fourth.locator('[data-reset-setting="limit"]').click();
+    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'300','Limit reset uses the updated common reference');
+    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Limit reset preserves existing points and curve settings');
     await fourth.locator('[data-ui="example"]').click();
     equal(await fourth.locator('[data-ui="limit"]').inputValue(),'300','Fresh example uses the current reference limit');
-    await fourth.locator('[data-ui="curve-fill"]').click();
+    await entityFill(fourth,'umbras','vigueur',300);
     const beforeReferenceUnlock=await entityTotal(fourth);
-    await fourth.locator('[data-ui="curve-unlock"]').click();
-    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'600','Unlock adds the configured 300-point cycle');
-    equal(await entityTotal(fourth),beforeReferenceUnlock,'Unlock does not stretch the completed 300-point cycle');
+    await setGauge(fourth,'limit',600);
+    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'600','Limit gauge opens the configured second cycle');
+    equal(await entityTotal(fourth),beforeReferenceUnlock,'Raising the limit does not stretch the completed 300-point cycle');
     await page.locator('#add-entity').click();
     const fifth=page.locator('[data-entity-id="entity-5"]');
     equal(await fifth.locator('[data-ui="limit"]').inputValue(),'300','New entities inherit the configured reference');
