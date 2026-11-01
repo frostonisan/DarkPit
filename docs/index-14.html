@@ -141,6 +141,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   <details class="curve-panel" open>
     <summary>Courbe des ratios · progression par cycles</summary>
     <div class="controls">
+      <label>Profil Concept <select id="curve-profile" aria-label="Profil de courbe"></select></label>
       <label>Statistique <select id="curve-effect" aria-label="Statistique de la courbe"></select></label>
       <label>Afficher <select id="curve-view" aria-label="Valeur représentée"><option value="ratio">Multiplicateur des ratios</option><option value="total">Total de la statistique</option></select></label>
     </div>
@@ -149,10 +150,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <div class="curve-legend"><span><i></i>Jusqu’aux points retenus</span><span><i class="projected"></i>Projection</span><span><i class="cycle"></i>Cycles</span><span><i class="limit"></i>Limite commune</span></div>
     <p class="notice">La projection au-delà de la limite suppose son déblocage. Les autres saisies restent constantes.</p>
     <div class="curve-settings" id="curve-settings"></div>
-    <p class="notice">Plafond en % du ratio de départ par cycle : 85 = +85 %, hors gain résiduel. M(U) = 1 + gain cumulé / 100. Tous les gains sont recalculés en direct.</p>
+    <p class="notice">Gain en % du ratio de départ par cycle : 85 = +85 %, hors gain résiduel. M(U) = 1 + gain cumulé / 100. Tous les gains sont recalculés en direct.</p>
     <div class="controls"><label><span id="curve-points-label">Vigueur</span> <input id="curve-points" type="number" min="0" step="1" value="0" aria-label="Points d’Umbra de la courbe"></label><span class="muted" id="curve-position"></span></div>
-    <div class="tools"><button type="button" data-curve-add="10">+10</button><button type="button" data-curve-add="50">+50</button><button type="button" id="curve-fill">Max</button><button type="button" id="curve-unlock">Débloquer +200 points</button><button type="button" id="curve-reset">Réinitialiser la courbe</button></div>
-    <p class="notice">Débloquer ouvre la limite à tous les attributs et toutes les Umbras de cette entité. Réinitialiser restaure les cinq réglages, en conservant les points et la limite.</p>
+    <div class="tools"><button type="button" data-curve-add="10">+10</button><button type="button" data-curve-add="50">+50</button><button type="button" id="curve-fill">Max</button><button type="button" id="curve-unlock">Débloquer +200 points</button><button type="button" id="curve-reset">Réinitialiser ce profil</button></div>
+    <p class="notice">Chaque profil conserve ses paramètres dans cette entité. Débloquer ouvre la limite à tous ses attributs et toutes ses Umbras. Réinitialiser restaure les paramètres du profil actif, en conservant les points, les bases et la limite.</p>
     <div class="curve-metrics" style="margin-top:12px"><div>Ratio d’attribut<output id="curve-attribute"></output></div><div>Apport calculé de l’Umbra<output id="curve-native"></output></div><div>Total de l’entité<output id="curve-total"></output></div></div>
     <p class="notice" id="curve-next"></p>
   </details>
@@ -175,7 +176,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
       <li>U désigne les points retenus de l’Umbra concernée. La même courbe s’applique à tous les ratios de l’entité, mais chaque Umbra progresse selon ses propres points.</li>
-      <li>Pour un intervalle W : k = 4 × stagnation × 600 / douceur ; g(x) = plafond × (1 − exp(−k × x/W)) / (1 − exp(−k)) + résiduel × x. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
+      <li>Pour un intervalle W : g(x) = gain × f(x/W) + résiduel × x. Chaque famille est normalisée de 0 à 1 sur un cycle entier. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
+      <li>Avec k = intensité et t = x/W : exponentielle f(t) = (1 − exp(−kt)) / (1 − exp(−k)) ; en J f(t) = (exp(kt) − 1) / (exp(k) − 1). Pour la sigmoïde : z(t) = 1 / (1 + exp(−k(t − centre/100))) et f(t) = (z(t) − z(0)) / (z(1) − z(0)).</li>
+      <li>Changer de profil recalcule toute l’entité avec ses saisies actuelles. Les paramètres de chaque profil sont conservés séparément. L’exponentielle initiale garde l’intensité 10 de la courbe précédente ; les profils J et sigmoïde démarrent respectivement à 5 et 9.</li>
       <li>L’intervalle définit la longueur des cycles ; la limite commune définit les points utilisables. Débloquer ajoute un intervalle à la limite sans changer la courbe acquise. Modifier l’intervalle recalcule la courbe et conserve la limite saisie.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Les bases initiales se règlent dans les lignes choisies. La base d’attribut est propre à chaque statistique (Force pour la PP, Force pour l’exécution, etc.). La base d’Umbra règle son apport par point ; pour les HP, la préparation et la réduction d’esquive, elle multiplie la courbe native. Les dons fixes restent séparés.</li>
@@ -243,14 +246,25 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     return Math.ceil(scaled - Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4) / factor || 0;
   };
   const nearest = (value, decimals=0) => Math.round(value * 10 ** decimals) / 10 ** decimals;
-  const DEFAULT_CURVE = Object.freeze({ cap:85, soft:600, res:.0005, stagnation:2.5, interval:200 });
-  // Same normalized exponential and cumulative cycles as softcap_cycles.html.
+  const DEFAULT_CURVE = Object.freeze({ type:'exp', cap:85, shape:10, res:.0005, interval:200, mid:50 });
+  const CURVE_PROFILES = Object.freeze([
+    Object.freeze({type:'exp',name:'Exponentielle — ralentissement',description:'Progression rapide au début du cycle, puis ralentissement.',defaults:DEFAULT_CURVE}),
+    Object.freeze({type:'j',name:'En J — accélération',description:'Progression lente au début du cycle, puis accélération.',defaults:Object.freeze({...DEFAULT_CURVE,type:'j',shape:5})}),
+    Object.freeze({type:'sigmoid',name:'Sigmoïde — courbe en S',description:'Progression lente, accélération autour du centre, puis ralentissement.',defaults:Object.freeze({...DEFAULT_CURVE,type:'sigmoid',shape:9})}),
+  ]);
+  // Normalized families from profils_courbes_math.html, accumulated by cycles.
+  // Unlike the reference history, this lab recalculates every acquired point.
   // Curve gains are percentage increases of the initial ratios, not stat points.
   function curveGain(points, curve={}) {
     const c={...DEFAULT_CURVE,...curve}, w=Math.max(1,number(c.interval));
-    const k=4*Math.max(.01,number(c.stagnation))*600/Math.max(1,number(c.soft));
+    const k=Math.max(.01,Math.min(15,number(c.shape))), mid=Math.max(.1,Math.min(.9,number(c.mid)/100));
     const x=number(points), cycles=Math.floor(x/w), remainder=x-cycles*w;
-    const local=t=>number(c.cap)*(-Math.expm1(-k*t/w))/(-Math.expm1(-k))+number(c.res)*t;
+    const normalized=t=>{
+      if(c.type==='j')return Math.expm1(k*t)/Math.expm1(k);
+      if(c.type==='sigmoid') { const z=v=>1/(1+Math.exp(-k*(v-mid))), a=z(0), b=z(1);return (z(t)-a)/(b-a); }
+      return -Math.expm1(-k*t)/(-Math.expm1(-k));
+    };
+    const local=t=>number(c.cap)*normalized(t/w)+number(c.res)*t;
     return cycles*local(w)+local(remainder);
   }
   const multiplier = (points, curve) => 1 + curveGain(points,curve)/100;
@@ -373,7 +387,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
@@ -387,6 +401,13 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const fmt=(value,decimals=2)=>new Intl.NumberFormat('fr-FR',{ maximumFractionDigits:decimals }).format(value);
   const names=Object.fromEntries([...Lab.attributes,...Lab.umbras,...Lab.effects].map(spec=>[spec.key,spec.name]));
   let state=Lab.initialState(), open=new Set(), selected=new Map(), curveEffect='physicalDamage', curveView='ratio';
+  const profileByType=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,profile]));
+  let profileSettings;
+  function resetProfiles() {
+    profileSettings=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,{...profile.defaults}]));
+    state.curve=profileSettings.exp;
+  }
+  resetProfiles();
   root.querySelector('.entity-name').value=`Entité ${serial}`;
   root.setAttribute('aria-label',`Entité ${serial}`);
   const isConcept=()=>state.mode!=='current';
@@ -404,12 +425,15 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const normalize=text=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
   const curveControls=[
-    ['cap','Plafond cible par intervalle (%)',10,150,5],
-    ['soft','Douceur',100,1500,20],
-    ['res','Gain résiduel (% / point)',0,.01,.0001],
-    ['stagnation','Stagnation',.5,5,.1],
-    ['interval','Intervalle d’origine (points)',50,500,50],
+    ['cap','Gain total par intervalle (%)',1,200,1],
+    ['shape','Intensité / courbure',.5,15,.1],
+    ['res','Gain résiduel (% / point)',0,.02,.0001],
+    ['interval','Intervalle d’origine (points)',50,1000,50],
+    ['mid','Centre de la sigmoïde (%)',10,90,1],
   ];
+  for(const profile of Lab.curveProfiles) {
+    const option=document.createElement('option');option.value=profile.type;option.textContent=profile.name;$('#curve-profile').append(option);
+  }
   for(const [key,label,min,max,step] of curveControls) {
     const wrapper=document.createElement('label');
     wrapper.innerHTML=`${label}<output data-curve-value="${key}"></output><input type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}">`;
@@ -520,6 +544,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const unit=row.unit, f=value=>fmt(value,6);
     const nativeLabel=['resistance','dodge','projectile'].includes(row.type) ? 'Conversion de la capacité' : 'Montant natif';
     const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} / ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} / ${f(state.limit)}` : ''}`],
+      ['Profil de courbe',`${profileByType[state.curve.type].name} · intensité ${f(state.curve.shape)}${state.curve.type==='sigmoid'?` · centre ${f(state.curve.mid)} %`:''}`],
       ['Multiplicateur des deux ratios',row.u>0 ? `${Math.floor(row.u/state.curve.interval)} cycle(s) complet(s) + ${f(row.u%state.curve.interval)} points ; gain cumulé ${f(Lab.curveGain(row.u,state.curve))} % ; M(U) = 1 + gain / 100 = ×${f(row.multiplier)}` : '×1 · aucune Umbra active'],
       ['Don fixe de l’Umbra',`${f(row.u)} × ${f(row.giftRate)} → ${f(row.gift)}${unit}`]];
     if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
@@ -652,7 +677,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const samples=Array.from({length:181},(_,i)=>{const x=X*i/180;return [x,value(x)];});
     const Y=Math.max(1,current,...samples.map(p=>p[1]))*1.12;
     const px=x=>L+x/X*(W-L-R),py=y=>H-B-y/Y*(H-T-B);
-    canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(state.limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;
+    canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(state.limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;canvas.dataset.profile=state.curve.type;
     canvas.setAttribute('aria-label',`${curveView==='ratio'?'Multiplicateur des ratios':'Total '+row.name} : ${fmt(current,4)} à ${fmt(n)} points de ${names[row.source]}. Limite ${fmt(state.limit)}. ${isConcept()?'Concept':'Version actuelle'}.`);
     ctx.font='11px system-ui'; ctx.fillStyle='#a8b4bc'; ctx.textAlign='right';
     for(let i=0;i<=4;i++) { const y=Y*i/4; ctx.beginPath();ctx.strokeStyle='#343e46';ctx.lineWidth=1;ctx.moveTo(L,py(y));ctx.lineTo(W-R,py(y));ctx.stroke();ctx.fillText(fmt(y,curveView==='ratio'?2:0),L-7,py(y)+4); }
@@ -673,14 +698,16 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   function renderCurve(snapshot) {
     const row=snapshot.results[curveEffect], source=row.source, raw=state.umbras[source], retained=Math.min(raw,state.limit);
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
+    $('#curve-profile').value=state.curve.type;
     for(const [key] of curveControls) {
       root.querySelector(`[data-curve="${key}"]`).value=state.curve[key];
       root.querySelector(`[data-curve-value="${key}"]`).textContent=fmt(state.curve[key],key==='res'?4:1);
     }
+    root.querySelector('[data-curve="mid"]').closest('label').hidden=state.curve.type!=='sigmoid';
     if(document.activeElement!==$('#curve-points'))$('#curve-points').value=raw;
     $('#curve-points-label').textContent=names[source];
     $('#curve-position').textContent=`${fmt(retained)} / ${fmt(state.limit)} points retenus en Concept`;
-    $('#curve-context').textContent=isConcept()?`Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Version actuelle : la courbe et les chiffres suivent les JS du jeu. Les cinq réglages restent conservés et s’appliquent en Concept.';
+    $('#curve-context').textContent=isConcept()?`${profileByType[state.curve.type].description} Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Version actuelle : la courbe et les chiffres suivent les JS du jeu. Le profil et ses réglages sont conservés et s’appliquent en Concept.';
     for(const button of root.querySelectorAll('[data-curve-add], [data-ui="curve-fill"]'))button.disabled=raw>=state.limit;
     $('#curve-unlock').disabled=retained<state.limit;
     $('#curve-unlock').textContent=`Débloquer +${fmt(state.curve.interval)} points`;
@@ -766,6 +793,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   });
   root.addEventListener('change',event=>{
     const input=event.target;
+    if(input.dataset.ui==='curve-profile') { state.curve=profileSettings[input.value];render();return; }
     if(input.dataset.ui==='curve-effect') { curveEffect=input.value;render();return; }
     if(input.dataset.ui==='curve-view') { curveView=input.value;render();return; }
     if(!input.matches('input[type=number]'))return;
@@ -792,7 +820,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       if(state.umbras[source]>=state.limit)state.limit+=state.curve.interval;
       render();$('#status').textContent=`Limite commune ouverte à ${fmt(state.limit)} points pour tous les attributs et toutes les Umbras de cette entité.`;
     }
-    if(button.dataset.ui==='curve-reset') { state.curve={...Lab.initialState().curve};render();$('#status').textContent='Courbe réinitialisée ; points et limite conservés.'; }
+    if(button.dataset.ui==='curve-reset') {
+      const type=state.curve.type;profileSettings[type]={...profileByType[type].defaults};state.curve=profileSettings[type];
+      render();$('#status').textContent='Profil réinitialisé ; points, bases et limite conservés.';
+    }
     if(button.dataset.ui==='mode-toggle') {
       state.mode=isConcept()?'current':'concept'; render();
       $('#status').textContent=`Calculs : ${isConcept()?'Concept':'Version actuelle'} · saisies conservées.`;
@@ -813,7 +844,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       $(`[data-catalog="${item.category}"]>summary`).focus(); $('#status').textContent=`${item.name} retiré du tableau.`;
     }
     if(button.dataset.ui==='example' || button.dataset.ui==='clear') {
-      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode};curveEffect='physicalDamage';open.clear(); selected.clear(); $('#effects').replaceChildren();
+      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode};resetProfiles();curveEffect='physicalDamage';open.clear(); selected.clear(); $('#effects').replaceChildren();
       if(button.dataset.ui==='example')for(const id of ['attribute-strength','fixed-physicalDamage','plus-physicalDamage','umbra-vigueur','x-physicalDamage'])addEntry(entries[id],false);
       for(const picker of root.querySelectorAll('.picker')){picker.open=false;picker.querySelector('input').value='';filterPicker(picker);}
       $('#status').textContent=button.dataset.ui==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Tableau vidé.'; render();

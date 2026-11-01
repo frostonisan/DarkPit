@@ -19,7 +19,7 @@ check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game s
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
 vm.runInContext(scripts[0], sandbox);
-const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
+const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, curveProfiles, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
 equal(umbras.length, 9, 'Exactly nine level-one Umbras');
@@ -79,25 +79,52 @@ equal(row({ ...example, level: 99 }).total, row(example).total, 'Level is manual
 const unrelated = clone(example); unrelated.umbras.esprit = 100; unrelated.attributes.intelligence = 120;
 equal(row(unrelated).coefficient, row(example).coefficient, 'Another Umbra cannot influence PP ratio');
 equal(row(unrelated).total, row(example).total, 'Another attribute cannot influence PP total');
-// Independent expression from the supplied softcap_cycles.html: preserve the
-// five settings and cumulative local cycles; map its gain to a percent ratio.
+// Independent formulas from profils_courbes_math.html, evaluated across full
+// cycles rather than freezing history. Gain remains a percent of the base.
 const referenceGain = (x,c) => {
   const w=c.interval, q=Math.floor(Math.max(0,x)/w), r=Math.max(0,x)-q*w;
-  const local=x=>{const t=Math.max(0,Math.min(w,x))/w, k=4*c.stagnation*600/c.soft;return c.cap*(-Math.expm1(-k*t))/(-Math.expm1(-k))+c.res*Math.max(0,Math.min(w,x));};
+  const norm=t=>{
+    t=Math.max(0,Math.min(1,t));const k=c.shape;
+    if(c.type==='exp')return -Math.expm1(-k*t)/(-Math.expm1(-k));
+    if(c.type==='j')return Math.expm1(k*t)/Math.expm1(k);
+    const z=x=>1/(1+Math.exp(-k*(x-c.mid/100))), a=z(0), b=z(1);return (z(t)-a)/(b-a);
+  };
+  const local=x=>c.cap*norm(x/w)+c.res*x;
   return q*local(w)+local(r);
 };
-for(const curve of [initialState().curve,{cap:10,soft:1500,res:0,stagnation:.5,interval:500},{cap:150,soft:100,res:.01,stagnation:5,interval:50}]) {
-  for(const points of [0,1,10,15,50,199.999,200,200.001,400,999,10000]) {
+equal(curveProfiles.length,3,'Three selectable mathematical curve families');
+for(const curve of [...curveProfiles.map(profile=>profile.defaults),
+  ...['exp','j','sigmoid'].flatMap(type=>[
+    {type,cap:1,shape:.5,res:0,mid:10,interval:1000},
+    {type,cap:200,shape:15,res:.02,mid:90,interval:50},
+  ])]) {
+  for(const points of [0,1,10,15,50,199.999,200,200.001,400,999,10000,curve.interval-.001,curve.interval,curve.interval+.001]) {
     near(curveGain(points,curve),referenceGain(points,curve),`Reference cycle formula at ${points}`);
     near(multiplier(points,curve),1+referenceGain(points,curve)/100,'Cumulative gain is a percentage of the starting ratio');
   }
+  near(curveGain(curve.interval,curve),curve.cap+curve.res*curve.interval,'All families share the same complete-cycle gain');
   near(curveGain(2*curve.interval,curve),2*curveGain(curve.interval,curve),'Cycle gain accumulates without reset');
   check(multiplier(curve.interval+.001,curve)>multiplier(curve.interval,curve),'Next cycle resumes growth');
+  let prior=0;
+  for(let points=0;points<=3*curve.interval;points+=curve.interval/20) {
+    const gain=curveGain(points,curve);check(gain>=prior,'Every profile remains monotonic across cycle boundaries');prior=gain;
+  }
+  const build=clone(example);build.curve={...curve};build.umbras.vigueur=17;build.attributes.strength=25;
+  const m=1+referenceGain(17,curve)/100;
+  near(row(build).coefficient,.5*m,'Each profile reaches the actual attribute ratio');
+  near(row(build).umbraCoefficient,m,'Each profile reaches the actual Umbra ratio');
+  equal(row(build).total,Math.ceil(25*.5*m)+Math.ceil(17*m)+17,'Each profile computes the rounded real PP total');
+  equal(row({...build,mode:'current'}).total,30,'Current game formulas ignore every concept profile');
 }
+const symmetric={...initialState().curve,shape:5,res:0,mid:50};
+near(curveGain(100,{...symmetric,type:'sigmoid'}),42.5,'Centered sigmoid reaches half the gain at mid-cycle');
+check(curveGain(50,{...symmetric,type:'exp'})>curveGain(50,{...symmetric,type:'sigmoid'}),'Exponential gives larger early gains than sigmoid');
+check(curveGain(50,{...symmetric,type:'sigmoid'})>curveGain(50,{...symmetric,type:'j'}),'J delays gains relative to sigmoid');
+check(curveGain(100,{...symmetric,type:'sigmoid',mid:70})<curveGain(100,{...symmetric,type:'sigmoid',mid:30}),'Sigmoid center moves its acceleration window');
 near(multiplier(200),1.851,'Full cycle: +85% and +0.1% residual');
 near(multiplier(200,{}),1.851,'Partial settings preserve defaults');
 near(row(example).native,15*multiplier(15),'Umbra ratio grows with the same multiplier as the attribute');
-for(const [key,value] of [['cap',50],['soft',1000],['res',.01],['stagnation',1],['interval',400]]) {
+for(const [key,value] of [['cap',50],['shape',6],['res',.01],['interval',400]]) {
   const changed=clone(example);changed.curve[key]=value;
   check(row(changed).multiplier!==row(example).multiplier,`${key} changes the active multiplier`);
   check(row(changed).coefficient!==row(example).coefficient && row(changed).native!==row(example).native,`${key} recalculates both ratios on existing points`);
@@ -227,7 +254,7 @@ vm.runInContext(`
 `, reference);
 for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15,25,3,7],
   [1,3,0,.25],[.4,12.49,.25,.35],[150,150,0,0],[250,250,1000,7],[15,26.125,.23,.71]]) {
-  const state=initialState(); state.mode='current'; state.limit=7; state.curve={cap:150,soft:100,res:.01,stagnation:5,interval:50};
+  const state=initialState(); state.mode='current'; state.limit=7; state.curve={type:'sigmoid',cap:150,shape:15,mid:70,res:.01,interval:50};
   for (const spec of attributes) state.attributes[spec.key]=attribute;
   for (const spec of umbras) state.umbras[spec.key]=u;
   for (const spec of effects) { state.fixed[spec.key]=fixed; state.plus[spec.key]=plus; state.gifts[spec.key]=99; }
@@ -284,6 +311,7 @@ if (!process.argv.includes('--model-only')) {
         disabled: node.disabled, min: node.min, max: node.max, step: node.step,
         visible: node.checkVisibility(),
       })),
+      selects: [...entity.querySelectorAll('select')].map(node=>[node.dataset.ui,node.value,node.disabled,node.checkVisibility()]),
       buttons: [...entity.querySelectorAll('button:not([data-ui="mode-toggle"])')].map(node => [node.textContent, node.disabled]),
       settings: [...entity.querySelectorAll('[data-ui="concept-settings"], [data-ui="current-rules"]')].map(node => [node.dataset.ui, node.checkVisibility()]),
     }));
@@ -328,7 +356,7 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#example').click();
     equal(await page.locator('[data-entry]').count(), 5, 'Example adds only its five relevant rows');
     equal(await total('x-physicalDamage'), '81', 'Example uses both progressive ratios');
-    equal(await page.locator('[data-curve]').count(),5,'All five source curve controls are available');
+    equal(await page.locator('[data-curve]').count(),5,'All five profile parameters are available');
     equal(await page.locator('#curve-points').inputValue(),'15','Chart points and table points share state');
     near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(15),'Chart marker displays the actual multiplier');
     check((await page.locator('#curve-attribute').innerText()).includes('44'),'Chart reports the actual rounded attribute gain');
@@ -336,7 +364,7 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#curve-view').selectOption('total');
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'81','Total chart marker equals the entity total');
     const curveBuild=initialState(true);
-    for(const [key,value] of [['cap',50],['soft',1000],['res',.01],['stagnation',1],['interval',400]]) {
+    for(const [key,value] of [['cap',50],['shape',6],['res',.01],['interval',400]]) {
       curveBuild.curve[key]=value;await setCurve(page,key,value);
       equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(curveBuild).total,`${key}: chart follows the live entity calculation`);
       equal(Number(await total('x-physicalDamage')),row(curveBuild).total,`${key}: table follows the same calculation`);
@@ -365,6 +393,59 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('#curve-effect').inputValue(),'dayHpRegen','Adding an Umbra from a secondary effect preserves the plotted statistic');
     equal(await field('umbras','vitality').inputValue(),'15','Chart creates the actual Umbra row when needed');
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'3','Secondary curve uses dependent HP totals');
+    await page.locator('#example').click();
+    equal(await page.locator('#curve-profile option').count(),3,'All three profiles can be selected');
+    check(!await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid center is hidden for the exponential');
+    await fill('umbras','vigueur',80);
+    await baseField(page,'attribute-strength','attributeBases').fill('0.75');
+    await baseField(page,'umbra-vigueur','umbraBases').fill('1.25');
+    await page.locator('#limit').fill('350');
+    const profileBuild=initialState(true);profileBuild.umbras.vigueur=80;profileBuild.limit=350;
+    profileBuild.attributeBases.physicalDamage=.75;profileBuild.umbraBases.physicalDamage=1.25;
+    const acquisitions=()=>page.locator('input[data-group], input[data-base-group], #level, #limit').evaluateAll(nodes=>nodes.map(node=>[node.dataset.group||node.dataset.baseGroup||node.id,node.dataset.key||node.dataset.baseEffect,node.value]));
+    const profileInputs=JSON.stringify(await acquisitions());
+    await page.locator('#curve-view').selectOption('total');
+    await setCurve(page,'cap',60);await setCurve(page,'shape',7);
+    profileBuild.curve={...profileBuild.curve,cap:60,shape:7};
+    const tunedExponential=row(profileBuild).total;
+    for(const type of ['j','sigmoid']) {
+      await page.locator('#curve-profile').selectOption(type);
+      profileBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults};
+      equal(Number(await total('x-physicalDamage')),row(profileBuild).total,`${type}: selecting a profile recalculates the existing entity`);
+      equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(profileBuild).total,`${type}: graph and table use the same profile`);
+      equal(await page.locator('#curve-chart').getAttribute('data-profile'),type,'Graph tracks the active profile');
+      equal(JSON.stringify(await acquisitions()),profileInputs,`${type}: profile selection preserves all points, bases and common limit`);
+      await page.locator('.curve-panel').screenshot({path:resolve(output,`profile-${type}.png`)});
+    }
+    check(await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid exposes its center control');
+    await setCurve(page,'mid',70);profileBuild.curve.mid=70;
+    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'Moving the sigmoid center recalculates actual entity values');
+    await page.locator('#curve-view').selectOption('ratio');
+    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(80,profileBuild.curve),'Sigmoid graph uses the edited center');
+    await page.locator('#curve-profile').selectOption('j');
+    await setCurve(page,'cap',40);await setCurve(page,'shape',3);await setCurve(page,'interval',400);
+    const tunedJ={...curveProfiles.find(profile=>profile.type==='j').defaults,cap:40,shape:3,interval:400};
+    profileBuild.curve={...tunedJ};
+    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'J intensity and interval are independently adjustable');
+    await page.locator('#curve-profile').selectOption('exp');
+    equal(await page.locator('[data-curve="cap"]').inputValue(),'60','Exponential gain survives profile round trips');
+    equal(await page.locator('[data-curve="shape"]').inputValue(),'7','Exponential intensity survives profile round trips');
+    equal(Number(await total('x-physicalDamage')),tunedExponential,'Returning to exponential restores its result on the same entity');
+    await page.locator('#mode-toggle').click();
+    await page.locator('#curve-profile').selectOption('sigmoid');
+    equal(await total('x-physicalDamage'),'110','Profile selection in current mode leaves the actual game calculation unchanged');
+    equal(await page.locator('[data-curve="mid"]').inputValue(),'70','Edited sigmoid center is restored even in current mode');
+    const profileCurrentEditor=await sharedEditor();
+    await page.locator('#mode-toggle').click();
+    equal(JSON.stringify(await sharedEditor()),JSON.stringify(profileCurrentEditor),'Mode switch preserves the selected profile and all its controls');
+    await page.locator('#curve-reset').click();
+    equal(await page.locator('#curve-profile').inputValue(),'sigmoid','Reset affects the selected profile without switching family');
+    equal(await page.locator('[data-curve="mid"]').inputValue(),'50','Reset restores the selected sigmoid defaults');
+    equal(JSON.stringify(await acquisitions()),profileInputs,'Resetting a profile preserves the build and common limit');
+    await page.locator('#curve-profile').selectOption('j');
+    equal(await page.locator('[data-curve="cap"]').inputValue(),'40','Resetting sigmoid leaves J settings intact');
+    equal(await page.locator('[data-curve="interval"]').inputValue(),'400','Each profile keeps its interval independently of the common limit');
+    equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:tunedJ}).total,'Restored J settings recover its real calculation');
     await page.locator('#example').click();
     await page.locator('#curve-view').selectOption('ratio');
     equal(await baseField(page,'attribute-strength','attributeBases').inputValue(),'0.5','Selected Force row exposes its initial base');
@@ -523,7 +604,7 @@ if (!process.argv.includes('--model-only')) {
     check(await page.locator('#concept-settings').isVisible(), 'Concept settings remain displayed in current mode');
     check(await page.locator('#current-rules').isVisible(), 'Calculation rules for both modes remain accessible');
     await page.locator('#limit').fill('10');
-    await setCurve(page,'soft',1000);
+    await setCurve(page,'shape',6);
     await setCurve(page,'cap',50);
     await fill('gifts', 'physicalDamage', 3);
     equal(await total('x-physicalDamage'), '45', 'Editing concept parameters in current mode leaves its JS calculation unchanged');
@@ -532,7 +613,7 @@ if (!process.argv.includes('--model-only')) {
     equal(JSON.stringify(await sharedEditor()), JSON.stringify(currentSettingsEditor), 'Current-mode edits are used directly by concept without an alternate build');
     equal(await total('x-physicalDamage'), '48', 'Concept uses the newly edited limit, curve and grant on the same points');
     await page.locator('#limit').fill('150');
-    await setCurve(page,'soft',600);
+    await setCurve(page,'shape',10);
     await setCurve(page,'cap',85);
     await fill('gifts', 'physicalDamage', 2);
     equal(await total('x-physicalDamage'), '96', 'Restoring concept parameters recovers the unchanged acquisitions');
@@ -548,6 +629,10 @@ if (!process.argv.includes('--model-only')) {
         await picker.locator('input').press('Escape');
       }
     }
+    await page.locator('#curve-profile').selectOption('sigmoid');
+    check(await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid settings remain accessible on mobile');
+    check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Sigmoid profile controls fit at 320px');
+    await page.locator('#curve-profile').selectOption('exp');
     await page.setViewportSize({ width: 390, height: 844 });
     check(await page.locator('[data-total="x-physicalDamage"]').evaluate(node => node.getBoundingClientRect().right <= innerWidth), 'Mobile total fits the viewport');
     await page.screenshot({ path: resolve(output, 'mobile.png'), fullPage: true });
@@ -594,7 +679,7 @@ if (!process.argv.includes('--model-only')) {
     await second.locator('[data-ui="level"]').fill('12');
     await second.locator('[data-ui="limit"]').fill('80');
     await second.locator('details.rules > summary').click();
-    await setCurve(second,'soft',1000);
+    await setCurve(second,'shape',6);
     await setCurve(second,'cap',50);
     await second.locator('[data-ui="concept-settings"] > details > summary').click();
     await entityFill(second,'gifts','physicalDamage',2);
@@ -605,6 +690,13 @@ if (!process.argv.includes('--model-only')) {
     equal(await entityTotal(first),'51','Another entity’s base cannot change this entity');
     equal(await entityTotal(second),'79','Custom base applies only to its own entity');
     await baseField(second,'umbra-vigueur','umbraBases').fill('1');
+    await second.locator('[data-ui="curve-profile"]').selectOption('j');
+    await setCurve(second,'shape',4);
+    equal(await first.locator('[data-ui="curve-profile"]').inputValue(),'exp','Another entity can select its own independent profile');
+    equal(await entityTotal(first),'51','Changing another entity’s profile leaves this entity’s calculations intact');
+    await second.locator('[data-ui="curve-profile"]').selectOption('exp');
+    equal(await second.locator('[data-curve="shape"]').inputValue(),'6','Switching profiles restores the second entity’s tuned exponential');
+    equal(await entityTotal(second),'68','Restoring a profile preserves its per-entity bases and grants');
     const secondBefore=await settings(second);
     await second.locator('[data-ui="mode-toggle"]').click();
     equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
@@ -646,7 +738,7 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#add-entity').click();
     const third=page.locator('[data-entity-id="entity-3"]');
     equal(await third.locator('[data-entry]').count(),0,'Entity created after removal is fresh');
-    equal(await third.locator('[data-curve="soft"]').inputValue(),'600','A fresh entity uses the source curve defaults independently');
+    equal(await third.locator('[data-curve="shape"]').inputValue(),'10','A fresh entity preserves the original exponential intensity independently');
     equal(await third.locator('[data-curve="cap"]').inputValue(),'85','A fresh entity uses the source per-cycle target');
     await third.locator('[data-remove-entity]').click();
     await second.locator('[data-remove-entity]').click();
