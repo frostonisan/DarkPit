@@ -94,7 +94,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .curve-field-heading { display:flex; align-items:center; gap:6px; }
 .setting-help { display:inline-flex; }
 .info-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:17px; height:17px; padding:0; border:1px solid var(--muted); border-radius:50%; color:var(--muted); background:transparent; font:italic 600 12px Georgia,serif; cursor:help; }
-.setting-tooltip { position:absolute; z-index:15; left:0; bottom:100%; width:100%; padding:10px 12px; border:1px solid #657787; border-radius:5px; background:#101519; color:var(--text); line-height:1.5; font-weight:400; visibility:hidden; }
+.setting-tooltip { position:absolute; z-index:15; left:0; bottom:100%; width:100%; padding:10px 12px; border:1px solid #657787; border-radius:5px; background:#101519; color:var(--text); line-height:1.5; font-weight:400; white-space:pre-line; visibility:hidden; }
 .setting-help:hover .setting-tooltip,.setting-help:focus-within .setting-tooltip { visibility:visible; }
 .curve-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
 .curve-metrics>div { padding:8px; background:var(--bg); font-size:12px; } .curve-metrics output { display:block; margin-top:4px; font-size:15px; color:var(--gold); }
@@ -445,15 +445,15 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     state.curve[key]=snap?Number((min+Math.round((bounded-min)/step)*step).toFixed(12)):bounded;
   }
   const curveHelp={
-    cap:'Hausse des ratios de départ gagnée sur un cycle complet. 85 ajoute +85 % à chaque cycle, hors gain résiduel : une base de 0,5 gagne ainsi 0,425 par cycle. Augmenter ce réglage augmente les gains sans modifier la base.',
-    res:'Gain supplémentaire et régulier ajouté à chaque point d’Umbra, en plus du profil choisi. Par exemple, 0,01 ajoute 1 % du ratio de départ tous les 100 points. Il maintient une progression dans les zones où la courbe ralentit.',
-    interval:'Nombre de points d’Umbra par cycle. Avec 200, la courbe se répète de 0 à 200, puis de 200 à 400, en cumulant les gains. Un intervalle plus grand étale la progression. « Débloquer » ajoute un intervalle à la limite commune ; modifier ce réglage conserve la limite saisie.',
-    mid:'Place le centre de l’accélération dans le cycle de la sigmoïde. 50 % le situe à mi-cycle ; 70 % reporte l’accélération plus tard. Cela change la répartition des gains, pas leur total sur le cycle.',
+    cap:'Ce potard règle combien tes points deviennent plus puissants à chaque cycle.\n\nImagine qu’au départ, 1 point de Force donne 1 PP. Avec un gain de 85 % :\n• Après 1 cycle : il donne 1,85 PP.\n• Après 2 cycles : il donne 2,70 PP.\n\nAvec un intervalle de 200, tu termines un cycle tous les 200 points de Vigueur. Plus tu montes ce potard, plus le bonus par cycle est grand.\n\nExemple sans gain résiduel ni arrondis.',
+    res:'C’est un petit bonus régulier, ajouté en plus des gains de la courbe.\n\nExemple : 0,01 ajoute +1 % tous les 100 points de Vigueur. Si un point de Force vaut 1 PP au départ, ce bonus lui ajoute 0,01 PP.\n\nPlus tu montes ce potard, plus ce petit bonus est grand. À 0, il disparaît.',
+    interval:'Il choisit combien de points dure un cycle.\n\nExemple avec Vigueur : à 200, tu termines un cycle tous les 200 points. À 400, il faut 400 points pour gagner le même bonus de cycle.\n\n« Débloquer » augmente la limite de cette quantité. Changer ce potard seul ne change pas la limite.',
+    mid:'Il choisit où se trouvent les gains les plus rapides dans le cycle.\n\nExemple avec un cycle de 200 points de Vigueur :\n• Centre à 50 % : autour de 100 points.\n• Centre à 70 % : autour de 140 points.\n\nPlus tu montes ce potard, plus les gros gains arrivent tard. Le bonus total du cycle reste le même.',
   };
   const shapeHelp={
-    exp:'Accentue la forme de la courbe exponentielle. Une intensité plus élevée concentre les gains au début du cycle, puis ralentit davantage la progression. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
-    j:'Accentue la forme de la courbe en J. Une intensité plus élevée réduit les gains au début du cycle et renforce l’accélération vers sa fin. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
-    sigmoid:'Accentue la forme en S. Une intensité plus élevée concentre les gains autour du centre choisi, avec une progression plus lente avant et après. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
+    exp:'Avec ce profil, les gros gains arrivent d’abord, puis ça ralentit.\n\nExemple : à 2, les gains sont plus étalés. À 10, tu gagnes beaucoup au début et très peu vers la fin.\n\nCe potard change le moment des gains, pas le bonus total du cycle.',
+    j:'Avec ce profil, tu gagnes peu au début, puis de plus en plus.\n\nExemple : à 2, la montée est progressive. À 10, les premiers points rapportent très peu, mais les derniers rapportent beaucoup.\n\nCe potard change le moment des gains, pas le bonus total du cycle.',
+    sigmoid:'Avec ce profil, les gros gains arrivent autour du centre choisi.\n\nExemple : pour un cycle de 200 points et un centre à 50 %, une intensité de 2 étale les gains ; à 10, ils se concentrent autour de 100 points.\n\nLe bonus total du cycle reste le même.',
   };
   for(const profile of Lab.curveProfiles) {
     const option=document.createElement('option');option.value=profile.type;option.textContent=profile.name;$('#curve-profile').append(option);
