@@ -19,8 +19,9 @@ check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game s
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
 vm.runInContext(scripts[0], sandbox);
-const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, curveProfiles, referenceLimit, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
+const { calculate, initialState, changeLimit, effects, umbras, attributes, multiplier, curveGain, curveProfiles, referenceLimit, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
+const displayedNumber=text=>Number(text.replace(/\s/g,'').replace(',','.'));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
 equal(umbras.length, 9, 'Exactly nine level-one Umbras');
 equal(attributes.length, 4, 'Four directing attributes');
@@ -70,9 +71,10 @@ equal(row(moreCapacity).attributeValue, 250, 'No hidden attribute cap at 150');
 equal(row(moreCapacity).u, 250, 'No hidden Umbra cap at 150');
 moreCapacity.fixed.physicalDamage = 9999; moreCapacity.plus.physicalDamage = 9999;
 const zeroLimit = calculate({ ...moreCapacity, limit: 0 });
-equal(zeroLimit.results.physicalDamage.total, 19998, 'Zero directing limit preserves all fixed acquisitions');
+equal(zeroLimit.results.physicalDamage.fixed+zeroLimit.results.physicalDamage.plus,19998,'Zero directing limit preserves all fixed acquisitions');
+check(zeroLimit.results.physicalDamage.total>19998 && zeroLimit.results.physicalDamage.total<19999,'Zero threshold permits only tiny residual Umbra gains');
 check(Object.values(zeroLimit.attributes).every(value => value === 0), 'All attributes share zero limit');
-check(Object.values(zeroLimit.umbras).every(value => value === 0), 'All Umbras share zero limit');
+equal(zeroLimit.umbras.vigueur,250,'Umbra points remain available beyond a zero threshold');
 
 const before = JSON.stringify(example);
 calculate(example);
@@ -83,16 +85,17 @@ equal(row(unrelated).coefficient, row(example).coefficient, 'Another Umbra canno
 equal(row(unrelated).total, row(example).total, 'Another attribute cannot influence PP total');
 // Independent formulas from profils_courbes_math.html, evaluated across full
 // cycles rather than freezing history. Gain remains a percent of the base.
-const referenceGain = (x,c) => {
-  const w=c.interval, q=Math.floor(Math.max(0,x)/w), r=Math.max(0,x)-q*w;
+const referenceGain = (x,c,limit=c.interval) => {
+  const normal=Math.min(Math.max(0,x),limit),w=c.interval;
   const norm=t=>{
     t=Math.max(0,Math.min(1,t));const k=c.shape;
     if(c.type==='exp')return -Math.expm1(-k*t)/(-Math.expm1(-k));
     if(c.type==='j')return Math.expm1(k*t)/Math.expm1(k);
     const z=x=>1/(1+Math.exp(-k*(x-c.mid/100))), a=z(0), b=z(1);return (z(t)-a)/(b-a);
   };
-  const local=x=>c.cap*norm(x/w)+c.res*x;
-  return q*local(w)+local(r);
+  const local=x=>c.cap*norm(x/w);
+  const full=points=>Math.floor(points/w)*local(w)+local(points%w);
+  return full(normal)+(full(x)-full(normal))*c.res;
 };
 equal(curveProfiles.length,3,'Three selectable mathematical curve families');
 for(const curve of [...curveProfiles.map(profile=>profile.defaults),
@@ -104,15 +107,16 @@ for(const curve of [...curveProfiles.map(profile=>profile.defaults),
     near(curveGain(points,curve),referenceGain(points,curve),`Reference cycle formula at ${points}`);
     near(multiplier(points,curve),1+referenceGain(points,curve)/100,'Cumulative gain is a percentage of the starting ratio');
   }
-  near(curveGain(curve.interval,curve),curve.cap+curve.res*curve.interval,'All families share the same complete-cycle gain');
-  near(curveGain(2*curve.interval,curve),2*curveGain(curve.interval,curve),'Cycle gain accumulates without reset');
-  check(multiplier(curve.interval+.001,curve)>multiplier(curve.interval,curve),'Next cycle resumes growth');
+  near(curveGain(curve.interval,curve),curve.cap,'No residual bonus before or at the threshold');
+  near(curveGain(2*curve.interval,curve),curve.cap*(1+curve.res),'Beyond the threshold only the residual fraction contributes');
+  near(curveGain(2*curve.interval,curve,2*curve.interval),2*curve.cap,'Raising the threshold enables a full second cycle');
+  check(multiplier(curve.interval+.001,curve)>=multiplier(curve.interval,curve),'Residual growth is monotone, or flat at zero efficiency');
   let prior=0;
   for(let points=0;points<=3*curve.interval;points+=curve.interval/20) {
     const gain=curveGain(points,curve);check(gain>=prior,'Every profile remains monotonic across cycle boundaries');prior=gain;
   }
   const build=clone(example);build.curve={...curve};build.umbras.vigueur=17;build.attributes.strength=25;
-  const m=1+referenceGain(17,curve)/100;
+  const m=1+referenceGain(17,curve,build.limit)/100;
   near(row(build).coefficient,.5*m,'Each profile reaches the actual attribute ratio');
   near(row(build).umbraCoefficient,m,'Each profile reaches the actual Umbra ratio');
   equal(row(build).total,Math.ceil(25*.5*m)+Math.ceil(17*m)+17,'Each profile computes the rounded real PP total');
@@ -123,10 +127,10 @@ near(curveGain(100,{...symmetric,type:'sigmoid'}),42.5,'Centered sigmoid reaches
 check(curveGain(50,{...symmetric,type:'exp'})>curveGain(50,{...symmetric,type:'sigmoid'}),'Exponential gives larger early gains than sigmoid');
 check(curveGain(50,{...symmetric,type:'sigmoid'})>curveGain(50,{...symmetric,type:'j'}),'J delays gains relative to sigmoid');
 check(curveGain(100,{...symmetric,type:'sigmoid',mid:70})<curveGain(100,{...symmetric,type:'sigmoid',mid:30}),'Sigmoid center moves its acceleration window');
-near(multiplier(200),1.851,'Full cycle: +85% and +0.1% residual');
-near(multiplier(200,{}),1.851,'Partial settings preserve defaults');
+near(multiplier(200),1.85,'Full cycle: +85% without any residual');
+near(multiplier(200,{}),1.85,'Partial settings preserve defaults');
 near(row(example).native,15*multiplier(15),'Umbra ratio grows with the same multiplier as the attribute');
-for(const [key,value] of [['cap',50],['shape',6],['res',.01],['interval',400]]) {
+for(const [key,value] of [['cap',50],['shape',6],['interval',400]]) {
   const changed=clone(example);changed.curve[key]=value;
   check(row(changed).multiplier!==row(example).multiplier,`${key} changes the active multiplier`);
   check(row(changed).coefficient!==row(example).coefficient && row(changed).native!==row(example).native,`${key} recalculates both ratios on existing points`);
@@ -172,7 +176,8 @@ for (const spec of effects) {
   near(enhanced.uncapped - ordinary.uncapped, 7, `${spec.key}: stat+ adds only its fixed acquisition`);
   const ownLimit = calculate({ ...state, limit: 10 });
   check(Object.values(ownLimit.attributes).every(value => value <= 10), `${spec.key}: common attribute limit`);
-  equal(ownLimit.umbras[spec.source], 10, `${spec.key}: common source limit`);
+  equal(ownLimit.umbras[spec.source],15,`${spec.key}: raw Umbra points preserved beyond the limit`);
+  equal(ownLimit.results[spec.key].normalU,10,`${spec.key}: normal points stop at the common threshold`);
   const noGift = clone(state); noGift.gifts[spec.key] = 0;
   // Regeneration depends on HP, but changing its own grant leaves that input alone.
   near(ordinary.uncapped - row(noGift, spec.key).uncapped, ordinary.gift, `${spec.key}: fixed gift is counted exactly once`);
@@ -184,6 +189,69 @@ for (const spec of effects) {
   }
 }
 
+// Residual efficiency applies to every Umbra component only above the threshold.
+for(const profile of curveProfiles)for(const spec of effects) {
+  const build=initialState();build.limit=10;build.curve={...profile.defaults,res:.01};
+  for(const attribute of attributes)build.attributes[attribute.key]=4;
+  build.umbras[spec.source]=10;
+  const boundary=row(build,spec.key),withoutResidual=row({...build,curve:{...build.curve,res:0}},spec.key);
+  equal(boundary.total,withoutResidual.total,`${profile.type}/${spec.key}: residual has no effect at the threshold`);
+  build.umbras[spec.source]=110;
+  const excess=row(build,spec.key),stopped=row({...build,curve:{...build.curve,res:0}},spec.key);
+  equal(excess.overflow,100,`${spec.key}: only the 100 excess points trigger residual gains`);
+  equal(stopped.total,boundary.total,`${spec.key}: zero residual rate is a true stop`);
+  near(excess.gift-boundary.gift,boundary.giftRate,`${spec.key}: Umbra fixed grant uses the same residual points`);
+  check(excess.coefficient>=boundary.coefficient && excess.nativeGain>=boundary.nativeGain && excess.generated>=boundary.generated,`${spec.key}: every component grows monotonically through residual gains`);
+  const reopened=row({...build,limit:110},spec.key);
+  for(const key of ['coefficient','umbraCoefficient','attributeGain','nativeGain','generated','gift'])near(excess[key],boundary[key]+(reopened[key]-boundary[key])*.01,`${spec.key}/${key}: retain exactly 1% of the theoretical additional benefit`);
+  if(reopened.total>boundary.total)check(excess.total>boundary.total,`${spec.key}: positive residual efficiency still provides gains`);
+  check(reopened.total>=excess.total,`${spec.key}: raising the limit restores normal progression`);
+}
+for(const threshold of [0,1,200]) {
+  const build=initialState();build.limit=threshold;build.attributes.strength=25;build.umbras.vigueur=threshold;
+  const baseline=row(build);build.umbras.vigueur=threshold+.001;
+  const excess=row(build);
+  check(excess.total>baseline.total && excess.total-baseline.total<.005,'Infinitesimal overflow is not rounded to multiple whole points');
+}
+const residualPP=initialState();residualPP.attributes.strength=25;residualPP.umbras.vigueur=201;
+equal(row(residualPP).residualRate,.0005,'Default overflow efficiency is 0.05 percent');
+near(row(residualPP).gift,200.0005,'Umbra grant does not keep full efficiency past the threshold');
+residualPP.fixed.physicalDamage=10000;residualPP.plus.physicalDamage=20000;
+const residualParts=contributions(row(residualPP));
+equal(residualParts.fixed,10000,'Separate fixed stats remain unlimited beyond the Umbra threshold');
+equal(residualParts.plus,20000,'Separate stat+ direct acquisitions remain unlimited');
+// Moving the threshold starts a new curve immediately at each source's own
+// point count, without repricing its acquired Umbra benefits.
+for(const profile of curveProfiles)for(const spec of effects)for(const departure of [120,240]) {
+  let build=initialState();build.curve={...profile.defaults,res:.01};build.umbras[spec.source]=departure;
+  for(const attribute of attributes)build.attributes[attribute.key]=4;
+  const original=JSON.stringify(build),before=row(build,spec.key);
+  build=changeLimit(build,400);
+  equal(JSON.stringify({...build,limit:200,limitHistory:undefined}),original,`${spec.key}: limit edits preserve every acquisition and setting`);
+  const atDeparture=row(build,spec.key);
+  for(const key of ['total','coefficient','attributeGain','nativeGain','gift','generated'])near(atDeparture[key],before[key],`${profile.type}/${spec.key}/${key}: no jump when the limit changes at ${departure}`);
+  equal(atDeparture.segmentStart,departure,`${spec.key}: fresh curve starts at the current points`);
+  build.umbras[spec.source]++;
+  const next=row(build,spec.key);
+  near(next.multiplier,before.multiplier+referenceGain(1,build.curve,400)/100,`${spec.key}: the very next point uses the beginning of the curve`);
+  check(next.total>=before.total,`${spec.key}: next point cannot lose acquired gains`);
+  near(next.multiplier,multiplier(departure+1,build.curve,build.limit,build.limitHistory[spec.source]),`${spec.key}: chart and actual ratio share departures`);
+  const again=changeLimit(build,450),beforeAgain=row(again,spec.key);
+  near(beforeAgain.total,next.total,`${spec.key}: multiple successive departures preserve gains`);
+  near(row({...again,mode:'current'},spec.key).total,row({...again,mode:'current',limitHistory:{}},spec.key).total,`${spec.key}: current JS mode ignores all departure records`);
+}
+let timeline=initialState();timeline.umbras.vigueur=120;timeline.umbras.esprit=30;
+timeline=changeLimit(timeline,400);
+equal(row(timeline).segmentStart,120,'Force Umbra keeps its own departure');
+equal(row(timeline,'magicalDamage').segmentStart,30,'Intelligence Umbra gets an independent departure');
+timeline=changeLimit(timeline,500);
+equal(timeline.limitHistory.vigueur.length,2,'Dragging a limit at unchanged points replaces the departure');
+timeline.umbras.vigueur=40;timeline=changeLimit(timeline,300);
+equal(timeline.limitHistory.vigueur.length,2,'Editing after moving backward discards future departures');
+equal(row(timeline).segmentStart,40,'Backward edit starts a new current departure');
+timeline.umbras.vigueur=45;const reached=row(timeline);
+timeline=changeLimit(timeline,20);near(row(timeline).total,reached.total,'A lower limit preserves existing Umbra gains when attributes stay within it');
+timeline.umbras.vigueur=46;check(row(timeline).total-reached.total<1,'Lowering the limit below acquired points makes the next point residual immediately');
 const vitality = initialState(); vitality.umbras.vitality = 15;
 equal(row(vitality, 'HP').total, 169, 'Vitality native HP curve scales with the shared multiplier plus the fixed grant');
 equal(row(vitality, 'dayHpRegen').total, 3, 'Regeneration follows current max HP and scaled Umbra ratio');
@@ -385,7 +453,7 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#level').fill('51');
     await setGauge(page,'limit',10);
     equal(await page.locator('#limit').inputValue(),'10','Limit gauge updates its numeric field');
-    equal(Number(await total('x-physicalDamage')),row({...initialState(true),limit:10}).total,'Limit gauge recalculates retained points immediately');
+    equal(Number(await total('x-physicalDamage')),row(changeLimit(initialState(true),10)).total,'Limit gauge starts a new curve and applies the current attribute cap');
     equal(await field('attributes','strength').inputValue(),'60','Lowering the limit preserves entered attribute points');
     equal(await field('umbras','vigueur').inputValue(),'15','Lowering the limit preserves entered Umbra points');
     await page.locator('#limit').fill('1500.5');
@@ -395,6 +463,7 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('[data-reset-setting="limit"]').click();
     equal(await page.locator('#limit').inputValue(),'200','Limit reset uses the shared reference');
     equal(await total('x-physicalDamage'),'81','Resetting the limit restores the existing build calculation');
+    await page.locator('#example').click(); // Fresh departures for the next independent scenario.
     equal(await page.locator('[data-curve]').count(),3,'Only curve shape, residual gain and center remain per entity');
     equal(await page.locator('[data-curve="cap"], [data-curve="interval"]').count(),0,'Gain and interval sliders are removed');
     equal(await page.locator('#common-cycle-gain').count(),1,'Cycle gain has one common editor');
@@ -407,14 +476,14 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'81','Total chart marker equals the entity total');
     const curveBuild=initialState(true);
     for(const [key,value] of [['cap',50],['shape',6],['res',.01]]) {
-      curveBuild.curve[key]=value;if(key==='cap')await setCommonGain(value);else await setCurve(page,key,value);
+      curveBuild.curve[key]=value;if(key==='cap')await setCommonGain(value);else await setCurve(page,key,key==='res'?value*100:value);
       equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(curveBuild).total,`${key}: chart follows the live entity calculation`);
       equal(Number(await total('x-physicalDamage')),row(curveBuild).total,`${key}: table follows the same calculation`);
       equal(await field('umbras','vigueur').inputValue(),'15',`${key}: previously acquired points are conserved`);
     }
     await fill('umbras','vigueur',25);
     equal(await page.locator('#curve-chart').getAttribute('data-points'),'25','Editing the Umbra table row updates curve progression');
-    await setCurve(page,'shape',10);await setCurve(page,'res',.0005);
+    await setCurve(page,'shape',10);await setCurve(page,'res',.05);
     equal(await field('umbras','vigueur').inputValue(),'25','Curve settings preserve acquisitions');
     equal(await page.locator('#common-cycle-gain').inputValue(),'50','Local curve settings preserve the common gain');
     const resetBuild=initialState(true);resetBuild.umbras.vigueur=25;resetBuild.curve.cap=50;
@@ -431,7 +500,7 @@ if (!process.argv.includes('--model-only')) {
     await fill('attributes','intelligence',300);
     await add('umbras','umbra-esprit');await fill('umbras','esprit',300);
     equal(await field('attributes','intelligence').inputValue(),'300','Direct Intelligence input supports the increased limit');
-    check((await page.locator('[data-ratio="umbra-esprit"]').innerText()).includes('300 / 400'),'Common unlock opens another Umbra');
+    check((await page.locator('[data-ratio="umbra-esprit"]').innerText()).includes('seuil 400'),'Common unlock opens another Umbra');
     await add('umbras','umbra-vitality');
     await page.locator('#curve-effect').selectOption('dayHpRegen');
     await fill('umbras','vitality',15);
@@ -555,13 +624,15 @@ if (!process.argv.includes('--model-only')) {
     await fill('umbras', 'vigueur', 250);
     equal(await total('x-physicalDamage'), '375', 'Current mode uses its own acquisition rules');
     await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '757', 'Concept applies its own limit to the same stored inputs');
+    const overflowBuild=initialState(true);overflowBuild.attributes.strength=250;overflowBuild.umbras.vigueur=250;
+    near(displayedNumber(await total('x-physicalDamage')),row(overflowBuild).total,'Concept applies residual efficiency to the same stored inputs');
     equal(await field('attributes', 'strength').inputValue(), '250', 'Switching back does not overwrite out-of-limit acquisition');
     equal(await field('umbras', 'vigueur').inputValue(), '250', 'Switching preserves raw Umbra acquisition');
     const aboveLimitEditor = await sharedEditor();
     await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).click();
     equal(await field('umbras', 'vigueur').inputValue(), '251', 'Concept stepper retains shared acquisitions above its calculation limit');
-    equal(await total('x-physicalDamage'), '757', 'Calculation limit still caps effective concept points');
+    overflowBuild.umbras.vigueur=251;
+    near(displayedNumber(await total('x-physicalDamage')),row(overflowBuild).total,'Every extra point produces only residual benefits beyond the limit');
     await page.getByRole('button', { name: 'Diminuer Vigueur', exact: true }).click();
     await page.locator('#mode-toggle').click();
     equal(await total('x-physicalDamage'), '375', 'Round-trip switch restores the same current result');
@@ -583,13 +654,15 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#limit').fill('10');
     equal(await field('attributes', 'strength').inputValue(), '60', 'Lower concept limit preserves shared attribute acquisition');
     equal(await field('umbras', 'vigueur').inputValue(), '25', 'Lower concept limit preserves shared Umbra acquisition');
-    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1041', 'Fixed acquisition survives limit reduction');
+    const lowered=initialState(true);lowered.umbras.vigueur=25;lowered.plus.physicalDamage=10;lowered.fixed.physicalDamage=1000;
+    const lowerTotal=row(changeLimit(lowered,10)).total;
+    equal(displayedNumber(await total('x-physicalDamage')),lowerTotal,'Fixed acquisition survives limit reduction and the curve restarts at 25');
     check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isEnabled(), 'Same Umbra editing remains available beyond the calculation limit');
     await page.getByRole('button', { name: 'Augmenter Puissance physique fixe', exact: true }).click();
     await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
-    equal((await total('x-physicalDamage')).replace(/\s/g, ''), '1043', 'Fixed and plus steppers remain unlimited');
+    equal(displayedNumber(await total('x-physicalDamage')),lowerTotal+2,'Fixed and plus steppers remain unlimited');
     await remove('x-physicalDamage');
-    equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1043', 'Removing X closes its view without changing the build');
+    equal(displayedNumber(await total('plus-physicalDamage')),lowerTotal+2,'Removing X closes its view without changing the build');
     await add('x', 'x-physicalDamage');
     await remove('umbra-vigueur');
     equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1017', 'Removing Umbra removes its gift and native gain and restores the plus coefficient');
@@ -615,6 +688,50 @@ if (!process.argv.includes('--model-only')) {
     equal(await total('x-dayHpRegen'), '0 HP', 'An X view alone does not activate regeneration');
     await page.locator('#level').fill('90');
     equal(await total('x-dayHpRegen'), '0 HP', 'Level remains manual');
+
+    // Dynamic departures apply through the live controls, on the very next point.
+    await page.locator('#example').click();await fill('umbras','vigueur',120);
+    let dynamicBuild=initialState(true);dynamicBuild.umbras.vigueur=120;
+    const departureTotal=await total('x-physicalDamage');
+    await page.locator('#limit').fill('400');dynamicBuild=changeLimit(dynamicBuild,400);
+    equal(await total('x-physicalDamage'),departureTotal,'Changing the limit at 120 preserves acquired PP');
+    equal(await page.locator('#curve-chart').getAttribute('data-departure'),'120','Graph marks the exact new departure');
+    await page.getByRole('button',{name:'Augmenter Vigueur',exact:true}).click();dynamicBuild.umbras.vigueur++;
+    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Next acquired point uses the restarted curve in the table');
+    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(dynamicBuild).multiplier,'Graph uses the same restarted ratio');
+    check((await page.locator('#curve-softcap').innerText()).includes('départ de la courbe à 120'),'Live explanation identifies the new departure');
+    await page.locator('.curve-panel').screenshot({path:resolve(output,'dynamic-departure.png')});
+    await setGauge(page,'limit',450);dynamicBuild=changeLimit(dynamicBuild,450);
+    await fill('umbras','vigueur',122);dynamicBuild.umbras.vigueur=122;
+    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Second limit edit restarts at 121 rather than a fixed interval boundary');
+    await page.locator('#mode-toggle').click();await page.locator('#mode-toggle').click();
+    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Departures survive a mode round trip');
+    // Residual controls are percentages, act only beyond the threshold, and
+    // update the real numbers and graph without rounding tiny gains to +1.
+    await page.locator('#example').click();await fill('umbras','vigueur',199);
+    const below=await total('x-physicalDamage');
+    await page.locator('[data-curve-number="res"]').fill('1');
+    equal(await total('x-physicalDamage'),below,'Residual knob has no effect before the threshold');
+    await fill('umbras','vigueur',201);
+    let residualBuild=initialState(true);residualBuild.umbras.vigueur=201;residualBuild.curve.res=.01;
+    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total,'Typed 1% applies to all overflow benefits');
+    await page.locator('[data-curve-number="res"]').fill('0');residualBuild.curve.res=0;
+    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total,'Zero residual yield stops gains above the threshold');
+    await page.locator('[data-curve-number="res"]').fill('0.05');residualBuild.curve.res=.0005;
+    await page.locator('#curve-view').selectOption('total');
+    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(residualBuild).total,'Graph and entity keep the same tiny fractional gains');
+    await page.locator('[data-detail="x-physicalDamage"]').click();
+    check(!/undefined|NaN|Infinity/.test(await page.locator('#detail-x-physicalDamage').innerText()),'Residual calculation details contain only valid values');
+    await page.locator('.curve-panel').screenshot({path:resolve(output,'residual-threshold.png')});
+    await fill('fixed','physicalDamage',10000);await fill('plus','physicalDamage',20000);
+    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total+30000,'Fixed and plus inputs remain unlimited in the live table');
+    await page.locator('#example').click();await fill('umbras','vigueur',240);
+    const beforeUnlock=displayedNumber(await total('x-physicalDamage'));
+    await page.locator('#limit').fill('400');
+    near(displayedNumber(await total('x-physicalDamage')),beforeUnlock,'Raising a limit after overflow preserves the residual gains already reached');
+    await fill('umbras','vigueur',241);
+    let afterOverflow=initialState(true);afterOverflow.umbras.vigueur=240;afterOverflow=changeLimit(afterOverflow,400);afterOverflow.umbras.vigueur=241;
+    near(displayedNumber(await total('x-physicalDamage')),row(afterOverflow).total,'The next point resumes normal progression from the residual departure');
 
     // Exercise every catalog entry and detail renderer, after the actual user flows above.
     await page.locator('#clear').click();
@@ -659,7 +776,8 @@ if (!process.argv.includes('--model-only')) {
     const currentSettingsEditor = await sharedEditor();
     await page.locator('#mode-toggle').click();
     equal(JSON.stringify(await sharedEditor()), JSON.stringify(currentSettingsEditor), 'Current-mode edits are used directly by concept without an alternate build');
-    equal(await total('x-physicalDamage'), '48', 'Concept uses the newly edited limit, curve and grant on the same points');
+    const edited=changeLimit(initialState(true),10);edited.curve.shape=6;edited.curve.cap=50;edited.gifts.physicalDamage=3;
+    equal(displayedNumber(await total('x-physicalDamage')),row(edited).total,'Concept uses the newly edited limit, curve and grant on the same points');
     await page.locator('#limit').fill('150');
     await setCurve(page,'shape',10);
     await setCommonGain(85);

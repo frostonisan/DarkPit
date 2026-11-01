@@ -111,7 +111,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .curve-metrics>div { padding:8px; background:var(--bg); font-size:12px; } .curve-metrics output { display:block; margin-top:4px; font-size:15px; color:var(--gold); }
 .curve-legend { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:11px; color:var(--muted); }
 .curve-legend i { display:inline-block; width:15px; border-top:2px solid #21bea9; vertical-align:middle; margin-right:5px; }
-.curve-legend .projected { border-top-style:dashed; opacity:.5; } .curve-legend .cycle { border-color:#e1a657; } .curve-legend .limit { border-color:#ed836f; }
+.curve-legend .projected { border-top-style:dashed; opacity:.5; } .curve-legend .cycle { border-color:#e1a657; } .curve-legend .limit { border-color:#ed836f; } .curve-legend .departure { border-color:#8db8ff; }
 @media(max-width:760px) { main { padding:14px; } .entity { padding:12px; } }
 @container entity (max-width:640px) {
   .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -152,20 +152,20 @@ Imagine qu’au départ, 1 point de Force donne 1 PP. Avec un gain de 85 % :
 
 Un cycle correspond à la limite de référence. Plus tu augmentes ce gain, plus les Umbras deviennent puissantes, pour toutes les entités.
 
-Exemple sans gain résiduel ni arrondis.</span></span></div>
+Exemple dans la limite, sans arrondis.</span></span></div>
       <input id="common-cycle-gain" type="number" min="0" max="200" step="any" inputmode="decimal" value="85">
     </div>
     <div class="curve-field balance-field">
       <div class="curve-field-heading"><label for="common-reference-limit">Limite de référence (points)</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : limite de référence" aria-describedby="common-reference-help">i</button><span id="common-reference-help" class="setting-tooltip" role="tooltip">C’est le nombre de points d’Umbra qui forme un cycle.
 
-À 200, les cycles vont de 0 à 200, puis de 200 à 400. À 300, ils vont de 0 à 300, puis de 300 à 600.
+À 200, un cycle dure 200 points. Si une nouvelle courbe démarre à 120, son premier cycle va de 120 à 320. À 300, ce même cycle va de 120 à 420. Seuls les points avant le seuil de l’entité rapportent normalement.
 
 Plus cette valeur est grande, plus le bonus du cycle est étalé. Le reset de la jauge Limite remet aussi la limite de l’entité à cette valeur.
 
 Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les limites déjà saisies restent conservés.</span></span></div>
       <input id="common-reference-limit" type="number" min="1" step="any" inputmode="decimal" value="200">
     </div>
-    <p class="notice">Un cycle couvre la limite de référence. La modifier recalcule les ratios. Augmenter la limite d’une entité ouvre l’accès aux points suivants sans étirer les cycles. Les nouvelles entités démarrent avec cette limite.</p>
+    <p class="notice">La référence fixe la longueur des cycles. Modifier la limite d’une entité démarre une nouvelle courbe à ses points actuels, dès le point suivant. Les nouvelles entités démarrent avec la limite de référence.</p>
   </details>
   <div class="entity-toolbar"><h2>Entités</h2><button type="button" id="add-entity">+ Entité</button></div>
   <div class="entities" id="entities"></div>
@@ -189,12 +189,12 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     </div>
     <p class="notice" id="curve-context"></p>
     <canvas id="curve-chart" role="img" aria-label="Courbe de progression des ratios"></canvas>
-    <div class="curve-legend"><span><i></i>Jusqu’aux points retenus</span><span><i class="projected"></i>Projection</span><span><i class="cycle"></i>Cycles</span><span><i class="limit"></i>Limite commune</span></div>
-    <p class="notice">La projection au-delà de la limite suppose son augmentation. Les autres saisies restent constantes.</p>
+    <div class="curve-legend"><span><i></i>Jusqu’aux points saisis</span><span><i class="projected"></i>Projection à limite constante</span><span><i class="cycle"></i>Cycles</span><span><i class="limit"></i>Seuil de rendement</span><span><i class="departure"></i>Nouveau départ</span></div>
+    <p class="notice" id="curve-softcap"></p>
     <div class="curve-settings" id="curve-settings"></div>
     <p class="notice" id="curve-common-rules"></p>
     <div class="curve-settings entity-gauges" id="entity-gauges"></div>
-    <p class="notice">La limite s’applique à tous les attributs et toutes les Umbras de cette entité. Le niveau reste un repère, sans gain automatique. Les points d’Umbra se règlent dans le tableau.</p>
+    <p class="notice">Au-delà de la limite, les Umbras progressent au rendement résiduel. Les attributs restent plafonnés. Les stats fixes sont illimitées. Le niveau reste un repère, sans gain automatique.</p>
     <div class="curve-metrics" style="margin-top:12px"><div>Ratio d’attribut<output id="curve-attribute"></output></div><div>Apport calculé de l’Umbra<output id="curve-native"></output></div><div>Total de l’entité<output id="curve-total"></output></div></div>
     <p class="notice" id="curve-next"></p>
   </details>
@@ -217,17 +217,17 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
-      <li>U désigne les points retenus de l’Umbra concernée. La même courbe s’applique à tous les ratios de l’entité, mais chaque Umbra progresse selon ses propres points.</li>
-      <li>Pour un intervalle W : g(x) = gain × f(x/W) + résiduel × x. Chaque famille est normalisée de 0 à 1 sur un cycle entier. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
+      <li>U désigne les points saisis de l’Umbra concernée. Chaque Umbra progresse selon ses propres points ; seuls ses points au-delà de la limite subissent le rendement résiduel.</li>
+      <li>Jusqu’à la limite : progression normale, sans résiduel. Au-delà, pour chaque gain de l’Umbra : gain retenu = gain au seuil + (gain théorique avec tous les points − gain au seuil) × rendement résiduel. Cela concerne les deux ratios, la capacité et le don fixe. Aucun cycle à plein rendement ne redémarre automatiquement au-delà du seuil.</li>
       <li>Avec k = intensité et t = x/W : exponentielle f(t) = (1 − exp(−kt)) / (1 − exp(−k)) ; en J f(t) = (exp(kt) − 1) / (exp(k) − 1). Pour la sigmoïde : z(t) = 1 / (1 + exp(−k(t − centre/100))) et f(t) = (z(t) − z(0)) / (z(1) − z(0)).</li>
       <li>Changer de profil recalcule toute l’entité avec ses saisies actuelles. L’intensité, le gain résiduel et le centre de chaque profil sont conservés séparément. Le gain par cycle est commun à toutes les entités et tous les profils. L’intensité initiale vaut 10 pour l’exponentielle, 5 pour le profil J et 9 pour la sigmoïde.</li>
-      <li>La longueur d’un cycle est fixée par la limite de référence commune. La jauge Limite définit les points utilisables et son reset revient à la référence commune. Modifier la limite de l’entité ne change pas la longueur des cycles.</li>
+      <li>La longueur d’un cycle est fixée par la limite de référence commune. Modifier la limite de l’entité démarre une nouvelle courbe au nombre de points actuel de chaque Umbra : les gains atteints servent de départ, le point suivant utilise la nouvelle courbe. Les départs sont conservés lors des réglages de profil, qui recalculent tous les gains. Reset de la limite crée aussi un départ ; Vider efface les départs.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Les bases initiales se règlent dans les lignes choisies. La base d’attribut est propre à chaque statistique (Force pour la PP, Force pour l’exécution, etc.). La base d’Umbra règle son apport par point ; pour les HP, la préparation et la réduction d’esquive, elle multiplie la courbe native. Les dons fixes restent séparés.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
-      <li>Dans le concept, chaque attribut et chaque Umbra partage la limite de l’entité. Les points retenus pour le calcul sont plafonnés ; les points saisis restent intacts, même en cas de baisse de limite.</li>
+      <li>La limite de l’entité plafonne ses attributs et marque le seuil de rendement de ses Umbras. Chaque Umbra utilise ses propres points excédentaires à rendement réduit pour ses ratios, son apport natif et son don fixe. Les points saisis restent intacts.</li>
       <li>Les gains fixes n’ont pas de plafond d’acquisition. Les plafonds d’effet restent 100 % pour les résistances et l’esquive, et 95 % pour les effets de Hâte.</li>
-      <li>Chaque contribution d’attribut est arrondie au supérieur après multiplication : 25 × 0,5 → 13. Les coefficients restent précis pendant le calcul.</li>
+      <li>Les gains normaux conservent leurs arrondis : 25 × 0,5 → 13. Au-delà du seuil, les petits suppléments résiduels restent fractionnaires ; ils ne sont pas arrondis chacun à +1. Les plafonds finaux d’effet restent appliqués.</li>
       <li>M(U) multiplie le coefficient d’attribut et l’apport natif de l’Umbra avant conversion et arrondi. Les dons fixes ne sont pas multipliés. Les effets sans apport natif supplémentaire, comme le cooldown, utilisent uniquement le ratio d’attribut.</li>
       <li>Force, Intelligence et Agilité se règlent directement au-dessus du tableau. Aucun archétype, équipement ou stock de ressources n’est simulé.</li>
       <li>Le niveau est un repère manuel, sans gain automatique. Retirer une ligne retire son apport ; retirer une stat X ferme seulement sa vue calculée.</li>
@@ -298,7 +298,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   // Normalized families from profils_courbes_math.html, accumulated by cycles.
   // Unlike the reference history, this lab recalculates every acquired point.
   // Curve gains are percentage increases of the initial ratios, not stat points.
-  function curveGain(points, curve={}) {
+  function normalCurveGain(points, curve={}) {
     const c={...DEFAULT_CURVE,...curve}, w=Math.max(1,number(c.interval));
     const k=Math.max(.01,Math.min(15,number(c.shape))), mid=Math.max(.1,Math.min(.9,number(c.mid)/100));
     const x=number(points), cycles=Math.floor(x/w), remainder=x-cycles*w;
@@ -307,10 +307,35 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       if(c.type==='sigmoid') { const z=v=>1/(1+Math.exp(-k*(v-mid))), a=z(0), b=z(1);return (z(t)-a)/(b-a); }
       return -Math.expm1(-k*t)/(-Math.expm1(-k));
     };
-    const local=t=>number(c.cap)*normalized(t/w)+number(c.res)*t;
+    const local=t=>number(c.cap)*normalized(t/w);
     return cycles*local(w)+local(remainder);
   }
-  const multiplier = (points, curve) => 1 + curveGain(points,curve)/100;
+  const segmentsFor=(history,limit)=>history?.length?history:[{start:0,limit:number(limit)}];
+  function curveGain(points,curve={},limit=curve.interval??DEFAULT_CURVE.interval,history) {
+    const u=number(points),rate=Math.min(1,number(curve.res??DEFAULT_CURVE.res));
+    const segments=segmentsFor(history,limit);let gain=0;
+    for(let i=0;i<segments.length;i++) {
+      const {start,limit:threshold}=segments[i];if(start>u)break;
+      const end=Math.min(u,segments[i+1]?.start??u),normalEnd=Math.max(start,Math.min(end,threshold));
+      const normal=normalCurveGain(normalEnd-start,curve),full=normalCurveGain(end-start,curve);
+      gain+=normal+(full-normal)*rate;
+    }
+    return gain;
+  }
+  const multiplier = (points, curve, limit, history) => 1 + curveGain(points,curve,limit,history)/100;
+  // A limit edit starts a fresh cycle at each source's current point count.
+  // Repeated input events at the same point replace that departure, while
+  // edits made after moving backward discard the now-unreachable future.
+  function changeLimit(input,value) {
+    const limit=number(value);if(limit===input.limit)return input;
+    const limitHistory={};
+    for(const source of UMBRAS) {
+      const start=number(input.umbras?.[source.key]);
+      const history=segmentsFor(input.limitHistory?.[source.key],input.limit).filter(segment=>segment.start<start);
+      limitHistory[source.key]=[...history,{start,limit}];
+    }
+    return {...input,limit,limitHistory};
+  }
   const defaultUmbraBase = spec => ['timing','projectile'].includes(spec.type) ? null : spec.type==='critical' ? .5 : spec.type==='regen' ? 5/150 : 1;
   function initialState(example=false) {
     return { mode:'concept', level:example ? 51 : 1, limit:REFERENCE_LIMIT, curve:{ ...DEFAULT_CURVE },
@@ -322,15 +347,14 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   // No random input, side effects, game imports or storage. Fixed inputs are
   // never subjected to the acquisition limit; only effect outputs may be capped.
-  function calculate(input) {
-    if(input.mode==='current')return calculateCurrent(input);
+  function calculateNormal(input, sourceLimit=number(input.limit??DEFAULT_CURVE.interval),ratioAt=u=>1+normalCurveGain(u,input.curve)/100) {
     const limit = number(input.limit ?? DEFAULT_CURVE.interval);
     const attributes = Object.fromEntries(ATTRIBUTES.map(a => [a.key,Math.min(limit,number(input.attributes?.[a.key]))]));
-    const umbras = Object.fromEntries(UMBRAS.map(u => [u.key,Math.min(limit,number(input.umbras?.[u.key]))]));
+    const umbras = Object.fromEntries(UMBRAS.map(u => [u.key,Math.min(sourceLimit,number(input.umbras?.[u.key]))]));
     const results = {};
     for (const spec of EFFECTS) {
       const u=umbras[spec.source], fixed=number(input.fixed?.[spec.key]), plus=number(input.plus?.[spec.key]);
-      const active=u>0 || plus>0, m=u>0 ? multiplier(u,input.curve) : 1;
+      const active=u>0 || plus>0, m=u>0 ? ratioAt(u) : 1;
       const attributeBase=spec.attribute ? number(input.attributeBases?.[spec.key] ?? spec.coefficient) : 0;
       const umbraBase=number(input.umbraBases?.[spec.key] ?? defaultUmbraBase(spec));
       const coefficient=active && spec.attribute ? attributeBase*m : 0, umbraCoefficient=umbraBase*m;
@@ -367,6 +391,51 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
         state:u>0 ? 'X' : plus>0 ? '+' : 'normal', capped:uncapped>total, capLoss:nearest(uncapped-total,8) };
     }
     return { mode:'concept', level:Math.max(1,Math.floor(number(input.level))), limit, attributes, umbras, results };
+  }
+  function calculate(input) {
+    if(input.mode==='current')return calculateCurrent(input);
+    const limit=number(input.limit??DEFAULT_CURVE.interval);
+    const normal=calculateNormal(input,0);
+    const umbras=Object.fromEntries(UMBRAS.map(spec=>[spec.key,number(input.umbras?.[spec.key])]));
+    const rate=Math.min(1,number(input.curve?.res??DEFAULT_CURVE.res)),results={};
+    const components=['multiplier','coefficient','umbraCoefficient','attributeRaw','attributeGain','gift','native','nativeBase','nativeRatio','common','generated','points','nativeGain'];
+    for(const source of UMBRAS) {
+      const u=umbras[source.key],specs=EFFECTS.filter(spec=>spec.source===source.key);
+      const segments=segmentsFor(input.limitHistory?.[source.key],limit);
+      let carried=null,anchorMultiplier=1;
+      for(let i=0;i<segments.length;i++) {
+        const {start,limit:threshold}=segments[i];if(start>u)break;
+        const end=Math.min(u,segments[i+1]?.start??u),normalEnd=Math.max(start,Math.min(end,threshold));
+        const ratioAt=x=>anchorMultiplier+normalCurveGain(x-start,input.curve)/100;
+        const sample=x=>{
+          const snapshot=calculateNormal({...input,umbras:{[source.key]:x}},Infinity,ratioAt);
+          for(const spec of specs) { const r=snapshot.results[spec.key];r.nativeGain=['power','resistance','dodge'].includes(spec.type)?ceiling(r.native):r.native; }
+          return snapshot.results;
+        };
+        const origin=sample(start),base=normalEnd===start?origin:sample(normalEnd),full=end===normalEnd?base:sample(end);
+        const previous=carried??origin;carried={};
+        for(const spec of specs) {
+          const a=origin[spec.key],b=base[spec.key],c=full[spec.key],prior=previous[spec.key];
+          const r={...b,u,active:u>0||b.plus>0,normalU:normalEnd,overflow:end-normalEnd,residualRate:rate,
+            segmentStart:start,segmentLimit:threshold,segmentIndex:i,segmentMultiplier:anchorMultiplier};
+          for(const key of components) {
+            const normalValue=prior[key]+Math.max(0,b[key]-a[key]),fullValue=normalValue+Math.max(0,c[key]-b[key]);
+            r[key]=normalValue+(fullValue-normalValue)*rate;
+            const suffix=key[0].toUpperCase()+key.slice(1);
+            r['normal'+suffix]=normalValue;r['full'+suffix]=fullValue;
+            r['start'+suffix]=prior[key];
+          }
+          // All Umbra deltas, including its fixed grant, use the same residual
+          // efficiency. Separate fixed/+ inputs and final effect caps stay apart.
+          r.uncapped=nearest(r.fixed+r.plus+r.gift+r.generated,8);
+          r.total=Math.min(spec.cap??Infinity,r.uncapped);r.capped=r.uncapped>r.total;r.capLoss=nearest(r.uncapped-r.total,8);
+          r.state=u>0?'X':r.plus>0?'+':'normal';carried[spec.key]=r;
+        }
+        anchorMultiplier=carried[specs[0].key].multiplier;
+      }
+      Object.assign(results,carried);
+    }
+    return {...normal,umbras,results};
   }
   // Numerical snapshot of the current local JS. No concept grants, global
   // multiplier or common acquisition cap are applied by this calculator.
@@ -430,7 +499,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, referenceLimit:REFERENCE_LIMIT, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  window.umbraLab = Object.freeze({ calculate, initialState, changeLimit, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, referenceLimit:REFERENCE_LIMIT, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
@@ -472,16 +541,17 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
   const curveControls=[
     ['shape','Intensité / courbure',.5,15,.1],
-    ['res','Gain résiduel (% / point)',0,.02,.0001],
+    ['res','Rendement hors limite (%)',0,2,.01],
     ['mid','Centre de la sigmoïde (%)',10,90,1],
   ];
   function setCurveParameter(key,value,snap=false) {
     const [, ,min,max,step]=curveControls.find(control=>control[0]===key);
     const bounded=Math.max(min,Math.min(max,value));
-    state.curve[key]=snap?Number((min+Math.round((bounded-min)/step)*step).toFixed(12)):bounded;
+    const valueInUnits=snap?Number((min+Math.round((bounded-min)/step)*step).toFixed(12)):bounded;
+    state.curve[key]=key==='res'?valueInUnits/100:valueInUnits;
   }
   const curveHelp={
-    res:'C’est un petit bonus régulier, ajouté en plus des gains de la courbe.\n\nExemple : 0,01 ajoute +1 % tous les 100 points de Vigueur. Si un point de Force vaut 1 PP au départ, ce bonus lui ajoute 0,01 PP.\n\nPlus tu montes ce potard, plus ce petit bonus est grand. À 0, il disparaît.',
+    res:'Ce réglage agit uniquement après la limite.\n\nExemple : au-delà de 200 points, les points suivants donneraient normalement 100 PP de plus. À 1 % de rendement, tu ne gagnes que 1 PP. Avant la limite, ce réglage n’ajoute rien.\n\nIl réduit tous les gains de l’Umbra : ratios, capacité et don fixe. À 0 %, le dépassement ne rapporte rien. Les stats fixes achetées séparément restent illimitées.',
     mid:'Il choisit où se trouvent les gains les plus rapides dans le cycle.\n\nExemple avec un cycle de 200 points de Vigueur :\n• Centre à 50 % : autour de 100 points.\n• Centre à 70 % : autour de 140 points.\n\nPlus tu montes ce potard, plus les gros gains arrivent tard. Le bonus total du cycle reste le même.',
   };
   const shapeHelp={
@@ -500,7 +570,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     $('#curve-settings').append(wrapper);
   }
   for(const [key,label,min,help] of [
-    ['limit','Limite',0,'Fixe le nombre de points d’attribut et d’Umbra utilisables en Concept.\n\nExemple : avec une limite de 100 et 150 points de Force saisis, le calcul retient 100. Les 50 autres restent saisis.\n\nReset revient à la limite de référence commune.'],
+    ['limit','Limite',0,'Fixe le seuil de rendement des Umbras et le plafond des attributs.\n\nExemple : tu as 120 Vigueur et tu passes la limite à 300. La nouvelle courbe part de tes gains à 120 ; le point 121 suit déjà son début. Au-delà de 300, seuls les petits gains résiduels continuent. Chaque Umbra a son propre départ.\n\nLes stats fixes restent illimitées. Reset remet la limite de référence et démarre aussi une nouvelle courbe.'],
     ['level','Niveau',1,'Indique le niveau de l’entité.\n\nExemple : passer de 10 à 20 change son niveau affiché. Aucun point ni bonus automatique n’est ajouté dans cet atelier.\n\nReset revient au niveau 1.'],
   ]) {
     const wrapper=document.createElement('div');wrapper.className='curve-field';
@@ -583,7 +653,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     $('#effects').append(row,detail);
     return true;
   }
-  function withUmbra(key,value) { return {...state,umbras:{...state.umbras,[key]:isConcept()?Math.min(state.limit,value):value}}; }
+  function withUmbra(key,value) { return {...state,umbras:{...state.umbras,[key]:value}}; }
   function formula(row,snapshot) {
     const f=value=>fmt(value,6), n=row.native;
     if(snapshot.mode==='current') {
@@ -597,6 +667,12 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       if(row.type==='regen')return `${f(snapshot.results.HP.total)} HP × ${f(row.nativeRatio*100)} % → ${f(n)} HP (arrondi au plus proche) ; taux : min(Vitalité, 150) / 150 × 5, arrondi à 2 décimales`;
     }
     if(snapshot.mode==='concept') {
+      if(row.overflow>0 || row.segmentIndex>0) {
+        const conversion=['resistance','dodge','projectile'].includes(row.type),base=conversion?row.normalGenerated:row.normalNativeGain,value=conversion?row.generated:row.nativeGain;
+        const full=conversion?row.fullGenerated:row.fullNativeGain;
+        const start=conversion?row.startGenerated:row.startNativeGain;
+        return `${conversion?'Capacité':'Apport natif'} : ${f(start)} au départ + ${f(base-start)} gains normaux${row.overflow>0?` + (${f(full)} − ${f(base)}) × ${f(row.residualRate*100)} % résiduels`:''} = ${f(value)}${row.unit}.`;
+      }
       const scaled=`${f(row.nativeBase)} × ${f(row.multiplier)} → ${f(Lab.ceiling(n,['hp','power','resistance','dodge'].includes(row.type)?0:2))}`;
       if(row.type==='power')return `${names[row.source]} : ${f(row.u)} × base ${f(row.umbraBase)} = ${f(row.nativeBase)} ; ${scaled} (arrondi supérieur)`;
       if(row.type==='resistance' || row.type==='dodge')return `${names[row.source]} : ${f(row.u)} × base ${f(row.umbraBase)} ; ${scaled} ; + ${f(row.attributeGain)} d’attribut = ${f(row.points)} points ; ${row.type==='resistance'?`${f(row.points)} / (${f(row.points)} + 70) × 100`:'courbe d’esquive'} → ${f(row.generated)} %`;
@@ -618,12 +694,13 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     if(snapshot.mode==='current')return currentDetailHTML(row,snapshot);
     const unit=row.unit, f=value=>fmt(value,6);
     const nativeLabel=['resistance','dodge','projectile'].includes(row.type) ? 'Conversion de la capacité' : 'Montant natif';
-    const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} / ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} / ${f(state.limit)}` : ''}`],
+    const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} saisis · seuil ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} retenus` : ''}`],
+      ['Départ de la courbe',`${f(row.segmentStart)} points · M au départ : ×${f(row.segmentMultiplier)} · seuil de ce segment : ${f(row.segmentLimit)} · ${f(row.overflow)} points hors seuil`],
       ['Profil de courbe',`${profileByType[state.curve.type].name} · intensité ${f(state.curve.shape)}${state.curve.type==='sigmoid'?` · centre ${f(state.curve.mid)} %`:''}`],
-      ['Multiplicateur des deux ratios',row.u>0 ? `${Math.floor(row.u/state.curve.interval)} cycle(s) complet(s) + ${f(row.u%state.curve.interval)} points ; gain cumulé ${f(Lab.curveGain(row.u,state.curve))} % ; M(U) = 1 + gain / 100 = ×${f(row.multiplier)}` : '×1 · aucune Umbra active'],
-      ['Don fixe de l’Umbra',`${f(row.u)} × ${f(row.giftRate)} → ${f(row.gift)}${unit}`]];
-    if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
-      [`Contribution de ${names[row.attribute]}`,`${f(row.attributeValue)} × ${f(row.coefficient)} = ${f(row.attributeRaw)} → ${f(row.attributeGain)} (arrondi supérieur)`]);
+      ['Multiplicateur des deux ratios',row.u<=0?'×1 · aucune Umbra active':row.overflow>0?`${f(row.normalMultiplier)} + (${f(row.fullMultiplier)} − ${f(row.normalMultiplier)}) × ${f(row.residualRate*100)} % = ×${f(row.multiplier)}`:`${f(row.segmentMultiplier)} au départ + ${f((row.multiplier-row.segmentMultiplier)*100)} / 100 = ×${f(row.multiplier)}`],
+      ['Don fixe de l’Umbra',row.overflow>0?`${f(row.normalGift)} + (${f(row.fullGift)} − ${f(row.normalGift)}) × ${f(row.residualRate*100)} % = ${f(row.gift)}${unit}`:row.segmentIndex>0?`${f(row.startGift)} au départ + ${f(row.gift-row.startGift)} = ${f(row.gift)}${unit}`:`${f(row.u)} × ${f(row.giftRate)} → ${f(row.gift)}${unit}`]];
+    if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.overflow>0 ? `${f(row.normalCoefficient)} + (${f(row.fullCoefficient)} − ${f(row.normalCoefficient)}) × ${f(row.residualRate*100)} % = ${f(row.coefficient)} · imposé par ${names[row.source]}` : row.segmentIndex>0?`${f(row.startCoefficient)} au départ + ${f(row.coefficient-row.startCoefficient)} = ${f(row.coefficient)} · imposé par ${names[row.source]}`:row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
+      [`Contribution de ${names[row.attribute]}`,row.overflow>0?`${f(row.normalAttributeGain)} + (${f(row.fullAttributeGain)} − ${f(row.normalAttributeGain)}) × ${f(row.residualRate*100)} % = ${f(row.attributeGain)}`:row.segmentIndex>0?`${f(row.startAttributeGain)} au départ + ${f(row.attributeGain-row.startAttributeGain)} = ${f(row.attributeGain)}`:`${f(row.attributeValue)} × ${f(row.coefficient)} = ${f(row.attributeRaw)} → ${f(row.attributeGain)} (arrondi supérieur)`]);
     else lines.push(['Ratio d’attribut',row.type==='regen' ? 'Mécanique native : proportion des HP pilotée uniquement par Vitalité.' : 'Aucun dans cette mécanique.']);
     if(Lab.defaultUmbraBase(row)!==null)lines.push(['Base initiale de l’Umbra',`${f(row.umbraBase)} × M(U) ${f(row.multiplier)} = ${f(row.umbraCoefficient)}${['hp','preparation','precision'].includes(row.type)?' · facteur appliqué à la courbe native':' · coefficient par point'}`]);
     lines.push([nativeLabel,formula(row,snapshot)],['Capacité calculée',`${f(row.generated)}${unit}`],
@@ -650,24 +727,24 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   function progressionHTML(row) {
     const unit=row.unit, f=value=>fmt(value,6);
-    const stops=[...new Set([0,1,5,15,25,50,100,150,...(isConcept()?[state.limit]:[]),row.u].filter(value=>!isConcept()||value<=state.limit))].sort((a,b)=>a-b);
-    const progression=stops.map(points=>{const target=Lab.calculate(withUmbra(row.source,points)).results[row.key];return `<tr data-current="${points===row.u}"><td>${f(points)}</td><td>×${f(target.multiplier)}</td><td>${target.attribute ? f(target.coefficient) : '—'}</td><td>${fmt(target.total)}${unit}</td></tr>`;}).join('');
+    const stops=[...new Set([0,1,5,15,25,50,100,150,...(isConcept()?[state.limit,state.limit+1,state.limit+state.curve.interval]:[]),row.u])].sort((a,b)=>a-b);
+    const progression=stops.map(points=>{const target=Lab.calculate(withUmbra(row.source,points)).results[row.key];return `<tr data-current="${points===row.u}"><td>${f(points)}</td><td>×${f(target.multiplier)}</td><td>${target.attribute ? f(target.coefficient) : '—'}</td><td>${f(target.total)}${unit}</td></tr>`;}).join('');
     let comparison='';
     if(row.key==='physicalDamage') {
       const plus=Lab.calculate({...state,plus:{...state.plus,physicalDamage:row.plus+10}}).results.physicalDamage;
-      const added=isConcept()?Math.min(10,Math.max(0,state.limit-row.u)):10;
+      const added=10;
       const umbra=Lab.calculate(withUmbra('vigueur',row.u+added)).results.physicalDamage;
-      comparison=`<div class="compare">À partir de ${fmt(row.total)} PP : <strong>+10 PP+ → ${fmt(plus.total)} PP</strong> (+${fmt(plus.total-row.total)}) · <strong>+${fmt(added)} Vigueur → ${fmt(umbra.total)} PP</strong> (+${fmt(umbra.total-row.total)}).${added<10 ? ' Ajout de Vigueur limité par le plafond.' : ''}</div>`;
+      comparison=`<div class="compare">À partir de ${fmt(row.total,6)} PP : <strong>+10 PP+ → ${fmt(plus.total,6)} PP</strong> (+${fmt(plus.total-row.total,6)}) · <strong>+${fmt(added)} Vigueur → ${fmt(umbra.total,6)} PP</strong> (+${fmt(umbra.total-row.total,6)}).</div>`;
     }
     return `${comparison}<details data-detail-panel="progression-${row.key}"><summary>Progression de ${names[row.source]}</summary><table class="milestones"><caption>Autres saisies constantes · ${isConcept()?'Concept':'Version actuelle'}</caption><thead><tr><th>Points</th><th>M(U)</th><th>Coefficient</th><th>Total</th></tr></thead><tbody>${progression}</tbody></table></details>`;
   }
   function entryDetail(item,snapshot) {
     if(item.kind==='umbra') {
       const effects=Object.values(snapshot.results).filter(row=>row.source===item.key);
-      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]} · niveau 1</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(Lab.multiplier(snapshot.umbras[item.key],state.curve),6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} · contribution : ${fmt(Lab.contributions(row,snapshot.mode).umbra)}${row.unit}</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
+      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]} · niveau 1</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(effects[0].multiplier,6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} · contribution : ${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
     }
     const row=snapshot.results[item.key], part=Lab.contributions(row,snapshot.mode)[item.kind];
-    return `<p class="description">${item.kind==='x'?'Capacité déjà comprise dans '+names[row.source]:'Contribution de cette ligne'} : ${fmt(part)}${row.unit}.</p>${detailHTML(row,snapshot)}`;
+    return `<p class="description">${item.kind==='x'?'Capacité déjà comprise dans '+names[row.source]:'Contribution de cette ligne'} : ${fmt(part,6)}${row.unit}.</p>${detailHTML(row,snapshot)}`;
   }
   function selectedEffectKeys() {
     const watched=new Set();
@@ -710,19 +787,17 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       const row=snapshot.results[spec.key], parts=Lab.contributions(row,snapshot.mode);
       const box=document.createElement('div'); box.className='stat-total'; box.dataset.statSummary=spec.key;
       const label=document.createElement('span'); label.textContent=labels[spec.key]||`${spec.name} · total`;
-      const output=document.createElement('output'); output.dataset.statTotal=spec.key; output.textContent=`${fmt(row.total)}${row.unit}`;
+      const output=document.createElement('output'); output.dataset.statTotal=spec.key; output.textContent=`${fmt(row.total,6)}${row.unit}`;
       output.setAttribute('aria-label',label.textContent);
       const detail=document.createElement('small'); detail.dataset.breakdown=spec.key;
-      detail.textContent=`Fixe ${fmt(parts.fixed)} + Stat+ ${fmt(parts.plus)} + ${names[row.source]} ${fmt(parts.umbra)}${row.unit}${row.capped?' · plafond atteint':''}`;
+      detail.textContent=`Fixe ${fmt(parts.fixed,6)} + Stat+ ${fmt(parts.plus,6)} + ${names[row.source]} ${fmt(parts.umbra,6)}${row.unit}${row.capped?' · plafond atteint':''}`;
       box.append(label,output,detail); totals.append(box);
     }
   }
   function curveSample(points,snapshot) {
     const source=snapshot.results[curveEffect].source;
-    // Beyond the red limit, project a common-cap unlock while keeping the
-    // other effective inputs constant. No projected value is stored in state.
-    return Lab.calculate({...state,limit:Math.max(state.limit,points),attributes:snapshot.attributes,
-      umbras:{...snapshot.umbras,[source]:points}}).results[curveEffect];
+    // Keep the actual threshold: excess points use residual efficiency.
+    return Lab.calculate({...state,umbras:{...state.umbras,[source]:points}}).results[curveEffect];
   }
   function drawCurve() {
     const canvas=$('#curve-chart'), rect=canvas.getBoundingClientRect();
@@ -733,21 +808,29 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
     const L=55,R=20,T=24,B=37, n=row.u, interval=state.curve.interval;
     const X=Math.max(4*interval,Math.ceil(Math.max(state.limit,n)/interval)*interval);
-    const value=x=>curveView==='ratio'?(isConcept()?Lab.multiplier(x,state.curve):1):curveSample(x,snapshot).total;
+    const history=isConcept()?(state.limitHistory?.[row.source]||[]):[];
+    const value=x=>curveView==='ratio'?(isConcept()?Lab.multiplier(x,state.curve,state.limit,history):1):curveSample(x,snapshot).total;
     const current=curveView==='ratio'?row.multiplier:row.total;
-    const samples=Array.from({length:181},(_,i)=>{const x=X*i/180;return [x,value(x)];});
+    const samples=[...new Set([...Array.from({length:181},(_,i)=>X*i/180),state.limit,n,...history.flatMap(segment=>[segment.start,segment.limit])])].filter(x=>x<=X).sort((a,b)=>a-b).map(x=>[x,value(x)]);
     const Y=Math.max(1,current,...samples.map(p=>p[1]))*1.12;
     const px=x=>L+x/X*(W-L-R),py=y=>H-B-y/Y*(H-T-B);
     canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(state.limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;canvas.dataset.profile=state.curve.type;
+    canvas.dataset.departure=String(row.segmentStart??0);
     canvas.setAttribute('aria-label',`${curveView==='ratio'?'Multiplicateur des ratios':'Total '+row.name} : ${fmt(current,4)} à ${fmt(n)} points de ${names[row.source]}. Limite ${fmt(state.limit)}. ${isConcept()?'Concept':'Version actuelle'}.`);
     ctx.font='11px system-ui'; ctx.fillStyle='#a8b4bc'; ctx.textAlign='right';
     for(let i=0;i<=4;i++) { const y=Y*i/4; ctx.beginPath();ctx.strokeStyle='#343e46';ctx.lineWidth=1;ctx.moveTo(L,py(y));ctx.lineTo(W-R,py(y));ctx.stroke();ctx.fillText(fmt(y,curveView==='ratio'?2:0),L-7,py(y)+4); }
     ctx.textAlign='left';ctx.fillText(curveView==='ratio'?'M(U) · ×':'Total'+row.unit,L,13);
     ctx.textAlign='center';
     const cycles=Math.round(X/interval),skip=Math.max(1,Math.ceil(cycles/Math.max(2,Math.floor((W-L-R)/75))));
-    for(let j=0;j<=cycles;j+=skip) { const x=j*interval;ctx.beginPath();ctx.strokeStyle='#e1a65755';ctx.setLineDash([4,5]);ctx.moveTo(px(x),T);ctx.lineTo(px(x),H-B);ctx.stroke();ctx.setLineDash([]);ctx.fillText(fmt(x,0),px(x),H-20); }
+    const spans=history.length?history:[{start:0}];
+    for(let i=0;i<spans.length;i++)for(let x=spans[i].start;x<=Math.min(X,spans[i+1]?.start??X);x+=skip*interval) {
+      ctx.beginPath();ctx.strokeStyle='#e1a65755';ctx.setLineDash([4,5]);ctx.moveTo(px(x),T);ctx.lineTo(px(x),H-B);ctx.stroke();ctx.setLineDash([]);ctx.fillText(fmt(x,0),px(x),H-20);
+    }
     ctx.fillText(`Points de ${names[row.source]}`,L+(W-L-R)/2,H-3);
     ctx.beginPath();ctx.strokeStyle='#ed836f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.moveTo(px(state.limit),T);ctx.lineTo(px(state.limit),H-B);ctx.stroke();ctx.setLineDash([]);
+    if(isConcept())for(const {start} of history)if(start>0) {
+      ctx.beginPath();ctx.strokeStyle='#8db8ff';ctx.lineWidth=1.5;ctx.setLineDash([2,3]);ctx.moveTo(px(start),T);ctx.lineTo(px(start),H-B);ctx.stroke();ctx.setLineDash([]);
+    }
     function line(points,dashed) {
       ctx.beginPath();ctx.strokeStyle=dashed?'#21bea977':'#21bea9';ctx.lineWidth=2.5;ctx.setLineDash(dashed?[6,5]:[]);
       points.forEach(([x,y],i)=>i?ctx.lineTo(px(x),py(y)):ctx.moveTo(px(x),py(y)));ctx.stroke();ctx.setLineDash([]);
@@ -760,9 +843,9 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const row=snapshot.results[curveEffect], source=row.source;
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
     $('#curve-profile').value=state.curve.type;
-    $('#curve-common-rules').textContent=`Cycle : ${fmt(balance.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ, hors gain résiduel. Réglables dans les paramètres communs d’équilibrage, en haut de page.`;
+    $('#curve-common-rules').textContent=`Cycle normal : ${fmt(balance.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ. Au-delà de la limite : rendement ${fmt(state.curve.res*100,4)} %.`;
     for(const [key,,min,,step] of curveControls) {
-      const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key];
+      const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key]*(key==='res'?100:1);
       // Keep precise typed values on the slider, while retaining its usual
       // increments when the value falls on a step of the original control.
       const ticks=(value-min)/step;
@@ -772,13 +855,15 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     }
     root.querySelector('[data-curve="mid"]').closest('.curve-field').hidden=state.curve.type!=='sigmoid';
     root.querySelector('[data-curve-help="shape"]').textContent=shapeHelp[state.curve.type];
+    $('#curve-softcap').textContent=isConcept()?`${names[source]} : départ de la courbe à ${fmt(row.segmentStart)} points${row.segmentIndex>0?' (repère bleu)':''} · seuil ${fmt(row.segmentLimit)}. ${fmt(row.overflow)} point${row.overflow>1?'s':''} hors seuil : ${fmt(row.residualRate*100,4)} % des gains supplémentaires conservés. La projection conserve cette limite.`:'Projection selon les JS actuels ; aucun rendement résiduel du Concept n’est appliqué.';
     $('#curve-context').textContent=isConcept()?`${profileByType[state.curve.type].description} Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Version actuelle : la courbe et les chiffres suivent les JS du jeu. Le profil et ses réglages sont conservés et s’appliquent en Concept.';
-    $('#curve-attribute').textContent=row.attribute?`${names[row.attribute]} × ${fmt(row.coefficient,4)} → ${fmt(row.attributeGain)}${row.unit}`:'Aucun ratio d’attribut';
-    const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(isConcept()?row.umbraCoefficient:1,4)} → ${fmt(isConcept()?Lab.ceiling(row.native):row.native)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,4)} % → ${fmt(row.native)} HP`:`${fmt(row.native)}${row.unit}`;
-    $('#curve-native').textContent=nativeRatio;
-    $('#curve-total').textContent=`${fmt(row.total)}${row.unit} · ${row.name}`;
+    const adjusted=isConcept()&&(row.overflow>0||row.segmentIndex>0);
+    $('#curve-attribute').textContent=row.attribute?adjusted?`${names[row.attribute]} : ratio ×${fmt(row.coefficient,6)} · apport retenu ${fmt(row.attributeGain,6)}${row.unit}`:`${names[row.attribute]} × ${fmt(row.coefficient,6)} → ${fmt(row.attributeGain,6)}${row.unit}`:'Aucun ratio d’attribut';
+    const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(isConcept()?row.umbraCoefficient:1,6)} → ${fmt(isConcept()?row.nativeGain:row.native,6)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,6)} % → ${fmt(row.native,6)} HP`:`${fmt(row.native,6)}${row.unit}`;
+    $('#curve-native').textContent=adjusted?`${names[source]} : apport natif retenu ${fmt(row.nativeGain,6)}${row.unit} · don fixe ${fmt(row.gift,6)}${row.unit}`:nativeRatio;
+    $('#curve-total').textContent=`${fmt(row.total,6)}${row.unit} · ${row.name}`;
     const next=curveSample(row.u+1,snapshot);
-    $('#curve-next').textContent=`+1 ${names[source]}${isConcept()&&row.u>=state.limit?' après augmentation de la limite':''} : ${fmt(next.total)}${row.unit} au total (+${fmt(next.total-row.total,4)}). Don fixe actuel : ${fmt(row.gift)}${row.unit}.`;
+    $('#curve-next').textContent=`+1 ${names[source]}${isConcept()&&row.u>=row.segmentLimit?' au rendement résiduel':''} : ${fmt(next.total,6)}${row.unit} au total (+${fmt(next.total-row.total,6)}). Don fixe actuel : ${fmt(row.gift,6)}${row.unit}.`;
     drawCurve();
   }
   function powerPlusSummary(row,snapshot) {
@@ -828,17 +913,18 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       const ratio=tr.querySelector('.ratio-summary'), total=tr.querySelector('.total');
       if(item.kind==='umbra') {
         const u=snapshot.umbras[item.key];
-        ratio.innerHTML=isConcept()?`M(U) = ×${fmt(Lab.multiplier(u,state.curve),4)}<small>${fmt(u)} / ${fmt(state.limit)} points retenus</small>`:'Ratios des JS actuels<small>Sans multiplicateur global</small>';
-        total.innerHTML=Object.values(snapshot.results).filter(row=>row.source===item.key).map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra)}${row.unit}<small>${row.name}</small></span>`).join('');
+        const sourceRow=Object.values(snapshot.results).find(row=>row.source===item.key);
+        ratio.innerHTML=isConcept()?`M(U) = ×${fmt(sourceRow.multiplier,6)}<small>Départ ${fmt(sourceRow.segmentStart)} · seuil ${fmt(sourceRow.segmentLimit)} · ${fmt(sourceRow.overflow)} hors limite à ${fmt(sourceRow.residualRate*100,4)} %</small>`:'Ratios des JS actuels<small>Sans multiplicateur global</small>';
+        total.innerHTML=Object.values(snapshot.results).filter(row=>row.source===item.key).map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}<small>${row.name}</small></span>`).join('');
       } else {
         const row=snapshot.results[item.key];
         const coefficient=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}` : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %` : 'Montant calculé';
         if(item.kind==='fixed')ratio.textContent=`+${fmt(row.fixed)}${row.unit} directs`;
         if(item.kind==='plus')ratio.innerHTML=row.type==='power'?powerPlusSummary(row,snapshot):`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
-        if(item.kind==='x')ratio.innerHTML=row.u>0 && row.active?`Capacité : ${fmt(row.generated)}${row.unit}<small>${coefficient} · ${names[row.source]}</small>`:!isConcept() && row.type==='critical'?'Inactive · nécessite Dégâts critiques +':`Inactive · nécessite ${names[row.source]}`;
+        if(item.kind==='x')ratio.innerHTML=row.u>0 && row.active?`Capacité : ${fmt(row.generated,6)}${row.unit}<small>${coefficient} · ${names[row.source]}</small>`:!isConcept() && row.type==='critical'?'Inactive · nécessite Dégâts critiques +':`Inactive · nécessite ${names[row.source]}`;
         if(!isConcept() && !row.supportsDirect && item.kind!=='x')ratio.textContent='Aucun apport direct équivalent dans les JS actuels';
         const parts=Lab.contributions(row,snapshot.mode);
-        total.textContent=`${fmt(parts[item.kind])}${row.unit}`;
+        total.textContent=`${fmt(parts[item.kind],6)}${row.unit}`;
         if(item.kind==='x') { const note=document.createElement('small'); note.textContent=`Déjà compris dans ${names[row.source]}`; total.append(note); }
         total.title=row.capped?`Part retenue après le plafond de ${row.cap}${row.unit}`:'';
       }
@@ -856,7 +942,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     if(input.matches('.entity-name')) { root.setAttribute('aria-label',input.value.trim()||`Entité ${serial}`); return; }
     if(input.matches('.picker input')) { filterPicker(input.closest('.picker')); return; }
     if(input.dataset.entitySetting) {
-      const key=input.dataset.entitySetting;state[key]=key==='level'?Math.max(1,Math.floor(readNumber(input))):readNumber(input);render();return;
+      const key=input.dataset.entitySetting;if(key==='limit')state=Lab.changeLimit(state,readNumber(input));else state.level=Math.max(1,Math.floor(readNumber(input)));render();return;
     }
     if(input.dataset.curve) { setCurveParameter(input.dataset.curve,readNumber(input),true); render(); return; }
     if(input.dataset.curveNumber) {
@@ -873,8 +959,8 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       state[group][key]=value;
       if(state[group][key]!==Number(input.value))input.value=state[group][key];
     } else if(input.dataset.ui==='limit') {
-      state.limit=value;
-      $('#status').textContent='Limite du calcul Concept modifiée. Toutes les saisies sont conservées.';
+      state=Lab.changeLimit(state,value);
+      $('#status').textContent='Limite modifiée : chaque Umbra commence sa nouvelle courbe dès le point suivant. Saisies conservées.';
     } else if(input.dataset.ui==='level')state.level=Math.max(1,Math.floor(value));
     render();
   });
@@ -883,7 +969,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     if(input.dataset.curveNumber) {
       const key=input.dataset.curveNumber;
       if(input.value!=='' && Number.isFinite(input.valueAsNumber))setCurveParameter(key,input.valueAsNumber);
-      input.value=state.curve[key];render();return;
+        input.value=state.curve[key]*(key==='res'?100:1);render();return;
     }
     if(input.dataset.ui==='curve-profile') { state.curve=profileSettings[input.value];render();return; }
     if(input.dataset.ui==='curve-effect') { curveEffect=input.value;render();return; }
@@ -903,7 +989,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   root.addEventListener('click',event=>{
     const button=event.target.closest('button'); if(!button)return;
     if(button.dataset.resetSetting) {
-      const key=button.dataset.resetSetting;state[key]=key==='limit'?balance.referenceLimit:1;
+      const key=button.dataset.resetSetting;if(key==='limit')state=Lab.changeLimit(state,balance.referenceLimit);else state.level=1;
       root.querySelector(`[data-entity-setting="${key}"]`).max=key==='limit'?Math.max(1,balance.referenceLimit*4):100;
       render();$('#status').textContent=key==='limit'?`Limite réinitialisée à ${fmt(state.limit)} points.`:'Niveau réinitialisé à 1.';
     }
