@@ -65,6 +65,7 @@ td input { width:65px!important; } .effect-name { border:0; background:transpare
 .source-name { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
 .ratio { font-size:12px; max-width:350px; } .ratio small { display:block; font-size:11px; }
 .ratio-breakdown { display:grid; gap:4px; } .ratio-breakdown strong { color:var(--gold); font-weight:600; }
+.umbra-breakdown { margin-top:10px; } .umbra-breakdown + .umbra-breakdown { padding-top:10px; border-top:1px solid var(--line); }
 .base-settings { display:grid; gap:7px; margin-top:9px; padding-top:7px; border-top:1px solid var(--line); }
 .base-settings label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 8px; }
 .base-settings label span { flex:1 1 130px; overflow-wrap:anywhere; }
@@ -884,6 +885,39 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     } else lines.push(`Bonus de ${attribute} inactif : aucun point de stat +.`,`<strong>Contribution : 0 ${unit}</strong>`);
     return `<div class="ratio-breakdown">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
   }
+  function umbraSummary(row,snapshot) {
+    const f=value=>fmt(value,6),concept=snapshot.mode==='concept',parts=Lab.contributions(row,snapshot.mode);
+    const unit=' '+({physicalDamage:'PP',magicalDamage:'PM',piercingDamage:'puissance perçante',HP:'HP'}[row.key]||row.unit.trim()||'points');
+    const adjusted=concept&&(row.overflow>0||row.segmentIndex>0),lines=[`<b>${row.name}</b>`];
+    const rounded=(raw,result,rule)=>`${f(raw)}${Math.abs(raw-result)>1e-8?` → ${f(result)} (arrondi ${rule})`:''}`;
+    const retained=key=>{
+      const suffix=key[0].toUpperCase()+key.slice(1),start=row['start'+suffix],normal=row['normal'+suffix],full=row['full'+suffix];
+      return `${f(start)} au départ + ${f(normal-start)} normaux${row.overflow>0?` + (${f(full)} − ${f(normal)}) × ${f(row.residualRate*100)} % résiduels`:''} = ${f(row[key])}`;
+    };
+    if(row.u>0&&row.active) {
+      if(row.attribute) {
+        const used=row.attributeUsed??row.attributeValue;
+        const factors=concept?`${f(used)} × ${f(row.attributeBase)} × ${f(row.multiplier)}`:`${f(used)} × ${f(row.coefficient)}`;
+        lines.push(`${names[row.attribute]} : ${adjusted?retained('attributeGain'):`${factors} = ${rounded(row.attributeRaw,row.attributeGain,concept?'supérieur':'au plus proche')}`}${['resistance','dodge'].includes(row.type)?' points':unit}${!concept&&row.type==='critical'?' · compris dans la stat+':''}`);
+      }
+      if(concept&&row.type==='power') {
+        lines.push(`${names[row.source]} : ${adjusted?retained('nativeGain'):`${f(row.u)} × ${f(row.umbraBase)} × ${f(row.multiplier)} = ${rounded(row.native,row.nativeGain,'supérieur')}`}${unit}`);
+      } else lines.push(`Capacité : ${formula(row,snapshot)}`);
+      if(!concept&&row.common)lines.push(`Base native : ${f(row.common)}${unit}${row.type==='critical'?' · comprise dans la stat+':''}`);
+      if(concept)lines.push(`Don fixe de l’Umbra : ${adjusted?retained('gift'):`${f(row.u)} × ${f(row.giftRate)} = ${rounded(row.u*row.giftRate,row.gift,'supérieur')}`}${unit}`);
+      const shared=!concept&&row.type==='critical'?row.common+row.attributeGain:0;
+      const adjustment=concept?0:row.roundingAdjustment;
+      const rawClaim=row.generated+row.gift+adjustment-shared,claim=Math.max(0,rawClaim);
+      let sum=concept&&row.type==='power'?`${f(row.attributeGain)} + ${f(row.nativeGain)} + ${f(row.gift)}`:`${f(row.generated)}${concept?` + ${f(row.gift)}`:''}`;
+      if(shared)sum+=` − ${f(shared)} déjà compris dans la stat+`;
+      if(adjustment)sum+=` ${adjustment<0?'−':'+'} ${f(Math.abs(adjustment))} d’arrondi final`;
+      if(rawClaim<0)sum=`max(0 ; ${sum})`;
+      lines.push(`<strong>Contribution de la ligne : ${sum} = ${f(claim)}${unit}</strong>`);
+      if(Math.abs(claim-parts.umbra)>1e-7)lines.push(`Après le plafond de ${f(row.cap)}${unit} : ${f(parts.umbra)}${unit} retenus pour cette ligne.`);
+    } else lines.push('Aucun apport de l’Umbra : capacité inactive.','<strong>Contribution de la ligne : 0'+unit+'</strong>');
+    if(parts.fixed||parts.plus)lines.push(`Total de l’entité : ${f(parts.fixed)} fixe + ${f(parts.plus)} stat+ + ${f(parts.umbra)} ${names[row.source]} = <strong>${f(row.total)}${unit}</strong>`);
+    return `<div class="ratio-breakdown umbra-breakdown" data-umbra-breakdown="${row.key}">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
+  }
   function render() {
     const snapshot=Lab.calculate(state);
     $('#mode-name').textContent=isConcept()?'Concept':'Version actuelle';
@@ -912,10 +946,10 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       title.setAttribute('aria-expanded',String(open.has(item.id)));
       const ratio=tr.querySelector('.ratio-summary'), total=tr.querySelector('.total');
       if(item.kind==='umbra') {
-        const u=snapshot.umbras[item.key];
-        const sourceRow=Object.values(snapshot.results).find(row=>row.source===item.key);
+        const effects=Object.values(snapshot.results).filter(row=>row.source===item.key),sourceRow=effects[0];
         ratio.innerHTML=isConcept()?`M(U) = ×${fmt(sourceRow.multiplier,6)}<small>Départ ${fmt(sourceRow.segmentStart)} · seuil ${fmt(sourceRow.segmentLimit)} · ${fmt(sourceRow.overflow)} hors limite à ${fmt(sourceRow.residualRate*100,4)} %</small>`:'Ratios des JS actuels<small>Sans multiplicateur global</small>';
-        total.innerHTML=Object.values(snapshot.results).filter(row=>row.source===item.key).map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}<small>${row.name}</small></span>`).join('');
+        ratio.innerHTML+=effects.map(row=>umbraSummary(row,snapshot)).join('');
+        total.innerHTML=effects.map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}<small>${row.name}</small></span>`).join('');
       } else {
         const row=snapshot.results[item.key];
         const coefficient=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}` : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %` : 'Montant calculé';

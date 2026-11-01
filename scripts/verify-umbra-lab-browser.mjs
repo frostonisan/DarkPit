@@ -437,6 +437,29 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('.detail-row:visible').count(), 0, 'Calculations remain collapsed by default');
     equal(await page.locator('.picker[open]').count(), 0, 'Selection closes its dropdown');
 
+    // The Umbra row explains the reported nine PP without opening a helper.
+    await page.locator('#example').click();await fill('attributes','strength',10);await fill('umbras','vigueur',1);await setCurve(page,'shape',6);
+    const inlinePP=page.locator('[data-ratio="umbra-vigueur"] [data-umbra-breakdown="physicalDamage"]');
+    equal(await total('x-physicalDamage'),'9','One Vigueur with Force ten has nine PP after the separate upward roundings');
+    const inlineText=await inlinePP.innerText();
+    check(inlineText.includes('Force : 10 × 0,5 ×'),'Inline Umbra calculation shows the attribute value, base and multiplier');
+    check(inlineText.includes('→ 6 (arrondi supérieur) PP'),'Force contribution explains its upward rounding');
+    check(inlineText.includes('→ 2 (arrondi supérieur) PP'),'Vigueur contribution explains its upward rounding');
+    check(inlineText.includes('Don fixe de l’Umbra : 1 × 1 = 1 PP'),'Umbra fixed grant is explicit');
+    check(inlineText.includes('Contribution de la ligne : 6 + 2 + 1 = 9 PP'),'The three parts reconcile to the displayed nine PP');
+    await page.locator('[data-entry="umbra-vigueur"]').screenshot({path:resolve(output,'umbra-inline-nine-pp.png')});
+    await fill('fixed','physicalDamage',3);await fill('plus','physicalDamage',5);
+    check((await inlinePP.innerText()).includes('Total de l’entité : 3 fixe + 5 stat+ + 9 Vigueur = 17 PP'),'Inline total includes separate fixed and plus inputs exactly once');
+    await page.locator('#mode-toggle').click();
+    check((await inlinePP.innerText()).includes('Contribution de la ligne : 6 = 6 PP'),'Current mode explains its own native contribution');
+    check(!(await inlinePP.innerText()).includes('arrondi supérieur'),'Current mode does not inherit Concept rounding explanations');
+    await page.locator('#mode-toggle').click();
+    await fill('umbras','vigueur',201);
+    check((await inlinePP.innerText()).includes('% résiduels'),'Inline breakdown explains the residual gains after the threshold');
+    check(!/undefined|NaN|Infinity/.test(await inlinePP.innerText()),'Overflow breakdown contains valid numeric details');
+    await page.locator('#limit').fill('400');await fill('umbras','vigueur',202);
+    check((await inlinePP.innerText()).includes('au départ'),'A restarted curve explains the carried amounts in the row');
+
     await page.locator('#example').click();
     equal(await page.locator('[data-entry]').count(), 4, 'Example adds four stat and Umbra rows');
     equal(await total('x-physicalDamage'), '81', 'Example uses both progressive ratios');
@@ -745,6 +768,10 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#mode-toggle').click();
     check(!/undefined|NaN|Infinity/.test(await page.locator('#effects').textContent()), 'Every current-mode detail renders correctly');
     equal(JSON.stringify(await sharedEditor()), JSON.stringify(allEntriesEditor), 'All 54 entries keep identical editable controls in current mode');
+    await fill('umbras','precision',.01);await fill('plus','criticalDamage',.01);
+    const tinyCritical=await page.locator('[data-ratio="umbra-precision"] [data-umbra-breakdown="criticalDamage"]').innerText();
+    check(!/NaN|undefined/.test(tinyCritical)&&tinyCritical.includes('max(0 ;'),'Current fractional rounding explains the zero floor without inventing an effect cap');
+    await fill('umbras','precision',0);await fill('plus','criticalDamage',0);
     check(await field('fixed', 'precisionReduction').isEnabled(), 'Direct precision input stays editable even without a current formula');
     const currentPrecision = await total('fixed-precisionReduction');
     await fill('fixed', 'precisionReduction', 7);
