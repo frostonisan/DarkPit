@@ -179,7 +179,6 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <button type="button" id="mode-toggle" aria-pressed="false" aria-label="Passer à la version actuelle">Calculs : <strong id="mode-name">Concept</strong> ⇄</button>
   </div>
   <p class="notice">Mêmes éléments et mêmes saisies dans les deux modes. Seuls les calculs appliqués changent.</p>
-  <section class="pickers" aria-label="Ajouter au tableau" id="pickers"></section>
   <details class="curve-panel" open>
     <summary>Courbe des ratios · progression par cycles</summary>
     <div class="controls">
@@ -200,7 +199,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   </details>
   <section aria-label="Calcul des statistiques">
     <div class="stat-totals" id="stat-totals" aria-label="Totaux des statistiques"></div>
-    <p class="empty" id="empty">Choisissez un élément dans une liste pour l’ajouter au tableau.</p>
+    <section class="pickers" aria-label="Ajouter au tableau" id="pickers"></section>
     <div class="attribute-inputs" id="attribute-inputs" aria-label="Attributs de l’entité"></div>
     <div class="table-wrap">
       <table id="effects-table" hidden>
@@ -800,7 +799,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       const {group,key,delta}=button.dataset, value=state[group][key]||0;
       button.disabled=Number(delta)<0 && value<=0;
     }
-    $('#empty').hidden=selected.size>0; $('#effects-table').hidden=selected.size===0;
+    $('#effects-table').hidden=selected.size===0;
     for(const button of root.querySelectorAll('[data-add]'))button.querySelector('small').textContent=selected.has(button.dataset.add)?'Ajouté':'';
     renderStatTotals(snapshot);
     renderCurve(snapshot);

@@ -335,7 +335,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('#curve-points, #curve-position, [data-curve-add], #curve-fill, #curve-unlock, #curve-reset').count(),0,'Old curve point controls and action buttons are removed');
     equal(await page.locator('[data-entity-setting]').count(),2,'Limit and level each have a gauge');
     equal(await page.locator('[data-entry]').count(), 0, 'No initial rows or default acquisitions');
-    check(await page.locator('#empty').isVisible(), 'Empty state guides selection');
+    check(await page.locator('section[aria-label="Calcul des statistiques"] > #pickers').isVisible(), 'Stat choices are directly available in the table area');
     equal(await page.locator('.picker[open]').count(), 0, 'Dropdowns begin closed');
     await page.screenshot({ path: resolve(output, 'empty.png'), fullPage: true });
     const statsPicker = page.locator('[data-catalog="stats"]');
@@ -599,7 +599,7 @@ if (!process.argv.includes('--model-only')) {
     await remove('fixed-physicalDamage');
     equal(await total('x-physicalDamage'), '0', 'No orphan fixed contribution remains after removal');
     await page.locator('#clear').click();
-    check(await page.locator('#empty').isVisible(), 'Clear restores empty state');
+    check(await page.locator('#pickers').isVisible() && await page.locator('#effects-table').isHidden(), 'Clear keeps stat choices available above the empty table');
     equal(await page.locator('[data-entry]').count(), 0, 'Clear removes every selected row');
 
     await add('umbras', 'umbra-vitality', 'vitalite');
@@ -792,7 +792,7 @@ if (!process.argv.includes('--model-only')) {
     check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Multiple entities do not overflow on mobile');
     await page.screenshot({path:resolve(output,'multiple-entities-mobile.png'),fullPage:true});
     await first.locator('[data-ui="clear"]').click();
-    check(await first.locator('[data-ui="empty"]').isVisible(),'Clear only empties its own entity');
+    check(await first.locator('[data-ui="pickers"]').isVisible() && await first.locator('[data-ui="effects-table"]').isHidden(),'Clear only empties its own entity and preserves its stat choices');
     equal(await first.locator('.entity-name').inputValue(),'Porc Vigueur','Clear preserves the entity name');
     equal(await entityTotal(second),'68','Clearing another entity leaves the second build untouched');
     await first.locator('[data-remove-entity]').click();
