@@ -59,6 +59,11 @@ th:first-child,td:first-child { padding-left:0; }
 td input { width:65px!important; } .effect-name { border:0; background:transparent; padding:0; text-align:left; font-weight:500; color:var(--text); text-decoration:underline dotted #71808b; text-underline-offset:4px; }
 .source-name { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
 .ratio { font-size:12px; max-width:350px; } .ratio small { display:block; font-size:11px; }
+.base-settings { display:grid; gap:7px; margin-top:9px; padding-top:7px; border-top:1px solid var(--line); }
+.base-settings label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 8px; }
+.base-settings label span { flex:1 1 130px; overflow-wrap:anywhere; }
+.base-settings input { flex:0 0 86px; width:86px!important; }
+.base-settings:empty { display:none; }
 .total { font-size:15px; font-weight:600; color:var(--gold); } .total small { display:block; font-size:11px; font-weight:400; color:var(--muted); }
 .total span { display:block; } .remove { padding:3px 9px; color:var(--muted); font-size:18px; }
 .detail-row[hidden] { display:none; } .detail-row td { padding:12px 14px; background:var(--panel); }
@@ -156,7 +161,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <p class="empty" id="empty">Choisissez un élément dans une liste pour l’ajouter au tableau.</p>
     <div class="table-wrap">
       <table id="effects-table" hidden>
-        <caption>Apport de chaque ligne. Les vues X sont déjà comprises dans l’Umbra. Cliquez sur un nom pour le détail.</caption>
+        <caption>Apport de chaque ligne. Les vues X sont déjà comprises dans l’Umbra. Cliquez sur un nom pour le détail. Les bases sont réglables par statistique et par entité ; elles s’appliquent au Concept et se synchronisent entre les lignes d’une même stat.</caption>
         <thead><tr><th scope="col">Élément</th><th scope="col">Points</th><th scope="col">Ratio / effet</th><th scope="col">Contribution de la ligne</th><th scope="col"><span class="muted">Retirer</span></th></tr></thead>
         <tbody id="effects"></tbody>
       </table>
@@ -173,6 +178,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       <li>Pour un intervalle W : k = 4 × stagnation × 600 / douceur ; g(x) = plafond × (1 − exp(−k × x/W)) / (1 − exp(−k)) + résiduel × x. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
       <li>L’intervalle définit la longueur des cycles ; la limite commune définit les points utilisables. Débloquer ajoute un intervalle à la limite sans changer la courbe acquise. Modifier l’intervalle recalcule la courbe et conserve la limite saisie.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
+      <li>Les bases initiales se règlent dans les lignes choisies. La base d’attribut est propre à chaque statistique (Force pour la PP, Force pour l’exécution, etc.). La base d’Umbra règle son apport par point ; pour les HP, la préparation et la réduction d’esquive, elle multiplie la courbe native. Les dons fixes restent séparés.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
       <li>Dans le concept, chaque attribut et chaque Umbra partage la limite de l’entité. Les points retenus pour le calcul sont plafonnés ; les points saisis restent intacts, même en cas de baisse de limite.</li>
       <li>Les gains fixes n’ont pas de plafond d’acquisition. Les plafonds d’effet restent 100 % pour les résistances et l’esquive, et 95 % pour les effets de Hâte.</li>
@@ -248,11 +254,14 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     return cycles*local(w)+local(remainder);
   }
   const multiplier = (points, curve) => 1 + curveGain(points,curve)/100;
+  const defaultUmbraBase = spec => ['timing','projectile'].includes(spec.type) ? null : spec.type==='critical' ? .5 : spec.type==='regen' ? 5/150 : 1;
   function initialState(example=false) {
     return { mode:'concept', level:example ? 51 : 1, limit:200, curve:{ ...DEFAULT_CURVE },
       attributes:Object.fromEntries(ATTRIBUTES.map(a => [a.key, example && a.key==='strength' ? 60 : 0])),
       umbras:Object.fromEntries(UMBRAS.map(u => [u.key, example && u.key==='vigueur' ? 15 : 0])),
-      fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])) };
+      fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])),
+      attributeBases:Object.fromEntries(EFFECTS.filter(effect=>effect.attribute).map(effect=>[effect.key,effect.coefficient])),
+      umbraBases:Object.fromEntries(EFFECTS.filter(effect=>defaultUmbraBase(effect)!==null).map(effect=>[effect.key,defaultUmbraBase(effect)])) };
   }
   // No random input, side effects, game imports or storage. Fixed inputs are
   // never subjected to the acquisition limit; only effect outputs may be capped.
@@ -265,36 +274,38 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     for (const spec of EFFECTS) {
       const u=umbras[spec.source], fixed=number(input.fixed?.[spec.key]), plus=number(input.plus?.[spec.key]);
       const active=u>0 || plus>0, m=u>0 ? multiplier(u,input.curve) : 1;
-      const coefficient=active && spec.attribute ? spec.coefficient*m : 0;
+      const attributeBase=spec.attribute ? number(input.attributeBases?.[spec.key] ?? spec.coefficient) : 0;
+      const umbraBase=number(input.umbraBases?.[spec.key] ?? defaultUmbraBase(spec));
+      const coefficient=active && spec.attribute ? attributeBase*m : 0, umbraCoefficient=umbraBase*m;
       const attributeValue=spec.attribute ? attributes[spec.attribute] : 0;
       const attributeRaw=attributeValue*coefficient;
       const attributeGain=ceiling(attributeRaw);
       const giftRate=number(input.gifts?.[spec.key] ?? spec.gift);
       const gift=ceiling(u*giftRate, spec.unit.includes('%') ? 2 : 0);
       let native=0, nativeBase=0, generated=0, points=0, nativeRatio=0, common=0;
-      if (spec.type==='power') { nativeBase=u; native=u*m; generated=ceiling(native)+attributeGain; }
+      if (spec.type==='power') { nativeBase=u*umbraBase; native=nativeBase*m; generated=ceiling(native)+attributeGain; }
       if (spec.type==='resistance' || spec.type==='dodge') {
-        nativeBase=u; native=u*m; points=ceiling(native)+attributeGain;
+        nativeBase=u*umbraBase; native=nativeBase*m; points=ceiling(native)+attributeGain;
         if (points>0) generated=spec.type==='resistance' ? ceiling(100*points/(points+70))
           : points===1 ? 5 : Math.min(72,nearest(5+67*(1-Math.exp(-.02*(points-1))),1));
       }
-      if (spec.type==='hp') { nativeBase=u<=0 ? 0 : u===1 ? 10 : Math.min(400,ceiling(10+390*(1-Math.exp(-.02*(u-1))))); native=ceiling(nativeBase*m); generated=native; }
+      if (spec.type==='hp') { nativeBase=(u<=0 ? 0 : u===1 ? 10 : Math.min(400,ceiling(10+390*(1-Math.exp(-.02*(u-1))))))*umbraBase; native=ceiling(nativeBase*m); generated=native; }
       if (spec.type==='regen') {
-        // The original 150 is an explicit fixed conversion coefficient, not
-        // a second hidden acquisition cap or a denominator depending on limit.
-        nativeRatio=u*(5/150)/100*m;
+        // The default is 5/150 percent per point, now editable independently
+        // of the common acquisition limit and of the HP native curve factor.
+        nativeRatio=u*umbraCoefficient/100;
         common=active ? 1 : 0;
         native=ceiling((results.HP?.total || 0)*nativeRatio);
         generated=native+common;
       }
-      if (spec.type==='preparation') { nativeBase=u<=0 ? 0 : u===1 ? 1.5 : Math.min(35,nearest(1.5+33.5*(1-Math.exp(-u/70)),1)); native=ceiling(nativeBase*m,2); generated=native+attributeGain; }
+      if (spec.type==='preparation') { nativeBase=(u<=0 ? 0 : u===1 ? 1.5 : Math.min(35,nearest(1.5+33.5*(1-Math.exp(-u/70)),1)))*umbraBase; native=ceiling(nativeBase*m,2); generated=native+attributeGain; }
       if (spec.type==='timing') generated=attributeGain;
       if (spec.type==='projectile') generated=ceiling(100*(1/(1-Math.min(95,attributeGain)/100)-1),2);
-      if (spec.type==='precision') { nativeBase=u<=0 ? 0 : u===1 ? 5 : Math.min(80,nearest(5+75*(1-Math.exp(-.025*(u-1))),1)); native=ceiling(nativeBase*m,2); generated=native; }
-      if (spec.type==='critical') { nativeBase=u*.5; native=ceiling(nativeBase*m,1); generated=native; }
+      if (spec.type==='precision') { nativeBase=(u<=0 ? 0 : u===1 ? 5 : Math.min(80,nearest(5+75*(1-Math.exp(-.025*(u-1))),1)))*umbraBase; native=ceiling(nativeBase*m,2); generated=native; }
+      if (spec.type==='critical') { nativeBase=u*umbraBase; native=ceiling(nativeBase*m,1); generated=native; }
       const uncapped=nearest(fixed+plus+gift+generated,8);
       const total=Math.min(spec.cap ?? Infinity,uncapped);
-      results[spec.key]={ ...spec, u, fixed, plus, active, multiplier:m, coefficient, attributeValue, attributeRaw, attributeGain,
+      results[spec.key]={ ...spec, u, fixed, plus, active, multiplier:m, coefficient, attributeBase, umbraBase, umbraCoefficient, attributeValue, attributeRaw, attributeGain,
         giftRate, gift, native, nativeBase, nativeRatio, common, generated, points, uncapped, total,
         state:u>0 ? 'X' : plus>0 ? '+' : 'normal', capped:uncapped>total, capLoss:nearest(uncapped-total,8) };
     }
@@ -362,7 +373,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
@@ -461,7 +472,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     if(item.group)points.append(stepper(item.group,item.key,state[item.group][item.key]||0,item.name,item.spec.unit?.includes('%')?.1:1));
     else { points.textContent='Calculés'; points.className='muted'; }
     row.append(points);
-    const ratio=cell('Ratio / effet'); ratio.className='ratio'; ratio.dataset.ratio=item.id; row.append(ratio);
+    const ratio=cell('Ratio / effet'); ratio.className='ratio'; ratio.dataset.ratio=item.id;
+    const summary=document.createElement('div'); summary.className='ratio-summary';
+    const bases=document.createElement('div'); bases.className='base-settings';ratio.append(summary,bases);row.append(ratio);
     const total=cell('Contribution de la ligne'); total.className='total'; total.dataset.total=item.id; row.append(total);
     const remove=document.createElement('button'); remove.type='button'; remove.className='remove'; remove.dataset.remove=item.id;
     remove.textContent='×'; remove.setAttribute('aria-label',`Retirer ${item.name}`); row.append(cell(null,remove));
@@ -486,10 +499,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     }
     if(snapshot.mode==='concept') {
       const scaled=`${f(row.nativeBase)} × ${f(row.multiplier)} → ${f(Lab.ceiling(n,['hp','power','resistance','dodge'].includes(row.type)?0:2))}`;
-      if(row.type==='power')return `${names[row.source]} : ${scaled} (arrondi supérieur)`;
-      if(row.type==='resistance' || row.type==='dodge')return `${names[row.source]} : ${scaled} ; + ${f(row.attributeGain)} d’attribut = ${f(row.points)} points ; ${row.type==='resistance'?`${f(row.points)} / (${f(row.points)} + 70) × 100`:'courbe d’esquive'} → ${f(row.generated)} %`;
-      if(['hp','preparation','precision','critical'].includes(row.type))return `${row.type==='critical'?'Points × 0,5':'Courbe native'} : ${f(row.nativeBase)} ; × M(U) : ${scaled}${row.unit}`;
-      if(row.type==='regen')return `${f(snapshot.results.HP.total)} HP × (${f(row.u)} × 5 / 150 × ${f(row.multiplier)}) % → ${f(n)} HP ; base active : ${row.common} HP`;
+      if(row.type==='power')return `${names[row.source]} : ${f(row.u)} × base ${f(row.umbraBase)} = ${f(row.nativeBase)} ; ${scaled} (arrondi supérieur)`;
+      if(row.type==='resistance' || row.type==='dodge')return `${names[row.source]} : ${f(row.u)} × base ${f(row.umbraBase)} ; ${scaled} ; + ${f(row.attributeGain)} d’attribut = ${f(row.points)} points ; ${row.type==='resistance'?`${f(row.points)} / (${f(row.points)} + 70) × 100`:'courbe d’esquive'} → ${f(row.generated)} %`;
+      if(['hp','preparation','precision','critical'].includes(row.type))return `${row.type==='critical'?'Points':'Courbe native'} × base ${f(row.umbraBase)} = ${f(row.nativeBase)} ; × M(U) : ${scaled}${row.unit}`;
+      if(row.type==='regen')return `${f(snapshot.results.HP.total)} HP × (${f(row.u)} × base ${f(row.umbraBase)} × ${f(row.multiplier)}) % → ${f(n)} HP ; base active : ${row.common} HP`;
     }
     if(row.type==='power') return `${f(row.u)} × 1 → ${f(Math.ceil(row.u))}`;
     if(row.type==='resistance') return `(${f(row.u)} → ${f(Math.ceil(row.u))}) + ${f(row.attributeGain)} = ${f(row.points)} points ; ${f(row.points)} / (${f(row.points)} + 70) × 100 → ${f(row.generated)} %`;
@@ -512,6 +525,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
       [`Contribution de ${names[row.attribute]}`,`${f(row.attributeValue)} × ${f(row.coefficient)} = ${f(row.attributeRaw)} → ${f(row.attributeGain)} (arrondi supérieur)`]);
     else lines.push(['Ratio d’attribut',row.type==='regen' ? 'Mécanique native : proportion des HP pilotée uniquement par Vitalité.' : 'Aucun dans cette mécanique.']);
+    if(Lab.defaultUmbraBase(row)!==null)lines.push(['Base initiale de l’Umbra',`${f(row.umbraBase)} × M(U) ${f(row.multiplier)} = ${f(row.umbraCoefficient)}${['hp','preparation','precision'].includes(row.type)?' · facteur appliqué à la courbe native':' · coefficient par point'}`]);
     lines.push([nativeLabel,formula(row,snapshot)],['Capacité calculée',`${f(row.generated)}${unit}`],
       ['Somme',`${f(row.fixed)} fixe + ${f(row.plus)} stat+ + ${f(row.gift)} don fixe + ${f(row.generated)} capacité = ${f(row.uncapped)}${unit}`]);
     if(row.capped)lines.push(['Plafond de l’effet',`${f(row.uncapped)} → ${f(row.total)}${unit} · ${f(row.capLoss)}${unit} au-delà du plafond. Les apports fixes saisis restent conservés.`]);
@@ -559,12 +573,45 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const row=snapshot.results[item.key], part=Lab.contributions(row,snapshot.mode)[item.kind];
     return `<p class="description">${item.kind==='x'?'Capacité déjà comprise dans '+names[row.source]:'Contribution de cette ligne'} : ${fmt(part)}${row.unit}.</p>${detailHTML(row,snapshot)}`;
   }
-  function renderStatTotals(snapshot) {
+  function selectedEffectKeys() {
     const watched=new Set();
     for(const item of selected.values()) {
       if(item.kind==='umbra')for(const spec of Lab.effects)if(spec.source===item.key)watched.add(spec.key);
       if(['fixed','plus','x'].includes(item.kind))watched.add(item.key);
     }
+    return watched;
+  }
+  function renderBaseSettings(item,box) {
+    let specs=[];
+    if(item.kind==='attribute') {
+      const watched=selectedEffectKeys();
+      specs=Lab.effects.filter(spec=>spec.attribute===item.key && watched.has(spec.key));
+      if(!specs.length)specs=Lab.effects.filter(spec=>spec.attribute===item.key).slice(0,1);
+    } else if(item.kind==='umbra')specs=Lab.effects.filter(spec=>spec.source===item.key);
+    else if(item.kind==='plus'||item.kind==='x')specs=[item.spec];
+    const controls=[];
+    for(const spec of specs) {
+      if(spec.attribute)controls.push({group:'attributeBases',spec,label:`Base ${names[spec.attribute]} → ${spec.name}`});
+      if(['umbra','x'].includes(item.kind) && Lab.defaultUmbraBase(spec)!==null) {
+        const suffix=['hp','preparation','precision'].includes(spec.type)?' · facteur de courbe native':spec.type==='regen'?' · % HP / point':spec.type==='critical'?' · % / point':' · points / point';
+        controls.push({group:'umbraBases',spec,label:`Base ${names[spec.source]} → ${spec.name}`,suffix});
+      }
+    }
+    const signature=controls.map(control=>`${control.group}:${control.spec.key}`).join('|');
+    if(box.dataset.signature!==signature) {
+      box.dataset.signature=signature;box.replaceChildren();
+      if(controls.length) { const note=document.createElement('small');note.textContent='Bases initiales · Concept';box.append(note); }
+      for(const {group,spec,label,suffix=''} of controls) {
+        const wrapper=document.createElement('label'),text=document.createElement('span'),input=document.createElement('input');
+        text.textContent=label+suffix;input.type='number';input.min='0';input.step='any';
+        input.dataset.baseGroup=group;input.dataset.baseEffect=spec.key;input.setAttribute('aria-label',label);
+        wrapper.append(text,input);box.append(wrapper);
+      }
+    }
+    for(const input of box.querySelectorAll('input'))if(document.activeElement!==input)input.value=state[input.dataset.baseGroup][input.dataset.baseEffect];
+  }
+  function renderStatTotals(snapshot) {
+    const watched=selectedEffectKeys();
     const totals=$('#stat-totals'); totals.replaceChildren();
     const labels={physicalDamage:'PP totale',magicalDamage:'PM totale',piercingDamage:'Puissance perçante totale'};
     for(const spec of Lab.effects)if(watched.has(spec.key)) {
@@ -638,7 +685,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     $('#curve-unlock').disabled=retained<state.limit;
     $('#curve-unlock').textContent=`Débloquer +${fmt(state.curve.interval)} points`;
     $('#curve-attribute').textContent=row.attribute?`${names[row.attribute]} × ${fmt(row.coefficient,4)} → ${fmt(row.attributeGain)}${row.unit}`:'Aucun ratio d’attribut';
-    const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(row.multiplier,4)} → ${fmt(isConcept()?Lab.ceiling(row.native):row.native)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,4)} % → ${fmt(row.native)} HP`:`${fmt(row.native)}${row.unit}`;
+    const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(isConcept()?row.umbraCoefficient:1,4)} → ${fmt(isConcept()?Lab.ceiling(row.native):row.native)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,4)} % → ${fmt(row.native)} HP`:`${fmt(row.native)}${row.unit}`;
     $('#curve-native').textContent=nativeRatio;
     $('#curve-total').textContent=`${fmt(row.total)}${row.unit} · ${row.name}`;
     const next=curveSample(row.u+1,snapshot);
@@ -668,7 +715,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     for(const item of selected.values()) {
       const tr=$(`[data-entry="${item.id}"]`), title=tr.querySelector('.effect-name');
       title.setAttribute('aria-expanded',String(open.has(item.id)));
-      const ratio=tr.querySelector('.ratio'), total=tr.querySelector('.total');
+      const ratio=tr.querySelector('.ratio-summary'), total=tr.querySelector('.total');
       if(item.kind==='attribute') {
         ratio.textContent=isConcept()?`Limite : ${fmt(state.limit)}`:'Plafonds propres à chaque effet'; total.textContent=fmt(snapshot.attributes[item.key]);
       } else if(item.kind==='umbra') {
@@ -687,6 +734,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
         if(item.kind==='x') { const note=document.createElement('small'); note.textContent=`Déjà compris dans ${names[row.source]}`; total.append(note); }
         total.title=row.capped?`Part retenue après le plafond de ${row.cap}${row.unit}`:'';
       }
+      renderBaseSettings(item,tr.querySelector('.base-settings'));
       const detail=$(`#detail-${item.id}`); detail.hidden=!open.has(item.id);
       if(open.has(item.id)) {
         const expanded=[...detail.querySelectorAll('[data-detail-panel][open]')].map(panel=>panel.dataset.detailPanel);
@@ -703,7 +751,9 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     if(!input.matches('input[type=number]'))return;
     if(input.value==='' || input.validity.badInput)return;
     const value=readNumber(input);
-    if(input.dataset.group) {
+    if(input.dataset.baseGroup) {
+      state[input.dataset.baseGroup][input.dataset.baseEffect]=value;curveEffect=input.dataset.baseEffect;
+    } else if(input.dataset.group) {
       const {group,key}=input.dataset;
       state[group][key]=value;
       if(state[group][key]!==Number(input.value))input.value=state[group][key];
@@ -719,7 +769,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     if(input.dataset.ui==='curve-effect') { curveEffect=input.value;render();return; }
     if(input.dataset.ui==='curve-view') { curveView=input.value;render();return; }
     if(!input.matches('input[type=number]'))return;
-    if(input.dataset.group) {
+    if(input.dataset.baseGroup) {
+      const {baseGroup,baseEffect}=input.dataset;
+      if(input.value==='')state[baseGroup][baseEffect]=0;
+      input.value=state[baseGroup][baseEffect];
+    } else if(input.dataset.group) {
       const {group,key}=input.dataset;
       if(input.value==='')state[group][key]=0;
       input.value=state[group][key]||0;

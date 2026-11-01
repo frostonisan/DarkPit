@@ -19,7 +19,7 @@ check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game s
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
 vm.runInContext(scripts[0], sandbox);
-const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, ceiling, contributions } = sandbox.window.umbraLab;
+const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
 equal(umbras.length, 9, 'Exactly nine level-one Umbras');
@@ -105,11 +105,38 @@ for(const [key,value] of [['cap',50],['soft',1000],['res',.01],['stagnation',1],
 }
 check(row(addUmbra).total - row(example).total > row(addPlus).total - row(example).total, 'Umbra remains stronger than the same number of plus points');
 
+const equalBases=clone(example);equalBases.attributeBases.physicalDamage=1;
+near(row(equalBases).coefficient,row(equalBases).umbraCoefficient,'Equal initial bases produce equal attribute and Umbra ratios');
+equal(row(equalBases).total,124,'Changing only the Force base recalculates its contribution');
+equalBases.umbraBases.physicalDamage=.25;
+equal(row(equalBases).total,108,'Changing the Vigueur base changes only its generated points');
+equal(row(equalBases).gift,15,'Initial ratios never scale the fixed gift');
+equal(row({...equalBases,mode:'current'}).total,45,'Current mode ignores custom concept bases');
+equal(row(initialState(true)).total,81,'Custom bases never mutate shared defaults');
+const autonomous=clone(equalBases);autonomous.umbras.vigueur=0;autonomous.plus.physicalDamage=10;
+equal(row(autonomous).total,70,'Without Umbra the configurable attribute base stays static');
+autonomous.plus.physicalDamage=100;
+equal(row(autonomous).coefficient,1,'Autonomous plus acquisitions cannot evolve their initial ratio');
+
 for (const spec of effects) {
   const state = initialState();
   for (const attribute of attributes) state.attributes[attribute.key] = 25;
   state.umbras[spec.source] = 15;
   const ordinary = row(state, spec.key);
+  if(spec.attribute) {
+    const changed=clone(state);changed.attributeBases[spec.key]=.75;
+    near(row(changed,spec.key).coefficient,.75*multiplier(15),`${spec.key}: configurable attribute base feeds the live ratio`);
+    equal(row(changed,spec.key).native,ordinary.native,`${spec.key}: attribute base leaves Umbra contribution unchanged`);
+    for(const other of effects.filter(other=>other.attribute===spec.attribute && other.key!==spec.key))equal(row(changed,other.key).coefficient,row(state,other.key).coefficient,`${spec.key}: the same attribute retains its other independent ratios`);
+    changed.attributeBases[spec.key]=0;
+    equal(row(changed,spec.key).attributeGain,0,`${spec.key}: zero is a valid initial attribute base`);
+  }
+  if(defaultUmbraBase(spec)!==null) {
+    const changed=clone(state);changed.umbraBases[spec.key]=0;
+    equal(row(changed,spec.key).native,0,`${spec.key}: zero disables only the native Umbra gain`);
+    equal(row(changed,spec.key).gift,ordinary.gift,`${spec.key}: fixed gift is independent of the initial base`);
+    equal(row(changed,spec.key).attributeGain,ordinary.attributeGain,`${spec.key}: Umbra base leaves attribute gain unchanged`);
+  }
   const plusState = clone(state); plusState.plus[spec.key] = 7;
   const enhanced = row(plusState, spec.key);
   equal(enhanced.coefficient, ordinary.coefficient, `${spec.key}: stat+ does not stack an attribute ratio`);
@@ -242,6 +269,7 @@ if (!process.argv.includes('--model-only')) {
     const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
     const fill = (group, key, value) => field(group, key).fill(String(value));
     const setCurve = (scope,key,value) => scope.locator(`[data-curve="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
+    const baseField=(scope,id,group,key='physicalDamage')=>scope.locator(`[data-entry="${id}"] input[data-base-group="${group}"][data-base-effect="${key}"]`);
     const add = async (catalog, id, query = '') => {
       const picker = page.locator(`[data-catalog="${catalog}"]`);
       if (!await picker.evaluate(node => node.open)) await picker.locator('summary').click();
@@ -337,6 +365,40 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('#curve-effect').inputValue(),'dayHpRegen','Adding an Umbra from a secondary effect preserves the plotted statistic');
     equal(await field('umbras','vitality').inputValue(),'15','Chart creates the actual Umbra row when needed');
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'3','Secondary curve uses dependent HP totals');
+    await page.locator('#example').click();
+    await page.locator('#curve-view').selectOption('ratio');
+    equal(await baseField(page,'attribute-strength','attributeBases').inputValue(),'0.5','Selected Force row exposes its initial base');
+    equal(await baseField(page,'umbra-vigueur','umbraBases').inputValue(),'1','Selected Umbra row exposes its own initial base');
+    equal(await page.locator('[data-entry="fixed-physicalDamage"] .base-settings input').count(),0,'Fixed points do not invent a ratio');
+    await page.locator('#curve-view').selectOption('total');
+    await baseField(page,'attribute-strength','attributeBases').fill('1');
+    equal(await total('x-physicalDamage'),'124','Force base changes immediately recalculate the entity');
+    equal(await page.locator('#curve-chart').getAttribute('data-current'),'124','Stat total curve uses the custom base');
+    for(const id of ['plus-physicalDamage','x-physicalDamage','umbra-vigueur'])equal(await baseField(page,id,'attributeBases').inputValue(),'1',`${id} synchronizes the same statistic base`);
+    await baseField(page,'umbra-vigueur','umbraBases').fill('');
+    await baseField(page,'umbra-vigueur','umbraBases').pressSequentially('0.25');
+    equal(await total('x-physicalDamage'),'108','Decimal Umbra base can be typed without losing focus');
+    equal(await baseField(page,'x-physicalDamage','umbraBases').inputValue(),'0.25','X reflects the same Umbra base');
+    check((await page.locator('#curve-native').innerText()).includes('0,3621'),'Curve metrics show base times multiplier, not the multiplier alone');
+    await page.locator('[data-detail="x-physicalDamage"]').click();
+    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('base 0,25'),'Helper details explain the customized base');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'),'45','Custom bases do not overwrite the actual game formula');
+    await baseField(page,'plus-physicalDamage','attributeBases').fill('0.75');
+    equal(await total('x-physicalDamage'),'45','Editing a concept base in current mode preserves the current total');
+    await page.locator('#mode-toggle').click();
+    equal(await total('x-physicalDamage'),'87','Returning to concept uses the edited base on the same acquisitions');
+    equal(await baseField(page,'attribute-strength','attributeBases').inputValue(),'0.75','Mode switching preserves the configured base');
+    await baseField(page,'umbra-vigueur','umbraBases').fill('0');
+    equal(await total('x-physicalDamage'),'81','Zero Umbra base keeps the fixed gift and attribute gain');
+    await remove('umbra-vigueur');
+    await add('umbras','umbra-vigueur');await fill('umbras','vigueur',15);
+    equal(await baseField(page,'umbra-vigueur','umbraBases').inputValue(),'0','Re-selecting a source preserves its configured base');
+    await add('x','x-attackExecutionReduc');
+    equal(await baseField(page,'attribute-strength','attributeBases','attackExecutionReduc').inputValue(),String(25/150),'Another selected stat exposes its own Force base in the attribute row');
+    await baseField(page,'x-attackExecutionReduc','attributeBases','attackExecutionReduc').fill('0.9');
+    equal(await baseField(page,'attribute-strength','attributeBases').inputValue(),'0.75','Per-statistic bases remain independent even with the same attribute');
+    equal(await total('x-physicalDamage'),'81','Editing execution base does not affect PP');
     await page.locator('#example').click();
     await page.locator('#curve-view').selectOption('ratio');
     await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
@@ -538,6 +600,11 @@ if (!process.argv.includes('--model-only')) {
     await entityFill(second,'gifts','physicalDamage',2);
     await entityFill(second,'umbras','vigueur',10);
     equal(await entityTotal(second),'68','Each entity has its own curve and grants');
+    await baseField(second,'umbra-vigueur','umbraBases').fill('2');
+    equal(await baseField(first,'umbra-vigueur','umbraBases').inputValue(),'1','Each entity owns its Umbra base');
+    equal(await entityTotal(first),'51','Another entity’s base cannot change this entity');
+    equal(await entityTotal(second),'79','Custom base applies only to its own entity');
+    await baseField(second,'umbra-vigueur','umbraBases').fill('1');
     const secondBefore=await settings(second);
     await second.locator('[data-ui="mode-toggle"]').click();
     equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
