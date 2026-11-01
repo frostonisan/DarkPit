@@ -64,6 +64,7 @@ th:first-child,td:first-child { padding-left:0; }
 td input { width:65px!important; } .effect-name { border:0; background:transparent; padding:0; text-align:left; font-weight:500; color:var(--text); text-decoration:underline dotted #71808b; text-underline-offset:4px; }
 .source-name { display:block; font-size:11px; color:var(--muted); margin-top:4px; }
 .ratio { font-size:12px; max-width:350px; } .ratio small { display:block; font-size:11px; }
+.ratio-breakdown { display:grid; gap:4px; } .ratio-breakdown strong { color:var(--gold); font-weight:600; }
 .base-settings { display:grid; gap:7px; margin-top:9px; padding-top:7px; border-top:1px solid var(--line); }
 .base-settings label { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 8px; }
 .base-settings label span { flex:1 1 130px; overflow-wrap:anywhere; }
@@ -780,6 +781,24 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     $('#curve-next').textContent=`+1 ${names[source]}${isConcept()&&row.u>=state.limit?' après augmentation de la limite':''} : ${fmt(next.total)}${row.unit} au total (+${fmt(next.total-row.total,4)}). Don fixe actuel : ${fmt(row.gift)}${row.unit}.`;
     drawCurve();
   }
+  function powerPlusSummary(row,snapshot) {
+    const f=value=>fmt(value,6),unit={physicalDamage:'PP',magicalDamage:'PM',piercingDamage:'puissance perçante'}[row.key];
+    const direct=row.plusApplied??row.plus,contribution=Lab.contributions(row,snapshot.mode).plus;
+    const attribute=names[row.attribute],used=row.attributeUsed??row.attributeValue;
+    const lines=[`Apport direct : ${f(direct)} ${unit}`];
+    if(row.u>0 && row.active) {
+      lines.push(`Bonus de ${attribute} : compté dans ${names[row.source]} (ratio ×${f(row.coefficient)}).`,
+        `<strong>Contribution de la ligne : ${f(contribution)} ${unit}</strong>`);
+    } else if(row.active) {
+      if(used!==state.attributes[row.attribute])lines.push(`${attribute} retenue : ${f(used)} sur ${f(state.attributes[row.attribute])} points saisis.`);
+      // Without an Umbra, this power's generated amount is the attribute bonus,
+      // including the current-mode rounding of the combined native amount.
+      const bonus=row.generated,rounded=Math.abs(row.attributeRaw-bonus)>1e-8;
+      lines.push(`${attribute} : ${f(used)} × ${f(row.coefficient)} = ${f(row.attributeRaw)}${rounded?` → ${f(bonus)}`:''} ${unit}${rounded?` (${snapshot.mode==='concept'?'arrondi supérieur':'arrondi au plus proche'})`:''}`,
+        `<strong>Contribution : ${f(direct)} + ${f(bonus)} = ${f(contribution)} ${unit}</strong>`);
+    } else lines.push(`Bonus de ${attribute} inactif : aucun point de stat +.`,`<strong>Contribution : 0 ${unit}</strong>`);
+    return `<div class="ratio-breakdown">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
+  }
   function render() {
     const snapshot=Lab.calculate(state);
     $('#mode-name').textContent=isConcept()?'Concept':'Version actuelle';
@@ -815,7 +834,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
         const row=snapshot.results[item.key];
         const coefficient=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}` : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %` : 'Montant calculé';
         if(item.kind==='fixed')ratio.textContent=`+${fmt(row.fixed)}${row.unit} directs`;
-        if(item.kind==='plus')ratio.innerHTML=`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
+        if(item.kind==='plus')ratio.innerHTML=row.type==='power'?powerPlusSummary(row,snapshot):`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
         if(item.kind==='x')ratio.innerHTML=row.u>0 && row.active?`Capacité : ${fmt(row.generated)}${row.unit}<small>${coefficient} · ${names[row.source]}</small>`:!isConcept() && row.type==='critical'?'Inactive · nécessite Dégâts critiques +':`Inactive · nécessite ${names[row.source]}`;
         if(!isConcept() && !row.supportsDirect && item.kind!=='x')ratio.textContent='Aucun apport direct équivalent dans les JS actuels';
         const parts=Lab.contributions(row,snapshot.mode);
