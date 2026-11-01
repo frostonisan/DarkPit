@@ -10,7 +10,8 @@
 body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
 main { max-width:1900px; margin:auto; padding:20px; }
 h1,h2,p { margin:0; } h1 { font:26px Georgia,serif; } h2 { font-size:14px; font-weight:600; }
-button,input { font:inherit; color:inherit; }
+button,input,select { font:inherit; color:inherit; }
+select { min-width:0; max-width:100%; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:7px; }
 button { background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:7px 10px; cursor:pointer; }
 button:hover:not(:disabled) { border-color:var(--gold); } button:disabled { opacity:.35; cursor:default; }
 input { background:#101519; border:1px solid #46535e; border-radius:4px; padding:6px; min-width:0; font-variant-numeric:tabular-nums; }
@@ -75,6 +76,19 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .gift-settings label { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .gift-settings input { flex:0 0 65px; width:65px; }
 .source-effect { margin:10px 0; padding:10px; border:1px solid var(--line); }
+.curve-panel { margin:16px 0; padding:12px; background:var(--panel); border:1px solid var(--line); border-radius:5px; }
+.curve-panel .controls { margin:12px 0; gap:8px 16px; }
+.curve-panel .controls label { min-width:0; max-width:100%; flex-wrap:wrap; }
+.curve-panel canvas { display:block; width:100%; height:250px; }
+.curve-settings { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr)); gap:12px 20px; margin:16px 0; }
+.curve-settings label { display:block; font-size:12px; } .curve-settings output { float:right; color:var(--gold); }
+.curve-settings input { display:block; width:100%; padding:0; margin:8px 0 0; accent-color:#21bea9; }
+.curve-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:8px; }
+.curve-metrics>div { padding:8px; background:var(--bg); font-size:12px; } .curve-metrics output { display:block; margin-top:4px; font-size:15px; color:var(--gold); }
+.curve-legend { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:11px; color:var(--muted); }
+.curve-legend i { display:inline-block; width:15px; border-top:2px solid #21bea9; vertical-align:middle; margin-right:5px; }
+.curve-legend .projected { border-top-style:dashed; opacity:.5; } .curve-legend .cycle { border-color:#e1a657; } .curve-legend .limit { border-color:#ed836f; }
+.curve-panel .tools { gap:6px; } .curve-panel .tools button { font-size:12px; }
 @media(max-width:760px) { main { padding:14px; } .entity { padding:12px; } }
 @container entity (max-width:640px) {
   .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -115,10 +129,28 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   <div class="controls">
     <button type="button" id="mode-toggle" aria-pressed="false" aria-label="Passer à la version actuelle">Calculs : <strong id="mode-name">Concept</strong> ⇄</button>
     <label>Niveau <input id="level" type="number" min="1" step="1" value="1"></label>
-    <label>Limite de l’entité <input id="limit" type="number" min="0" step="1" value="150"></label>
+    <label>Limite de l’entité <input id="limit" type="number" min="0" step="1" value="200"></label>
   </div>
   <p class="notice">Mêmes éléments et mêmes saisies dans les deux modes. Seuls les calculs appliqués changent.</p>
   <section class="pickers" aria-label="Ajouter au tableau" id="pickers"></section>
+  <details class="curve-panel" open>
+    <summary>Courbe des ratios · progression par cycles</summary>
+    <div class="controls">
+      <label>Statistique <select id="curve-effect" aria-label="Statistique de la courbe"></select></label>
+      <label>Afficher <select id="curve-view" aria-label="Valeur représentée"><option value="ratio">Multiplicateur des ratios</option><option value="total">Total de la statistique</option></select></label>
+    </div>
+    <p class="notice" id="curve-context"></p>
+    <canvas id="curve-chart" role="img" aria-label="Courbe de progression des ratios"></canvas>
+    <div class="curve-legend"><span><i></i>Jusqu’aux points retenus</span><span><i class="projected"></i>Projection</span><span><i class="cycle"></i>Cycles</span><span><i class="limit"></i>Limite commune</span></div>
+    <p class="notice">La projection au-delà de la limite suppose son déblocage. Les autres saisies restent constantes.</p>
+    <div class="curve-settings" id="curve-settings"></div>
+    <p class="notice">Plafond en % du ratio de départ par cycle : 85 = +85 %, hors gain résiduel. M(U) = 1 + gain cumulé / 100. Tous les gains sont recalculés en direct.</p>
+    <div class="controls"><label><span id="curve-points-label">Vigueur</span> <input id="curve-points" type="number" min="0" step="1" value="0" aria-label="Points d’Umbra de la courbe"></label><span class="muted" id="curve-position"></span></div>
+    <div class="tools"><button type="button" data-curve-add="10">+10</button><button type="button" data-curve-add="50">+50</button><button type="button" id="curve-fill">Max</button><button type="button" id="curve-unlock">Débloquer +200 points</button><button type="button" id="curve-reset">Réinitialiser la courbe</button></div>
+    <p class="notice">Débloquer ouvre la limite à tous les attributs et toutes les Umbras de cette entité. Réinitialiser restaure les cinq réglages, en conservant les points et la limite.</p>
+    <div class="curve-metrics" style="margin-top:12px"><div>Ratio d’attribut<output id="curve-attribute"></output></div><div>Apport calculé de l’Umbra<output id="curve-native"></output></div><div>Total de l’entité<output id="curve-total"></output></div></div>
+    <p class="notice" id="curve-next"></p>
+  </details>
   <section aria-label="Calcul des statistiques">
     <div class="stat-totals" id="stat-totals" aria-label="Totaux des statistiques"></div>
     <p class="empty" id="empty">Choisissez un élément dans une liste pour l’ajouter au tableau.</p>
@@ -135,18 +167,18 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <summary>Règles et paramètres communs</summary>
     <div id="concept-settings">
     <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
-    <div class="controls"><label>Demi-progression K <input id="curve-k" type="number" min="0.01" step="1" value="75"></label><label>Multiplicateur maximal <input id="curve-max" type="number" min="1" step="0.1" value="1.5"></label></div>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
-      <li>Multiplicateur M(U) = 1 + (maximum − 1) × U / (U + K). U est le nombre de points de l’Umbra concernée.</li>
-      <li>Courbe commune par défaut : K = 75, maximum = ×1,5. Pour la PP, le ratio de Force passe de 0,5 à environ 0,53 à 10 Vigueur, 0,60 à 50 et 0,67 à 150. Augmenter K ralentit la progression.</li>
+      <li>U désigne les points retenus de l’Umbra concernée. La même courbe s’applique à tous les ratios de l’entité, mais chaque Umbra progresse selon ses propres points.</li>
+      <li>Pour un intervalle W : k = 4 × stagnation × 600 / douceur ; g(x) = plafond × (1 − exp(−k × x/W)) / (1 − exp(−k)) + résiduel × x. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
+      <li>L’intervalle définit la longueur des cycles ; la limite commune définit les points utilisables. Débloquer ajoute un intervalle à la limite sans changer la courbe acquise. Modifier l’intervalle recalcule la courbe et conserve la limite saisie.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
       <li>Dans le concept, chaque attribut et chaque Umbra partage la limite de l’entité. Les points retenus pour le calcul sont plafonnés ; les points saisis restent intacts, même en cas de baisse de limite.</li>
       <li>Les gains fixes n’ont pas de plafond d’acquisition. Les plafonds d’effet restent 100 % pour les résistances et l’esquive, et 95 % pour les effets de Hâte.</li>
       <li>Chaque contribution d’attribut est arrondie au supérieur après multiplication : 25 × 0,5 → 13. Les coefficients restent précis pendant le calcul.</li>
-      <li>Les courbes natives des effets sont conservées. Les ratios d’attributs utilisent M(U). Vitalité conserve sa régénération liée aux HP ; Précision conserve son bonus applicable aux coups critiques.</li>
-      <li>Volonté reste saisissable et limitée, mais ne pilote aucun effet de ce périmètre. Aucun archétype, cycle, équipement ou stock de ressources n’est simulé.</li>
+      <li>M(U) multiplie le coefficient d’attribut et l’apport natif de l’Umbra avant conversion et arrondi. Les dons fixes ne sont pas multipliés. Les effets sans apport natif supplémentaire, comme le cooldown, utilisent uniquement le ratio d’attribut.</li>
+      <li>Volonté reste saisissable et limitée, mais ne pilote aucun effet de ce périmètre. Aucun archétype, équipement ou stock de ressources n’est simulé.</li>
       <li>Le niveau est un repère manuel, sans gain automatique. Retirer une ligne retire son apport ; retirer une stat X ferme seulement sa vue calculée.</li>
     </ul>
     </div>
@@ -205,10 +237,19 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     return Math.ceil(scaled - Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4) / factor || 0;
   };
   const nearest = (value, decimals=0) => Math.round(value * 10 ** decimals) / 10 ** decimals;
-  const DEFAULT_CURVE = Object.freeze({ k:75, max:1.5 });
-  const multiplier = (points, curve={}) => 1 + (Math.max(1, number(curve.max ?? DEFAULT_CURVE.max)) - 1) * points / (points + Math.max(.01, number(curve.k ?? DEFAULT_CURVE.k)));
+  const DEFAULT_CURVE = Object.freeze({ cap:85, soft:600, res:.0005, stagnation:2.5, interval:200 });
+  // Same normalized exponential and cumulative cycles as softcap_cycles.html.
+  // Curve gains are percentage increases of the initial ratios, not stat points.
+  function curveGain(points, curve={}) {
+    const c={...DEFAULT_CURVE,...curve}, w=Math.max(1,number(c.interval));
+    const k=4*Math.max(.01,number(c.stagnation))*600/Math.max(1,number(c.soft));
+    const x=number(points), cycles=Math.floor(x/w), remainder=x-cycles*w;
+    const local=t=>number(c.cap)*(-Math.expm1(-k*t/w))/(-Math.expm1(-k))+number(c.res)*t;
+    return cycles*local(w)+local(remainder);
+  }
+  const multiplier = (points, curve) => 1 + curveGain(points,curve)/100;
   function initialState(example=false) {
-    return { mode:'concept', level:example ? 51 : 1, limit:150, curve:{ ...DEFAULT_CURVE },
+    return { mode:'concept', level:example ? 51 : 1, limit:200, curve:{ ...DEFAULT_CURVE },
       attributes:Object.fromEntries(ATTRIBUTES.map(a => [a.key, example && a.key==='strength' ? 60 : 0])),
       umbras:Object.fromEntries(UMBRAS.map(u => [u.key, example && u.key==='vigueur' ? 15 : 0])),
       fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])) };
@@ -217,7 +258,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   // never subjected to the acquisition limit; only effect outputs may be capped.
   function calculate(input) {
     if(input.mode==='current')return calculateCurrent(input);
-    const limit = number(input.limit ?? 150);
+    const limit = number(input.limit ?? DEFAULT_CURVE.interval);
     const attributes = Object.fromEntries(ATTRIBUTES.map(a => [a.key,Math.min(limit,number(input.attributes?.[a.key]))]));
     const umbras = Object.fromEntries(UMBRAS.map(u => [u.key,Math.min(limit,number(input.umbras?.[u.key]))]));
     const results = {};
@@ -230,31 +271,31 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       const attributeGain=ceiling(attributeRaw);
       const giftRate=number(input.gifts?.[spec.key] ?? spec.gift);
       const gift=ceiling(u*giftRate, spec.unit.includes('%') ? 2 : 0);
-      let native=0, generated=0, points=0, nativeRatio=0, common=0;
-      if (spec.type==='power') { native=u; generated=ceiling(native)+attributeGain; }
+      let native=0, nativeBase=0, generated=0, points=0, nativeRatio=0, common=0;
+      if (spec.type==='power') { nativeBase=u; native=u*m; generated=ceiling(native)+attributeGain; }
       if (spec.type==='resistance' || spec.type==='dodge') {
-        native=u; points=ceiling(u)+attributeGain;
+        nativeBase=u; native=u*m; points=ceiling(native)+attributeGain;
         if (points>0) generated=spec.type==='resistance' ? ceiling(100*points/(points+70))
           : points===1 ? 5 : Math.min(72,nearest(5+67*(1-Math.exp(-.02*(points-1))),1));
       }
-      if (spec.type==='hp') { native=u<=0 ? 0 : u===1 ? 10 : Math.min(400,ceiling(10+390*(1-Math.exp(-.02*(u-1))))); generated=native; }
+      if (spec.type==='hp') { nativeBase=u<=0 ? 0 : u===1 ? 10 : Math.min(400,ceiling(10+390*(1-Math.exp(-.02*(u-1))))); native=ceiling(nativeBase*m); generated=native; }
       if (spec.type==='regen') {
         // The original 150 is an explicit fixed conversion coefficient, not
         // a second hidden acquisition cap or a denominator depending on limit.
-        nativeRatio=u*(5/150)/100;
+        nativeRatio=u*(5/150)/100*m;
         common=active ? 1 : 0;
         native=ceiling((results.HP?.total || 0)*nativeRatio);
         generated=native+common;
       }
-      if (spec.type==='preparation') { native=u<=0 ? 0 : u===1 ? 1.5 : Math.min(35,nearest(1.5+33.5*(1-Math.exp(-u/70)),1)); generated=native+attributeGain; }
+      if (spec.type==='preparation') { nativeBase=u<=0 ? 0 : u===1 ? 1.5 : Math.min(35,nearest(1.5+33.5*(1-Math.exp(-u/70)),1)); native=ceiling(nativeBase*m,2); generated=native+attributeGain; }
       if (spec.type==='timing') generated=attributeGain;
       if (spec.type==='projectile') generated=ceiling(100*(1/(1-Math.min(95,attributeGain)/100)-1),2);
-      if (spec.type==='precision') { native=u<=0 ? 0 : u===1 ? 5 : Math.min(80,nearest(5+75*(1-Math.exp(-.025*(u-1))),1)); generated=native; }
-      if (spec.type==='critical') { native=ceiling(u*.5,1); generated=native; }
+      if (spec.type==='precision') { nativeBase=u<=0 ? 0 : u===1 ? 5 : Math.min(80,nearest(5+75*(1-Math.exp(-.025*(u-1))),1)); native=ceiling(nativeBase*m,2); generated=native; }
+      if (spec.type==='critical') { nativeBase=u*.5; native=ceiling(nativeBase*m,1); generated=native; }
       const uncapped=nearest(fixed+plus+gift+generated,8);
       const total=Math.min(spec.cap ?? Infinity,uncapped);
       results[spec.key]={ ...spec, u, fixed, plus, active, multiplier:m, coefficient, attributeValue, attributeRaw, attributeGain,
-        giftRate, gift, native, nativeRatio, common, generated, points, uncapped, total,
+        giftRate, gift, native, nativeBase, nativeRatio, common, generated, points, uncapped, total,
         state:u>0 ? 'X' : plus>0 ? '+' : 'normal', capped:uncapped>total, capLoss:nearest(uncapped-total,8) };
     }
     return { mode:'concept', level:Math.max(1,Math.floor(number(input.level))), limit, attributes, umbras, results };
@@ -321,7 +362,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, ceiling, contributions, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
@@ -334,7 +375,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const $=selector=>root.querySelector(selector.replace(/#([\w-]+)/g,(_,id)=>`[data-ui="${id}"]`));
   const fmt=(value,decimals=2)=>new Intl.NumberFormat('fr-FR',{ maximumFractionDigits:decimals }).format(value);
   const names=Object.fromEntries([...Lab.attributes,...Lab.umbras,...Lab.effects].map(spec=>[spec.key,spec.name]));
-  let state=Lab.initialState(), open=new Set(), selected=new Map();
+  let state=Lab.initialState(), open=new Set(), selected=new Map(), curveEffect='physicalDamage', curveView='ratio';
   root.querySelector('.entity-name').value=`Entité ${serial}`;
   root.setAttribute('aria-label',`Entité ${serial}`);
   const isConcept=()=>state.mode!=='current';
@@ -351,6 +392,21 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const kindNames={attribute:'Attribut',fixed:'Stat fixe',plus:'Stat +',x:'Stat X · calculée',umbra:'Umbra · niveau 1'};
   const normalize=text=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
+  const curveControls=[
+    ['cap','Plafond cible par intervalle (%)',10,150,5],
+    ['soft','Douceur',100,1500,20],
+    ['res','Gain résiduel (% / point)',0,.01,.0001],
+    ['stagnation','Stagnation',.5,5,.1],
+    ['interval','Intervalle d’origine (points)',50,500,50],
+  ];
+  for(const [key,label,min,max,step] of curveControls) {
+    const wrapper=document.createElement('label');
+    wrapper.innerHTML=`${label}<output data-curve-value="${key}"></output><input type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}">`;
+    $('#curve-settings').append(wrapper);
+  }
+  for(const spec of Lab.effects) {
+    const option=document.createElement('option'); option.value=spec.key; option.textContent=`${spec.name} · ${names[spec.source]}`; $('#curve-effect').append(option);
+  }
   const cell=(label,child)=>{ const td=document.createElement('td'); td.dataset.label=label; if(child)td.append(child); return td; };
   function inputNumber(group,key,value,label,{ step=1 }={}) {
     const input=document.createElement('input'); input.type='number'; input.min='0'; input.step=String(step);
@@ -393,6 +449,8 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   }
   function addEntry(item,acquire=true) {
     if(selected.has(item.id))return false;
+    if(item.kind==='umbra')curveEffect=Lab.effects.find(spec=>spec.source===item.key).key;
+    else if(item.spec.source)curveEffect=item.key;
     if(item.group && acquire && !state[item.group][item.key])state[item.group][item.key]=1;
     selected.set(item.id,item);
     const row=document.createElement('tr'); row.dataset.entry=item.id;
@@ -426,6 +484,13 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       }
       if(row.type==='regen')return `${f(snapshot.results.HP.total)} HP × ${f(row.nativeRatio*100)} % → ${f(n)} HP (arrondi au plus proche) ; taux : min(Vitalité, 150) / 150 × 5, arrondi à 2 décimales`;
     }
+    if(snapshot.mode==='concept') {
+      const scaled=`${f(row.nativeBase)} × ${f(row.multiplier)} → ${f(Lab.ceiling(n,['hp','power','resistance','dodge'].includes(row.type)?0:2))}`;
+      if(row.type==='power')return `${names[row.source]} : ${scaled} (arrondi supérieur)`;
+      if(row.type==='resistance' || row.type==='dodge')return `${names[row.source]} : ${scaled} ; + ${f(row.attributeGain)} d’attribut = ${f(row.points)} points ; ${row.type==='resistance'?`${f(row.points)} / (${f(row.points)} + 70) × 100`:'courbe d’esquive'} → ${f(row.generated)} %`;
+      if(['hp','preparation','precision','critical'].includes(row.type))return `${row.type==='critical'?'Points × 0,5':'Courbe native'} : ${f(row.nativeBase)} ; × M(U) : ${scaled}${row.unit}`;
+      if(row.type==='regen')return `${f(snapshot.results.HP.total)} HP × (${f(row.u)} × 5 / 150 × ${f(row.multiplier)}) % → ${f(n)} HP ; base active : ${row.common} HP`;
+    }
     if(row.type==='power') return `${f(row.u)} × 1 → ${f(Math.ceil(row.u))}`;
     if(row.type==='resistance') return `(${f(row.u)} → ${f(Math.ceil(row.u))}) + ${f(row.attributeGain)} = ${f(row.points)} points ; ${f(row.points)} / (${f(row.points)} + 70) × 100 → ${f(row.generated)} %`;
     if(row.type==='dodge') return row.points<=0 ? '0' : row.points===1 ? 'Premier point : 5 %' : `${f(row.u)} + ${f(row.attributeGain)} = ${f(row.points)} points ; 5 + 67 × (1 − exp(−0,02 × (${f(row.points)} − 1))) → ${f(row.generated)} %`;
@@ -442,7 +507,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const unit=row.unit, f=value=>fmt(value,6);
     const nativeLabel=['resistance','dodge','projectile'].includes(row.type) ? 'Conversion de la capacité' : 'Montant natif';
     const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} / ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} / ${f(state.limit)}` : ''}`],
-      ['Multiplicateur de l’Umbra',row.u>0 ? `1 + (${f(state.curve.max)} − 1) × ${f(row.u)} / (${f(row.u)} + ${f(state.curve.k)}) = ×${f(row.multiplier)}` : '×1 · aucune Umbra active'],
+      ['Multiplicateur des deux ratios',row.u>0 ? `${Math.floor(row.u/state.curve.interval)} cycle(s) complet(s) + ${f(row.u%state.curve.interval)} points ; gain cumulé ${f(Lab.curveGain(row.u,state.curve))} % ; M(U) = 1 + gain / 100 = ×${f(row.multiplier)}` : '×1 · aucune Umbra active'],
       ['Don fixe de l’Umbra',`${f(row.u)} × ${f(row.giftRate)} → ${f(row.gift)}${unit}`]];
     if(row.attribute) lines.push(['Coefficient de l’attribut',!row.active ? 'Inactif : ni stat+ ni Umbra.' : row.u>0 ? `${f(row.coefficient/row.multiplier)} × ${f(row.multiplier)} = ${f(row.coefficient)} · imposé par ${names[row.source]}` : `${f(row.coefficient)} · fixe, indépendant du montant de stat+`],
       [`Contribution de ${names[row.attribute]}`,`${f(row.attributeValue)} × ${f(row.coefficient)} = ${f(row.attributeRaw)} → ${f(row.attributeGain)} (arrondi supérieur)`]);
@@ -513,13 +578,80 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       box.append(label,output,detail); totals.append(box);
     }
   }
+  function setCurvePoints(value) {
+    const effect=curveEffect, source=Lab.effects.find(spec=>spec.key===effect).source;
+    state.umbras[source]=Math.max(0,value);
+    if(value>0)addEntry(entries[`umbra-${source}`],false);
+    curveEffect=effect;
+  }
+  function curveSample(points,snapshot) {
+    const source=snapshot.results[curveEffect].source;
+    // Beyond the red limit, project a common-cap unlock while keeping the
+    // other effective inputs constant. No projected value is stored in state.
+    return Lab.calculate({...state,limit:Math.max(state.limit,points),attributes:snapshot.attributes,
+      umbras:{...snapshot.umbras,[source]:points}}).results[curveEffect];
+  }
+  function drawCurve() {
+    const canvas=$('#curve-chart'), rect=canvas.getBoundingClientRect();
+    if(!root.isConnected || rect.width<=0 || rect.height<=0)return;
+    const snapshot=Lab.calculate(state), row=snapshot.results[curveEffect];
+    const dpr=window.devicePixelRatio||1, W=rect.width, H=rect.height;
+    canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+    const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+    const L=55,R=20,T=24,B=37, n=row.u, interval=state.curve.interval;
+    const X=Math.max(4*interval,Math.ceil(Math.max(state.limit,n)/interval)*interval);
+    const value=x=>curveView==='ratio'?(isConcept()?Lab.multiplier(x,state.curve):1):curveSample(x,snapshot).total;
+    const current=curveView==='ratio'?row.multiplier:row.total;
+    const samples=Array.from({length:181},(_,i)=>{const x=X*i/180;return [x,value(x)];});
+    const Y=Math.max(1,current,...samples.map(p=>p[1]))*1.12;
+    const px=x=>L+x/X*(W-L-R),py=y=>H-B-y/Y*(H-T-B);
+    canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(state.limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;
+    canvas.setAttribute('aria-label',`${curveView==='ratio'?'Multiplicateur des ratios':'Total '+row.name} : ${fmt(current,4)} à ${fmt(n)} points de ${names[row.source]}. Limite ${fmt(state.limit)}. ${isConcept()?'Concept':'Version actuelle'}.`);
+    ctx.font='11px system-ui'; ctx.fillStyle='#a8b4bc'; ctx.textAlign='right';
+    for(let i=0;i<=4;i++) { const y=Y*i/4; ctx.beginPath();ctx.strokeStyle='#343e46';ctx.lineWidth=1;ctx.moveTo(L,py(y));ctx.lineTo(W-R,py(y));ctx.stroke();ctx.fillText(fmt(y,curveView==='ratio'?2:0),L-7,py(y)+4); }
+    ctx.textAlign='left';ctx.fillText(curveView==='ratio'?'M(U) · ×':'Total'+row.unit,L,13);
+    ctx.textAlign='center';
+    const cycles=Math.round(X/interval),skip=Math.max(1,Math.ceil(cycles/Math.max(2,Math.floor((W-L-R)/75))));
+    for(let j=0;j<=cycles;j+=skip) { const x=j*interval;ctx.beginPath();ctx.strokeStyle='#e1a65755';ctx.setLineDash([4,5]);ctx.moveTo(px(x),T);ctx.lineTo(px(x),H-B);ctx.stroke();ctx.setLineDash([]);ctx.fillText(fmt(x,0),px(x),H-20); }
+    ctx.fillText(`Points de ${names[row.source]}`,L+(W-L-R)/2,H-3);
+    ctx.beginPath();ctx.strokeStyle='#ed836f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.moveTo(px(state.limit),T);ctx.lineTo(px(state.limit),H-B);ctx.stroke();ctx.setLineDash([]);
+    function line(points,dashed) {
+      ctx.beginPath();ctx.strokeStyle=dashed?'#21bea977':'#21bea9';ctx.lineWidth=2.5;ctx.setLineDash(dashed?[6,5]:[]);
+      points.forEach(([x,y],i)=>i?ctx.lineTo(px(x),py(y)):ctx.moveTo(px(x),py(y)));ctx.stroke();ctx.setLineDash([]);
+    }
+    line([[n,current],...samples.filter(p=>p[0]>n)],true);
+    line([...samples.filter(p=>p[0]<n),[n,current]],false);
+    ctx.beginPath();ctx.arc(px(n),py(current),4,0,Math.PI*2);ctx.fillStyle='#21bea9';ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.stroke();
+  }
+  function renderCurve(snapshot) {
+    const row=snapshot.results[curveEffect], source=row.source, raw=state.umbras[source], retained=Math.min(raw,state.limit);
+    $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
+    for(const [key] of curveControls) {
+      root.querySelector(`[data-curve="${key}"]`).value=state.curve[key];
+      root.querySelector(`[data-curve-value="${key}"]`).textContent=fmt(state.curve[key],key==='res'?4:1);
+    }
+    if(document.activeElement!==$('#curve-points'))$('#curve-points').value=raw;
+    $('#curve-points-label').textContent=names[source];
+    $('#curve-position').textContent=`${fmt(retained)} / ${fmt(state.limit)} points retenus en Concept`;
+    $('#curve-context').textContent=isConcept()?`Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Version actuelle : la courbe et les chiffres suivent les JS du jeu. Les cinq réglages restent conservés et s’appliquent en Concept.';
+    for(const button of root.querySelectorAll('[data-curve-add], [data-ui="curve-fill"]'))button.disabled=raw>=state.limit;
+    $('#curve-unlock').disabled=retained<state.limit;
+    $('#curve-unlock').textContent=`Débloquer +${fmt(state.curve.interval)} points`;
+    $('#curve-attribute').textContent=row.attribute?`${names[row.attribute]} × ${fmt(row.coefficient,4)} → ${fmt(row.attributeGain)}${row.unit}`:'Aucun ratio d’attribut';
+    const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(row.multiplier,4)} → ${fmt(isConcept()?Lab.ceiling(row.native):row.native)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,4)} % → ${fmt(row.native)} HP`:`${fmt(row.native)}${row.unit}`;
+    $('#curve-native').textContent=nativeRatio;
+    $('#curve-total').textContent=`${fmt(row.total)}${row.unit} · ${row.name}`;
+    const next=curveSample(row.u+1,snapshot);
+    $('#curve-next').textContent=`+1 ${names[source]}${isConcept()&&row.u>=state.limit?' après déblocage':''} : ${fmt(next.total)}${row.unit} au total (+${fmt(next.total-row.total,4)}). Don fixe actuel : ${fmt(row.gift)}${row.unit}.`;
+    drawCurve();
+  }
   function render() {
     const snapshot=Lab.calculate(state);
     $('#mode-name').textContent=isConcept()?'Concept':'Version actuelle';
     $('#mode-toggle').setAttribute('aria-pressed',String(!isConcept()));
     $('#mode-toggle').setAttribute('aria-label',isConcept()?'Passer à la version actuelle':'Passer au concept');
     $('#limit').title='Limite appliquée au calcul Concept ; les points saisis sont conservés dans les deux modes.';
-    for(const [id,value] of [['level',state.level],['limit',state.limit],['curve-k',state.curve.k],['curve-max',state.curve.max]]) {
+    for(const [id,value] of [['level',state.level],['limit',state.limit]]) {
       if(document.activeElement!==$(`#${id}`))$(`#${id}`).value=value;
     }
     for(const input of root.querySelectorAll('input[data-group]')) {
@@ -532,6 +664,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     $('#empty').hidden=selected.size>0; $('#effects-table').hidden=selected.size===0;
     for(const button of root.querySelectorAll('[data-add]'))button.querySelector('small').textContent=selected.has(button.dataset.add)?'Ajouté':'';
     renderStatTotals(snapshot);
+    renderCurve(snapshot);
     for(const item of selected.values()) {
       const tr=$(`[data-entry="${item.id}"]`), title=tr.querySelector('.effect-name');
       title.setAttribute('aria-expanded',String(open.has(item.id)));
@@ -566,6 +699,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const input=event.target;
     if(input.matches('.entity-name')) { root.setAttribute('aria-label',input.value.trim()||`Entité ${serial}`); return; }
     if(input.matches('.picker input')) { filterPicker(input.closest('.picker')); return; }
+    if(input.dataset.curve) { state.curve[input.dataset.curve]=readNumber(input); render(); return; }
     if(!input.matches('input[type=number]'))return;
     if(input.value==='' || input.validity.badInput)return;
     const value=readNumber(input);
@@ -577,22 +711,34 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       state.limit=value;
       $('#status').textContent='Limite du calcul Concept modifiée. Toutes les saisies sont conservées.';
     } else if(input.dataset.ui==='level')state.level=Math.max(1,Math.floor(value));
-    else if(input.dataset.ui==='curve-k')state.curve.k=Math.max(.01,value);
-    else if(input.dataset.ui==='curve-max')state.curve.max=Math.max(1,value);
+    else if(input.dataset.ui==='curve-points')setCurvePoints(value);
     render();
   });
   root.addEventListener('change',event=>{
     const input=event.target;
+    if(input.dataset.ui==='curve-effect') { curveEffect=input.value;render();return; }
+    if(input.dataset.ui==='curve-view') { curveView=input.value;render();return; }
     if(!input.matches('input[type=number]'))return;
     if(input.dataset.group) {
       const {group,key}=input.dataset;
       if(input.value==='')state[group][key]=0;
       input.value=state[group][key]||0;
-    } else input.value=({'level':state.level,'limit':state.limit,'curve-k':state.curve.k,'curve-max':state.curve.max})[input.dataset.ui];
+    } else if(input.dataset.ui==='curve-points') { if(input.value==='')setCurvePoints(0);input.value=state.umbras[Lab.effects.find(spec=>spec.key===curveEffect).source]; }
+    else input.value=({'level':state.level,'limit':state.limit})[input.dataset.ui];
     render();
   });
   root.addEventListener('click',event=>{
     const button=event.target.closest('button'); if(!button)return;
+    if(button.dataset.curveAdd || button.dataset.ui==='curve-fill') {
+      const source=Lab.effects.find(spec=>spec.key===curveEffect).source;
+      setCurvePoints(button.dataset.ui==='curve-fill'?state.limit:Math.min(state.limit,state.umbras[source]+Number(button.dataset.curveAdd)));render();
+    }
+    if(button.dataset.ui==='curve-unlock') {
+      const source=Lab.effects.find(spec=>spec.key===curveEffect).source;
+      if(state.umbras[source]>=state.limit)state.limit+=state.curve.interval;
+      render();$('#status').textContent=`Limite commune ouverte à ${fmt(state.limit)} points pour tous les attributs et toutes les Umbras de cette entité.`;
+    }
+    if(button.dataset.ui==='curve-reset') { state.curve={...Lab.initialState().curve};render();$('#status').textContent='Courbe réinitialisée ; points et limite conservés.'; }
     if(button.dataset.ui==='mode-toggle') {
       state.mode=isConcept()?'current':'concept'; render();
       $('#status').textContent=`Calculs : ${isConcept()?'Concept':'Version actuelle'} · saisies conservées.`;
@@ -613,7 +759,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       $(`[data-catalog="${item.category}"]>summary`).focus(); $('#status').textContent=`${item.name} retiré du tableau.`;
     }
     if(button.dataset.ui==='example' || button.dataset.ui==='clear') {
-      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode}; open.clear(); selected.clear(); $('#effects').replaceChildren();
+      state={...Lab.initialState(button.dataset.ui==='example'),mode:state.mode};curveEffect='physicalDamage';open.clear(); selected.clear(); $('#effects').replaceChildren();
       if(button.dataset.ui==='example')for(const id of ['attribute-strength','fixed-physicalDamage','plus-physicalDamage','umbra-vigueur','x-physicalDamage'])addEntry(entries[id],false);
       for(const picker of root.querySelectorAll('.picker')){picker.open=false;picker.querySelector('input').value='';filterPicker(picker);}
       $('#status').textContent=button.dataset.ui==='example'?'Exemple : niveau 51, Force 60, Vigueur 15.':'Tableau vidé.'; render();
@@ -623,6 +769,10 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const picker=event.target.closest('.picker');
     if(event.key==='Escape' && picker){picker.open=false;picker.querySelector('summary').focus();event.preventDefault();}
   });
+  const resizeObserver=new ResizeObserver(()=>drawCurve());
+  resizeObserver.observe($('#curve-chart'));
+  root.disposeCurve=()=>resizeObserver.disconnect();
+  root.querySelector('.curve-panel').addEventListener('toggle',()=>drawCurve());
   render();
   }
   let serial=0;
@@ -636,7 +786,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   document.addEventListener('click',event=>{
     for(const picker of document.querySelectorAll('.picker'))if(!picker.contains(event.target))picker.open=false;
     const remove=event.target.closest('[data-remove-entity]');
-    if(remove) { remove.closest('.entity').remove(); document.getElementById('no-entities').hidden=entities.children.length>0; document.getElementById('add-entity').focus(); }
+    if(remove) { const entity=remove.closest('.entity');entity.disposeCurve();entity.remove(); document.getElementById('no-entities').hidden=entities.children.length>0; document.getElementById('add-entity').focus(); }
   });
   addEntity();
 })();
