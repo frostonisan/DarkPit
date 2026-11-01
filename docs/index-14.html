@@ -438,19 +438,25 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     ['interval','Intervalle d’origine (points)',50,1000,50],
     ['mid','Centre de la sigmoïde (%)',10,90,1],
   ];
+  const curveHelp={
+    cap:'Hausse des ratios de départ gagnée sur un cycle complet. 85 ajoute +85 % à chaque cycle, hors gain résiduel : une base de 0,5 gagne ainsi 0,425 par cycle. Augmenter ce réglage augmente les gains sans modifier la base.',
+    res:'Gain supplémentaire et régulier ajouté à chaque point d’Umbra, en plus du profil choisi. Par exemple, 0,01 ajoute 1 % du ratio de départ tous les 100 points. Il maintient une progression dans les zones où la courbe ralentit.',
+    interval:'Nombre de points d’Umbra par cycle. Avec 200, la courbe se répète de 0 à 200, puis de 200 à 400, en cumulant les gains. Un intervalle plus grand étale la progression. « Débloquer » ajoute un intervalle à la limite commune ; modifier ce réglage conserve la limite saisie.',
+    mid:'Place le centre de l’accélération dans le cycle de la sigmoïde. 50 % le situe à mi-cycle ; 70 % reporte l’accélération plus tard. Cela change la répartition des gains, pas leur total sur le cycle.',
+  };
+  const shapeHelp={
+    exp:'Accentue la forme de la courbe exponentielle. Une intensité plus élevée concentre les gains au début du cycle, puis ralentit davantage la progression. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
+    j:'Accentue la forme de la courbe en J. Une intensité plus élevée réduit les gains au début du cycle et renforce l’accélération vers sa fin. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
+    sigmoid:'Accentue la forme en S. Une intensité plus élevée concentre les gains autour du centre choisi, avec une progression plus lente avant et après. Une faible intensité rend les gains plus réguliers. Le gain total du cycle reste identique.',
+  };
   for(const profile of Lab.curveProfiles) {
     const option=document.createElement('option');option.value=profile.type;option.textContent=profile.name;$('#curve-profile').append(option);
   }
   for(const [key,label,min,max,step] of curveControls) {
-    const wrapper=document.createElement(key==='interval'?'div':'label');
-    wrapper.innerHTML=`${label}<output data-curve-value="${key}"></output><input type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}">`;
-    if(key==='interval') {
-      const input=wrapper.querySelector('input');input.id=domId('curve-interval');
-      wrapper.className='curve-field';
-      const heading=document.createElement('div');heading.className='curve-field-heading';
-      heading.innerHTML=`<label for="${input.id}">${label}</label><span class="setting-help"><button type="button" class="info-icon" aria-label="À quoi sert l’intervalle d’origine ?" aria-describedby="${domId('interval-help')}">i</button><span id="${domId('interval-help')}" class="setting-tooltip" role="tooltip">Nombre de points d’Umbra par cycle. Avec 200, la courbe se répète de 0 à 200, puis de 200 à 400, en cumulant les gains. Un intervalle plus grand étale la progression. « Débloquer » ajoute un intervalle à la limite commune ; modifier ce réglage conserve la limite saisie.</span></span>`;
-      heading.append(wrapper.querySelector('output'));wrapper.replaceChildren(heading,input);
-    }
+    const wrapper=document.createElement('div');wrapper.className='curve-field';
+    const inputId=domId(`curve-${key}`),helpId=domId(`${key}-help`);
+    wrapper.innerHTML=`<div class="curve-field-heading"><label for="${inputId}">${label}</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : ${label}" aria-describedby="${helpId}">i</button><span id="${helpId}" data-curve-help="${key}" class="setting-tooltip" role="tooltip"></span></span><output data-curve-value="${key}"></output></div><input id="${inputId}" type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}">`;
+    wrapper.querySelector('.setting-tooltip').textContent=key==='shape'?shapeHelp[state.curve.type]:curveHelp[key];
     $('#curve-settings').append(wrapper);
   }
   for(const spec of Lab.effects) {
@@ -717,7 +723,8 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       root.querySelector(`[data-curve="${key}"]`).value=state.curve[key];
       root.querySelector(`[data-curve-value="${key}"]`).textContent=fmt(state.curve[key],key==='res'?4:1);
     }
-    root.querySelector('[data-curve="mid"]').closest('label').hidden=state.curve.type!=='sigmoid';
+    root.querySelector('[data-curve="mid"]').closest('.curve-field').hidden=state.curve.type!=='sigmoid';
+    root.querySelector('[data-curve-help="shape"]').textContent=shapeHelp[state.curve.type];
     if(document.activeElement!==$('#curve-points'))$('#curve-points').value=raw;
     $('#curve-points-label').textContent=names[source];
     $('#curve-position').textContent=`${fmt(retained)} / ${fmt(state.limit)} points retenus en Concept`;
