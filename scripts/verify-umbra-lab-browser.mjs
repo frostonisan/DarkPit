@@ -19,11 +19,13 @@ check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game s
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
 vm.runInContext(scripts[0], sandbox);
-const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, curveProfiles, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
+const { calculate, initialState, effects, umbras, attributes, multiplier, curveGain, curveProfiles, referenceLimit, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
 equal(umbras.length, 9, 'Exactly nine level-one Umbras');
 equal(attributes.length, 4, 'Four directing attributes');
+equal(initialState().limit,referenceLimit,'Initial entity cap uses the shared reference limit');
+check(curveProfiles.every(profile=>profile.defaults.interval===referenceLimit),'All profiles derive their cycle length from the reference limit');
 check(!umbras.some(spec => ['brutality', 'inflexion', 'vivacite'].includes(spec.key)), 'Higher rank Umbras excluded');
 check(effects.every(spec => umbras.some(source => source.key === spec.source)), 'Every effect belongs to level one');
 check(Object.values(calculate(initialState()).results).every(effect => effect.total === 0), 'Empty inputs yield zero');
@@ -296,6 +298,12 @@ if (!process.argv.includes('--model-only')) {
     const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
     const fill = (group, key, value) => field(group, key).fill(String(value));
     const setCurve = (scope,key,value) => scope.locator(`[data-curve="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
+    const setCommonGain = async value => {
+      const panel=page.locator('#common-balancing'),wasOpen=await panel.evaluate(node=>node.open);
+      if(!wasOpen)await panel.locator('summary').click();
+      await page.locator('#common-cycle-gain').fill(String(value));
+      if(!wasOpen)await panel.locator('summary').click();
+    };
     const baseField=(scope,id,group,key='physicalDamage')=>scope.locator(`[data-entry="${id}"] input[data-base-group="${group}"][data-base-effect="${key}"]`);
     const add = async (catalog, id, query = '') => {
       const picker = page.locator(`[data-catalog="${catalog}"]`);
@@ -356,7 +364,10 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#example').click();
     equal(await page.locator('[data-entry]').count(), 5, 'Example adds only its five relevant rows');
     equal(await total('x-physicalDamage'), '81', 'Example uses both progressive ratios');
-    equal(await page.locator('[data-curve]').count(),5,'All five profile parameters are available');
+    equal(await page.locator('[data-curve]').count(),3,'Only curve shape, residual gain and center remain per entity');
+    equal(await page.locator('[data-curve="cap"], [data-curve="interval"]').count(),0,'Gain and interval sliders are removed');
+    equal(await page.locator('#common-cycle-gain').count(),1,'Cycle gain has one common editor');
+    equal(await page.locator('#reference-limit').textContent(),String(referenceLimit),'Common rules state the fixed reference limit');
     equal(await page.locator('#curve-points').inputValue(),'15','Chart points and table points share state');
     near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(15),'Chart marker displays the actual multiplier');
     check((await page.locator('#curve-attribute').innerText()).includes('44'),'Chart reports the actual rounded attribute gain');
@@ -364,8 +375,8 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#curve-view').selectOption('total');
     equal(await page.locator('#curve-chart').getAttribute('data-current'),'81','Total chart marker equals the entity total');
     const curveBuild=initialState(true);
-    for(const [key,value] of [['cap',50],['shape',6],['res',.01],['interval',400]]) {
-      curveBuild.curve[key]=value;await setCurve(page,key,value);
+    for(const [key,value] of [['cap',50],['shape',6],['res',.01]]) {
+      curveBuild.curve[key]=value;if(key==='cap')await setCommonGain(value);else await setCurve(page,key,value);
       equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(curveBuild).total,`${key}: chart follows the live entity calculation`);
       equal(Number(await total('x-physicalDamage')),row(curveBuild).total,`${key}: table follows the same calculation`);
       equal(await field('umbras','vigueur').inputValue(),'15',`${key}: previously acquired points are conserved`);
@@ -374,6 +385,10 @@ if (!process.argv.includes('--model-only')) {
     equal(await field('umbras','vigueur').inputValue(),'25','Editing curve progression changes the actual table source');
     await page.locator('#curve-reset').click();
     equal(await field('umbras','vigueur').inputValue(),'25','Curve reset preserves acquisitions');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Resetting an entity profile preserves the common gain');
+    const resetBuild=initialState(true);resetBuild.umbras.vigueur=25;resetBuild.curve.cap=50;
+    equal(Number(await total('x-physicalDamage')),row(resetBuild).total,'Profile reset uses the current common gain');
+    await setCommonGain(85);
     equal(await total('x-physicalDamage'),'115','Reset recomputes both ratios with the source defaults');
     check(await page.locator('#curve-unlock').isDisabled(),'Unlock requires reaching the common limit');
     await page.locator('#curve-fill').click();
@@ -405,12 +420,12 @@ if (!process.argv.includes('--model-only')) {
     const acquisitions=()=>page.locator('input[data-group], input[data-base-group], #level, #limit').evaluateAll(nodes=>nodes.map(node=>[node.dataset.group||node.dataset.baseGroup||node.id,node.dataset.key||node.dataset.baseEffect,node.value]));
     const profileInputs=JSON.stringify(await acquisitions());
     await page.locator('#curve-view').selectOption('total');
-    await setCurve(page,'cap',60);await setCurve(page,'shape',7);
+    await setCommonGain(60);await setCurve(page,'shape',7);
     profileBuild.curve={...profileBuild.curve,cap:60,shape:7};
-    const tunedExponential=row(profileBuild).total;
+    const tunedExponential={...profileBuild.curve};
     for(const type of ['j','sigmoid']) {
       await page.locator('#curve-profile').selectOption(type);
-      profileBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults};
+      profileBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults,cap:60};
       equal(Number(await total('x-physicalDamage')),row(profileBuild).total,`${type}: selecting a profile recalculates the existing entity`);
       equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(profileBuild).total,`${type}: graph and table use the same profile`);
       equal(await page.locator('#curve-chart').getAttribute('data-profile'),type,'Graph tracks the active profile');
@@ -423,14 +438,14 @@ if (!process.argv.includes('--model-only')) {
     await page.locator('#curve-view').selectOption('ratio');
     near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(80,profileBuild.curve),'Sigmoid graph uses the edited center');
     await page.locator('#curve-profile').selectOption('j');
-    await setCurve(page,'cap',40);await setCurve(page,'shape',3);await setCurve(page,'interval',400);
-    const tunedJ={...curveProfiles.find(profile=>profile.type==='j').defaults,cap:40,shape:3,interval:400};
+    await setCommonGain(40);await setCurve(page,'shape',3);
+    const tunedJ={...curveProfiles.find(profile=>profile.type==='j').defaults,cap:40,shape:3};
     profileBuild.curve={...tunedJ};
-    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'J intensity and interval are independently adjustable');
+    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'J uses its own intensity and the common gain');
     await page.locator('#curve-profile').selectOption('exp');
-    equal(await page.locator('[data-curve="cap"]').inputValue(),'60','Exponential gain survives profile round trips');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Switching profiles preserves the common gain');
     equal(await page.locator('[data-curve="shape"]').inputValue(),'7','Exponential intensity survives profile round trips');
-    equal(Number(await total('x-physicalDamage')),tunedExponential,'Returning to exponential restores its result on the same entity');
+    equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:{...tunedExponential,cap:40}}).total,'Previously inactive exponential uses the updated common gain and its own intensity');
     await page.locator('#mode-toggle').click();
     await page.locator('#curve-profile').selectOption('sigmoid');
     equal(await total('x-physicalDamage'),'110','Profile selection in current mode leaves the actual game calculation unchanged');
@@ -443,10 +458,14 @@ if (!process.argv.includes('--model-only')) {
     equal(await page.locator('[data-curve="mid"]').inputValue(),'50','Reset restores the selected sigmoid defaults');
     equal(JSON.stringify(await acquisitions()),profileInputs,'Resetting a profile preserves the build and common limit');
     await page.locator('#curve-profile').selectOption('j');
-    equal(await page.locator('[data-curve="cap"]').inputValue(),'40','Resetting sigmoid leaves J settings intact');
-    equal(await page.locator('[data-curve="interval"]').inputValue(),'400','Each profile keeps its interval independently of the common limit');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Resetting sigmoid preserves common balance settings');
+    check((await page.locator('#curve-common-rules').innerText()).includes('200 points'),'Cycle length stays at the reference despite an entity limit of 350');
     equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:tunedJ}).total,'Restored J settings recover its real calculation');
     await page.locator('#example').click();
+    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Example preserves the common gain');
+    const sharedExample=initialState(true);sharedExample.curve.cap=40;
+    equal(Number(await total('x-physicalDamage')),row(sharedExample).total,'Example recalculates with the shared balance settings');
+    await setCommonGain(85);
     await page.locator('#curve-view').selectOption('ratio');
     equal(await page.locator('[data-entry^="attribute-"] .base-settings input').count(),0,'Attribute rows do not expose ratio settings');
     equal(await baseField(page,'plus-physicalDamage','attributeBases').inputValue(),'0.5','Selected statistic row exposes its initial attribute base');
@@ -592,9 +611,9 @@ if (!process.argv.includes('--model-only')) {
 
     await page.locator('#example').click();
     await page.locator('details.rules > summary').click();
-    await setCurve(page,'cap',50);
+    await setCommonGain(50);
     equal(await total('x-physicalDamage'), '72', 'Curve control recalculates existing points in the table');
-    await setCurve(page,'cap',85);
+    await setCommonGain(85);
     await page.locator('#concept-settings > details > summary').click();
     await fill('gifts', 'physicalDamage', 2);
     equal(await total('x-physicalDamage'), '96', 'Fixed grants remain adjustable inside settings');
@@ -606,7 +625,7 @@ if (!process.argv.includes('--model-only')) {
     check(await page.locator('#current-rules').isVisible(), 'Calculation rules for both modes remain accessible');
     await page.locator('#limit').fill('10');
     await setCurve(page,'shape',6);
-    await setCurve(page,'cap',50);
+    await setCommonGain(50);
     await fill('gifts', 'physicalDamage', 3);
     equal(await total('x-physicalDamage'), '45', 'Editing concept parameters in current mode leaves its JS calculation unchanged');
     const currentSettingsEditor = await sharedEditor();
@@ -615,7 +634,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await total('x-physicalDamage'), '48', 'Concept uses the newly edited limit, curve and grant on the same points');
     await page.locator('#limit').fill('150');
     await setCurve(page,'shape',10);
-    await setCurve(page,'cap',85);
+    await setCommonGain(85);
     await fill('gifts', 'physicalDamage', 2);
     equal(await total('x-physicalDamage'), '96', 'Restoring concept parameters recovers the unchanged acquisitions');
     await fill('gifts', 'physicalDamage', 1);
@@ -681,26 +700,33 @@ if (!process.argv.includes('--model-only')) {
     await second.locator('[data-ui="limit"]').fill('80');
     await second.locator('details.rules > summary').click();
     await setCurve(second,'shape',6);
-    await setCurve(second,'cap',50);
+    const beforeSharedGain=[await settings(first),await settings(second)];
+    await setCommonGain(50);
+    equal(await entityTotal(first),'48','Common gain immediately recalculates the first entity');
+    equal(JSON.stringify([await settings(first),await settings(second)]),JSON.stringify(beforeSharedGain),'Shared balance changes preserve all entity acquisitions and local controls');
     await second.locator('[data-ui="concept-settings"] > details > summary').click();
     await entityFill(second,'gifts','physicalDamage',2);
     await entityFill(second,'umbras','vigueur',10);
-    equal(await entityTotal(second),'68','Each entity has its own curve and grants');
+    equal(await entityTotal(second),'68','Each entity keeps its own curve shape and grants with the common gain');
     await baseField(second,'umbra-vigueur','umbraBases').fill('2');
     equal(await baseField(first,'umbra-vigueur','umbraBases').inputValue(),'1','Each entity owns its Umbra base');
-    equal(await entityTotal(first),'51','Another entity’s base cannot change this entity');
+    equal(await entityTotal(first),'48','Another entity’s base cannot change this entity');
     equal(await entityTotal(second),'79','Custom base applies only to its own entity');
     await baseField(second,'umbra-vigueur','umbraBases').fill('1');
     await second.locator('[data-ui="curve-profile"]').selectOption('j');
     await setCurve(second,'shape',4);
     equal(await first.locator('[data-ui="curve-profile"]').inputValue(),'exp','Another entity can select its own independent profile');
-    equal(await entityTotal(first),'51','Changing another entity’s profile leaves this entity’s calculations intact');
+    equal(await entityTotal(first),'48','Changing another entity’s profile leaves this entity’s calculations intact');
     await second.locator('[data-ui="curve-profile"]').selectOption('exp');
     equal(await second.locator('[data-curve="shape"]').inputValue(),'6','Switching profiles restores the second entity’s tuned exponential');
     equal(await entityTotal(second),'68','Restoring a profile preserves its per-entity bases and grants');
     const secondBefore=await settings(second);
     await second.locator('[data-ui="mode-toggle"]').click();
     equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
+    await setCommonGain(85);
+    equal(await entityTotal(first),'51','Shared gain updates an entity still using Concept');
+    equal(await entityTotal(second),'45','Shared gain leaves the current-game calculation unchanged');
+    await setCommonGain(50);
     equal(await first.locator('[data-ui="mode-name"]').innerText(),'Concept','Calculation mode is isolated per entity');
     equal(JSON.stringify(await settings(second)),JSON.stringify(secondBefore),'Mode switch preserves name, levels, limit, curve, grants and every input');
     equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Switching another entity preserves all first-entity settings');
@@ -712,7 +738,7 @@ if (!process.argv.includes('--model-only')) {
     equal(await entityTotal(second),'68','Second entity remains unchanged');
     await first.locator('[data-ui="mode-toggle"]').click();
     await entityFill(first,'fixed','physicalDamage',11);
-    equal(await entityTotal(first),'52','First entity still updates independently');
+    equal(await entityTotal(first),'49','First entity still updates independently');
     equal(await entityTotal(second),'68','No input selector leaks to the other entity');
     await entityFill(first,'fixed','physicalDamage',10);
     check(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);return new Set(ids).size===ids.length;}),'Multiple entities have unique DOM and detail identifiers');
@@ -740,7 +766,12 @@ if (!process.argv.includes('--model-only')) {
     const third=page.locator('[data-entity-id="entity-3"]');
     equal(await third.locator('[data-entry]').count(),0,'Entity created after removal is fresh');
     equal(await third.locator('[data-curve="shape"]').inputValue(),'10','A fresh entity preserves the original exponential intensity independently');
-    equal(await third.locator('[data-curve="cap"]').inputValue(),'85','A fresh entity uses the source per-cycle target');
+    equal(await page.locator('#common-cycle-gain').inputValue(),'50','A fresh entity preserves the common per-cycle gain');
+    check((await third.locator('[data-ui="curve-common-rules"]').innerText()).includes('+50 %'),'A fresh entity inherits the current common gain');
+    await third.locator('[data-ui="example"]').click();
+    equal(await entityTotal(third),'72','A new entity calculates with the common gain');
+    await third.locator('[data-ui="clear"]').click();
+    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Clearing an entity preserves the shared gain');
     await third.locator('[data-remove-entity]').click();
     await second.locator('[data-remove-entity]').click();
     check(await page.locator('#no-entities').isVisible(),'Removing the final entity leaves the add action available');

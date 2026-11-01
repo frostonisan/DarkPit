@@ -75,6 +75,10 @@ td input { width:65px!important; } .effect-name { border:0; background:transpare
 .milestones tr[data-current=true] { color:var(--gold); } .compare { margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
 .notice { margin-top:8px; color:var(--muted); font-size:12px; } [data-ui=status] { min-height:22px; margin-top:12px; color:var(--gold); }
 details.rules { margin-top:18px; border-top:1px solid var(--line); padding-top:12px; color:var(--muted); font-size:12px; }
+details.common-balancing { margin-top:16px; padding:12px; border:1px solid var(--line); border-radius:5px; background:var(--panel); }
+.balance-field { max-width:420px; margin-top:12px; }
+.balance-field .setting-tooltip { bottom:auto; top:100%; }
+.balance-field input { margin-top:8px; }
 summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } .rules li { margin:5px 0; }
 .rules .controls { margin:10px 0; } footer { margin-top:16px; color:var(--muted); font-size:12px; }
 .gift-settings { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:10px; }
@@ -130,6 +134,23 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   <header>
     <div><h1>Atelier des Umbras I</h1><p class="subtitle">Index 14 · Acquisition, ratios et calculs en direct.</p></div>
   </header>
+  <details class="common-balancing" id="common-balancing">
+    <summary>Paramètres communs d’équilibrage</summary>
+    <p class="notice">Ces règles s’appliquent à toutes les entités et à tous les profils du Concept. Les chiffres sont recalculés en direct.</p>
+    <div class="curve-field balance-field">
+      <div class="curve-field-heading"><label for="common-cycle-gain">Gain par cycle (%)</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : gain par cycle" aria-describedby="common-gain-help">i</button><span id="common-gain-help" class="setting-tooltip" role="tooltip">Ce réglage décide combien les ratios gagnent à chaque cycle.
+
+Imagine qu’au départ, 1 point de Force donne 1 PP. Avec un gain de 85 % :
+• Après 1 cycle : il donne 1,85 PP.
+• Après 2 cycles : il donne 2,70 PP.
+
+Un cycle correspond à la limite de référence. Plus tu augmentes ce gain, plus les Umbras deviennent puissantes, pour toutes les entités.
+
+Exemple sans gain résiduel ni arrondis.</span></span></div>
+      <input id="common-cycle-gain" type="number" min="0" max="200" step="any" inputmode="decimal" value="85">
+    </div>
+    <p class="notice">Limite de référence : <strong id="reference-limit"></strong> points. Un cycle couvre cette quantité de points. Débloquer la limite d’une entité ouvre le cycle suivant ; cela n’étire pas les cycles précédents.</p>
+  </details>
   <div class="entity-toolbar"><h2>Entités</h2><button type="button" id="add-entity">+ Entité</button></div>
   <div class="entities" id="entities"></div>
   <p class="empty" id="no-entities" hidden>Ajoutez une entité pour commencer.</p>
@@ -158,7 +179,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <div class="curve-legend"><span><i></i>Jusqu’aux points retenus</span><span><i class="projected"></i>Projection</span><span><i class="cycle"></i>Cycles</span><span><i class="limit"></i>Limite commune</span></div>
     <p class="notice">La projection au-delà de la limite suppose son déblocage. Les autres saisies restent constantes.</p>
     <div class="curve-settings" id="curve-settings"></div>
-    <p class="notice">Gain en % du ratio de départ par cycle : 85 = +85 %, hors gain résiduel. M(U) = 1 + gain cumulé / 100. Tous les gains sont recalculés en direct.</p>
+    <p class="notice" id="curve-common-rules"></p>
     <div class="controls"><label><span id="curve-points-label">Vigueur</span> <input id="curve-points" type="number" min="0" step="1" value="0" aria-label="Points d’Umbra de la courbe"></label><span class="muted" id="curve-position"></span></div>
     <div class="tools"><button type="button" data-curve-add="10">+10</button><button type="button" data-curve-add="50">+50</button><button type="button" id="curve-fill">Max</button><button type="button" id="curve-unlock">Débloquer +200 points</button><button type="button" id="curve-reset">Réinitialiser ce profil</button></div>
     <p class="notice">Chaque profil conserve ses paramètres dans cette entité. Débloquer ouvre la limite à tous ses attributs et toutes ses Umbras. Réinitialiser restaure les paramètres du profil actif, en conservant les points, les bases et la limite.</p>
@@ -178,7 +199,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     <div id="status" role="status" aria-live="polite"></div>
   </section>
   <details class="rules">
-    <summary>Règles et paramètres communs</summary>
+    <summary>Règles et dons fixes de l’entité</summary>
     <div id="concept-settings">
     <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
@@ -186,8 +207,8 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       <li>U désigne les points retenus de l’Umbra concernée. La même courbe s’applique à tous les ratios de l’entité, mais chaque Umbra progresse selon ses propres points.</li>
       <li>Pour un intervalle W : g(x) = gain × f(x/W) + résiduel × x. Chaque famille est normalisée de 0 à 1 sur un cycle entier. Gain cumulé = cycles complets × g(W) + g(points du cycle). M(U) = 1 + gain cumulé / 100.</li>
       <li>Avec k = intensité et t = x/W : exponentielle f(t) = (1 − exp(−kt)) / (1 − exp(−k)) ; en J f(t) = (exp(kt) − 1) / (exp(k) − 1). Pour la sigmoïde : z(t) = 1 / (1 + exp(−k(t − centre/100))) et f(t) = (z(t) − z(0)) / (z(1) − z(0)).</li>
-      <li>Changer de profil recalcule toute l’entité avec ses saisies actuelles. Les paramètres de chaque profil sont conservés séparément. L’exponentielle initiale garde l’intensité 10 de la courbe précédente ; les profils J et sigmoïde démarrent respectivement à 5 et 9.</li>
-      <li>L’intervalle définit la longueur des cycles ; la limite commune définit les points utilisables. Débloquer ajoute un intervalle à la limite sans changer la courbe acquise. Modifier l’intervalle recalcule la courbe et conserve la limite saisie.</li>
+      <li>Changer de profil recalcule toute l’entité avec ses saisies actuelles. L’intensité, le gain résiduel et le centre de chaque profil sont conservés séparément. Le gain par cycle est commun à toutes les entités et tous les profils. L’intensité initiale vaut 10 pour l’exponentielle, 5 pour le profil J et 9 pour la sigmoïde.</li>
+      <li>La longueur d’un cycle est fixée par la limite de référence commune. La limite de l’entité définit les points utilisables. Débloquer ajoute la limite de référence sans changer les ratios déjà atteints. Modifier la limite de l’entité ne change pas la longueur des cycles.</li>
       <li>Sans Umbra, une stat+ active un coefficient fixe. Avec l’Umbra, son coefficient remplace celui de la stat+ ; il n’est jamais additionné une seconde fois.</li>
       <li>Les bases initiales se règlent dans les lignes choisies. La base d’attribut est propre à chaque statistique (Force pour la PP, Force pour l’exécution, etc.). La base d’Umbra règle son apport par point ; pour les HP, la préparation et la réduction d’esquive, elle multiplie la courbe native. Les dons fixes restent séparés.</li>
       <li>Le don fixe de l’Umbra s’ajoute à sa capacité calculée. Les dons initiaux sont de 1 par point pour l’effet principal et de 0 pour les effets secondaires ; chaque valeur est réglable.</li>
@@ -254,7 +275,8 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     return Math.ceil(scaled - Number.EPSILON * Math.max(1, Math.abs(scaled)) * 4) / factor || 0;
   };
   const nearest = (value, decimals=0) => Math.round(value * 10 ** decimals) / 10 ** decimals;
-  const DEFAULT_CURVE = Object.freeze({ type:'exp', cap:85, shape:10, res:.0005, interval:200, mid:50 });
+  const REFERENCE_LIMIT = 200;
+  const DEFAULT_CURVE = Object.freeze({ type:'exp', cap:85, shape:10, res:.0005, interval:REFERENCE_LIMIT, mid:50 });
   const CURVE_PROFILES = Object.freeze([
     Object.freeze({type:'exp',name:'Exponentielle — ralentissement',description:'Progression rapide au début du cycle, puis ralentissement.',defaults:DEFAULT_CURVE}),
     Object.freeze({type:'j',name:'En J — accélération',description:'Progression lente au début du cycle, puis accélération.',defaults:Object.freeze({...DEFAULT_CURVE,type:'j',shape:5})}),
@@ -278,7 +300,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const multiplier = (points, curve) => 1 + curveGain(points,curve)/100;
   const defaultUmbraBase = spec => ['timing','projectile'].includes(spec.type) ? null : spec.type==='critical' ? .5 : spec.type==='regen' ? 5/150 : 1;
   function initialState(example=false) {
-    return { mode:'concept', level:example ? 51 : 1, limit:200, curve:{ ...DEFAULT_CURVE },
+    return { mode:'concept', level:example ? 51 : 1, limit:REFERENCE_LIMIT, curve:{ ...DEFAULT_CURVE },
       attributes:Object.fromEntries(ATTRIBUTES.map(a => [a.key, example && a.key==='strength' ? 60 : 0])),
       umbras:Object.fromEntries(UMBRAS.map(u => [u.key, example && u.key==='vigueur' ? 15 : 0])),
       fixed:{}, plus:{}, gifts:Object.fromEntries(EFFECTS.map(effect => [effect.key,effect.gift])),
@@ -395,14 +417,15 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  window.umbraLab = Object.freeze({ calculate, initialState, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, referenceLimit:REFERENCE_LIMIT, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
 })();
 </script>
 <script>
 (() => {
   'use strict';
+  const Lab=window.umbraLab, balance={gain:Lab.initialState().curve.cap};
+  const profileDefaults=profile=>({...profile.defaults,cap:balance.gain,interval:Lab.referenceLimit});
   function mountEntity(root,serial) {
-  const Lab=window.umbraLab;
   const domId=id=>serial===1?id:`entity-${serial}-${id}`;
   for(const node of root.querySelectorAll('[id]')) { node.dataset.ui=node.id; node.id=domId(node.id); }
   const $=selector=>root.querySelector(selector.replace(/#([\w-]+)/g,(_,id)=>`[data-ui="${id}"]`));
@@ -412,7 +435,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const profileByType=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,profile]));
   let profileSettings;
   function resetProfiles() {
-    profileSettings=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,{...profile.defaults}]));
+    profileSettings=Object.fromEntries(Lab.curveProfiles.map(profile=>[profile.type,profileDefaults(profile)]));
     state.curve=profileSettings.exp;
   }
   resetProfiles();
@@ -433,10 +456,8 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const normalize=text=>text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
   const readNumber=input=>Math.max(0,Number.isFinite(input.valueAsNumber) ? input.valueAsNumber : 0);
   const curveControls=[
-    ['cap','Gain total par intervalle (%)',1,200,1],
     ['shape','Intensité / courbure',.5,15,.1],
     ['res','Gain résiduel (% / point)',0,.02,.0001],
-    ['interval','Intervalle d’origine (points)',50,1000,50],
     ['mid','Centre de la sigmoïde (%)',10,90,1],
   ];
   function setCurveParameter(key,value,snap=false) {
@@ -445,9 +466,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     state.curve[key]=snap?Number((min+Math.round((bounded-min)/step)*step).toFixed(12)):bounded;
   }
   const curveHelp={
-    cap:'Ce potard règle combien tes points deviennent plus puissants à chaque cycle.\n\nImagine qu’au départ, 1 point de Force donne 1 PP. Avec un gain de 85 % :\n• Après 1 cycle : il donne 1,85 PP.\n• Après 2 cycles : il donne 2,70 PP.\n\nAvec un intervalle de 200, tu termines un cycle tous les 200 points de Vigueur. Plus tu montes ce potard, plus le bonus par cycle est grand.\n\nExemple sans gain résiduel ni arrondis.',
     res:'C’est un petit bonus régulier, ajouté en plus des gains de la courbe.\n\nExemple : 0,01 ajoute +1 % tous les 100 points de Vigueur. Si un point de Force vaut 1 PP au départ, ce bonus lui ajoute 0,01 PP.\n\nPlus tu montes ce potard, plus ce petit bonus est grand. À 0, il disparaît.',
-    interval:'Il choisit combien de points dure un cycle.\n\nExemple avec Vigueur : à 200, tu termines un cycle tous les 200 points. À 400, il faut 400 points pour gagner le même bonus de cycle.\n\n« Débloquer » augmente la limite de cette quantité. Changer ce potard seul ne change pas la limite.',
     mid:'Il choisit où se trouvent les gains les plus rapides dans le cycle.\n\nExemple avec un cycle de 200 points de Vigueur :\n• Centre à 50 % : autour de 100 points.\n• Centre à 70 % : autour de 140 points.\n\nPlus tu montes ce potard, plus les gros gains arrivent tard. Le bonus total du cycle reste le même.',
   };
   const shapeHelp={
@@ -721,6 +740,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const row=snapshot.results[curveEffect], source=row.source, raw=state.umbras[source], retained=Math.min(raw,state.limit);
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
     $('#curve-profile').value=state.curve.type;
+    $('#curve-common-rules').textContent=`Cycle : ${fmt(Lab.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ, hors gain résiduel. Réglable dans les paramètres communs d’équilibrage, en haut de page.`;
     for(const [key,,min,,step] of curveControls) {
       const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key];
       // Keep precise typed values on the slider, while retaining its usual
@@ -858,7 +878,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
       render();$('#status').textContent=`Limite commune ouverte à ${fmt(state.limit)} points pour tous les attributs et toutes les Umbras de cette entité.`;
     }
     if(button.dataset.ui==='curve-reset') {
-      const type=state.curve.type;profileSettings[type]={...profileByType[type].defaults};state.curve=profileSettings[type];
+      const type=state.curve.type;profileSettings[type]=profileDefaults(profileByType[type]);state.curve=profileSettings[type];
       render();$('#status').textContent='Profil réinitialisé ; points, bases et limite conservés.';
     }
     if(button.dataset.ui==='mode-toggle') {
@@ -894,11 +914,25 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   const resizeObserver=new ResizeObserver(()=>drawCurve());
   resizeObserver.observe($('#curve-chart'));
   root.disposeCurve=()=>resizeObserver.disconnect();
+  root.refreshBalance=()=>{
+    for(const profile of Object.values(profileSettings)) { profile.cap=balance.gain;profile.interval=Lab.referenceLimit; }
+    render();
+  };
   root.querySelector('.curve-panel').addEventListener('toggle',()=>drawCurve());
   render();
   }
   let serial=0;
   const entities=document.getElementById('entities'), template=document.getElementById('entity-template');
+  document.getElementById('reference-limit').textContent=Lab.referenceLimit;
+  const gainInput=document.getElementById('common-cycle-gain');
+  gainInput.value=balance.gain;
+  function updateCommonGain() {
+    if(gainInput.value==='' || !Number.isFinite(gainInput.valueAsNumber))return;
+    balance.gain=Math.max(0,Math.min(200,gainInput.valueAsNumber));
+    for(const entity of entities.children)entity.refreshBalance();
+  }
+  gainInput.addEventListener('input',updateCommonGain);
+  gainInput.addEventListener('change',()=>{updateCommonGain();gainInput.value=balance.gain;});
   function addEntity(focus=false) {
     const root=template.content.firstElementChild.cloneNode(true); root.dataset.entityId=`entity-${++serial}`;
     entities.append(root); mountEntity(root,serial); document.getElementById('no-entities').hidden=true;
