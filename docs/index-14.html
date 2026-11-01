@@ -86,11 +86,12 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .curve-panel .controls label { min-width:0; max-width:100%; flex-wrap:wrap; }
 .curve-panel canvas { display:block; width:100%; height:250px; }
 .curve-settings { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,215px),1fr)); gap:12px 20px; margin:16px 0; }
-.curve-settings label { display:block; font-size:12px; } .curve-settings output { float:right; color:var(--gold); }
-.curve-settings input { display:block; width:100%; padding:0; margin:8px 0 0; accent-color:#21bea9; }
+.curve-settings label { display:block; font-size:12px; }
+.curve-value-controls { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.curve-value-controls input[type=range] { flex:1; min-width:0; width:0; padding:0; margin:0; accent-color:#21bea9; }
+.curve-value-controls input[type=number] { flex:0 0 86px; width:86px; padding:5px; color:var(--gold); }
 .curve-field { position:relative; font-size:12px; }
 .curve-field-heading { display:flex; align-items:center; gap:6px; }
-.curve-field-heading output { margin-left:auto; }
 .setting-help { display:inline-flex; }
 .info-icon { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:17px; height:17px; padding:0; border:1px solid var(--muted); border-radius:50%; color:var(--muted); background:transparent; font:italic 600 12px Georgia,serif; cursor:help; }
 .setting-tooltip { position:absolute; z-index:15; left:0; bottom:100%; width:100%; padding:10px 12px; border:1px solid #657787; border-radius:5px; background:#101519; color:var(--text); line-height:1.5; font-weight:400; visibility:hidden; }
@@ -438,6 +439,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     ['interval','Intervalle d’origine (points)',50,1000,50],
     ['mid','Centre de la sigmoïde (%)',10,90,1],
   ];
+  function setCurveParameter(key,value,snap=false) {
+    const [, ,min,max,step]=curveControls.find(control=>control[0]===key);
+    const bounded=Math.max(min,Math.min(max,value));
+    state.curve[key]=snap?Number((min+Math.round((bounded-min)/step)*step).toFixed(12)):bounded;
+  }
   const curveHelp={
     cap:'Hausse des ratios de départ gagnée sur un cycle complet. 85 ajoute +85 % à chaque cycle, hors gain résiduel : une base de 0,5 gagne ainsi 0,425 par cycle. Augmenter ce réglage augmente les gains sans modifier la base.',
     res:'Gain supplémentaire et régulier ajouté à chaque point d’Umbra, en plus du profil choisi. Par exemple, 0,01 ajoute 1 % du ratio de départ tous les 100 points. Il maintient une progression dans les zones où la courbe ralentit.',
@@ -455,7 +461,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   for(const [key,label,min,max,step] of curveControls) {
     const wrapper=document.createElement('div');wrapper.className='curve-field';
     const inputId=domId(`curve-${key}`),helpId=domId(`${key}-help`);
-    wrapper.innerHTML=`<div class="curve-field-heading"><label for="${inputId}">${label}</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : ${label}" aria-describedby="${helpId}">i</button><span id="${helpId}" data-curve-help="${key}" class="setting-tooltip" role="tooltip"></span></span><output data-curve-value="${key}"></output></div><input id="${inputId}" type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}">`;
+    wrapper.innerHTML=`<div class="curve-field-heading"><label for="${inputId}">${label}</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : ${label}" aria-describedby="${helpId}">i</button><span id="${helpId}" data-curve-help="${key}" class="setting-tooltip" role="tooltip"></span></span></div><div class="curve-value-controls"><input id="${inputId}" type="range" data-curve="${key}" min="${min}" max="${max}" step="${step}" aria-label="${label}"><input type="number" data-curve-number="${key}" min="${min}" max="${max}" step="any" inputmode="decimal" aria-label="Valeur : ${label}"></div>`;
     wrapper.querySelector('.setting-tooltip').textContent=key==='shape'?shapeHelp[state.curve.type]:curveHelp[key];
     $('#curve-settings').append(wrapper);
   }
@@ -719,9 +725,14 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const row=snapshot.results[curveEffect], source=row.source, raw=state.umbras[source], retained=Math.min(raw,state.limit);
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
     $('#curve-profile').value=state.curve.type;
-    for(const [key] of curveControls) {
-      root.querySelector(`[data-curve="${key}"]`).value=state.curve[key];
-      root.querySelector(`[data-curve-value="${key}"]`).textContent=fmt(state.curve[key],key==='res'?4:1);
+    for(const [key,,min,,step] of curveControls) {
+      const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key];
+      // Keep precise typed values on the slider, while retaining its usual
+      // increments when the value falls on a step of the original control.
+      const ticks=(value-min)/step;
+      slider.step=Math.abs(ticks-Math.round(ticks))<1e-8?String(step):'any';slider.value=value;
+      input.step=slider.step;
+      if(document.activeElement!==input)input.value=value;
     }
     root.querySelector('[data-curve="mid"]').closest('.curve-field').hidden=state.curve.type!=='sigmoid';
     root.querySelector('[data-curve-help="shape"]').textContent=shapeHelp[state.curve.type];
@@ -795,7 +806,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
     const input=event.target;
     if(input.matches('.entity-name')) { root.setAttribute('aria-label',input.value.trim()||`Entité ${serial}`); return; }
     if(input.matches('.picker input')) { filterPicker(input.closest('.picker')); return; }
-    if(input.dataset.curve) { state.curve[input.dataset.curve]=readNumber(input); render(); return; }
+    if(input.dataset.curve) { setCurveParameter(input.dataset.curve,readNumber(input),true); render(); return; }
+    if(input.dataset.curveNumber) {
+      if(input.value==='' || !Number.isFinite(input.valueAsNumber))return;
+      setCurveParameter(input.dataset.curveNumber,input.valueAsNumber);render();return;
+    }
     if(!input.matches('input[type=number]'))return;
     if(input.value==='' || input.validity.badInput)return;
     const value=readNumber(input);
@@ -814,6 +829,11 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   });
   root.addEventListener('change',event=>{
     const input=event.target;
+    if(input.dataset.curveNumber) {
+      const key=input.dataset.curveNumber;
+      if(input.value!=='' && Number.isFinite(input.valueAsNumber))setCurveParameter(key,input.valueAsNumber);
+      input.value=state.curve[key];render();return;
+    }
     if(input.dataset.ui==='curve-profile') { state.curve=profileSettings[input.value];render();return; }
     if(input.dataset.ui==='curve-effect') { curveEffect=input.value;render();return; }
     if(input.dataset.ui==='curve-view') { curveView=input.value;render();return; }
