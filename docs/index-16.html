@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Index 16 · Cases groupées</title>
+  <link rel="icon" href="media/assets/ui/favicon.png">
+  <link rel="stylesheet" href="css/monstre.css">
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111619; color: #e7ecee; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, [tabindex]:focus-visible { outline: 2px solid #e4c478; outline-offset: 4px; }
+    main { max-width: 1350px; margin: auto; padding: 26px 30px; }
+    header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
+    .eyebrow { color: #b4a782; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { font: 32px/1.2 Georgia, serif; color: #f2e5c7; margin: 8px 0; }
+    .intro { color: #abb8bd; font-size: 14px; margin: 0; }
+    .reset { border: 1px solid #51606a; background: #202a30; color: #ecf0f2; padding: 10px 16px; border-radius: 5px; }
+    .roster { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 22px 0 16px; }
+    .entity-card { text-align: left; background: #1b2429; color: #e7ecee; border: 1px solid #35434b; border-left: 3px solid var(--color); padding: 13px 16px; border-radius: 4px; }
+    .entity-card[aria-pressed=true] { background: #263239; border-color: var(--color); }
+    .card-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
+    .card-size { color: var(--color); font-size: 12px; white-space: nowrap; }
+    .card-detail { display: block; color: #aebcc3; margin-top: 5px; font-size: 12px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; padding: 12px 0 16px; font-size: 13px; color: #bfccd1; }
+    .toolbar label { display: flex; align-items: center; gap: 8px; }
+    input { accent-color: #8edbd0; }
+    .toolbar .hint { margin-left: auto; font-size: 12px; color: #82969f; }
+    .board-shell { border: 1px solid #3a4850; border-radius: 6px; background: #151e23; overflow: hidden; }
+    .board-viewport { overflow: auto; overscroll-behavior: contain; }
+    .board-stage { position: relative; margin-inline: auto; }
+    .board-world { position: absolute; inset: 0 auto auto 0; transform-origin: top left; user-select: none; touch-action: none; isolation: isolate; }
+    svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+    .base-cell { stroke: #526069; stroke-width: 1; fill: #253038; }
+    .base-cell.alternate { fill: #202a31; }
+    .cell-label { fill: #6e838d; font: 10px system-ui; text-anchor: middle; pointer-events: none; }
+    .role-label { fill: #9aaab1; font: 8px system-ui; text-anchor: middle; pointer-events: none; }
+    .hide-roles .role-label { display: none; }
+    .group-cell { fill: var(--color); fill-opacity: .22; stroke: none; }
+    .group-boundary { fill: none; stroke: var(--color); stroke-width: 3; stroke-linejoin: round; pointer-events: none; }
+    .logical-group { cursor: grab; }
+    .logical-group.selected .group-cell { fill-opacity: .36; }
+    .logical-group.selected .group-boundary { stroke-width: 4; }
+    .logical-group.source { opacity: .35; }
+    .logical-group.source .group-boundary { stroke-dasharray: 7 5; }
+    .logical-group.displaced .group-boundary { stroke: #f6bd7d; stroke-dasharray: 6 4; }
+    #preview { pointer-events: none; }
+    .preview-cell { stroke: none; fill: var(--preview-color); fill-opacity: .19; }
+    .preview-boundary { stroke: var(--preview-color); stroke-width: 3; fill: none; stroke-dasharray: 6 4; }
+    .move-arrow { stroke: #f6bd7d; stroke-width: 2; stroke-dasharray: 5 4; fill: none; }
+    .actor-anchor { position: absolute; width: var(--sprite-w,120px); height: var(--sprite-h,120px); padding: 0; border: 0; background: none; transform: translate(-50%,-100%); pointer-events: none; }
+    /* Index 15: placement > scale > base .85 > fixed CSS frame > facing > animated sprite.
+       The canvas stays 500 x 500. Native transforms never overwrite the size factor. */
+    .entity-scale { display: block; transform: scale(var(--entity-scale)); transform-origin: center bottom; }
+    .base-scale { transform: scale(.85); transform-origin: center bottom; }
+    .entity-frame { width: var(--sprite-w); height: var(--sprite-h); line-height: 0; }
+    .sprite-facing { line-height: 0; }
+    .entity-frame .sprite { position: relative; display: inline-block; top: 0; vertical-align: bottom; line-height: 0; pointer-events: auto; cursor: grab; }
+    .entity-frame canvas { display: block; position: static; width: auto; max-width: none; filter: drop-shadow(0 9px 5px #0008); }
+    .actor-anchor.dragging { z-index: 1000 !important; }
+    .actor-anchor.dragging .sprite { cursor: grabbing; animation-play-state: paused; }
+    .actor-anchor.dragging canvas { filter: drop-shadow(0 14px 7px #000b); }
+    .group-caption { position: absolute; transform: translateX(-50%); color: var(--color); font-size: 11px; font-weight: 600; padding: 3px 7px; background: #111b22e8; border-radius: 4px; pointer-events: none; white-space: nowrap; }
+    .board-footer { padding: 13px 16px; border-top: 1px solid #35434b; display: flex; align-items: baseline; gap: 16px; justify-content: space-between; }
+    #status { margin: 0; font-size: 13px; color: #cbd8de; min-height: 20px; }
+    #status[data-kind=invalid] { color: #ff9d9d; }
+    #status[data-kind=push] { color: #f6bd7d; }
+    #status[data-kind=valid] { color: #94ddbd; }
+    #count { color: #80959f; font-size: 11px; white-space: nowrap; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 23px; font-size: 12px; color: #a2b3bc; margin-top: 14px; }
+    .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+    .note { font-size: 12px; color: #859aa5; margin-top: 14px; }
+    details { margin-top: 22px; font-size: 12px; color: #8da1aa; }
+    details p { max-width: 900px; line-height: 1.6; }
+    #load-error { padding: 14px; color: #ffc1bb; }
+    @media (max-width: 720px) { main { padding: 18px 12px; } h1 { font-size: 26px; } header { align-items: flex-start; } .reset { padding: 8px; font-size: 12px; } .roster { gap: 6px; } .entity-card { padding: 10px 8px; } .card-head { flex-direction: column; font-size: 13px; } .card-detail { font-size: 11px; } .toolbar .hint { margin-left: 0; } .board-footer { flex-direction: column; gap: 5px; } }
+    @media (prefers-reduced-motion: reduce) { .entity-frame .sprite { animation: none !important; } }
+  </style>
+</head>
+<body>
+<main>
+  <header><div><span class="eyebrow">Index 16 · Laboratoire de placement</span><h1>Un hex, plusieurs cases.</h1><p class="intro">Trois mouches, trois tailles. Chaque zone colorée forme une seule case logique.</p></div><button class="reset" id="reset" type="button">Réinitialiser</button></header>
+  <div class="roster" id="roster" aria-label="Les trois mouches"></div>
+  <div class="toolbar">
+    <label><input id="push" type="checkbox" checked>Repousser les voisins</label>
+    <label><input id="roles" type="checkbox" checked>Rôles des cases</label>
+    <span class="hint">Glisser pour déplacer · Échap pour annuler</span>
+  </div>
+  <section class="board-shell" aria-label="Damier hexagonal">
+    <div class="board-viewport" id="viewport"><div class="board-stage" id="stage"><div class="board-world" id="world">
+      <svg id="board" aria-label="Cases du plateau"><defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#f6bd7d"/></marker></defs><g id="cells"></g><g id="groups"></g><g id="preview"></g></svg>
+      <div id="actors"></div>
+    </div></div></div>
+    <div class="board-footer"><p id="status" role="status" aria-live="polite">Chargement des mouches…</p><span id="count">3 entités · 11 cases réservées</span></div>
+  </section>
+  <div class="legend"><span><i class="dot" style="background:#94ddbd"></i>Placement libre</span><span><i class="dot" style="background:#f6bd7d"></i>Voisin à déplacer</span><span><i class="dot" style="background:#ff9393"></i>Placement impossible</span></div>
+  <p class="note">Saisis aussi une case colorée pour déplacer son groupe entier. Au clavier : sélectionne une mouche, puis utilise les flèches.</p>
+  <p id="load-error" role="alert" hidden></p>
+  <details><summary>À propos de cet essai</summary><p>Formes reprises du croquis : 2, 3 et 6 hexagones. Un occupant et un rôle majoritaire par groupe. Les voisins sont replacés au plus près, avec leurs groupes entiers. Tous les déplacements sont validés ensemble ; un placement impossible laisse le plateau intact.</p><p>Gabarit et échelles issus du principe d’index 15 : dimensions CSS mesurées une fois au montage, facteur de base 0,85 et agrandissement sur un parent distinct. Le sprite et sa tremblote viennent du jeu. Cette page autonome ne charge pas le moteur de combat et n’utilise aucune sauvegarde.</p></details>
+</main>
+<template id="fly-template"><button class="actor-anchor" type="button"><span class="entity-scale"><span class="base-scale" style="display:block"><span class="entity-frame" style="display:block"><span class="sprite-facing" style="display:block"><span class="sprite mouche-asticoteuse iddle"><canvas class="mouche-asticoteuse" width="500" height="500" aria-hidden="true"></canvas></span></span></span></span></span></button></template>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id), NS = 'http://www.w3.org/2000/svg';
+  const R = 42, W = Math.sqrt(3) * R, ROWS = 7, COLS = 13, PAD_X = 64, PAD_Y = 166;
+  const WIDTH = PAD_X * 2 + (COLS - .5) * W, HEIGHT = PAD_Y + (ROWS - 1) * R * 1.5 + 100;
+  const roleNames = { gueux: 'Gueux', mage: 'Mage', tank: 'Tank', fantassin: 'Fantassin' };
+  const roleOrder = ['gueux', 'mage', 'tank', 'fantassin'];
+  const cells = [], byAxial = new Map(), byId = new Map(), views = new Map();
+  const models = [
+    { id: 'yellow', name: 'Petite mouche', color: '#f1d45c', scale: 1, shape: [[0,0],[1,0]], initial: [2,4] },
+    { id: 'cyan', name: 'Grande mouche', color: '#68dedb', scale: 1.65, shape: [[0,0],[1,0],[0,1]], initial: [6,4] },
+    { id: 'purple', name: 'Mouche géante', color: '#d490f0', scale: 2.5, shape: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], initial: [8,2] },
+  ];
+  const modelById = new Map(models.map(m => [m.id,m]));
+  const metrics = { spriteMeasurements: 0, geometryReads: 0, plans: 0, commits: 0 };
+  let state = new Map(), occupied = new Map(), logicalHexes = new Map(), selected = 'yellow', drag = null, frame = 0, boardScale = 1;
+  const axialKey = (q,r) => `${q},${r}`;
+  // Same odd-row offset / axial convention as board.js and forcedMovement.hexDistance.
+  const point = (q,r) => ({ x: PAD_X + W * (q + r / 2), y: PAD_Y + R * 1.5 * r });
+  const svg = (name, attrs = {}) => { const n = document.createElementNS(NS,name); for (const [k,v] of Object.entries(attrs)) n.setAttribute(k,v); return n; };
+  const corners = p => Array.from({length:6}, (_,i) => { const a = (i * 60 - 90) * Math.PI / 180; return {x:p.x+R*Math.cos(a), y:p.y+R*Math.sin(a)}; });
+  const polygon = p => corners(p).map(v=>`${v.x},${v.y}`).join(' ');
+  function boundary(members) {
+    const edges = new Map(), vertex = p => `${p.x.toFixed(3)},${p.y.toFixed(3)}`;
+    for (const cell of members) {
+      const vertices = corners(cell);
+      for (let i=0;i<6;i++) {
+        const a=vertices[i], b=vertices[(i+1)%6], key=[vertex(a),vertex(b)].sort().join('|');
+        if(edges.has(key)) edges.delete(key); else edges.set(key,`M${a.x},${a.y}L${b.x},${b.y}`);
+      }
+    }
+    return [...edges.values()].join('');
+  }
+  for(let row=0;row<ROWS;row++) for(let col=0;col<COLS;col++) {
+    const q=col-(row-(row&1))/2, id=`${String.fromCharCode(65+col)}${row+1}`;
+    const role=row===0||row===ROWS-1 ? 'gueux' : col<4 ? 'mage' : col<8 ? 'tank' : 'fantassin';
+    const cell={id,q,r:row,col,row,role,index:cells.length,...point(q,row)};
+    cells.push(cell);byId.set(id,cell);byAxial.set(axialKey(q,row),cell);
+    const group=svg('g',{'data-cell':id});
+    group.append(svg('polygon',{points:polygon(cell),class:`base-cell ${(row+col)%2?'alternate':''}`}));
+    const label=svg('text',{x:cell.x,y:cell.y+R*.67,class:'cell-label'});label.textContent=id;group.append(label);
+    const roleLabel=svg('text',{x:cell.x,y:cell.y-R*.55,class:'role-label'});roleLabel.textContent=roleNames[role].toUpperCase();group.append(roleLabel);
+    $('cells').append(group);
+  }
+  for(const model of models) {
+    model.offset=point(model.shape.reduce((s,p)=>s+p[0],0)/model.shape.length,model.shape.reduce((s,p)=>s+p[1],0)/model.shape.length);
+    model.offset.x-=PAD_X;model.offset.y-=PAD_Y;
+    model.placements=new Map();
+    for(const anchor of cells) {
+      const members=model.shape.map(([q,r])=>byAxial.get(axialKey(anchor.q+q,anchor.r+r)));
+      if(members.some(c=>!c)) continue;
+      model.placements.set(anchor.id,{id:`hex-${model.id}`,occupant:model.id,anchor:anchor.id,members,
+        center:{x:anchor.x+model.offset.x,y:anchor.y+model.offset.y},outline:boundary(members)});
+    }
+  }
+  const placement = (id, anchor) => modelById.get(id)?.placements.get(anchor);
+  function majority(hex, previous) {
+    const counts=new Map(roleOrder.map(role=>[role,0]));
+    for(const cell of hex.members) counts.set(cell.role,counts.get(cell.role)+1);
+    const max=Math.max(...counts.values()), winners=roleOrder.filter(role=>counts.get(role)===max);
+    return winners.includes(previous) ? previous : winners[0];
+  }
+  function rebuild() {
+    const nextOccupied=new Map(), nextHexes=new Map();
+    for(const [id,anchor] of state) {
+      const base=placement(id,anchor);
+      if(!base) throw Error('Groupement hors du plateau.');
+      const hex={...base,role:majority(base,logicalHexes.get(id)?.role)};
+      nextHexes.set(id,hex);
+      for(const cell of hex.members) {
+        if(nextOccupied.has(cell.id)) throw Error('Deux occupants sur la même case.');
+        nextOccupied.set(cell.id,id);
+      }
+    }
+    occupied=nextOccupied;logicalHexes=nextHexes;
+  }
+  // One logical cell is exposed for a group; every free elementary cell remains a singleton.
+  function logicalAt(cellId) {
+    const owner=occupied.get(cellId), cell=byId.get(cellId);
+    return owner ? logicalHexes.get(owner) : cell ? {id:`hex-${cellId}`,occupant:null,anchor:cellId,members:[cell],center:point(cell.q,cell.r),role:cell.role} : null;
+  }
+  function neighbors(hex) {
+    const own=new Set(hex.members.map(c=>c.id)), result=new Map();
+    for(const c of hex.members) for(const [q,r] of [[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]]) {
+      const cell=byAxial.get(axialKey(c.q+q,c.r+r));
+      if(cell&&!own.has(cell.id)) {const logical=logicalAt(cell.id);result.set(logical.id,logical);}
+    }
+    return [...result.values()];
+  }
+  function planMove(id,anchor,canPush=$('push').checked) {
+    metrics.plans++;
+    const desired=placement(id,anchor);
+    if(!desired) return {valid:false,reason:'Le groupement entier doit rester sur le plateau.'};
+    const collisions=new Set(desired.members.map(c=>occupied.get(c.id)).filter(owner=>owner&&owner!==id));
+    if(collisions.size&&!canPush) return {valid:false,reason:'Ce groupement est occupé. Active le déplacement des voisins.'};
+    const fixed=new Set(desired.members.map(c=>c.id));
+    for(const [other,hex] of logicalHexes) if(other!==id&&!collisions.has(other)) for(const c of hex.members) fixed.add(c.id);
+    const moving=[...collisions].sort((a,b)=>modelById.get(b).shape.length-modelById.get(a).shape.length||a.localeCompare(b));
+    // Reuse findNearestAvailableHex's squared visual-distance ranking, on cached cell coordinates.
+    // Reserve entire logical cells, and choose the least total displacement for the two possible neighbours.
+    const candidates=moving.map(other=>{
+      const origin=logicalHexes.get(other).center;
+      return [...modelById.get(other).placements.values()].filter(h=>h.members.every(c=>!fixed.has(c.id)))
+        .map(hex=>({hex,cost:(hex.center.x-origin.x)**2+(hex.center.y-origin.y)**2}))
+        .sort((a,b)=>a.cost-b.cost||byId.get(a.hex.anchor).index-byId.get(b.hex.anchor).index);
+    });
+    let best=null,bestCost=Infinity;
+    const search=(index,reserved,moves,cost)=>{
+      if(cost>=bestCost) return;
+      if(index===moving.length) {best=new Map(moves);bestCost=cost;return;}
+      for(const candidate of candidates[index]) {
+        if(cost+candidate.cost>=bestCost) break;
+        if(candidate.hex.members.some(c=>reserved.has(c.id))) continue;
+        const next=new Set(reserved);candidate.hex.members.forEach(c=>next.add(c.id));
+        moves.set(moving[index],candidate.hex.anchor);search(index+1,next,moves,cost+candidate.cost);moves.delete(moving[index]);
+      }
+    };
+    search(0,fixed,new Map([[id,anchor]]),0);
+    return best ? {valid:true,moves:best,pushed:moving,hex:desired} : {valid:false,reason:'Pas assez de place pour déplacer tous les groupes. Rien ne bouge.'};
+  }
+  function message(text,kind='') { $('status').textContent=text;$('status').dataset.kind=kind; }
+  function drawShape(parent,hex,color,preview=false) {
+    const group=svg('g',{style:`--${preview?'preview-color':'color'}:${color}`});
+    for(const member of hex.members) group.append(svg('polygon',{points:polygon(member),class:preview?'preview-cell':'group-cell'}));
+    group.append(svg('path',{d:hex.outline||boundary(hex.members),class:preview?'preview-boundary':'group-boundary'}));parent.append(group);return group;
+  }
+  function render() {
+    $('groups').replaceChildren();
+    for(const model of models) {
+      const hex=logicalHexes.get(model.id), view=views.get(model.id);
+      const group=drawShape($('groups'),hex,model.color);group.dataset.entity=model.id;group.classList.add('logical-group');
+      group.classList.toggle('selected',selected===model.id);group.classList.toggle('source',drag?.id===model.id);
+      const title=svg('title');title.textContent=`${model.name} · ${hex.members.length} cases · ${roleNames[hex.role]}`;group.append(title);
+      if(!view) continue;
+      view.actor.style.left=`${hex.center.x}px`;view.actor.style.top=`${hex.center.y+R*.23}px`;view.actor.style.zIndex=Math.round(hex.center.y);
+      view.caption.style.left=`${hex.center.x}px`;view.caption.style.top=`${hex.center.y+R*.64}px`;
+      view.caption.textContent=`${hex.members.length} cases · ${roleNames[hex.role]}`;
+      view.actor.setAttribute('aria-label',`${model.name}, ${hex.members.length} cases, ${roleNames[hex.role]}`);
+      view.card.setAttribute('aria-pressed',String(selected===model.id));
+      view.card.querySelector('.card-detail').textContent=`${roleNames[hex.role]} · ${hex.members.map(c=>c.id).join(' · ')}`;
+    }
+  }
+  function commit(plan,id) {
+    if(!plan.valid) {message(plan.reason,'invalid');return false;}
+    // No DOM move or role change occurs until the whole placement has passed validation.
+    for(const [owner,anchor] of plan.moves) state.set(owner,anchor);
+    rebuild();metrics.commits++;render();
+    message(`${modelById.get(id).name} déplacée${plan.pushed.length ? ` · ${plan.pushed.map(p=>modelById.get(p).name.toLowerCase()).join(' et ')} replacée${plan.pushed.length>1?'s':''} au plus près` : ''}.`,plan.pushed.length?'push':'valid');return true;
+  }
+  function clearPreview() { $('preview').replaceChildren();document.querySelectorAll('.logical-group.displaced').forEach(g=>g.classList.remove('displaced')); }
+  function refreshGeometry() { if(drag){drag.rect=$('world').getBoundingClientRect();metrics.geometryReads++;} }
+  function updateDrag(clientX,clientY) {
+    if(!drag) return;
+    const p={x:(clientX-drag.rect.left)/boardScale,y:(clientY-drag.rect.top)/boardScale};
+    const model=modelById.get(drag.id),center={x:p.x-drag.grab.x,y:p.y-drag.grab.y};
+    const view=views.get(drag.id);view.actor.style.left=`${center.x}px`;view.actor.style.top=`${center.y+R*.23}px`;
+    const aim={x:center.x-model.offset.x,y:center.y-model.offset.y};
+    const anchor=cells.find(c=>{const x=Math.abs(aim.x-c.x),y=Math.abs(aim.y-c.y);return x<=W/2+.01&&x+Math.sqrt(3)*y<=Math.sqrt(3)*R+.01;});
+    const key=anchor?.id||null;if(key===drag.candidate) return;drag.candidate=key;clearPreview();
+    drag.plan=key?planMove(drag.id,key):{valid:false,reason:'Dépose le groupement sur le plateau.'};
+    const plan=drag.plan,color=!plan.valid?'#ff9393':plan.pushed.length?'#f6bd7d':'#94ddbd';
+    if(anchor) {
+      const loose={members:model.shape.map(([q,r])=>point(anchor.q+q,anchor.r+r))};
+      drawShape($('preview'),plan.hex||loose,color,true);
+    }
+    if(plan.valid) for(const other of plan.pushed) {
+      const from=logicalHexes.get(other).center,to=placement(other,plan.moves.get(other));
+      drawShape($('preview'),to,'#f6bd7d',true);
+      $('preview').append(svg('path',{d:`M${from.x},${from.y}L${to.center.x},${to.center.y}`,class:'move-arrow','marker-end':'url(#arrow)'}));
+      document.querySelector(`.logical-group[data-entity="${other}"]`)?.classList.add('displaced');
+    }
+    message(plan.valid?(plan.pushed.length?`${plan.pushed.length} voisin${plan.pushed.length>1?'s':''} sera replacé${plan.pushed.length>1?'s':''}. Relâche pour valider.`:'Placement libre. Relâche pour valider.'):plan.reason,plan.valid?(plan.pushed.length?'push':'valid'):'invalid');
+  }
+  function stopDrag(cancel=false) {
+    if(!drag) return;
+    cancelAnimationFrame(frame);frame=0;
+    const current=drag;drag=null;views.get(current.id).actor.classList.remove('dragging');
+    if($('world').hasPointerCapture(current.pointer)) $('world').releasePointerCapture(current.pointer);
+    clearPreview();
+    if(cancel) message('Déplacement annulé.');else commit(current.plan,current.id);
+    render();
+  }
+  $('world').addEventListener('pointerdown',event=>{
+    if(event.button!==0||drag||!views.size) return;
+    const id=event.target.closest('[data-entity]')?.dataset.entity||occupied.get(event.target.closest('[data-cell]')?.dataset.cell);
+    if(!id) return;
+    event.preventDefault();selected=id;
+    const rect=$('world').getBoundingClientRect(),center=logicalHexes.get(id).center;metrics.geometryReads++;
+    drag={id,pointer:event.pointerId,rect,grab:{x:(event.clientX-rect.left)/boardScale-center.x,y:(event.clientY-rect.top)/boardScale-center.y},candidate:undefined,plan:{valid:false,reason:'Déplacement annulé.'},x:event.clientX,y:event.clientY};
+    $('world').setPointerCapture(event.pointerId);views.get(id).actor.classList.add('dragging');render();updateDrag(event.clientX,event.clientY);
+  });
+  $('world').addEventListener('pointermove',event=>{
+    if(!drag||drag.pointer!==event.pointerId) return;drag.x=event.clientX;drag.y=event.clientY;
+    if(!frame) frame=requestAnimationFrame(()=>{frame=0;if(drag) updateDrag(drag.x,drag.y);});
+  });
+  $('world').addEventListener('pointerup',event=>{if(drag?.pointer===event.pointerId){updateDrag(event.clientX,event.clientY);stopDrag();}});
+  for(const event of ['pointercancel','lostpointercapture']) $('world').addEventListener(event,()=>stopDrag(true));
+  window.addEventListener('blur',()=>stopDrag(true));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden) stopDrag(true);});
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape') {stopDrag(true);return;}
+    if(drag||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||!event.target.closest('[data-entity],.entity-card')) return;
+    event.preventDefault();const anchor=byId.get(state.get(selected)),[dc,dr]=({ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]})[event.key];
+    const destination=cells.find(c=>c.col===anchor.col+dc&&c.row===anchor.row+dr);commit(planMove(selected,destination?.id),selected);
+  });
+  $('viewport').addEventListener('scroll',refreshGeometry,{passive:true});
+  function resize() {
+    stopDrag(true);boardScale=Math.max(.42,Math.min(1,$('viewport').clientWidth/WIDTH));
+    $('stage').style.width=`${WIDTH*boardScale}px`;$('stage').style.height=`${HEIGHT*boardScale}px`;
+    $('world').style.transform=`scale(${boardScale})`;
+  }
+  $('world').style.width=`${WIDTH}px`;$('world').style.height=`${HEIGHT}px`;$('board').setAttribute('viewBox',`0 0 ${WIDTH} ${HEIGHT}`);
+  new ResizeObserver(resize).observe($('viewport'));
+  $('roles').addEventListener('change',()=>{$('world').classList.toggle('hide-roles',!$('roles').checked);});
+  $('push').addEventListener('change',()=>stopDrag(true));
+  function reset() {
+    stopDrag(true);state=new Map(models.map(m=>[m.id,cells.find(c=>c.col===m.initial[0]&&c.row===m.initial[1]).id]));
+    logicalHexes=new Map();selected='yellow';rebuild();render();message('Glisse une mouche ou une case colorée pour déplacer son groupe.');
+  }
+  $('reset').addEventListener('click',reset);reset();resize();
+  const ready=(async()=>{
+    const image=new Image();image.src='media/sprites/mouche-asticoteuse.png';await image.decode();
+    for(const model of models) {
+      const actor=$('fly-template').content.firstElementChild.cloneNode(true);actor.dataset.entity=model.id;actor.style.setProperty('--entity-scale',model.scale);
+      actor.querySelector('canvas').getContext('2d').drawImage(image,0,0,500,500);$('actors').append(actor);
+      const style=getComputedStyle(actor.querySelector('.sprite'));metrics.spriteMeasurements++;
+      const width=parseFloat(style.width),height=parseFloat(style.height);
+      if(!(width>0&&height>0)) throw Error('Dimensions du sprite invalides.');
+      actor.style.setProperty('--sprite-w',`${width}px`);actor.style.setProperty('--sprite-h',`${height}px`);
+      const caption=document.createElement('span');caption.className='group-caption';caption.style.setProperty('--color',model.color);$('actors').append(caption);
+      const card=document.createElement('button');card.type='button';card.className='entity-card';card.style.setProperty('--color',model.color);card.dataset.entity=model.id;
+      card.innerHTML=`<span class="card-head"><span>${model.name}</span><span class="card-size">${model.shape.length} cases · ×${String(model.scale).replace('.',',')}</span></span><span class="card-detail"></span>`;
+      const select=()=>{selected=model.id;render();};card.addEventListener('click',select);actor.addEventListener('focus',select);$('roster').append(card);
+      views.set(model.id,{actor,caption,card});
+    }
+    render();
+  })().catch(error=>{$('load-error').hidden=false;$('load-error').textContent=`Impossible de charger le banc d’essai : ${error.message}`;message('Chargement incomplet.','invalid');throw error;});
+  // Read-only inspection for this stand-alone lab and its browser checks.
+  window.hexGroupLab={ready,snapshot:()=>({entities:[...logicalHexes.values()].map(h=>({id:h.occupant,anchor:h.anchor,role:h.role,members:h.members.map(c=>c.id),center:{...h.center},neighbors:neighbors(h).map(n=>n.id)})),occupied:Object.fromEntries(occupied),metrics:{...metrics},scale:boardScale}),logicalAt:id=>{const h=logicalAt(id);return h&&{id:h.id,occupant:h.occupant,role:h.role,members:h.members.map(c=>c.id)};}};
+})();
+</script>
+</body>
+</html>
