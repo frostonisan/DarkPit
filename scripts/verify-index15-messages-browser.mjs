@@ -92,12 +92,16 @@ try {
   const smoothing = await page.evaluate(() => {
     const body = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life');
     const animation = body.getAnimations()[0];
-    const samples = [0, 80, 240, 700, 980].map(time => { animation.currentTime = time; return Number(__probe.styleOf(body).opacity); });
+    const samples = [0, 80, 340, 800, 1380].map(time => {
+      animation.currentTime = time;
+      const style = __probe.styleOf(body), matrix = new DOMMatrixReadOnly(style.transform);
+      return { opacity: Number(style.opacity), scale: matrix.a, y: matrix.f };
+    });
     animation.currentTime = 150;
-    return { samples, duration: animation.effect.getTiming().duration, start: animation.effect.getKeyframes()[0].transform };
+    return { samples, duration: animation.effect.getTiming().duration };
   });
-  check(smoothing.samples[0] === 0 && smoothing.samples[1] > 0 && smoothing.samples[1] < smoothing.samples[2] && smoothing.samples[3] > smoothing.samples[4], 'Popup fades in progressively and fades out over its final phase');
-  check(smoothing.start.includes('scale(0.94)') && smoothing.duration === 1000, 'Critical starts near its final size with a softer one-second lifecycle');
+  check(smoothing.samples[0].opacity === 0 && smoothing.samples[1].opacity > 0 && smoothing.samples[1].opacity < smoothing.samples[2].opacity && smoothing.samples[3].opacity > smoothing.samples[4].opacity, 'Popup fades in progressively and fades out over its final phase');
+  check(smoothing.samples[4].y < smoothing.samples[3].y && smoothing.samples[4].scale < smoothing.samples[3].scale && smoothing.samples[4].scale < .6 && smoothing.samples[4].y < -25, 'Text rises and visibly shrinks during its original-style flight');
   await emit('executionCritical', 1, 214);
   const execution = await describe('center', 'left');
   check(execution.icon.includes('execution-critical') && execution.valueColor === critical.valueColor && execution.suffixColor === 'rgb(255, 0, 6)', 'Execution critical uses its special icon, nature-colored amount and red !!!');
