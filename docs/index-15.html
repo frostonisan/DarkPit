@@ -160,13 +160,14 @@
 
     /* 4. DEUX BLOCS. L'historique compact (z 1) reste derrière le dernier
        événement (z 2). Tout le groupe passe au-dessus des auras.
-       Les neuf ancres sont absolues et indépendantes du contenu affiché. */
+       Le départ des dégâts et les ancres latérales restent fixes, indépendants du contenu. */
     .lab-message-feed { --proc-size: clamp(36px, calc(var(--sprite-h) * .4), 52px); display: none; position: absolute; left: 50%; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; isolation: isolate; pointer-events: none; line-height: 1.2; }
     .lab[data-mode=messages] .lab-message-feed { display: block; }
     .lab-feedback-archive { position: absolute; left: 0; bottom: 34px; width: 0; height: 0; z-index: 1; }
     /* Aucun gabarit ne dépend de la largeur du texte, du GIF ou du critique.
        Le scale du parent reste le seul changement d'échelle des ancres. */
     .lab-message-front { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
+    .lab-fountain { position: absolute; left: 0; bottom: 0; width: 0; height: 0; z-index: 2; }
     .lab-front-slot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
     .lab-front-slot[data-zone=left] { left: -94px; }
     .lab-front-slot[data-zone=right] { left: 94px; bottom: -10px; }
@@ -247,9 +248,9 @@
       <label><input type="checkbox" data-message-kind="physical" checked>Physique</label><label><input type="checkbox" data-message-kind="magical" checked>Magique</label><label><input type="checkbox" data-message-kind="hybrid" checked>Hybride</label><label><input type="checkbox" data-message-kind="multi" checked>Multi-composants</label><label><input type="checkbox" data-message-kind="heal" checked>Soin</label><label><input type="checkbox" data-message-kind="proc" checked>Déclenchement</label><label><input type="checkbox" data-message-kind="miss" checked>Esquive</label><label><input type="checkbox" data-message-kind="stun" checked>Stun</label><label><input type="checkbox" data-message-kind="poison" checked>Poison</label><label><input type="checkbox" data-message-kind="burn" checked>Brûlure</label><label><input type="checkbox" data-message-kind="critical" checked>Critique</label><label><input type="checkbox" data-message-kind="execution" checked>Exécution</label><label><input type="checkbox" data-message-kind="executionCritical" checked>Exécution critique</label>
     </div>
     <div class="lab-mode-row"><span>Déclencher :</span><button type="button" data-emit="physical">Dégât</button><button type="button" data-emit="critical">Critique</button><button type="button" data-emit="executionCritical">Exécution critique</button><button type="button" data-emit="hybrid">Hybride</button><button type="button" data-emit="multi">Multi-composants</button><button type="button" data-emit="proc">GIF gauche</button><button type="button" data-emit="stun">Stun !</button><button type="button" data-emit="poison">Poison !</button><button type="button" data-emit="burn">Brûlure !</button></div>
-    <div class="lab-feed-stats" aria-live="off"><span>Générés : <strong id="feed-generated">0</strong></span><span>Archives dégâts : <strong id="feed-history">0</strong></span><span>Archives effets : <strong id="feed-status-history">0</strong></span><span>Premier plan : <strong id="feed-front">0</strong></span><span>Sorties : <strong id="feed-exiting">0</strong></span><span>Actuel : <strong id="feed-legacy">0</strong></span></div>
+    <div class="lab-feed-stats" aria-live="off"><span>Générés : <strong id="feed-generated">0</strong></span><span>Chiffres en vol : <strong id="feed-flights">0</strong></span><span>Archives effets : <strong id="feed-status-history">0</strong></span><span>Premier plan : <strong id="feed-front">0</strong></span><span>Sorties : <strong id="feed-exiting">0</strong></span><span>Actuel : <strong id="feed-legacy">0</strong></span></div>
     <p class="lab-note" id="feed-status" role="status">Flux arrêté. Active-le ou déclenche un événement à la main.</p>
-    <p class="lab-note">GIF à gauche · dégâts au centre · noms d’effets à droite. Chaque zone privilégie sa pile centrale, puis alterne gauche/droite en rafale. Archives pour les dégâts et les effets uniquement. « Figer » arrête les déplacements ; les GIF continuent de jouer.</p>
+    <p class="lab-note">GIF à gauche · fontaine de dégâts au centre · noms d’effets à droite. Un seul chiffre par dégât, du pop à sa disparition : jets centre / gauche / droite, montée puis retombée en rapetissant. Seuls les noms d’effets ont une archive. « Figer » arrête les déplacements ; les GIF continuent de jouer.</p>
   </section>
   <div class="lab-controls" aria-label="Réglages de la comparaison">
     <div class="lab-views" aria-label="Affichage"><button type="button" data-view="compare" aria-pressed="true">Comparer</button><button type="button" data-view="new" aria-pressed="false">Nouveau</button><button type="button" data-view="old" aria-pressed="false">Actuel</button></div>
@@ -296,8 +297,8 @@
     <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. Désactiver « Mouvements CSS » remet les sprites au repos et fige les autres animations CSS ; les GIF continuent de jouer.</p>
     <p>Les dimensions restent proportionnelles avec des plafonds de base : auréole et étourdissement 64 px de large ; mysticisme 140 × 200 px ; soin 110 × 160 px ; brûlure 110 × 140 px ; cercle au sol 190 px de large. L’écart de base de l’auréole est plafonné à 5 px. Les marges transparentes verticales du SVG sont recadrées par son affichage CSS. Tous ces plafonds suivent ensuite le scale du parent.</p>
     <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
-    <p>En mode « Messages / dégâts », chaque famille a trois piles proches : centre, gauche, droite. Le centre est privilégié ; s’il a reçu un événement depuis moins de 240 ms, les suivants alternent gauche/droite. Chaque pile garde son dernier popup et au plus une sortie brève. Le bloc z-index 1 conserve les archives centrales : huit dégâts reçus dans la zone dégâts, six noms d’effets dans la zone effets. Textes et pictos de 14 px à l’arrivée : petit pop puis réduction jusqu’à disparition en 1,7 seconde. Les anciens messages deviennent plus petits et se resserrent, avec au maximum 56 px entre le premier et le dernier ancrage de la file. Les GIF n’ont aucune archive.</p>
-    <p>Essai inspiré du texte de combat de WoW : chiffres à empattements, contour sombre net, impact rapide puis montée régulière à taille lisible. Les critiques ont un rebond supplémentaire. Le texte reste opaque pendant 72 % de sa durée, puis se fond en continuant de monter. Durées : 1,25 seconde pour un dégât normal, 1,55 seconde pour un critique, 1,7 seconde pour une exécution critique. Les archives restent derrière le dernier impact, avec un contour sombre et une opacité renforcée. Les plus récents restent bien visibles ; les anciens rapetissent rapidement au lieu de former une haute colonne. Les neuf piles et les deux archives sont en position absolue ; seuls les contenus s’animent. Les GIF gardent leur animation d’une seconde. Un critique remplace le picto de nature par le picto critique ; une exécution critique utilise son picto spécifique. Le montant garde la couleur de sa nature, les « !!! » prennent la couleur du critique (orange, rouge pour l’exécution critique). Tailles de base : normal 24 px, critique 32 px, exécution critique 40 px. Les noms d’effets incluent leur picto et leur valeur disponible, par exemple « Stun 3 scd ! ». Les durées sont converties en secondes, avec au plus une décimale. Vider le champ de durée permet d’essayer un effet sans durée connue.</p>
+    <p>En mode « Messages / dégâts », les chiffres partent tous du même point absolu. Le dernier apparaît en gros au premier plan ; les précédents continuent leur trajectoire sans être remplacés ni copiés dans une archive. Les arrivées alternent centre, gauche, droite tant qu’un chiffre est visible. Les jets montent puis retombent en courbe et rapetissent jusqu’à disparition. Après une pause sans chiffre visible, le premier jet repart au centre. Huit chiffres au maximum par entité, sans file d’attente.</p>
+    <p>Les critiques gardent leur picto et leur pop plus gros ; les exécutions critiques sont les plus importantes. Le montant conserve la couleur de sa nature et les « !!! » leur couleur critique. Durées : 1,35 seconde pour un dégât normal, 1,55 seconde pour un critique, 1,75 seconde pour une exécution critique. Les GIF de capacités restent à gauche, les noms d’effets à droite, avec leurs piles et l’archive compacte des effets. Les durées disponibles sont affichées en secondes, avec au plus une décimale.</p>
     <p>Le nouveau flux anime uniquement transform et opacity. Un seul timer génère les événements de démonstration ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
 </main>
@@ -333,7 +334,7 @@
       <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat" data-sample>Résistance !</div></div>
       <div class="lab-message-feed" data-family="messages"><div class="lab-message-front">
         <div class="lab-front-slot" data-zone="left"><div class="lab-feedback-lanes"><div class="lab-feedback-lane" data-lane="center"></div><div class="lab-feedback-lane" data-lane="left"></div><div class="lab-feedback-lane" data-lane="right"></div></div></div>
-        <div class="lab-front-slot" data-zone="center"><div class="lab-feedback-archive lab-damage-history"></div><div class="lab-feedback-lanes"><div class="lab-feedback-lane" data-lane="center"></div><div class="lab-feedback-lane" data-lane="left"></div><div class="lab-feedback-lane" data-lane="right"></div></div></div>
+        <div class="lab-front-slot" data-zone="center"><div class="lab-fountain"></div></div>
         <div class="lab-front-slot" data-zone="right"><div class="lab-feedback-archive lab-effect-history"></div><div class="lab-feedback-lanes"><div class="lab-feedback-lane" data-lane="center"></div><div class="lab-feedback-lane" data-lane="left"></div><div class="lab-feedback-lane" data-lane="right"></div></div></div>
       </div></div>
       <div class="lab-guide" aria-hidden="true"></div>
@@ -380,7 +381,7 @@
   const measuredSizes = Array(6).fill(null);
   const legacyBases = new WeakMap();
   let auraSelection = null;
-  const feedStates = Array.from({ length: 6 }, () => ({ history: [], statusHistory: [], front: new Map(), exiting: new Map(), legacy: new Set(), layer: null, historyLayer: null, statusHistoryLayer: null, lanes: {}, cursors: { left: 0, center: 0, right: 0 }, oldRoot: null }));
+  const feedStates = Array.from({ length: 6 }, () => ({ flights: [], flightCursor: 0, statusHistory: [], front: new Map(), exiting: new Map(), legacy: new Set(), layer: null, flightLayer: null, statusHistoryLayer: null, lanes: {}, cursors: { left: 0, center: 0, right: 0 }, oldRoot: null }));
   const feed = { running: false, paused: false, hidden: document.hidden, timer: null, rate: 4, sequence: 0, generated: 0 };
   let batchVersion = 0;
   let selection = catalog.slice(0, 6).map(model => model.key);
@@ -557,7 +558,7 @@
     }
     measuredSizes[index] = size;
     feedStates[index].layer = pair.new.querySelector('.lab-message-feed');
-    feedStates[index].historyLayer = pair.new.querySelector('.lab-damage-history');
+    feedStates[index].flightLayer = pair.new.querySelector('.lab-fountain');
     feedStates[index].statusHistoryLayer = pair.new.querySelector('.lab-effect-history');
     feedStates[index].lanes = Object.fromEntries([...pair.new.querySelectorAll('.lab-feedback-lane')].map(node => [`${node.closest('[data-zone]').dataset.zone}:${node.dataset.lane}`, node]));
     feedStates[index].oldRoot = pair.old;
@@ -613,7 +614,7 @@
     burn: { category: 'status', label: 'Brûlure', statusAsset: 'statut-brulure.jpg', color: '#ff9d4b' }
   };
   const procAssets = { esoterism: 'esoterism.gif', ambidextry: 'ambidextry.gif', indestructibility: 'indestructibility.gif', bloodfuryexec: 'bloodFuryExec.gif' };
-  const limits = { history: 8, statusHistory: 6, front: 9, exiting: 9, legacy: 48 };
+  const limits = { flights: 8, statusHistory: 6, front: 6, exiting: 6, legacy: 48 };
   const archiveSteps = [0, 16, 28, 37, 44, 49, 53, 56];
   const demoSequence = ['physical', 'magical', 'physical', 'proc', 'critical', 'stun', 'hybrid', 'heal', 'physical', 'poison', 'multi', 'execution', 'burn', 'critical', 'miss', 'executionCritical'];
   let demoCursor = 0;
@@ -623,9 +624,9 @@
   function writeText(node, value) { if (node.textContent !== String(value)) node.textContent = value; }
 
   function updateFeedStats() {
-    const counts = { generated: feed.generated, history: 0, 'status-history': 0, front: 0, exiting: 0, legacy: 0 };
+    const counts = { generated: feed.generated, flights: 0, 'status-history': 0, front: 0, exiting: 0, legacy: 0 };
     for (const state of feedStates) {
-      counts.history += state.history.length; counts.front += state.front.size;
+      counts.flights += state.flights.length; counts.front += state.front.size;
       counts['status-history'] += state.statusHistory.length;
       counts.exiting += state.exiting.size; counts.legacy += state.legacy.size;
     }
@@ -707,9 +708,9 @@
     card.clock.onfinish = null; card.clock.cancel(); card.node.remove(); state.legacy.delete(card);
   }
   function clearEntityFeed(state) {
-    for (const card of [...state.history, ...state.statusHistory, ...state.front.values(), ...state.exiting.values()]) removeCard(card);
+    for (const card of [...state.flights, ...state.statusHistory, ...state.front.values(), ...state.exiting.values()]) removeCard(card);
     for (const card of [...state.legacy]) removeLegacy(state, card);
-    state.history.length = 0; state.statusHistory.length = 0; state.front.clear(); state.exiting.clear(); state.cursors = { left: 0, center: 0, right: 0 };
+    state.flights.length = 0; state.flightCursor = 0; state.statusHistory.length = 0; state.front.clear(); state.exiting.clear(); state.cursors = { left: 0, center: 0, right: 0 };
   }
   function clearFeed() {
     feedStates.forEach(clearEntityFeed); feed.generated = 0; demoCursor = 0;
@@ -728,9 +729,9 @@
 
   function addHistory(state, packet) {
     const card = makeCard(packet, 'lab-history-row');
-    const status = packet.category === 'status', history = status ? state.statusHistory : state.history;
-    history.push(card); (status ? state.statusHistoryLayer : state.historyLayer).append(card.node);
-    while (history.length > (status ? limits.statusHistory : limits.history)) removeCard(history.shift());
+    const history = state.statusHistory;
+    history.push(card); state.statusHistoryLayer.append(card.node);
+    while (history.length > limits.statusHistory) removeCard(history.shift());
     // Les anciennes lignes rétrécissent et se resserrent : 56 px de file au maximum.
     // Garder leur profondeur évite de les faire regrossir quand une autre ligne expire.
     [...history].reverse().forEach((row, rank) => {
@@ -749,6 +750,46 @@
     ], { duration: 1700, fill: 'forwards' });
     if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
     card.life.onfinish = () => { history.splice(history.indexOf(card), 1); removeCard(card); updateFeedStats(); };
+  }
+
+  // Courbes préparées une seule fois : la lecture native anime transform/opacity.
+  // Même départ pour les trois jets ; la gravité décrit la montée puis la retombée.
+  const fountainPaths = ['center', 'left', 'right'];
+  const fountainFrames = new Map();
+  function framesForFountain(path, priority) {
+    const key = `${path}:${priority}`;
+    if (fountainFrames.has(key)) return fountainFrames.get(key);
+    const direction = path === 'left' ? -1 : path === 'right' ? 1 : 0;
+    const height = direction ? 44 : 58, landing = direction ? 14 : -16;
+    const peak = priority === 3 ? 1.2 : priority === 1 ? 1.14 : 1.06;
+    const frames = [
+      { transform: 'translate(0px, 0px) scale(.78)', opacity: 0, offset: 0, easing: 'cubic-bezier(.16,1,.3,1)' },
+      { transform: `translate(0px, 0px) scale(${peak})`, opacity: 1, offset: .065 }
+    ];
+    for (let step = 1; step <= 18; step++) {
+      const t = step / 18;
+      const x = direction * 66 * t, y = -4 * height * t * (1 - t) + landing * t;
+      frames.push({ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${(1 - .86 * t).toFixed(3)})`, opacity: t <= .7 ? 1 : (1 - t) / .3, offset: .065 + .935 * t });
+    }
+    fountainFrames.set(key, frames);
+    return frames;
+  }
+  function emitFountain(state, packet) {
+    if (!state.flights.length) state.flightCursor = 0;
+    const path = fountainPaths[state.flightCursor++ % fountainPaths.length];
+    const card = makeCard(packet, 'lab-front-card lab-fountain-card');
+    card.path = path; card.node.dataset.flight = path;
+    state.flights.push(card); state.flightLayer.append(card.node);
+    while (state.flights.length > limits.flights) removeCard(state.flights.shift());
+    state.flights.forEach((flight, index) => { flight.node.style.zIndex = String(index + 1); });
+    card.life = card.body.animate(framesForFountain(path, packet.priority), {
+      duration: packet.priority === 3 ? 1750 : packet.critical ? 1550 : 1350,
+      fill: 'forwards', easing: 'linear'
+    });
+    if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
+    card.life.onfinish = () => {
+      state.flights.splice(state.flights.indexOf(card), 1); removeCard(card); updateFeedStats();
+    };
   }
 
   function replaceFront(state, zone, packet) {
@@ -797,7 +838,7 @@
 
   function receiveMessage(state, packet) {
     if (packet.category === 'damage') {
-      addHistory(state, packet); replaceFront(state, 'center', packet);
+      emitFountain(state, packet);
       if (packet.triggerFx) replaceFront(state, 'left', triggerPacket(packet));
     } else {
       if (packet.category === 'status') addHistory(state, packet);
@@ -847,7 +888,7 @@
   function syncSuspension() {
     lab.dataset.feedPaused = String(suspended());
     for (const state of feedStates) {
-      for (const card of [...state.history, ...state.statusHistory, ...state.front.values(), ...state.exiting.values()]) for (const animation of [card.life, card.exit]) if (animation) suspended() ? animation.pause() : animation.play();
+      for (const card of [...state.flights, ...state.statusHistory, ...state.front.values(), ...state.exiting.values()]) for (const animation of [card.life, card.exit]) if (animation) suspended() ? animation.pause() : animation.play();
       for (const card of state.legacy) card.node.getAnimations({ subtree: true }).forEach(animation => suspended() ? animation.pause() : animation.play());
     }
     scheduleFeed(); updateFeedControls();
@@ -911,7 +952,7 @@
   });
   window.visualLab = { metrics, ready: null, popups: { emit: emitMessage, clear: clearFeed, limits,
     inspect: () => ({ running: feed.running, paused: feed.paused, timer: feed.timer !== null, generated: feed.generated,
-      states: feedStates.map(state => ({ history: state.history.map(card => ({ ...card.packet, up: card.up, time: card.life.currentTime })), statusHistory: state.statusHistory.map(card => ({ ...card.packet, up: card.up, time: card.life.currentTime })), front: Object.fromEntries([...state.front].map(([key, card]) => [key, { ...card.packet, time: card.life.currentTime }])), exiting: state.exiting.size, legacy: state.legacy.size })) }) } };
+      states: feedStates.map(state => ({ flights: state.flights.map(card => ({ ...card.packet, path: card.path, time: card.life.currentTime })), statusHistory: state.statusHistory.map(card => ({ ...card.packet, up: card.up, time: card.life.currentTime })), front: Object.fromEntries([...state.front].map(([key, card]) => [key, { ...card.packet, time: card.life.currentTime }])), exiting: state.exiting.size, legacy: state.legacy.size })) }) } };
   window.visualLab.ready = mountAll().catch(showError);
 })();
 </script>

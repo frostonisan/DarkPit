@@ -32,14 +32,14 @@ const foreground = (zone, lane = 'center') => slot + ' [data-zone=' + zone + '] 
 const freeze = () => click('#feed-freeze');
 const fresh = async () => { await clear(); await freeze(); };
 const describe = (zone = 'center', lane = 'center') => page.evaluate(selector => {
-  const card = document.querySelector(selector + ' .lab-front-card:not([data-outgoing])');
+  const card = document.querySelector(selector);
   const value = card.querySelector('.damage-popup-value'), suffix = card.querySelector('.lab-critical-suffix');
   return { text: card.textContent, icons: card.querySelectorAll('.picto-stat, .lab-status-icon').length,
     icon: card.querySelector('.picto-stat')?.className, statusIcon: card.querySelector('.lab-status-icon')?.src,
     valueColor: value && __probe.styleOf(value).color, suffixColor: suffix && __probe.styleOf(suffix).color,
     font: parseFloat(__probe.styleOf(card.querySelector('.lab-feed-life')).fontSize),
     peak: card.querySelector('.lab-feed-life').getAnimations()[0].effect.getKeyframes()[1].transform };
-}, foreground(zone, lane));
+}, zone === 'center' ? slot + ' .lab-fountain-card[data-flight=' + lane + ']' : foreground(zone, lane) + ' .lab-front-card:not([data-outgoing])');
 try {
   await page.goto(pathToFileURL(resolve('docs/index-15.html')).href); await ready();
   check(await page.locator('#error').isHidden(), 'Startup succeeds from file://');
@@ -55,17 +55,30 @@ try {
   assert.deepEqual(aura.before, aura.after); checks.push('Aura changes do not measure geometry');
   await click('button[data-mode=messages]');
   check(await page.locator('#message-rate').isVisible() && await page.locator('#message-target').inputValue() === 'all', 'Quantity gauge is visible with all entities targeted');
-  check(await page.locator(slot + ' .lab-feedback-lane').count() === 9, 'Each of the three families owns center, left and right piles');
+  check(await page.locator(slot + ' .lab-fountain').count() === 1 && await page.locator(slot + ' [data-zone=center] .lab-feedback-lane').count() === 0, 'Damage uses one emitter without three fixed piles');
   const before = await page.evaluate(() => ({ rect: __probe.rect, style: __probe.style, raf: __probe.raf }));
 
   await freeze(); await emit('physical', 1, 24); await emit('critical', 1, 182); await emit('magical', 1, 65);
   let state = (await inspect()).states[1];
-  check(state.front['center:center'].value === 24 && state.front['center:left'].value === 182 && state.front['center:right'].value === 65, 'Rapid damage arrivals start in the center then alternate left and right');
-  check(state.history.map(row => row.value).join() === '24,182,65' && state.history.map(row => row.up).join() === '28,16,0', 'One central damage archive rises in progressively tighter chronological rows');
+  check(state.flights.map(card => card.value).join() === '24,182,65' && state.flights.map(card => card.path).join() === 'center,left,right', 'Concurrent damage alternates center, left and right fountain paths');
+  check(await page.locator(slot + ' .lab-fountain-card').count() === 3 && await page.locator(slot + ' .lab-damage-history, ' + slot + ' [data-zone=center] .lab-history-row').count() === 0, 'Each damage owns one node with no archived copy');
+  const fountain = await page.evaluate(() => [...document.querySelectorAll('#new-world .lab-slot[data-index="1"] .lab-fountain-card')].map(card => {
+    const body = card.querySelector('.lab-feed-life'), animation = body.getAnimations()[0];
+    const samples = [0, .065, .45, .95].map(progress => {
+      animation.currentTime = animation.effect.getTiming().duration * progress;
+      const matrix = new DOMMatrixReadOnly(__probe.styleOf(body).transform);
+      return { x: matrix.e, y: matrix.f, scale: matrix.a };
+    });
+    animation.currentTime = 150;
+    return { path: card.dataset.flight, samples };
+  }));
+  check(fountain.every(card => card.samples.slice(0, 2).every(p => p.x === 0 && p.y === 0)), 'All numbers pop at exactly the same origin');
+  check(fountain.every(card => card.samples[2].y < card.samples[3].y && card.samples[1].scale > card.samples[2].scale && card.samples[2].scale > card.samples[3].scale), 'Every fountain arc rises, falls and continuously shrinks after its pop');
+  check(fountain[0].samples.every(p => p.x === 0) && fountain[1].samples[3].x < -50 && fountain[2].samples[3].x > 50, 'The fountain separates into a central jet and two curved side jets');
   await emit('heal'); await emit('proc', 3); await emit('stun'); await emit('poison'); await emit('burn');
   state = (await inspect()).states[1];
   check(['left:center', 'left:left', 'left:right', 'right:center', 'right:left', 'right:right'].every(key => state.front[key]), 'GIF and effect families independently use their own overflow piles');
-  check(state.history.length === 3 && state.statusHistory.map(row => row.kind).join() === 'stun,poison,burn', 'Damage and status have separate archives, with no trigger GIF archived');
+  check(state.flights.length === 3 && state.statusHistory.map(row => row.kind).join() === 'stun,poison,burn', 'Only effect names retain an archive beside the live damage fountain');
   check(await page.locator(slot + ' .lab-feedback-archive .lab-proc-gif').count() === 0 && await page.locator(slot + ' [data-zone=left] .lab-feedback-archive').count() === 0, 'The GIF family has no history container or archived image');
   const stun = await describe('right');
   check(stun.text === 'Stun 3 scd !' && stun.statusIcon.endsWith('/statut-stun.jpg'), 'Stun includes its pictogram and three-second duration');
@@ -74,15 +87,23 @@ try {
   await fresh();
   await page.evaluate(() => { for (let value = 1; value <= 100; value++) visualLab.popups.emit(1, 'physical', value); });
   state = (await inspect()).states[1];
-  check(state.history.map(row => row.value).join() === '93,94,95,96,97,98,99,100' && Math.max(...state.history.map(row => row.up)) <= 56 && Object.keys(state.front).length === 3, 'A hundred hits retain eight archived rows within 56 px of stacking and three live damage piles');
-  check(Object.values(state.front).some(card => card.value === 100), 'Newest burst hit is visible in an overflow pile without a pending queue');
-  await page.evaluate(() => { document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life').getAnimations()[0].currentTime = 300; visualLab.popups.emit(1, 'physical', 999); });
-  check((await inspect()).states[1].front['center:center'].value === 999, 'The central pile takes priority again once its appearance window is free');
+  check(state.flights.map(row => row.value).join() === '93,94,95,96,97,98,99,100' && await page.locator(slot + ' .lab-fountain-card').count() === 8, 'A hundred hits retain only the eight newest flying numbers');
+  const continuation = await page.evaluate(() => {
+    const root = document.querySelector('#new-world .lab-slot[data-index="1"] .lab-fountain');
+    const previous = root.lastElementChild, animation = previous.querySelector('.lab-feed-life').getAnimations()[0];
+    animation.currentTime = 500;
+    visualLab.popups.emit(1, 'physical', 999);
+    const newest = root.lastElementChild;
+    return { sameNode: previous.isConnected && previous.parentNode === root, sameAnimation: previous.querySelector('.lab-feed-life').getAnimations()[0] === animation, time: animation.currentTime,
+      top: Number(newest.style.zIndex) > Number(previous.style.zIndex), value: newest.textContent };
+  });
+  check(continuation.sameNode && continuation.sameAnimation && continuation.time === 500, 'Incoming damage preserves the same previous node and uninterrupted animation');
+  check(continuation.top && continuation.value === '−999', 'The newest damage takes the foreground without a queue');
 
   await fresh(); await emit('hybrid');
-  check((await inspect()).states[1].front['center:center'].value === 160 && (await describe()).icons === 1, 'Hybrid damage keeps one total and one pictogram');
+  check((await inspect()).states[1].flights[0].value === 160 && (await describe()).icons === 1, 'Hybrid damage keeps one total and one pictogram');
   await emit('multi');
-  check((await inspect()).states[1].front['center:left'].value === 150, 'Multiple components remain summed into one popup');
+  check((await inspect()).states[1].flights[1].value === 150, 'Multiple components remain summed into one popup');
   await fresh();
   await page.evaluate(() => visualLab.popups.emit(1, 'critical', undefined, { nature: 'magicalDamage', components: [20, 35, 7] }));
   const critical = await describe();
@@ -90,9 +111,9 @@ try {
   check(critical.valueColor === 'rgb(185, 152, 255)' && critical.suffixColor === 'rgb(255, 108, 0)', 'Critical amount keeps its magical color while punctuation is orange');
   check(critical.font === 32 && critical.peak.includes('scale(1.14)'), 'Critical has a bigger pop than normal damage');
   const smoothing = await page.evaluate(() => {
-    const body = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life');
+    const body = document.querySelector('#new-world .lab-slot[data-index="1"] .lab-fountain-card[data-flight=center] .lab-feed-life');
     const animation = body.getAnimations()[0];
-    const samples = [0, 35, 150, 900, 1530].map(time => {
+    const samples = [0, 35, 150, 650, 1530].map(time => {
       animation.currentTime = time;
       const style = __probe.styleOf(body), matrix = new DOMMatrixReadOnly(style.transform);
       return { opacity: Number(style.opacity), scale: matrix.a, y: matrix.f };
@@ -101,7 +122,7 @@ try {
     return { samples, duration: animation.effect.getTiming().duration };
   });
   check(smoothing.samples[0].opacity === 0 && smoothing.samples[1].opacity > 0 && smoothing.samples[1].opacity < smoothing.samples[2].opacity && smoothing.samples[3].opacity > smoothing.samples[4].opacity, 'Popup fades in progressively and fades out over its final phase');
-  check(smoothing.samples[3].opacity === 1 && smoothing.samples[3].scale >= .99 && smoothing.samples[4].scale > .9 && smoothing.samples[4].y < -55, 'Combat text stays readable at full size during its rise and fades only near the end');
+  check(smoothing.samples[3].opacity === 1 && smoothing.samples[3].scale > .5 && smoothing.samples[4].scale < .2 && smoothing.samples[4].y > smoothing.samples[3].y, 'The same number shrinks to disappearance while falling from its apex');
   await emit('executionCritical', 1, 214);
   const execution = await describe('center', 'left');
   check(execution.icon.includes('execution-critical') && execution.valueColor === critical.valueColor && execution.suffixColor === 'rgb(255, 0, 6)', 'Execution critical uses its special icon, nature-colored amount and red !!!');
@@ -130,7 +151,7 @@ try {
     const root = document.querySelector('#new-world .lab-slot[data-index="1"] .lab-message-feed');
     const capture = () => {
       const origin = __probe.rectOf(root);
-      return [...root.querySelectorAll('.lab-message-front, .lab-front-slot, .lab-feedback-lanes, .lab-feedback-lane, .lab-feedback-archive')].map(node => {
+      return [...root.querySelectorAll('.lab-message-front, .lab-front-slot, .lab-fountain, .lab-feedback-lanes, .lab-feedback-lane, .lab-feedback-archive')].map(node => {
         const rect = __probe.rectOf(node);
         return { position: __probe.styleOf(node).position, x: Number((rect.x - origin.x).toFixed(3)), y: Number((rect.y - origin.y).toFixed(3)), width: rect.width, height: rect.height };
       });
@@ -155,7 +176,7 @@ try {
   });
   check(anchors.empty.every(anchor => anchor.position === 'absolute') && anchors.styles.every(position => position === 'absolute'), 'All family, lane, archive and popup containers are absolute');
   for (const phase of ['short', 'long', 'expiredPopups', 'drained']) assert.deepEqual(anchors[phase], anchors.empty, 'Fixed anchors remain identical during ' + phase);
-  checks.push('All nine piles and both archives stay fixed across short/long values, critical changes, GIFs, fades and removal');
+  checks.push('The fountain origin and side anchors stay fixed across short/long values, critical changes, GIFs, fades and removal');
   const after = await page.evaluate(() => ({ rect: __probe.rect, style: __probe.style, raf: __probe.raf }));
   assert.deepEqual(before, after); checks.push('Overflow routing, archives, durations and critical rendering add no geometry reads or JS frames');
 
@@ -175,17 +196,17 @@ try {
   check(properties.length > 0 && properties.every(property => ['transform', 'opacity'].includes(property)), 'Message animations only affect transform and opacity');
   await clear(); await emit('physical', 5, 24);
   state = (await inspect()).states[1];
-  check(Object.keys(state.front).length === 3 && state.exiting <= 2, 'Overflow replacement keeps a bounded short fade per occupied pile');
-  await page.waitForFunction(() => visualLab.popups.inspect().states[1].exiting === 0, null, { timeout: 2500 });
-  await page.waitForFunction(() => Object.keys(visualLab.popups.inspect().states[1].front).length === 0);
-  check((await inspect()).states[1].history.length > 0, 'Brief popups disappear before the central damage archive');
+  check(state.flights.length === 5 && state.exiting === 0, 'New damage leaves existing numbers in flight without replacement fades');
+  await page.waitForFunction(() => visualLab.popups.inspect().states[1].flights.length === 0);
+  await emit('physical');
+  check((await inspect()).states[1].flights[0].path === 'center', 'The next isolated hit restarts in the center after the fountain empties');
   const drain = await page.evaluate(async () => {
     const before = { rect: __probe.rect, style: __probe.style, raf: __probe.raf };
     await new Promise(resolve => setTimeout(resolve, 2300));
     return { before, after: { rect: __probe.rect, style: __probe.style, raf: __probe.raf } };
   });
   assert.deepEqual(drain.before, drain.after); checks.push('Animation cleanup performs no geometry reads');
-  check(await page.locator('.lab-history-row, .lab-front-card, [data-feed-legacy]').count() === 0, 'Both archives and all foreground/GIF nodes drain completely');
+  check(await page.locator('.lab-history-row, .lab-front-card, [data-feed-legacy]').count() === 0, 'All flying numbers, the effect archive and foreground/GIF nodes drain completely');
 
   await input('#message-rate', '0'); await click('#feed-run');
   let snapshot = await inspect();
@@ -195,11 +216,11 @@ try {
   check((await inspect()).generated === zeroCount, 'Rate zero emits no events');
   await input('#message-rate', '20'); await page.waitForTimeout(1300); await freeze();
   snapshot = await inspect();
-  check(snapshot.generated > zeroCount + 60 && snapshot.states.every(state => state.history.length <= 8 && state.statusHistory.length <= 6 && Object.keys(state.front).length <= 9 && state.exiting <= 9 && state.legacy <= 48), '20 events per second on six entities stays bounded across all nine piles and both archives');
+  check(snapshot.generated > zeroCount + 60 && snapshot.states.every(state => state.flights.length <= 8 && state.statusHistory.length <= 6 && Object.keys(state.front).length <= 6 && state.exiting <= 6 && state.legacy <= 48), '20 events per second on six entities bounds eight damage flights and all side effects');
   await page.waitForTimeout(180);
   const frozen = await inspect();
   check(frozen.generated === snapshot.generated && !frozen.timer, 'Freeze suspends generation');
-  check(frozen.states.every((state, index) => Object.entries(state.front).every(([key, card]) => Math.abs(card.time - snapshot.states[index].front[key].time) < 30)), 'Freeze stops popup motion in every pile');
+  check(frozen.states.every((state, index) => Object.entries(state.front).every(([key, card]) => Math.abs(card.time - snapshot.states[index].front[key].time) < 30) && state.flights.every((card, i) => Math.abs(card.time - snapshot.states[index].flights[i].time) < 30)), 'Freeze stops every flying number and side popup');
   await page.screenshot({ path: resolve(output, 'messages-comparison.png'), fullPage: true });
   await page.locator('.lab-scene[data-kind=new]').screenshot({ path: resolve(output, 'messages-new.png') });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -212,7 +233,7 @@ try {
   await clear();
   await page.evaluate(() => { for (const input of document.querySelectorAll('[data-message-kind]')) { input.checked = input.dataset.messageKind === 'stun'; input.dispatchEvent(new Event('change')); } });
   await click('#feed-burst');
-  check((await inspect()).states.every(state => state.history.length === 0 && state.statusHistory.length === 6 && Object.keys(state.front).every(key => key.startsWith('right:'))), 'A status-only burst populates only status piles and the status archive');
+  check((await inspect()).states.every(state => state.flights.length === 0 && state.statusHistory.length === 6 && Object.keys(state.front).every(key => key.startsWith('right:'))), 'A status-only burst populates only status piles and the status archive');
   await page.evaluate(() => { const node = document.querySelector('[data-message-kind=stun]'); node.checked = false; node.dispatchEvent(new Event('change')); });
   await click('#feed-run');
   check(!(await inspect()).timer && await page.locator('#feed-burst').isDisabled(), 'Empty type selection stops generation');
@@ -225,15 +246,15 @@ try {
   const zones = await page.evaluate(() => {
     const root = document.querySelector('#new-world .lab-slot[data-index="1"]');
     const rect = selector => { const value = __probe.rectOf(root.querySelector(selector)); return { left: value.left, right: value.right, top: value.top, bottom: value.bottom }; };
-    return { left: rect('[data-zone=left] [data-lane=center] img'), center: rect('[data-zone=center] [data-lane=center] .damage-popup'), right: rect('[data-zone=right] [data-lane=center] .BattleText'), frame: rect('.lab-frame'), halo: rect('.life-aura-wrap') };
+    return { left: rect('[data-zone=left] [data-lane=center] img'), center: rect('.lab-fountain-card .damage-popup'), right: rect('[data-zone=right] [data-lane=center] .BattleText'), frame: rect('.lab-frame'), halo: rect('.life-aura-wrap') };
   });
   check(zones.center.left - zones.left.right < 32 && zones.right.left - zones.center.right < 32, 'Fixed family positions retain compact spacing around the critical popup');
   check(Math.abs(zones.center.left + zones.center.right - zones.frame.left - zones.frame.right) < .6, 'Damage stays centered on the sprite despite variable text widths');
   check(zones.center.bottom < zones.halo.top, 'The foreground remains above aura anchors');
   await emit('physical', 1, 32); await emit('magical', 1, 65); await emit('proc', 2); await emit('poison'); await emit('burn');
-  await page.locator(slot).screenshot({ path: resolve(output, 'nine-piles-detail.png') });
+  await page.locator(slot).screenshot({ path: resolve(output, 'fountain-detail.png') });
   await page.selectOption(slot + ' select', 'foudre-fange'); await ready();
-  check((await inspect()).states[1].history.length === 0 && (await inspect()).states[1].statusHistory.length === 0 && Object.keys((await inspect()).states[1].front).length === 0, 'Replacement clears all nine piles and both archives');
+  check((await inspect()).states[1].flights.length === 0 && (await inspect()).states[1].statusHistory.length === 0 && Object.keys((await inspect()).states[1].front).length === 0, 'Replacement clears the fountain and all side effects');
   await input('#scale', '1.5'); await emit('executionCritical', 8, 214); await emit('stun'); await emit('poison'); await emit('burn');
   const bounds = await page.evaluate(() => {
     const world = __probe.rectOf(document.querySelector('#new-world'));
@@ -246,15 +267,15 @@ try {
     for (const { animation, time } of animations) animation.currentTime = time;
     return tops;
   });
-  check(bounds.every(top => top >= 0), 'Impact, scrolling and fade fit all nine piles with three auras at 150% scale');
-  await page.locator('.lab-scene[data-kind=new]').screenshot({ path: resolve(output, 'nine-piles-auras-scale150.png') });
+  check(bounds.every(top => top >= 0), 'Fountain flights and side effects fit with three auras at 150% scale');
+  await page.locator('.lab-scene[data-kind=new]').screenshot({ path: resolve(output, 'fountain-auras-scale150.png') });
   await click('button[data-mode=auras]');
-  check((await inspect()).states.every(state => !state.history.length && !state.statusHistory.length && !Object.keys(state.front).length && !state.exiting && !state.legacy) && !(await inspect()).timer, 'Leaving the mode removes every archive, popup, GIF and clock');
+  check((await inspect()).states.every(state => !state.flights.length && !state.statusHistory.length && !Object.keys(state.front).length && !state.exiting && !state.legacy) && !(await inspect()).timer, 'Leaving the mode removes every archive, popup, GIF and clock');
   await click('#reset'); await ready();
   check(await page.locator('#lab').getAttribute('data-mode') === 'overview' && !(await inspect()).timer, 'Reset restores initial overview');
   assert.deepEqual(errors, []); assert.deepEqual(failedRequests, []);
-  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, failedRequests, stress: snapshot, geometryReads: { before, after }, anchors, smoothing, zones }, null, 2));
-  console.log('PASS index-15 messages: ' + checks.length + ' checks; nine piles, GIFs, critical tiers, two archives, effect durations, bounded lifecycle, zero geometry reads.');
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, failedRequests, stress: snapshot, geometryReads: { before, after }, anchors, fountain, smoothing, zones }, null, 2));
+  console.log('PASS index-15 messages: ' + checks.length + ' checks; fountain arcs, one node per damage, GIFs, critical tiers, effect durations, bounded lifecycle, zero geometry reads.');
 } catch (error) {
   await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
   await writeFile(resolve(output, 'failure.json'), JSON.stringify({ message: error.message, checks, errors, failedRequests, state: await inspect().catch(() => null) }, null, 2));
