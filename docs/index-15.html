@@ -101,7 +101,8 @@
     .lab[data-mode=messages][data-with-auras=false] [data-family=body],
     .lab[data-mode=messages][data-with-auras=false] [data-family=status],
     .lab[data-mode=messages][data-with-auras=false] [data-family=ground] { display: none; }
-    .lab[data-mode=messages] .lab-world { height: calc((var(--scene-size, 540px) + 140px) * var(--lab-scale) + 110px); }
+    /* Réserver aussi la course verticale des chiffres au-dessus des piles. */
+    .lab[data-mode=messages] .lab-world { height: calc((var(--scene-size, 540px) + 220px) * var(--lab-scale) + 110px); }
     .lab[data-mode=messages] .lab-slot { --slot-width: max(calc(400px * var(--lab-scale)), calc(var(--slot-base, 120px) * var(--lab-scale) + 80px)); }
     .lab[data-mode=messages][data-with-auras=false] .lab-frame { --shown-auras: 0; --status-space: 0px; }
     @media (max-width: 700px) { .lab { padding: 18px 12px 28px; } .lab-header { align-items: flex-start; } .lab-local { display: none; } .lab h1 { font-size: 26px; } .lab-controls { gap: 12px 16px; } .lab-perf { gap: 5px 15px; } }
@@ -184,7 +185,7 @@
     .lab-front-slot[data-zone=right] .lab-history-row { left: 0; text-align: left; }
     .lab-history-row .lab-feed-life { font: 600 12px/1 system-ui, sans-serif; }
     .lab-front-card .lab-feed-life { font: 800 24px/1.1 system-ui, sans-serif; transform-origin: center bottom; }
-    .lab-front-slot[data-zone=center] .lab-feed-life { padding-inline: 6px; }
+    .lab-front-slot[data-zone=center] .lab-feed-life { padding-inline: 6px; font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
     .lab-front-card[data-priority="1"] .lab-feed-life { font-size: 32px; padding-inline: 10px; }
     .lab-front-card[data-priority="2"] .lab-feed-life { font-size: 28px; }
     .lab-front-card[data-priority="3"] .lab-feed-life { font-size: 40px; padding-inline: 22px; }
@@ -199,6 +200,7 @@
     .lab .lab-message-feed .damage-popup, .lab .lab-message-feed .BattleText { position: static !important; display: flex; align-items: center; justify-content: center; gap: 3px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; margin: 0 !important; font: inherit; white-space: nowrap; animation: none !important; transform: none !important; }
     .lab .lab-message-feed .damage-popup-value { color: var(--popup-color); text-shadow: 0 1px 2px #000, 0 0 3px #000; }
     .lab .lab-message-feed .lab-critical-suffix { color: var(--critical-accent, var(--color-criticalPower, #ff6c00)); text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+    .lab .lab-front-card .damage-popup-value, .lab .lab-front-card .lab-critical-suffix { -webkit-text-stroke: 2px #160e08; paint-order: stroke fill; text-shadow: 0 2px 0 #100b06, 1px 0 0 #100b06, -1px 0 0 #100b06; }
     .lab .lab-message-feed .picto-stat { flex: 0 0 22px; width: 22px; height: 22px; margin: 0; background-size: contain; background-position: center; background-repeat: no-repeat; transform: none; }
     .lab .lab-history-row .picto-stat { flex-basis: 12px; width: 12px; height: 12px; }
     .lab-critical-suffix { font-size: 1em; font-weight: 900; }
@@ -293,7 +295,7 @@
     <p>Les dimensions restent proportionnelles avec des plafonds de base : auréole et étourdissement 64 px de large ; mysticisme 140 × 200 px ; soin 110 × 160 px ; brûlure 110 × 140 px ; cercle au sol 190 px de large. L’écart de base de l’auréole est plafonné à 5 px. Les marges transparentes verticales du SVG sont recadrées par son affichage CSS. Tous ces plafonds suivent ensuite le scale du parent.</p>
     <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
     <p>En mode « Messages / dégâts », chaque famille a trois piles proches : centre, gauche, droite. Le centre est privilégié ; s’il a reçu un événement depuis moins de 240 ms, les suivants alternent gauche/droite. Chaque pile garde son dernier popup et au plus une sortie brève. Le bloc z-index 1 conserve les archives centrales : huit dégâts reçus dans la zone dégâts, six noms d’effets dans la zone effets. Lignes de 14 px, apparition en bas, remontée et disparition en 2,2 secondes. Les GIF n’ont aucune archive.</p>
-    <p>Les neuf piles et les deux archives sont en position absolue : leurs ancres ne bougent pas quand le texte change, qu’un GIF apparaît ou qu’un critique disparaît. Seul le contenu s’anime. Au premier plan (z-index 2), les remplacements se fondent sur 220 ms ; les archives remontent sur 300 ms. Après le pop, les textes retrouvent la fuite de l’animation d’origine : ils montent de 30 px en rétrécissant progressivement de moitié, puis disparaissent. Durée : 1,3 seconde, 1,4 seconde pour les critiques et exécutions. Les GIF gardent leur animation courte d’une seconde. Un critique remplace le picto de nature par le picto critique ; une exécution critique utilise son picto spécifique. Le montant garde la couleur de sa nature, les gros « !!! » prennent la couleur du critique (orange, rouge pour l’exécution critique). Tailles de base : normal 24 px, critique 32 px, exécution critique 40 px. Les noms d’effets incluent leur picto et leur valeur disponible, par exemple « Stun 3 scd ! ». Les durées sont converties en secondes, avec au plus une décimale. Vider le champ de durée permet d’essayer un effet sans durée connue.</p>
+    <p>Essai inspiré du texte de combat de WoW : chiffres à empattements, contour sombre net, impact rapide puis montée régulière à taille lisible. Les critiques ont un rebond supplémentaire. Le texte reste opaque pendant 72 % de sa durée, puis se fond en continuant de monter. Durées : 1,25 seconde pour un dégât normal, 1,55 seconde pour un critique, 1,7 seconde pour une exécution critique. Les archives restent discrètes derrière le dernier impact. Les neuf piles et les deux archives sont en position absolue ; seuls les contenus s’animent. Les GIF gardent leur animation d’une seconde. Un critique remplace le picto de nature par le picto critique ; une exécution critique utilise son picto spécifique. Le montant garde la couleur de sa nature, les « !!! » prennent la couleur du critique (orange, rouge pour l’exécution critique). Tailles de base : normal 24 px, critique 32 px, exécution critique 40 px. Les noms d’effets incluent leur picto et leur valeur disponible, par exemple « Stun 3 scd ! ». Les durées sont converties en secondes, avec au plus une décimale. Vider le champ de durée permet d’essayer un effet sans durée connue.</p>
     <p>Le nouveau flux anime uniquement transform et opacity. Un seul timer génère les événements de démonstration ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
 </main>
@@ -730,7 +732,7 @@
     [...history].reverse().forEach((row, rank) => {
       row.up = Math.max(row.up, rank * 14);
       row.node.style.transform = `translateY(${-row.up}px)`;
-      row.node.style.opacity = Math.max(.24, .82 - rank * .075);
+      row.node.style.opacity = Math.max(.2, .6 - rank * .055);
     });
     card.life = card.body.animate([
       { transform: 'translateY(3px)', opacity: 0, offset: 0 },
@@ -755,7 +757,7 @@
       if (suspended()) removeCard(previous);
       else {
         previous.node.style.zIndex = '0'; previous.node.dataset.outgoing = 'true'; state.exiting.set(key, previous);
-        previous.exit = previous.node.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-5px)' }], { duration: 220, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'forwards' });
+        previous.exit = previous.node.animate([{ opacity: 1, transform: 'translateY(0) scale(1)' }, { opacity: 0, transform: 'translateY(-14px) scale(.96)' }], { duration: 280, easing: 'ease-out', fill: 'forwards' });
         previous.exit.onfinish = () => { state.exiting.delete(key); removeCard(previous); updateFeedStats(); };
       }
     }
@@ -763,13 +765,25 @@
     card.node.style.zIndex = '1'; state.front.set(key, card); state.lanes[key].append(card.node);
     const peak = packet.priority === 3 ? 1.2 : packet.critical ? 1.14 : 1.06;
     const textPopup = packet.category !== 'trigger';
-    // Fuite de floatUp : montée et réduction, sans animer font-size ni les ancres.
-    card.life = card.body.animate([
+    // Inspiration WoW : impact bref, lecture à pleine taille, défilement puis fondu tardif.
+    // Les ancres restent fixes ; aucun calcul de géométrie ni animation de font-size.
+    const duration = packet.priority === 3 ? 1700 : packet.critical ? 1550 : packet.priority ? 1450 : packet.category === 'status' ? 1350 : 1250;
+    const rise = packet.category === 'status' ? 42 : packet.priority === 3 ? 76 : packet.critical ? 70 : 60;
+    const frames = textPopup ? [
+      { transform: `translateY(3px) scale(${packet.critical ? .78 : .9})`, opacity: 0, offset: 0, easing: 'cubic-bezier(.16,1,.3,1)' },
+      { transform: `translateY(0px) scale(${peak})`, opacity: 1, offset: .05, easing: 'ease-out' },
+      { transform: `translateY(-2px) scale(${packet.critical ? .96 : 1})`, opacity: 1, offset: .13, easing: 'ease-out' },
+      { transform: `translateY(-5px) scale(${packet.critical ? 1.03 : 1})`, opacity: 1, offset: .21 },
+      { transform: `translateY(${-rise * .32}px) scale(1)`, opacity: 1, offset: .38 },
+      { transform: `translateY(${-rise * .72}px) scale(1)`, opacity: 1, offset: .72 },
+      { transform: `translateY(${-rise}px) scale(.96)`, opacity: 0, offset: 1 }
+    ] : [
       { transform: 'translateY(3px) scale(.94)', opacity: 0, offset: 0, easing: 'cubic-bezier(.22,.61,.36,1)' },
       { transform: `translateY(0px) scale(${peak})`, opacity: 1, offset: .24, easing: 'cubic-bezier(.22,.61,.36,1)' },
-      { transform: textPopup ? 'translateY(-8px) scale(1)' : 'translateY(-2px) scale(1)', opacity: 1, offset: textPopup ? .4 : .5, easing: textPopup ? 'ease-out' : 'cubic-bezier(.4,0,.7,1)' },
-      { transform: textPopup ? 'translateY(-30px) scale(.5)' : 'translateY(-12px) scale(.97)', opacity: 0, offset: 1 }
-    ], { duration: textPopup ? packet.priority ? 1400 : 1300 : 1000, fill: 'forwards', easing: 'linear' });
+      { transform: 'translateY(-2px) scale(1)', opacity: 1, offset: .5, easing: 'cubic-bezier(.4,0,.7,1)' },
+      { transform: 'translateY(-12px) scale(.97)', opacity: 0, offset: 1 }
+    ];
+    card.life = card.body.animate(frames, { duration: textPopup ? duration : 1000, fill: 'forwards', easing: 'linear' });
     if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
     card.life.onfinish = () => { state.front.delete(key); removeCard(card); updateFeedStats(); };
   }

@@ -92,7 +92,7 @@ try {
   const smoothing = await page.evaluate(() => {
     const body = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life');
     const animation = body.getAnimations()[0];
-    const samples = [0, 80, 340, 800, 1380].map(time => {
+    const samples = [0, 35, 150, 900, 1530].map(time => {
       animation.currentTime = time;
       const style = __probe.styleOf(body), matrix = new DOMMatrixReadOnly(style.transform);
       return { opacity: Number(style.opacity), scale: matrix.a, y: matrix.f };
@@ -101,7 +101,7 @@ try {
     return { samples, duration: animation.effect.getTiming().duration };
   });
   check(smoothing.samples[0].opacity === 0 && smoothing.samples[1].opacity > 0 && smoothing.samples[1].opacity < smoothing.samples[2].opacity && smoothing.samples[3].opacity > smoothing.samples[4].opacity, 'Popup fades in progressively and fades out over its final phase');
-  check(smoothing.samples[4].y < smoothing.samples[3].y && smoothing.samples[4].scale < smoothing.samples[3].scale && smoothing.samples[4].scale < .6 && smoothing.samples[4].y < -25, 'Text rises and visibly shrinks during its original-style flight');
+  check(smoothing.samples[3].opacity === 1 && smoothing.samples[3].scale >= .99 && smoothing.samples[4].scale > .9 && smoothing.samples[4].y < -55, 'Combat text stays readable at full size during its rise and fades only near the end');
   await emit('executionCritical', 1, 214);
   const execution = await describe('center', 'left');
   check(execution.icon.includes('execution-critical') && execution.valueColor === critical.valueColor && execution.suffixColor === 'rgb(255, 0, 6)', 'Execution critical uses its special icon, nature-colored amount and red !!!');
@@ -237,9 +237,16 @@ try {
   await input('#scale', '1.5'); await emit('executionCritical', 8, 214); await emit('stun'); await emit('poison'); await emit('burn');
   const bounds = await page.evaluate(() => {
     const world = __probe.rectOf(document.querySelector('#new-world'));
-    return [...document.querySelectorAll('#new-world .lab-feed-life')].map(node => __probe.rectOf(node).top - world.top);
+    const bodies = [...document.querySelectorAll('#new-world .lab-feed-life')];
+    const animations = bodies.flatMap(node => node.getAnimations()).map(animation => ({ animation, time: animation.currentTime }));
+    const tops = [.05, .72, .99].flatMap(progress => {
+      for (const { animation } of animations) animation.currentTime = animation.effect.getTiming().duration * progress;
+      return bodies.map(node => __probe.rectOf(node).top - world.top);
+    });
+    for (const { animation, time } of animations) animation.currentTime = time;
+    return tops;
   });
-  check(bounds.every(top => top >= 0), 'Nine piles and archives fit with three auras at 150% scale');
+  check(bounds.every(top => top >= 0), 'Impact, scrolling and fade fit all nine piles with three auras at 150% scale');
   await page.locator('.lab-scene[data-kind=new]').screenshot({ path: resolve(output, 'nine-piles-auras-scale150.png') });
   await click('button[data-mode=auras]');
   check((await inspect()).states.every(state => !state.history.length && !state.statusHistory.length && !Object.keys(state.front).length && !state.exiting && !state.legacy) && !(await inspect()).timer, 'Leaving the mode removes every archive, popup, GIF and clock');
