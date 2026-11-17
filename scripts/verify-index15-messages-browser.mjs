@@ -61,7 +61,7 @@ try {
   await freeze(); await emit('physical', 1, 24); await emit('critical', 1, 182); await emit('magical', 1, 65);
   let state = (await inspect()).states[1];
   check(state.front['center:center'].value === 24 && state.front['center:left'].value === 182 && state.front['center:right'].value === 65, 'Rapid damage arrivals start in the center then alternate left and right');
-  check(state.history.map(row => row.value).join() === '24,182,65' && state.history.map(row => row.up).join() === '36,18,0', 'One central damage archive rises in compact chronological rows');
+  check(state.history.map(row => row.value).join() === '24,182,65' && state.history.map(row => row.up).join() === '28,16,0', 'One central damage archive rises in progressively tighter chronological rows');
   await emit('heal'); await emit('proc', 3); await emit('stun'); await emit('poison'); await emit('burn');
   state = (await inspect()).states[1];
   check(['left:center', 'left:left', 'left:right', 'right:center', 'right:left', 'right:right'].every(key => state.front[key]), 'GIF and effect families independently use their own overflow piles');
@@ -74,7 +74,7 @@ try {
   await fresh();
   await page.evaluate(() => { for (let value = 1; value <= 100; value++) visualLab.popups.emit(1, 'physical', value); });
   state = (await inspect()).states[1];
-  check(state.history.map(row => row.value).join() === '93,94,95,96,97,98,99,100' && Object.keys(state.front).length === 3, 'A hundred hits retain only eight archived rows and three live damage piles');
+  check(state.history.map(row => row.value).join() === '93,94,95,96,97,98,99,100' && Math.max(...state.history.map(row => row.up)) <= 56 && Object.keys(state.front).length === 3, 'A hundred hits retain eight archived rows within 56 px of stacking and three live damage piles');
   check(Object.values(state.front).some(card => card.value === 100), 'Newest burst hit is visible in an overflow pile without a pending queue');
   await page.evaluate(() => { document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life').getAnimations()[0].currentTime = 300; visualLab.popups.emit(1, 'physical', 999); });
   check((await inspect()).states[1].front['center:center'].value === 999, 'The central pile takes priority again once its appearance window is free');
