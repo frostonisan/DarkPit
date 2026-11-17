@@ -64,6 +64,7 @@ const geometry = async () => page.evaluate(() => [...document.querySelectorAll('
     aura: rect(root.querySelector('.aura-container')), effects: rect(root.querySelector('.effects-container')),
     halo: rect(root.querySelector('.life-aura-wrap')), messages: rect(root.querySelector('.pop-down-txt')),
     damage: rect(root.querySelector('.damage-popup')), messageText: rect(root.querySelector('.BattleText')),
+    bodyEffects: [...root.querySelectorAll('[data-family=body]')].map(node => ({ type: [...node.classList].find(name => ['mysticism', 'heal', 'burn'].includes(name)), ...rect(node) })),
     world: rect(slot.parentElement), base: { w: parseFloat(root.style.getPropertyValue('--sprite-w')), h: parseFloat(root.style.getPropertyValue('--sprite-h')) } };
 }));
 function verifyGeometry(items, scale) {
@@ -74,11 +75,56 @@ function verifyGeometry(items, scale) {
       check(['x', 'y', 'width', 'height'].every(key => Math.abs(item[layer][key] - item.canvas[key]) < .15), `${item.model}: ${layer} aligned with canvas`);
     }
     check(item.halo.bottom <= item.canvas.top + .1, `${item.model}: halo above sprite`);
+    check(item.halo.width <= 64 * .85 * scale + .15, `${item.model}: halo respects the shared local cap`);
+    check(item.canvas.top - item.halo.bottom <= 5 * .85 * scale + .15, `${item.model}: halo stays close above sprite`);
     check(Math.abs(item.halo.x + item.halo.width / 2 - item.canvas.x - item.canvas.width / 2) < .15, `${item.model}: halo horizontally centered`);
     check(item.messages.bottom < item.halo.top, `${item.model}: messages above halo`);
     check(item.damage.bottom <= item.messageText.top - 4, `${item.model}: damage and message do not overlap`);
     check(item.messages.top > item.world.top, `${item.model}: visible headroom at scale ${scale}`);
+    const caps = { mysticism: [140, 200], heal: [110, 160], burn: [110, 140] };
+    for (const effect of item.bodyEffects) {
+      const [w, h] = caps[effect.type];
+      check(effect.width <= w * .85 * scale + .15 && effect.height <= h * .85 * scale + .15, `${item.model}: ${effect.type} respects shared width and height caps`);
+    }
   }
+}
+
+async function verifyIndependentIdle() {
+  const result = await page.evaluate(() => {
+    const root = document.querySelector('#new-world [data-model=mouche-asticoteuse]');
+    const sprite = root.querySelector('[data-role=sprite]');
+    const animations = root.getAnimations({ subtree: true });
+    const idle = sprite.getAnimations().find(animation => animation.animationName === 'bougeote');
+    if (!idle) return { missingIdle: true };
+    animations.forEach(animation => animation.pause());
+    const before = { rect: __probe.rect, style: __probe.style };
+    const rect = node => { const r = __probe.rectOf(node); return [r.x, r.y, r.width, r.height]; };
+    const sample = time => {
+      idle.currentTime = time;
+      return { canvas: rect(root.querySelector('canvas')), anchors: [root.querySelector('.lab-frame'),
+        root.querySelector('.aura-container'), root.querySelector('.life-aura-wrap'), root.querySelector('.effects-container'),
+        root.querySelector('.cast-animation-container'), root.querySelector('.pop-down-txt')].map(rect) };
+    };
+    const normal = [0, 120, 240].map(sample);
+    document.getElementById('lab').dataset.mirror = 'true';
+    const mirrored = [0, 120, 240].map(sample);
+    const facing = __probe.styleOf(root.querySelector('.lab-sprite-facing')).transform;
+    document.getElementById('lab').dataset.mirror = 'false';
+    const ownAuraAnimation = root.querySelector('.life-aura-anim').getAnimations().length > 0;
+    const after = { rect: __probe.rect, style: __probe.style };
+    animations.forEach(animation => animation.play());
+    return { normal, mirrored, facing, ownAuraAnimation, before, after };
+  });
+  check(!result.missingIdle, 'Native entity idle animation stays on the sprite');
+  for (const mode of ['normal', 'mirrored']) {
+    const samples = result[mode];
+    check(samples.some(sample => Math.abs(sample.canvas[0] - samples[0].canvas[0]) > 1), `${mode}: sprite visibly trembles`);
+    check(samples.every(sample => sample.anchors.every((anchor, i) => anchor.every((value, j) => Math.abs(value - samples[0].anchors[i][j]) < .05))), `${mode}: aura, FX, ground and message anchors do not inherit sprite idle`);
+  }
+  check(result.facing.startsWith('matrix(-1'), 'Mirror remains active while sprite idle animates');
+  check(result.ownAuraAnimation, 'Aura keeps its own independent animation');
+  assert.deepEqual(result.after, result.before, 'Sprite idle needs no page geometry polling');
+  checks.push('Sprite idle needs no page geometry polling');
 }
 
 try {
@@ -90,6 +136,7 @@ try {
   check(initial.unifiedCalibrations === 6 && initial.unifiedStyleReads === 6, 'One local CSS read per new entity at creation');
   check(initial.writes === 0, 'No game storage writes');
   check(await page.evaluate(() => [...document.images].every(image => image.naturalWidth > 0)), 'All displayed sprite/effect images loaded');
+  await verifyIndependentIdle();
   await page.locator('[data-toggle=motion]').uncheck();
   const base = await geometry();
   verifyGeometry(base, 1);
@@ -107,6 +154,7 @@ try {
   await page.screenshot({ path: resolve(output, 'new-scale-150.png'), fullPage: true });
   await page.selectOption('#preset', 'extreme'); await ready();
   verifyGeometry(await geometry(), 1.5);
+  await page.locator('#new-world .lab-slot[data-index="3"]').screenshot({ path: resolve(output, 'foudre-capped-effects.png') });
   check((await geometry()).find(item => item.model === 'cockroach-king').base.w === 540, 'Wide boss uses current 540 px CSS width');
   await page.locator('button[data-view=old]').click();
   await page.selectOption('#old-world .lab-slot[data-index="0"] select', 'mouche-asticoteuse'); await ready();

@@ -66,6 +66,7 @@
     .lab[data-motion=false] .lab-world *, .lab[data-motion=false] .lab-world *::before,
     .lab[data-motion=false] .lab-world *::after { animation-play-state: paused !important; }
     .lab[data-motion=false] .lab-repeat { animation: none !important; opacity: 1 !important; transform: none !important; }
+    .lab[data-motion=false] .lab-world .sprite.iddle { animation: none !important; }
     .lab-repeat { animation-iteration-count: infinite; animation-duration: 3s; }
     .lab-guide { position: absolute; inset: 0; border: 1px dashed #7df8dc; box-sizing: border-box; pointer-events: none; z-index: 110; display: none; }
     .lab-guide::before, .lab-guide::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #b1ffe7; left: calc(50% - 3px); }
@@ -98,30 +99,35 @@
        Le scale(.85) existant est conservé sur le parent entitesContainer commun.
        Les contrôles ne changent ensuite que le transform du parent lab-scale. */
     .lab-unified { position: relative; transform-origin: center bottom; }
-    .lab-frame { position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
-    .lab-frame > .sprite { position: relative; display: inline-block; top: 0; line-height: 0; vertical-align: bottom; }
-    .lab-frame.is-calibrated > .sprite { animation: none; }
-    .lab-frame > .sprite > canvas { display: block; position: static; }
+    .lab-frame { --head-gap: min(calc(var(--sprite-h) * .025), 5px); --halo-height: calc(var(--halo-size) * .38); --status-size: min(calc(var(--sprite-w) * .48), calc(var(--sprite-h) * .65), 64px); --status-space: 0px; position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
+    .lab-sprite-facing { line-height: 0; }
+    .lab-frame .sprite { position: relative; display: inline-block; top: 0; line-height: 0; vertical-align: bottom; }
+    .lab-frame .sprite > canvas { display: block; position: static; }
+    .lab-unified[data-has-status=true] .lab-frame { --status-space: calc(var(--status-size) * .55); }
+    .lab[data-status=false] .lab-frame { --status-space: 0px; }
     .lab-frame > .aura-container, .lab-frame > .effects-container,
     .lab-frame > .cast-animation-container { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; transform: none; pointer-events: none; }
     .lab-frame > .cast-animation-container { z-index: -1; }
     .lab-frame .life-sup { position: absolute; inset: 0; }
     .lab-frame .life-aura-anim { width: 100%; height: 100%; }
-    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--sprite-h) * .04); left: 50%; width: var(--halo-size); height: var(--halo-size); transform: translateX(-50%); }
-    .lab-frame .life-aura-img { width: 100%; height: 100%; --amp: calc(var(--sprite-h) * .025); }
+    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap)); left: 50%; width: var(--halo-size); height: var(--halo-height); transform: translateX(-50%); }
+    /* Les SVG d'auréole ont de grandes marges verticales transparentes.
+       Cover dans une fenêtre basse rapproche le dessin, sans déformer l'anneau. */
+    .lab-frame .life-aura-img { width: 100%; height: 100%; object-fit: cover; --amp: min(calc(var(--sprite-h) * .025), 3px); }
     /* Chaque famille a une règle commune, indépendante du modèle de l'entité. */
     .lab-frame .effect-vfx { margin: 0; object-fit: contain; }
-    .lab-frame .effect-vfx.stun { width: calc(var(--sprite-w) * .48); max-width: calc(var(--sprite-h) * .65); height: auto; left: 50%; top: auto; bottom: calc(100% + var(--halo-size) + var(--sprite-h) * .07); transform: translateX(-50%); }
-    .lab-frame .effect-vfx.mysticism { width: 110%; height: 110%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-    .lab-frame .effect-vfx.heal { width: 70%; height: 90%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-    .lab-frame .effect-vfx.burn { width: 75%; height: 70%; left: 50%; top: auto; bottom: 0; transform: translateX(-50%); }
-    .lab-frame .cast { position: absolute; width: 120%; height: 38%; object-fit: fill; left: 50%; top: 100%; transform: translate(-50%, -50%); animation: none; }
-    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + var(--halo-size) + var(--sprite-h) * .32); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
+    .lab-frame .effect-vfx.stun { width: var(--status-size); height: auto; left: 50%; top: auto; bottom: calc(100% + var(--halo-height) + var(--head-gap) * 2); transform: translateX(-50%); }
+    /* Plafonds locaux par famille, avant le scale global. Aucun cas par monstre. */
+    .lab-frame .effect-vfx.mysticism { width: min(80%, calc(var(--sprite-h) * .55), 140px); height: min(90%, 200px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
+    .lab-frame .effect-vfx.heal { width: min(70%, calc(var(--sprite-h) * .6), 110px); height: min(90%, 160px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
+    .lab-frame .effect-vfx.burn { width: min(75%, calc(var(--sprite-h) * .7), 110px); height: min(70%, 140px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
+    .lab-frame .cast { --ground-size: min(calc(var(--sprite-w) * 1.2), calc(var(--sprite-h) * 1.5), 190px); position: absolute; width: var(--ground-size); height: calc(var(--ground-size) * .32); object-fit: fill; left: 50%; top: 100%; transform: translate(-50%, -50%); animation: none; }
+    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + var(--halo-height) + var(--head-gap) * 2 + var(--status-space) + 8px); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
     .lab-frame .pop-up-txt { margin-bottom: 32px; }
     .lab-frame .BattleText { width: 100%; left: 0; white-space: nowrap; }
     .lab-frame .damage-popup { position: relative; width: 100%; left: 0; }
     /* Le miroir concerne le dessin ; les textes conservent leur sens de lecture. */
-    .lab[data-mirror=true] .lab-frame > .sprite { transform: scaleX(-1); }
+    .lab[data-mirror=true] .lab-sprite-facing { transform: scaleX(-1); }
     .lab[data-mirror=true] .lab-legacy .sprite-container { transform: scaleX(-1); }
   </style>
 </head>
@@ -147,7 +153,7 @@
     <label><input type="checkbox" data-toggle="messages" checked>Messages / dégâts</label>
     <label><input type="checkbox" data-toggle="guides">Repères du sprite</label>
     <label><input type="checkbox" data-toggle="mirror">Retourner les sprites</label>
-    <label title="Fige les animations CSS. Les GIF existants continuent de jouer."><input type="checkbox" data-toggle="motion" checked>Mouvements CSS</label>
+    <label title="Remet les sprites au repos et fige les autres animations CSS. Les GIF existants continuent de jouer."><input type="checkbox" data-toggle="motion" checked>Mouvements CSS</label>
   </div>
   <div class="lab-perf" aria-live="polite"><span>Nouveau : <strong id="init-count">0</strong> calibrages au montage</span><span>Zoom / calques : <strong id="interaction-reads">0</strong> lecture géométrique</span><span>Suivi JS : <strong>aucune boucle, aucun observateur</strong></span></div>
   <p class="lab-error" id="error" hidden role="alert"></p>
@@ -164,16 +170,18 @@
   <details class="lab-doc" open>
     <summary>Ce qui est testé, et où lire le code</summary>
     <p>Les sept feuilles CSS du jeu sont chargées sans modification. Les sprites sont dessinés dans des canvas 500 × 500 comme dans <code>createEntity.js</code> ; leur taille affichée est imposée par <a href="css/monstre.css">monstre.css</a>, notamment <code>height: 120px</code> pour la mouche et <code>width: 220px; height: 140px</code> pour l’escargot. Aucun contour n’est calculé.</p>
-    <p>Le bloc CSS « 3. PROPOSITION », le template <code>unified-entity</code> et <code>calibrateUnified()</code>, dans cette page, contiennent l’essai. Une lecture du style du sprite au montage suffit. Les calques sont ses voisins : ils restent hors de son clip-path. L’animation de repos est portée par leur parent commun.</p>
+    <p>Le bloc CSS « 3. PROPOSITION », le template <code>unified-entity</code> et <code>calibrateUnified()</code>, dans cette page, contiennent l’essai. Une lecture du style du sprite au montage suffit. Les calques sont ses voisins : ils restent hors de son clip-path. La tremblote reste sur le sprite uniquement ; les effets conservent leurs animations propres. Seule l’échelle globale est commune.</p>
     <pre>parent d’échelle             ← transform: scale(...) uniquement
 └─ entitesContainer          ← facteur existant × 0,85
-   └─ gabarit + repos        ← largeur / hauteur CSS, fixées à la création
-      ├─ sprite + canvas    ← classe du monstre, clip-path existant
+   └─ gabarit fixe          ← largeur / hauteur CSS, fixées à la création
+      ├─ orientation        ← miroir du dessin uniquement
+      │  └─ sprite + canvas ← classe du monstre, clip-path, tremblote native
       ├─ aura-container     ← haut du gabarit
       ├─ effects-container  ← centre / haut selon la famille
       ├─ cast-container     ← bas du gabarit
       └─ messages           ← au-dessus, mêmes espacements pour tous</pre>
-    <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. « Mouvements CSS » fige les animations CSS ; les GIF continuent de jouer.</p>
+    <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. Désactiver « Mouvements CSS » remet les sprites au repos et fige les autres animations CSS ; les GIF continuent de jouer.</p>
+    <p>Les dimensions restent proportionnelles avec des plafonds de base : auréole et étourdissement 64 px de large ; mysticisme 140 × 200 px ; soin 110 × 160 px ; brûlure 110 × 140 px ; cercle au sol 190 px de large. L’écart de base de l’auréole est plafonné à 5 px. Les marges transparentes verticales du SVG sont recadrées par son affichage CSS. Tous ces plafonds suivent ensuite le scale du parent.</p>
     <p>Les tailles et espacements proposés sont des réglages à juger ici. L’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
   </details>
 </main>
@@ -201,7 +209,7 @@
 <template id="unified-entity">
   <div class="lab-unified entitesContainer sbire A">
     <div class="lab-frame">
-      <div class="sprite side-A hb iddle" data-monster data-role="sprite"><canvas class="sprite-canvas side-A" data-monster width="500" height="500" role="img"></canvas></div>
+      <div class="lab-sprite-facing"><div class="sprite side-A hb iddle" data-monster data-role="sprite"><canvas class="sprite-canvas side-A" data-monster width="500" height="500" role="img"></canvas></div></div>
       <div class="aura-container" data-role="auras" data-family="aura"></div>
       <div class="effects-container" data-role="effects"></div>
       <div class="cast-animation-container" data-family="ground"><img class="cast cast-default" src="media/assets/effects/castingfx-base.gif" alt=""></div>
@@ -304,12 +312,12 @@
   }
 
   // UNE lecture CSS locale. Pas de boundingClientRect : aucune échelle d'ancêtre absorbée.
-  // Lire avant de couper l'animation permet de reprendre l'animation de repos native.
+  // L'animation native reste sur le sprite, jamais sur le gabarit ou ses autres calques.
   function measureUnified(root) {
     const sprite = root.querySelector('[data-role=sprite]');
     const style = getComputedStyle(sprite);
     metrics.unifiedStyleReads++;
-    return { width: parseFloat(style.width), height: parseFloat(style.height), animation: style.animation };
+    return { width: parseFloat(style.width), height: parseFloat(style.height) };
   }
 
   function calibrateUnified(root, size) {
@@ -317,10 +325,7 @@
     const frame = root.querySelector('.lab-frame');
     frame.style.setProperty('--sprite-w', `${size.width}px`);
     frame.style.setProperty('--sprite-h', `${size.height}px`);
-    frame.style.setProperty('--halo-size', `${Math.min(size.width * .4, size.height * .45)}px`);
-    frame.style.animation = size.animation;
-    frame.style.animationPlayState = 'running';
-    frame.classList.add('is-calibrated');
+    frame.style.setProperty('--halo-size', `${Math.min(size.width * .4, size.height * .45, 64)}px`);
     metrics.unifiedCalibrations++;
   }
 
@@ -365,6 +370,7 @@
       const root = clone(kind === 'new' ? 'unified-entity' : 'legacy-entity');
       root.dataset.model = key;
       root.dataset.life = profile.life;
+      root.dataset.hasStatus = String(profile.status);
       root.querySelectorAll('[data-monster]').forEach(node => node.classList.add(key));
       const canvas = root.querySelector('canvas');
       canvas.setAttribute('aria-label', model.name);
@@ -399,7 +405,7 @@
     // Réserver de la place dans le décor à partir des valeurs déjà connues.
     // Le slider peut ainsi agrandir les géants sans les couper, sans relire le DOM.
     const sceneSize = Math.max(400, ...measuredSizes.filter(Boolean).map(item =>
-      (item.height * 1.32 + Math.min(item.width * .4, item.height * .45) + 70) * .85 + 30));
+      (item.height + Math.min(item.width * .4, item.height * .45, 64) * .38 + 118) * .85 + 30));
     lab.style.setProperty('--scene-size', `${sceneSize}px`);
     document.getElementById('init-count').textContent = metrics.unifiedCalibrations;
   }
