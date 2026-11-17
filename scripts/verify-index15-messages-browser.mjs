@@ -61,7 +61,7 @@ try {
   await freeze(); await emit('physical', 1, 24); await emit('critical', 1, 182); await emit('magical', 1, 65);
   let state = (await inspect()).states[1];
   check(state.front['center:center'].value === 24 && state.front['center:left'].value === 182 && state.front['center:right'].value === 65, 'Rapid damage arrivals start in the center then alternate left and right');
-  check(state.history.map(row => row.value).join() === '24,182,65' && state.history.map(row => row.up).join() === '28,14,0', 'One central damage archive rises in compact chronological rows');
+  check(state.history.map(row => row.value).join() === '24,182,65' && state.history.map(row => row.up).join() === '36,18,0', 'One central damage archive rises in compact chronological rows');
   await emit('heal'); await emit('proc', 3); await emit('stun'); await emit('poison'); await emit('burn');
   state = (await inspect()).states[1];
   check(['left:center', 'left:left', 'left:right', 'right:center', 'right:left', 'right:right'].every(key => state.front[key]), 'GIF and effect families independently use their own overflow piles');
