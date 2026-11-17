@@ -769,8 +769,11 @@
     for (let step = 1; step <= 18; step++) {
       const t = step / 18;
       const x = direction * 66 * t, y = -4 * height * t * (1 - t) + landing * t;
-      frames.push({ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${(1 - .86 * t).toFixed(3)})`, opacity: t <= .7 ? 1 : (1 - t) / .3, offset: .065 + .935 * t });
+      frames.push({ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${(1 - .86 * t).toFixed(3)})`, offset: .065 + .935 * t });
     }
+    // Fondu indépendant de la trajectoire : 1 à 80 %, .5 à 90 %, 0 à 100 %.
+    frames.push({ opacity: 1, offset: .8 }, { opacity: .5, offset: .9 }, { opacity: 0, offset: 1 });
+    frames.sort((a, b) => a.offset - b.offset);
     fountainFrames.set(key, frames);
     return frames;
   }
