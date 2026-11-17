@@ -34,6 +34,7 @@ async function verify(p,label){
   checks.push(label);return data;
 }
 async function gesture(p,id,destination,fromCell=null){
+  await p.waitForFunction(()=>!document.querySelector('.actor-anchor.pushing'));
   return p.evaluate(({id,destination,fromCell})=>{
     const current=hexGroupLab.snapshot().entities.find(e=>e.id===id);
     const cellRect=key=>document.querySelector(`[data-cell="${key}"] polygon`).getBoundingClientRect();
@@ -161,6 +162,79 @@ try{
   checks.push('Resizing reuses cached geometry and the original fixed canvas buffers');
   await page.locator('#reset').click();after=await snapshot(page);assert.deepEqual(after.entities,initial.entities);
   await page.waitForTimeout(180);checks.push('Reset restores the three initial sizes, roles and positions');
+
+  const slideProbe=await page.evaluate(()=>{
+    const actor=document.querySelector('.actor-anchor[data-entity="cyan"]');
+    const foot=()=>{const r=actor.getBoundingClientRect();return {x:r.x+r.width/2,y:r.bottom};};
+    const start=foot(),control=document.querySelector('[data-size-for="yellow"]');
+    control.value='3';control.dispatchEvent(new Event('input',{bubbles:true}));
+    const slide=actor.getAnimations()[0];slide.pause();slide.currentTime=0;
+    const first=foot();slide.currentTime=210;const middle=foot();slide.currentTime=420;const end=foot();
+    slide.currentTime=100;slide.play();
+    const smoke=actor.querySelector('.push-smoke'),r=smoke.getBoundingClientRect(),a=actor.getBoundingClientRect();
+    return {start,first,middle,end,smoke:{src:smoke.getAttribute('src'),footOffset:r.bottom-a.bottom,pointerEvents:getComputedStyle(smoke).pointerEvents},scale:hexGroupLab.snapshot().scale};
+  });
+  const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  assert(distance(slideProbe.start,slideProbe.first)<.1);
+  assert(distance(slideProbe.first,slideProbe.end)>30);
+  assert(distance(slideProbe.middle,slideProbe.first)>1);assert(distance(slideProbe.middle,slideProbe.end)>1);
+  assert(distance(slideProbe.middle,slideProbe.end)<distance(slideProbe.first,slideProbe.end));
+  assert.match(slideProbe.smoke.src,/^media\/assets\/effects\/dodge-smoke\.gif#push-\d+$/);assert.equal(slideProbe.smoke.pointerEvents,'none');
+  assert(Math.abs(slideProbe.smoke.footOffset-8*slideProbe.scale)<.1);
+  await page.waitForFunction(()=>document.querySelector('.push-smoke')?.naturalWidth===296);
+  await page.screenshot({path:resolve(output,'pushed-neighbour-smoke.png')});
+  await page.waitForFunction(()=>!document.querySelector('.push-smoke,.actor-anchor.pushing'));
+  assert.equal(await page.locator('.actor-anchor').evaluateAll(actors=>actors.reduce((n,a)=>n+a.getAnimations().length,0)),0);
+  checks.push('Pushed sprite starts at its previous position and visibly interpolates to the reserved group');
+  checks.push('Existing smoke GIF follows the feet, ignores clicks and is removed with finished animation objects');
+
+  await page.locator('#reset').click();
+  const retarget=await page.evaluate(()=>{
+    const change=(id,value)=>{const c=document.querySelector(`[data-size-for="${id}"]`);c.value=value;c.dispatchEvent(new Event('input',{bubbles:true}));};
+    const actor=document.querySelector('.actor-anchor[data-entity="cyan"]');
+    const foot=()=>{const r=actor.getBoundingClientRect();return {x:r.x+r.width/2,y:r.bottom};};
+    change('yellow','3');const oldSlide=actor.getAnimations()[0];oldSlide.pause();oldSlide.currentTime=126;
+    const before=foot(),oldSmoke=actor.querySelector('.push-smoke').src;change('cyan','3');const slide=actor.getAnimations()[0];slide.pause();slide.currentTime=0;
+    const after=foot();slide.play();
+    return {before,after,count:actor.querySelectorAll('.push-smoke').length,freshSmoke:oldSmoke!==actor.querySelector('.push-smoke').src,size:hexGroupLab.snapshot().entities.find(e=>e.id==='cyan').sizeIndex};
+  });
+  assert.equal(retarget.size,3);assert.equal(retarget.count,1);assert(retarget.freshSmoke);assert(distance(retarget.before,retarget.after)<.1);
+  await page.waitForFunction(()=>!document.querySelector('.push-smoke,.actor-anchor.pushing'));
+  assert(await page.evaluate(()=>hexGroupLab.snapshot().entities.every(e=>{
+    const r=document.querySelector(`.actor-anchor[data-entity="${e.id}"]`).getBoundingClientRect(),w=document.getElementById('world').getBoundingClientRect(),scale=hexGroupLab.snapshot().scale;
+    return Math.abs((r.left+r.width/2-w.left)/scale-e.center.x)<.1&&Math.abs((r.bottom-w.top)/scale-e.center.y-42*.23)<.1;
+  })));
+  await verify(page,'A second resize retargets from the visible position and ends on the latest group, without duplicate smoke');
+
+  await page.locator('#reset').click();
+  const interrupted=await page.evaluate(()=>{
+    const c=document.querySelector('[data-size-for="yellow"]');c.value=3;c.dispatchEvent(new Event('input',{bubbles:true}));
+    const actor=document.querySelector('.actor-anchor[data-entity="cyan"]'),slide=actor.getAnimations()[0];slide.pause();slide.currentTime=210;
+    // Grab an exposed part: the growing foreground sprite can overlap the neighbour's centre.
+    document.querySelectorAll('.entity-scale').forEach(el=>el.getAnimations().forEach(a=>a.finish()));
+    const r=actor.getBoundingClientRect(),canvas=actor.querySelector('canvas').getBoundingClientRect();
+    for(const fx of [.85,.95,.65,.5,.2]) for(const fy of [.4,.6,.2,.8]) {
+      const pointer={x:canvas.x+canvas.width*fx,y:canvas.y+canvas.height*fy};
+      if(document.elementFromPoint(pointer.x,pointer.y)?.closest('.actor-anchor')===actor) return {foot:{x:r.x+r.width/2,y:r.bottom},pointer};
+    }
+    throw Error('No exposed part of the pushed neighbour to grab.');
+  });
+  await page.mouse.move(interrupted.pointer.x,interrupted.pointer.y);await page.mouse.down();
+  const held=await page.locator('.actor-anchor[data-entity="cyan"]').evaluate(actor=>{const r=actor.getBoundingClientRect();return {x:r.x+r.width/2,y:r.bottom,dragging:actor.classList.contains('dragging'),smoke:!!actor.querySelector('.push-smoke')};});
+  assert(held.dragging);assert(!held.smoke);assert(distance(held,interrupted.foot)<.1);
+  await page.keyboard.press('Escape');await page.mouse.up();
+  checks.push('Grabbing a sliding neighbour takes over at its visible position without a jump');
+
+  await page.locator('#reset').click();await setSize(page,'yellow',3);assert.equal(await page.locator('.push-smoke').count(),1);
+  await page.locator('#reset').click();assert.equal(await page.locator('.push-smoke,.actor-anchor.pushing').count(),0);
+  assert.deepEqual((await snapshot(page)).entities,initial.entities);
+  await page.locator('#push').uncheck();await setSize(page,'yellow',3);assert.equal(await page.locator('.push-smoke,.actor-anchor.pushing').count(),0);
+  await page.locator('#push').check();await setSize(page,'yellow',0);assert.equal(await page.locator('.push-smoke,.actor-anchor.pushing').count(),0);
+  checks.push('Reset clears active pushes; refused growth and simple shrinking emit no smoke');
+  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#reset').click();await setSize(page,'yellow',3);
+  assert.notEqual(entity(await snapshot(page),'cyan').anchor,'E5');assert.equal(await page.locator('.push-smoke,.actor-anchor.pushing').count(),0);
+  checks.push('Reduced-motion preference preserves neighbour placement without sliding or smoke');
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.locator('#reset').click();
 
   const frames=await page.evaluate(()=>probe.frames);await page.waitForTimeout(180);assert.equal(await page.evaluate(()=>probe.frames),frames);
   assert.equal(await page.evaluate(()=>probe.writes),0);checks.push('No idle JS animation loop and no save writes');

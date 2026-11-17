@@ -6,6 +6,7 @@
   <title>Index 16 · Cases groupées</title>
   <link rel="icon" href="media/assets/ui/favicon.png">
   <link rel="stylesheet" href="css/monstre.css">
+  <link rel="preload" as="image" href="media/assets/effects/dodge-smoke.gif">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111619; color: #e7ecee; }
     * { box-sizing: border-box; }
@@ -69,6 +70,8 @@
     .actor-anchor.dragging { z-index: 1000 !important; }
     .actor-anchor.dragging .sprite { cursor: grabbing; animation-play-state: paused; }
     .actor-anchor.dragging canvas { filter: drop-shadow(0 14px 7px #000b); }
+    .actor-anchor.pushing .sprite { animation-play-state: paused; }
+    .push-smoke { position: absolute; left: 50%; bottom: -8px; width: var(--smoke-width); height: auto; transform: translateX(-50%) scaleX(var(--smoke-facing,1)); pointer-events: none; }
     .group-caption { position: absolute; transform: translateX(-50%); color: var(--color); font-size: 11px; font-weight: 600; padding: 3px 7px; background: #111b22e8; border-radius: 4px; pointer-events: none; white-space: nowrap; }
     .board-footer { padding: 13px 16px; border-top: 1px solid #35434b; display: flex; align-items: baseline; gap: 16px; justify-content: space-between; }
     #status { margin: 0; font-size: 13px; color: #cbd8de; min-height: 20px; }
@@ -129,6 +132,9 @@
     { id: 'purple', name: 'Mouche violette', color: '#d490f0', initialSize: 3, initial: [8,2] },
   ];
   const modelById = new Map(models.map(m => [m.id,m]));
+  const pushMotions = new Map(), reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const PUSH_DURATION = 420, SMOKE_DURATION = 600;
+  let smokeSequence = 0;
   const metrics = { spriteMeasurements: 0, geometryReads: 0, plans: 0, commits: 0 };
   let state = new Map(), sizeById = new Map(), occupied = new Map(), logicalHexes = new Map(), selected = 'yellow', drag = null, frame = 0, boardScale = 1;
   const sizeFor = id => sizes[sizeById.get(id)];
@@ -270,12 +276,57 @@
     }
     $('count').textContent=`${models.length} entités · ${occupied.size} cases réservées`;
   }
+  // Only presentation moves: destination cells are reserved before the compositor starts sliding.
+  function visibleCenter(id) {
+    const motion=pushMotions.get(id);
+    if(!motion) return logicalHexes.get(id).center;
+    const progress=motion.slide.effect.getComputedTiming().progress ?? (motion.slide.playState==='finished'?1:0);
+    return {x:motion.from.x+(motion.to.x-motion.from.x)*progress,y:motion.from.y+(motion.to.y-motion.from.y)*progress};
+  }
+  function clearPush(id) {
+    const motion=pushMotions.get(id);if(!motion) return;
+    clearTimeout(motion.timer);motion.slide.onfinish=null;
+    motion.slide.cancel();motion.caption.cancel();motion.smoke.remove();
+    views.get(id).actor.classList.remove('pushing');pushMotions.delete(id);
+  }
+  function clearPushes() { for(const id of pushMotions.keys()) clearPush(id); }
+  function animatePush(id,from) {
+    clearPush(id);
+    const view=views.get(id),hex=logicalHexes.get(id),to=hex.center;
+    const dx=from.x-to.x,dy=from.y-to.y;
+    if(!view||reducedMotion.matches||Math.hypot(dx,dy)<.1) return;
+    const timing={duration:PUSH_DURATION,easing:'cubic-bezier(.22,.65,.3,1)',fill:'both'};
+    const slide=view.actor.animate([
+      {transform:`translate(${dx}px,${dy}px) translate(-50%,-100%)`},
+      {transform:'translate(0px,0px) translate(-50%,-100%)'},
+    ],timing);
+    const caption=view.caption.animate([
+      {transform:`translate(${dx}px,${dy}px) translateX(-50%)`},
+      {transform:'translate(0px,0px) translateX(-50%)'},
+    ],timing);
+    const smoke=new Image();smoke.className='push-smoke';smoke.alt='';smoke.setAttribute('aria-hidden','true');smoke.draggable=false;
+    // A distinct fragment restarts this GIF instance without changing its HTTP cache URL.
+    smoke.src=`media/assets/effects/dodge-smoke.gif#push-${++smokeSequence}`;
+    smoke.style.setProperty('--smoke-width',`${Math.max(64,Math.min(158,80*Math.sqrt(hex.scale)))}px`);
+    smoke.style.setProperty('--smoke-facing',to.x>from.x?-1:1);
+    view.actor.append(smoke);view.actor.classList.add('pushing');
+    const motion={from:{...from},to:{...to},slide,caption,smoke,timer:0};pushMotions.set(id,motion);
+    slide.onfinish=()=>{if(pushMotions.get(id)===motion) view.actor.classList.remove('pushing');};
+    // One GIF cycle, then release both the VFX and animation objects; no permanent RAF loop.
+    motion.timer=setTimeout(()=>{if(pushMotions.get(id)===motion) clearPush(id);},SMOKE_DURATION);
+  }
   function commit(plan,id,resizing=false) {
     if(!plan.valid) {message(plan.reason,'invalid');return false;}
+    const starts=new Map();
+    for(const owner of plan.moves.keys()) {
+      if(plan.pushed.includes(owner)||pushMotions.has(owner)) starts.set(owner,visibleCenter(owner));
+      clearPush(owner);
+    }
     // Size and all positions change together, only after the full placement has passed validation.
     sizeById.set(id,plan.sizeIndex);
     for(const [owner,anchor] of plan.moves) state.set(owner,anchor);
     rebuild();metrics.commits++;render();
+    for(const [owner,from] of starts) animatePush(owner,from);
     message(`${modelById.get(id).name} ${resizing?`occupe maintenant ${caseLabel(plan.hex.members.length)}`:'déplacée'}${plan.pushed.length ? ` · ${plan.pushed.map(p=>modelById.get(p).name.toLowerCase()).join(' et ')} replacée${plan.pushed.length>1?'s':''} au plus près` : ''}.`,plan.pushed.length?'push':'valid');return true;
   }
   function setEntitySize(id,value) {
@@ -325,7 +376,7 @@
     const id=event.target.closest('[data-entity]')?.dataset.entity||occupied.get(event.target.closest('[data-cell]')?.dataset.cell);
     if(!id) return;
     event.preventDefault();selected=id;
-    const rect=$('world').getBoundingClientRect(),center=logicalHexes.get(id).center;metrics.geometryReads++;
+    const rect=$('world').getBoundingClientRect(),center=visibleCenter(id);metrics.geometryReads++;clearPush(id);
     drag={id,pointer:event.pointerId,rect,grab:{x:(event.clientX-rect.left)/boardScale-center.x,y:(event.clientY-rect.top)/boardScale-center.y},candidate:undefined,plan:{valid:false,reason:'Déplacement annulé.'},x:event.clientX,y:event.clientY};
     $('world').setPointerCapture(event.pointerId);views.get(id).actor.classList.add('dragging');render();updateDrag(event.clientX,event.clientY);
   });
@@ -336,7 +387,8 @@
   $('world').addEventListener('pointerup',event=>{if(drag?.pointer===event.pointerId){updateDrag(event.clientX,event.clientY);stopDrag();}});
   for(const event of ['pointercancel','lostpointercapture']) $('world').addEventListener(event,()=>stopDrag(true));
   window.addEventListener('blur',()=>stopDrag(true));
-  document.addEventListener('visibilitychange',()=>{if(document.hidden) stopDrag(true);});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden) {stopDrag(true);clearPushes();}});
+  reducedMotion.addEventListener('change',()=>{if(reducedMotion.matches) clearPushes();});
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape') {stopDrag(true);return;}
     const control=event.target.closest('.actor-anchor,.entity-card');
@@ -356,7 +408,7 @@
   $('roles').addEventListener('change',()=>{$('world').classList.toggle('hide-roles',!$('roles').checked);});
   $('push').addEventListener('change',()=>stopDrag(true));
   function reset() {
-    stopDrag(true);state=new Map(models.map(m=>[m.id,cells.find(c=>c.col===m.initial[0]&&c.row===m.initial[1]).id]));
+    stopDrag(true);clearPushes();state=new Map(models.map(m=>[m.id,cells.find(c=>c.col===m.initial[0]&&c.row===m.initial[1]).id]));
     sizeById=new Map(models.map(m=>[m.id,m.initialSize]));
     logicalHexes=new Map();selected='yellow';rebuild();render();message('Agrandis la mouche jaune à 6 cases pour voir sa voisine être repoussée.');
   }
