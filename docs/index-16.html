@@ -20,11 +20,17 @@
     .intro { color: #abb8bd; font-size: 14px; margin: 0; }
     .reset { border: 1px solid #51606a; background: #202a30; color: #ecf0f2; padding: 10px 16px; border-radius: 5px; }
     .roster { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 22px 0 16px; }
-    .entity-card { text-align: left; background: #1b2429; color: #e7ecee; border: 1px solid #35434b; border-left: 3px solid var(--color); padding: 13px 16px; border-radius: 4px; }
-    .entity-card[aria-pressed=true] { background: #263239; border-color: var(--color); }
+    .entity-panel { min-width: 0; background: #1b2429; border: 1px solid #35434b; border-left: 3px solid var(--color); padding: 13px 16px; border-radius: 4px; }
+    .entity-panel[data-selected=true] { background: #263239; border-color: var(--color); }
+    .entity-card { display: block; width: 100%; text-align: left; background: none; color: #e7ecee; border: 0; padding: 0; }
     .card-head { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; }
     .card-size { color: var(--color); font-size: 12px; white-space: nowrap; }
     .card-detail { display: block; color: #aebcc3; margin-top: 5px; font-size: 12px; }
+    .size-controls { display: grid; grid-template-columns: 30px minmax(0,1fr) 30px; gap: 9px; align-items: center; margin-top: 13px; }
+    .size-controls button { width: 30px; height: 30px; border: 1px solid #586a74; border-radius: 4px; background: #182127; color: #e7ecee; font-size: 21px; line-height: 1; }
+    .size-controls button:disabled { opacity: .3; cursor: default; }
+    .size-controls input { min-width: 0; width: 100%; margin: 0; accent-color: var(--color); }
+    .size-steps { display: flex; justify-content: space-between; margin: 4px 39px 0; color: #8c9fa8; font-size: 10px; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; padding: 12px 0 16px; font-size: 13px; color: #bfccd1; }
     .toolbar label { display: flex; align-items: center; gap: 8px; }
     input { accent-color: #8edbd0; }
@@ -54,7 +60,7 @@
     .actor-anchor { position: absolute; width: var(--sprite-w,120px); height: var(--sprite-h,120px); padding: 0; border: 0; background: none; transform: translate(-50%,-100%); pointer-events: none; }
     /* Index 15: placement > scale > base .85 > fixed CSS frame > facing > animated sprite.
        The canvas stays 500 x 500. Native transforms never overwrite the size factor. */
-    .entity-scale { display: block; transform: scale(var(--entity-scale)); transform-origin: center bottom; }
+    .entity-scale { display: block; transform: scale(var(--entity-scale)); transform-origin: center bottom; transition: transform 160ms ease-out; }
     .base-scale { transform: scale(.85); transform-origin: center bottom; }
     .entity-frame { width: var(--sprite-w); height: var(--sprite-h); line-height: 0; }
     .sprite-facing { line-height: 0; }
@@ -76,13 +82,13 @@
     details { margin-top: 22px; font-size: 12px; color: #8da1aa; }
     details p { max-width: 900px; line-height: 1.6; }
     #load-error { padding: 14px; color: #ffc1bb; }
-    @media (max-width: 720px) { main { padding: 18px 12px; } h1 { font-size: 26px; } header { align-items: flex-start; } .reset { padding: 8px; font-size: 12px; } .roster { gap: 6px; } .entity-card { padding: 10px 8px; } .card-head { flex-direction: column; font-size: 13px; } .card-detail { font-size: 11px; } .toolbar .hint { margin-left: 0; } .board-footer { flex-direction: column; gap: 5px; } }
-    @media (prefers-reduced-motion: reduce) { .entity-frame .sprite { animation: none !important; } }
+    @media (max-width: 720px) { main { padding: 18px 12px; } h1 { font-size: 26px; } header { align-items: flex-start; } .reset { padding: 8px; font-size: 12px; } .roster { gap: 6px; } .entity-panel { padding: 10px 8px; } .card-head { flex-direction: column; font-size: 13px; } .card-detail { font-size: 11px; } .size-controls { grid-template-columns: 1fr 1fr; gap: 6px; } .size-controls input { grid-column: 1/-1; grid-row: 1; } .size-controls button { grid-row: 2; } .size-controls button:last-child { justify-self: end; } .size-steps { margin-inline: 0; } .toolbar .hint { margin-left: 0; } .board-footer { flex-direction: column; gap: 5px; } }
+    @media (prefers-reduced-motion: reduce) { .entity-frame .sprite { animation: none !important; } .entity-scale { transition: none; } }
   </style>
 </head>
 <body>
 <main>
-  <header><div><span class="eyebrow">Index 16 · Laboratoire de placement</span><h1>Un hex, plusieurs cases.</h1><p class="intro">Trois mouches, trois tailles. Chaque zone colorée forme une seule case logique.</p></div><button class="reset" id="reset" type="button">Réinitialiser</button></header>
+  <header><div><span class="eyebrow">Index 16 · Laboratoire de placement</span><h1>Un hex, plusieurs cases.</h1><p class="intro">Agrandis ou réduis les mouches : les cases se regroupent et les voisins sont repoussés en direct.</p></div><button class="reset" id="reset" type="button">Réinitialiser</button></header>
   <div class="roster" id="roster" aria-label="Les trois mouches"></div>
   <div class="toolbar">
     <label><input id="push" type="checkbox" checked>Repousser les voisins</label>
@@ -97,9 +103,9 @@
     <div class="board-footer"><p id="status" role="status" aria-live="polite">Chargement des mouches…</p><span id="count">3 entités · 11 cases réservées</span></div>
   </section>
   <div class="legend"><span><i class="dot" style="background:#94ddbd"></i>Placement libre</span><span><i class="dot" style="background:#f6bd7d"></i>Voisin à déplacer</span><span><i class="dot" style="background:#ff9393"></i>Placement impossible</span></div>
-  <p class="note">Saisis aussi une case colorée pour déplacer son groupe entier. Au clavier : sélectionne une mouche, puis utilise les flèches.</p>
+  <p class="note">Taille : curseur ou boutons − / +, de 1 à 6 cases. Le groupement grandit depuis sa case d’ancrage ; réduire libère les cases. Glisse une mouche ou son groupe pour la déplacer.</p>
   <p id="load-error" role="alert" hidden></p>
-  <details><summary>À propos de cet essai</summary><p>Formes reprises du croquis : 2, 3 et 6 hexagones. Un occupant et un rôle majoritaire par groupe. Les voisins sont replacés au plus près, avec leurs groupes entiers. Tous les déplacements sont validés ensemble ; un placement impossible laisse le plateau intact.</p><p>Gabarit et échelles issus du principe d’index 15 : dimensions CSS mesurées une fois au montage, facteur de base 0,85 et agrandissement sur un parent distinct. Le sprite et sa tremblote viennent du jeu. Cette page autonome ne charge pas le moteur de combat et n’utilise aucune sauvegarde.</p></details>
+  <details><summary>À propos de cet essai</summary><p>Quatre paliers : une case simple, puis les groupements de 2, 3 et 6 hexagones du croquis. Un occupant et un rôle majoritaire par groupe. Le curseur applique chaque palier immédiatement. Les voisins sont replacés au plus près, avec leurs groupes entiers. Taille et déplacements sont validés ensemble ; si l’agrandissement est impossible, la taille précédente et le plateau sont conservés. Réduire ne ramène pas les voisins à leur ancienne place. Au clavier, les flèches du curseur changent la taille ; les flèches sur le nom d’une mouche la déplacent.</p><p>Gabarit et échelles issus du principe d’index 15 : dimensions CSS mesurées une fois au montage, facteur de base 0,85 et agrandissement sur un parent distinct. Le sprite et sa tremblote viennent du jeu. Cette page autonome ne charge pas le moteur de combat et n’utilise aucune sauvegarde.</p></details>
 </main>
 <template id="fly-template"><button class="actor-anchor" type="button"><span class="entity-scale"><span class="base-scale" style="display:block"><span class="entity-frame" style="display:block"><span class="sprite-facing" style="display:block"><span class="sprite mouche-asticoteuse iddle"><canvas class="mouche-asticoteuse" width="500" height="500" aria-hidden="true"></canvas></span></span></span></span></span></button></template>
 <script>
@@ -111,14 +117,22 @@
   const roleNames = { gueux: 'Gueux', mage: 'Mage', tank: 'Tank', fantassin: 'Fantassin' };
   const roleOrder = ['gueux', 'mage', 'tank', 'fantassin'];
   const cells = [], byAxial = new Map(), byId = new Map(), views = new Map();
+  const sizes = [
+    { scale: .75, shape: [[0,0]] },
+    { scale: 1, shape: [[0,0],[1,0]] },
+    { scale: 1.65, shape: [[0,0],[1,0],[0,1]] },
+    { scale: 2.5, shape: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]] },
+  ];
   const models = [
-    { id: 'yellow', name: 'Petite mouche', color: '#f1d45c', scale: 1, shape: [[0,0],[1,0]], initial: [2,4] },
-    { id: 'cyan', name: 'Grande mouche', color: '#68dedb', scale: 1.65, shape: [[0,0],[1,0],[0,1]], initial: [6,4] },
-    { id: 'purple', name: 'Mouche géante', color: '#d490f0', scale: 2.5, shape: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]], initial: [8,2] },
+    { id: 'yellow', name: 'Mouche jaune', color: '#f1d45c', initialSize: 1, initial: [2,4] },
+    { id: 'cyan', name: 'Mouche turquoise', color: '#68dedb', initialSize: 2, initial: [4,4] },
+    { id: 'purple', name: 'Mouche violette', color: '#d490f0', initialSize: 3, initial: [8,2] },
   ];
   const modelById = new Map(models.map(m => [m.id,m]));
   const metrics = { spriteMeasurements: 0, geometryReads: 0, plans: 0, commits: 0 };
-  let state = new Map(), occupied = new Map(), logicalHexes = new Map(), selected = 'yellow', drag = null, frame = 0, boardScale = 1;
+  let state = new Map(), sizeById = new Map(), occupied = new Map(), logicalHexes = new Map(), selected = 'yellow', drag = null, frame = 0, boardScale = 1;
+  const sizeFor = id => sizes[sizeById.get(id)];
+  const caseLabel = count => `${count} case${count>1?'s':''}`;
   const axialKey = (q,r) => `${q},${r}`;
   // Same odd-row offset / axial convention as board.js and forcedMovement.hexDistance.
   const point = (q,r) => ({ x: PAD_X + W * (q + r / 2), y: PAD_Y + R * 1.5 * r });
@@ -147,18 +161,22 @@
     const roleLabel=svg('text',{x:cell.x,y:cell.y-R*.55,class:'role-label'});roleLabel.textContent=roleNames[role].toUpperCase();group.append(roleLabel);
     $('cells').append(group);
   }
-  for(const model of models) {
-    model.offset=point(model.shape.reduce((s,p)=>s+p[0],0)/model.shape.length,model.shape.reduce((s,p)=>s+p[1],0)/model.shape.length);
-    model.offset.x-=PAD_X;model.offset.y-=PAD_Y;
-    model.placements=new Map();
+  // Geometry is shared by size and cached once; changing size does not remeasure the sprite.
+  for(const size of sizes) {
+    size.offset=point(size.shape.reduce((s,p)=>s+p[0],0)/size.shape.length,size.shape.reduce((s,p)=>s+p[1],0)/size.shape.length);
+    size.offset.x-=PAD_X;size.offset.y-=PAD_Y;
+    size.placements=new Map();
     for(const anchor of cells) {
-      const members=model.shape.map(([q,r])=>byAxial.get(axialKey(anchor.q+q,anchor.r+r)));
+      const members=size.shape.map(([q,r])=>byAxial.get(axialKey(anchor.q+q,anchor.r+r)));
       if(members.some(c=>!c)) continue;
-      model.placements.set(anchor.id,{id:`hex-${model.id}`,occupant:model.id,anchor:anchor.id,members,
-        center:{x:anchor.x+model.offset.x,y:anchor.y+model.offset.y},outline:boundary(members)});
+      size.placements.set(anchor.id,{anchor:anchor.id,members,
+        center:{x:anchor.x+size.offset.x,y:anchor.y+size.offset.y},outline:boundary(members)});
     }
   }
-  const placement = (id, anchor) => modelById.get(id)?.placements.get(anchor);
+  function placement(id,anchor,sizeIndex=sizeById.get(id)) {
+    const base=sizes[sizeIndex]?.placements.get(anchor);
+    return base&&{...base,id:`hex-${id}`,occupant:id,sizeIndex,scale:sizes[sizeIndex].scale};
+  }
   function majority(hex, previous) {
     const counts=new Map(roleOrder.map(role=>[role,0]));
     for(const cell of hex.members) counts.set(cell.role,counts.get(cell.role)+1);
@@ -192,20 +210,20 @@
     }
     return [...result.values()];
   }
-  function planMove(id,anchor,canPush=$('push').checked) {
+  function planMove(id,anchor,canPush=$('push').checked,sizeIndex=sizeById.get(id)) {
     metrics.plans++;
-    const desired=placement(id,anchor);
+    const desired=placement(id,anchor,sizeIndex);
     if(!desired) return {valid:false,reason:'Le groupement entier doit rester sur le plateau.'};
     const collisions=new Set(desired.members.map(c=>occupied.get(c.id)).filter(owner=>owner&&owner!==id));
     if(collisions.size&&!canPush) return {valid:false,reason:'Ce groupement est occupé. Active le déplacement des voisins.'};
     const fixed=new Set(desired.members.map(c=>c.id));
     for(const [other,hex] of logicalHexes) if(other!==id&&!collisions.has(other)) for(const c of hex.members) fixed.add(c.id);
-    const moving=[...collisions].sort((a,b)=>modelById.get(b).shape.length-modelById.get(a).shape.length||a.localeCompare(b));
+    const moving=[...collisions].sort((a,b)=>sizeFor(b).shape.length-sizeFor(a).shape.length||a.localeCompare(b));
     // Reuse findNearestAvailableHex's squared visual-distance ranking, on cached cell coordinates.
     // Reserve entire logical cells, and choose the least total displacement for the two possible neighbours.
     const candidates=moving.map(other=>{
       const origin=logicalHexes.get(other).center;
-      return [...modelById.get(other).placements.values()].filter(h=>h.members.every(c=>!fixed.has(c.id)))
+      return [...sizeFor(other).placements.values()].filter(h=>h.members.every(c=>!fixed.has(c.id)))
         .map(hex=>({hex,cost:(hex.center.x-origin.x)**2+(hex.center.y-origin.y)**2}))
         .sort((a,b)=>a.cost-b.cost||byId.get(a.hex.anchor).index-byId.get(b.hex.anchor).index);
     });
@@ -221,7 +239,7 @@
       }
     };
     search(0,fixed,new Map([[id,anchor]]),0);
-    return best ? {valid:true,moves:best,pushed:moving,hex:desired} : {valid:false,reason:'Pas assez de place pour déplacer tous les groupes. Rien ne bouge.'};
+    return best ? {valid:true,moves:best,pushed:moving,hex:desired,sizeIndex} : {valid:false,reason:'Pas assez de place pour déplacer tous les groupes. Rien ne bouge.'};
   }
   function message(text,kind='') { $('status').textContent=text;$('status').dataset.kind=kind; }
   function drawShape(parent,hex,color,preview=false) {
@@ -235,37 +253,54 @@
       const hex=logicalHexes.get(model.id), view=views.get(model.id);
       const group=drawShape($('groups'),hex,model.color);group.dataset.entity=model.id;group.classList.add('logical-group');
       group.classList.toggle('selected',selected===model.id);group.classList.toggle('source',drag?.id===model.id);
-      const title=svg('title');title.textContent=`${model.name} · ${hex.members.length} cases · ${roleNames[hex.role]}`;group.append(title);
+      const title=svg('title');title.textContent=`${model.name} · ${caseLabel(hex.members.length)} · ${roleNames[hex.role]}`;group.append(title);
       if(!view) continue;
+      const sizeText=`${caseLabel(hex.members.length)} · ×${String(hex.scale).replace('.',',')}`;
+      view.actor.style.setProperty('--entity-scale',hex.scale);
       view.actor.style.left=`${hex.center.x}px`;view.actor.style.top=`${hex.center.y+R*.23}px`;view.actor.style.zIndex=Math.round(hex.center.y);
       view.caption.style.left=`${hex.center.x}px`;view.caption.style.top=`${hex.center.y+R*.64}px`;
-      view.caption.textContent=`${hex.members.length} cases · ${roleNames[hex.role]}`;
-      view.actor.setAttribute('aria-label',`${model.name}, ${hex.members.length} cases, ${roleNames[hex.role]}`);
+      view.caption.textContent=`${caseLabel(hex.members.length)} · ${roleNames[hex.role]}`;
+      view.actor.setAttribute('aria-label',`${model.name}, ${caseLabel(hex.members.length)}, ${roleNames[hex.role]}`);
+      view.panel.dataset.selected=String(selected===model.id);
       view.card.setAttribute('aria-pressed',String(selected===model.id));
+      view.card.querySelector('.card-size').textContent=sizeText;
       view.card.querySelector('.card-detail').textContent=`${roleNames[hex.role]} · ${hex.members.map(c=>c.id).join(' · ')}`;
+      view.slider.value=hex.sizeIndex;view.slider.setAttribute('aria-valuetext',sizeText);
+      view.minus.disabled=hex.sizeIndex===0;view.plus.disabled=hex.sizeIndex===sizes.length-1;
     }
+    $('count').textContent=`${models.length} entités · ${occupied.size} cases réservées`;
   }
-  function commit(plan,id) {
+  function commit(plan,id,resizing=false) {
     if(!plan.valid) {message(plan.reason,'invalid');return false;}
-    // No DOM move or role change occurs until the whole placement has passed validation.
+    // Size and all positions change together, only after the full placement has passed validation.
+    sizeById.set(id,plan.sizeIndex);
     for(const [owner,anchor] of plan.moves) state.set(owner,anchor);
     rebuild();metrics.commits++;render();
-    message(`${modelById.get(id).name} déplacée${plan.pushed.length ? ` · ${plan.pushed.map(p=>modelById.get(p).name.toLowerCase()).join(' et ')} replacée${plan.pushed.length>1?'s':''} au plus près` : ''}.`,plan.pushed.length?'push':'valid');return true;
+    message(`${modelById.get(id).name} ${resizing?`occupe maintenant ${caseLabel(plan.hex.members.length)}`:'déplacée'}${plan.pushed.length ? ` · ${plan.pushed.map(p=>modelById.get(p).name.toLowerCase()).join(' et ')} replacée${plan.pushed.length>1?'s':''} au plus près` : ''}.`,plan.pushed.length?'push':'valid');return true;
+  }
+  function setEntitySize(id,value) {
+    const next=Number(value);
+    if(!Number.isInteger(next)||next<0||next>=sizes.length) return;
+    stopDrag(true);selected=id;
+    if(next===sizeById.get(id)) {render();return;}
+    const plan=planMove(id,state.get(id),$('push').checked,next);
+    if(!plan.valid) {render();message(`Taille conservée : ${plan.reason}`,'invalid');return;}
+    commit(plan,id,true);
   }
   function clearPreview() { $('preview').replaceChildren();document.querySelectorAll('.logical-group.displaced').forEach(g=>g.classList.remove('displaced')); }
   function refreshGeometry() { if(drag){drag.rect=$('world').getBoundingClientRect();metrics.geometryReads++;} }
   function updateDrag(clientX,clientY) {
     if(!drag) return;
     const p={x:(clientX-drag.rect.left)/boardScale,y:(clientY-drag.rect.top)/boardScale};
-    const model=modelById.get(drag.id),center={x:p.x-drag.grab.x,y:p.y-drag.grab.y};
+    const size=sizeFor(drag.id),center={x:p.x-drag.grab.x,y:p.y-drag.grab.y};
     const view=views.get(drag.id);view.actor.style.left=`${center.x}px`;view.actor.style.top=`${center.y+R*.23}px`;
-    const aim={x:center.x-model.offset.x,y:center.y-model.offset.y};
+    const aim={x:center.x-size.offset.x,y:center.y-size.offset.y};
     const anchor=cells.find(c=>{const x=Math.abs(aim.x-c.x),y=Math.abs(aim.y-c.y);return x<=W/2+.01&&x+Math.sqrt(3)*y<=Math.sqrt(3)*R+.01;});
     const key=anchor?.id||null;if(key===drag.candidate) return;drag.candidate=key;clearPreview();
     drag.plan=key?planMove(drag.id,key):{valid:false,reason:'Dépose le groupement sur le plateau.'};
     const plan=drag.plan,color=!plan.valid?'#ff9393':plan.pushed.length?'#f6bd7d':'#94ddbd';
     if(anchor) {
-      const loose={members:model.shape.map(([q,r])=>point(anchor.q+q,anchor.r+r))};
+      const loose={members:size.shape.map(([q,r])=>point(anchor.q+q,anchor.r+r))};
       drawShape($('preview'),plan.hex||loose,color,true);
     }
     if(plan.valid) for(const other of plan.pushed) {
@@ -304,8 +339,10 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden) stopDrag(true);});
   document.addEventListener('keydown',event=>{
     if(event.key==='Escape') {stopDrag(true);return;}
-    if(drag||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||!event.target.closest('[data-entity],.entity-card')) return;
-    event.preventDefault();const anchor=byId.get(state.get(selected)),[dc,dr]=({ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]})[event.key];
+    const control=event.target.closest('.actor-anchor,.entity-card');
+    if(drag||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)||!control) return;
+    event.preventDefault();selected=control.dataset.entity;
+    const anchor=byId.get(state.get(selected)),[dc,dr]=({ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]})[event.key];
     const destination=cells.find(c=>c.col===anchor.col+dc&&c.row===anchor.row+dr);commit(planMove(selected,destination?.id),selected);
   });
   $('viewport').addEventListener('scroll',refreshGeometry,{passive:true});
@@ -320,28 +357,40 @@
   $('push').addEventListener('change',()=>stopDrag(true));
   function reset() {
     stopDrag(true);state=new Map(models.map(m=>[m.id,cells.find(c=>c.col===m.initial[0]&&c.row===m.initial[1]).id]));
-    logicalHexes=new Map();selected='yellow';rebuild();render();message('Glisse une mouche ou une case colorée pour déplacer son groupe.');
+    sizeById=new Map(models.map(m=>[m.id,m.initialSize]));
+    logicalHexes=new Map();selected='yellow';rebuild();render();message('Agrandis la mouche jaune à 6 cases pour voir sa voisine être repoussée.');
   }
   $('reset').addEventListener('click',reset);reset();resize();
   const ready=(async()=>{
     const image=new Image();image.src='media/sprites/mouche-asticoteuse.png';await image.decode();
     for(const model of models) {
-      const actor=$('fly-template').content.firstElementChild.cloneNode(true);actor.dataset.entity=model.id;actor.style.setProperty('--entity-scale',model.scale);
+      const actor=$('fly-template').content.firstElementChild.cloneNode(true);actor.dataset.entity=model.id;actor.style.setProperty('--entity-scale',sizeFor(model.id).scale);
       actor.querySelector('canvas').getContext('2d').drawImage(image,0,0,500,500);$('actors').append(actor);
       const style=getComputedStyle(actor.querySelector('.sprite'));metrics.spriteMeasurements++;
       const width=parseFloat(style.width),height=parseFloat(style.height);
       if(!(width>0&&height>0)) throw Error('Dimensions du sprite invalides.');
       actor.style.setProperty('--sprite-w',`${width}px`);actor.style.setProperty('--sprite-h',`${height}px`);
       const caption=document.createElement('span');caption.className='group-caption';caption.style.setProperty('--color',model.color);$('actors').append(caption);
-      const card=document.createElement('button');card.type='button';card.className='entity-card';card.style.setProperty('--color',model.color);card.dataset.entity=model.id;
-      card.innerHTML=`<span class="card-head"><span>${model.name}</span><span class="card-size">${model.shape.length} cases · ×${String(model.scale).replace('.',',')}</span></span><span class="card-detail"></span>`;
-      const select=()=>{selected=model.id;render();};card.addEventListener('click',select);actor.addEventListener('focus',select);$('roster').append(card);
-      views.set(model.id,{actor,caption,card});
+      const panel=document.createElement('article');panel.className='entity-panel';panel.style.setProperty('--color',model.color);
+      const card=document.createElement('button');card.type='button';card.className='entity-card';card.dataset.entity=model.id;
+      card.innerHTML=`<span class="card-head"><span>${model.name}</span><span class="card-size"></span></span><span class="card-detail"></span>`;
+      const controls=document.createElement('div');controls.className='size-controls';
+      const slider=document.createElement('input');slider.type='range';slider.min=0;slider.max=sizes.length-1;slider.step=1;slider.dataset.sizeFor=model.id;
+      slider.setAttribute('aria-label',`Taille de la ${model.name.toLowerCase()}`);slider.addEventListener('input',()=>setEntitySize(model.id,slider.value));
+      const stepButton=(symbol,delta)=>{
+        const button=document.createElement('button');button.type='button';button.textContent=symbol;button.dataset.sizeStep=delta;
+        button.setAttribute('aria-label',`${delta<0?'Réduire':'Agrandir'} la ${model.name.toLowerCase()}`);
+        button.addEventListener('click',()=>setEntitySize(model.id,sizeById.get(model.id)+delta));return button;
+      };
+      const minus=stepButton('−',-1),plus=stepButton('+',1);controls.append(minus,slider,plus);
+      const steps=document.createElement('div');steps.className='size-steps';steps.setAttribute('aria-hidden','true');steps.innerHTML='<span>1</span><span>2</span><span>3</span><span>6 cases</span>';
+      const select=()=>{selected=model.id;render();};card.addEventListener('click',select);actor.addEventListener('focus',select);
+      panel.append(card,controls,steps);$('roster').append(panel);views.set(model.id,{actor,caption,card,panel,slider,minus,plus});
     }
     render();
   })().catch(error=>{$('load-error').hidden=false;$('load-error').textContent=`Impossible de charger le banc d’essai : ${error.message}`;message('Chargement incomplet.','invalid');throw error;});
   // Read-only inspection for this stand-alone lab and its browser checks.
-  window.hexGroupLab={ready,snapshot:()=>({entities:[...logicalHexes.values()].map(h=>({id:h.occupant,anchor:h.anchor,role:h.role,members:h.members.map(c=>c.id),center:{...h.center},neighbors:neighbors(h).map(n=>n.id)})),occupied:Object.fromEntries(occupied),metrics:{...metrics},scale:boardScale}),logicalAt:id=>{const h=logicalAt(id);return h&&{id:h.id,occupant:h.occupant,role:h.role,members:h.members.map(c=>c.id)};}};
+  window.hexGroupLab={ready,snapshot:()=>({entities:[...logicalHexes.values()].map(h=>({id:h.occupant,anchor:h.anchor,sizeIndex:h.sizeIndex,scale:h.scale,role:h.role,members:h.members.map(c=>c.id),center:{...h.center},neighbors:neighbors(h).map(n=>n.id)})),occupied:Object.fromEntries(occupied),metrics:{...metrics},scale:boardScale}),logicalAt:id=>{const h=logicalAt(id);return h&&{id:h.id,occupant:h.occupant,role:h.role,members:h.members.map(c=>c.id)};}};
 })();
 </script>
 </body>
