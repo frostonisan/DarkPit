@@ -101,9 +101,8 @@
     .lab[data-mode=messages][data-with-auras=false] [data-family=body],
     .lab[data-mode=messages][data-with-auras=false] [data-family=status],
     .lab[data-mode=messages][data-with-auras=false] [data-family=ground] { display: none; }
-    .lab[data-mode=messages] .lab-world { height: calc((var(--scene-size, 540px) + var(--message-headroom, 210px)) * var(--lab-scale) + 110px); }
-    .lab[data-mode=messages][data-with-auras=true] .lab-world { --message-headroom: 290px; }
-    .lab[data-mode=messages] .lab-slot { --slot-width: max(270px, calc(var(--slot-base, 120px) * var(--lab-scale) + 80px)); }
+    .lab[data-mode=messages] .lab-world { height: calc((var(--scene-size, 540px) + 90px) * var(--lab-scale) + 110px); }
+    .lab[data-mode=messages] .lab-slot { --slot-width: max(calc(340px * var(--lab-scale)), calc(var(--slot-base, 120px) * var(--lab-scale) + 80px)); }
     .lab[data-mode=messages][data-with-auras=false] .lab-frame { --shown-auras: 0; --status-space: 0px; }
     @media (max-width: 700px) { .lab { padding: 18px 12px 28px; } .lab-header { align-items: flex-start; } .lab-local { display: none; } .lab h1 { font-size: 26px; } .lab-controls { gap: 12px 16px; } .lab-perf { gap: 5px 15px; } }
 
@@ -135,6 +134,7 @@
     .lab-frame > .aura-container, .lab-frame > .effects-container,
     .lab-frame > .cast-animation-container { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; transform: none; pointer-events: none; }
     .lab-frame > .cast-animation-container { z-index: -1; }
+    .lab-frame > .aura-container { z-index: 90; }
     .lab-frame .life-sup { position: absolute; inset: 0; }
     .lab-frame .life-aura-anim { width: 100%; height: 100%; }
     .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap) + var(--aura-row, 0) * (var(--halo-height) + var(--head-gap))); left: 50%; width: var(--halo-size); height: var(--halo-height); transform: translateX(-50%); }
@@ -157,27 +157,37 @@
     .lab[data-mirror=true] .lab-sprite-facing { transform: scaleX(-1); }
     .lab[data-mirror=true] .lab-legacy .sprite-container { transform: scaleX(-1); }
 
-    /* 4. FLUX DE MESSAGES. Ancre fixe ; position, apparition et vie sont séparées.
-       Les coordonnées de couloir sont connues : aucune mesure de texte ou de DOM.
-       Font-size est fixe par catégorie ; seuls transform et opacity sont animés. */
-    .lab-message-feed { display: none; position: absolute; left: 50%; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; pointer-events: none; line-height: 1.2; }
+    /* 4. DEUX BLOCS. L'historique compact (z 1) reste derrière le dernier
+       événement (z 2). Tout le groupe passe au-dessus des auras.
+       Les trois emplacements du premier plan sont fixes, sans lecture du DOM. */
+    .lab-message-feed { --popup-side: clamp(94px, calc(var(--sprite-w) * .4), 104px); display: none; position: absolute; left: 50%; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; isolation: isolate; pointer-events: none; line-height: 1.2; }
     .lab[data-mode=messages] .lab-message-feed { display: block; }
-    .lab-feed-item { position: absolute; bottom: 0; left: -85px; width: 170px; text-align: center; transition: transform 320ms cubic-bezier(.2,.7,.3,1); transform-origin: center bottom; }
-    .lab-feed-life { transform-origin: center bottom; font: 700 19px/1.15 system-ui, sans-serif; }
-    .lab-feed-item[data-priority="1"] .lab-feed-life { font-size: 25px; }
-    .lab-feed-item[data-priority="2"] .lab-feed-life { font-size: 27px; }
-    .lab-feed-item[data-priority="3"] .lab-feed-life { font-size: 31px; }
-    .lab .lab-feed-item .damage-popup, .lab .lab-feed-item .BattleText { position: static !important; display: flex; align-items: center; justify-content: center; gap: 4px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; margin: 0 !important; font: inherit; white-space: nowrap; animation: none !important; transform: none !important; }
-    .lab .lab-feed-item .damage-popup-value { color: var(--popup-color, #fff); text-shadow: 0 1px 3px #000, 0 0 3px #000; }
-    .lab .lab-feed-item[data-priority="1"] .damage-popup-value { text-shadow: 0 0 5px #e98724, 0 1px 3px #000; }
-    .lab .lab-feed-item[data-priority="3"] .damage-popup-value { text-shadow: 0 0 5px #ff3026, 0 1px 3px #000; }
-    .lab .lab-feed-item .picto-stat { flex: 0 0 21px; width: 21px; height: 21px; margin: 0; background-size: contain; background-position: center; background-repeat: no-repeat; transform: none; }
-    .lab .lab-feed-item[data-priority="3"] .picto-stat { flex-basis: 28px; width: 28px; height: 28px; }
-    .lab-event-label { display: block; margin-bottom: 2px; font: 700 10px/1.2 system-ui, sans-serif; letter-spacing: .06em; color: var(--popup-color); text-shadow: 0 1px 3px #000; }
-    .lab-event-count { font: 600 11px/1 system-ui, sans-serif; margin-left: 4px; color: #e0e8de; }
-    .lab-legacy .lab-event-label { font-size: 11px; }
-    .lab-feed-waiting { position: absolute; top: 5px; left: -75px; width: 150px; color: #e9d29c; font: 10px/1.2 system-ui; text-align: center; }
-    .lab[data-feed-paused=true] .lab-feed-item { transition: none; }
+    .lab-damage-history { position: absolute; left: 0; bottom: 30px; width: 0; height: 0; z-index: 1; }
+    .lab-message-front { position: absolute; inset: 0; z-index: 2; }
+    .lab-front-slot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
+    .lab-front-slot[data-zone=left] { left: calc(-1 * var(--popup-side)); }
+    .lab-front-slot[data-zone=right] { left: var(--popup-side); }
+    .lab-history-row, .lab-front-card { position: absolute; bottom: 0; left: -75px; width: 150px; text-align: center; transform-origin: center bottom; }
+    .lab-history-row { transition: transform 160ms ease-out, opacity 160ms linear; }
+    .lab-history-row .lab-feed-life { font: 600 12px/1 system-ui, sans-serif; }
+    .lab-front-card .lab-feed-life { font: 800 24px/1.1 system-ui, sans-serif; transform-origin: center bottom; }
+    .lab-front-card[data-priority="1"] .lab-feed-life { font-size: 27px; }
+    .lab-front-card[data-priority="2"] .lab-feed-life { font-size: 28px; }
+    .lab-front-card[data-priority="3"] .lab-feed-life { font-size: 30px; }
+    .lab-front-slot[data-zone=left] .lab-front-card { left: auto; right: 0; width: 54px; }
+    .lab-front-slot[data-zone=right] .lab-front-card { left: 0; width: 88px; }
+    .lab-front-slot[data-zone=left] .lab-feed-life { font-size: 15px; }
+    .lab-front-slot[data-zone=right] .lab-feed-life { font-size: 14px; }
+    .lab .lab-message-feed .damage-popup, .lab .lab-message-feed .BattleText { position: static !important; display: flex; align-items: center; justify-content: center; gap: 3px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; margin: 0 !important; font: inherit; white-space: nowrap; animation: none !important; transform: none !important; }
+    .lab .lab-message-feed .damage-popup-value, .lab .lab-message-feed .lab-critical-suffix { color: var(--popup-color); text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+    .lab .lab-message-feed .picto-stat { flex: 0 0 22px; width: 22px; height: 22px; margin: 0; background-size: contain; background-position: center; background-repeat: no-repeat; transform: none; }
+    .lab .lab-history-row .picto-stat { flex-basis: 12px; width: 12px; height: 12px; }
+    .lab-critical-suffix { font-size: .54em; font-weight: 700; }
+    .lab-history-row .lab-critical-suffix { font-size: 9px; }
+    .lab .lab-front-slot[data-zone=left] .picto-stat { flex-basis: 26px; width: 26px; height: 26px; }
+    .lab .lab-front-slot[data-zone=left] .damage-popup { justify-content: flex-end; }
+    .lab .lab-front-slot[data-zone=right] .BattleText { justify-content: flex-start; }
+    .lab[data-feed-paused=true] .lab-history-row { transition: none; }
   </style>
 </head>
 <body>
@@ -209,12 +219,12 @@
       <label><input type="checkbox" id="feed-with-auras">Garder les auras</label>
     </div>
     <div class="lab-mode-row lab-type-list" aria-label="Types générés">
-      <label><input type="checkbox" data-message-kind="physical" checked>Physique</label><label><input type="checkbox" data-message-kind="magical" checked>Magique</label><label><input type="checkbox" data-message-kind="heal" checked>Soin</label><label><input type="checkbox" data-message-kind="miss" checked>Raté / esquive</label><label><input type="checkbox" data-message-kind="critical" checked>Critique</label><label><input type="checkbox" data-message-kind="execution" checked>Exécution</label><label><input type="checkbox" data-message-kind="executionCritical" checked>Exécution critique</label>
+      <label><input type="checkbox" data-message-kind="physical" checked>Physique</label><label><input type="checkbox" data-message-kind="magical" checked>Magique</label><label><input type="checkbox" data-message-kind="hybrid" checked>Hybride</label><label><input type="checkbox" data-message-kind="multi" checked>Multi-composants</label><label><input type="checkbox" data-message-kind="heal" checked>Soin</label><label><input type="checkbox" data-message-kind="proc" checked>Déclenchement</label><label><input type="checkbox" data-message-kind="miss" checked>Esquive</label><label><input type="checkbox" data-message-kind="stun" checked>Stun</label><label><input type="checkbox" data-message-kind="poison" checked>Poison</label><label><input type="checkbox" data-message-kind="burn" checked>Brûlure</label><label><input type="checkbox" data-message-kind="critical" checked>Critique</label><label><input type="checkbox" data-message-kind="execution" checked>Exécution</label><label><input type="checkbox" data-message-kind="executionCritical" checked>Exécution critique</label>
     </div>
-    <div class="lab-mode-row"><span>Déclencher :</span><button type="button" data-emit="physical">Un dégât</button><button type="button" data-emit="critical">Un critique</button><button type="button" data-emit="execution">Une exécution</button><button type="button" data-emit="executionCritical">Une exécution critique</button></div>
-    <div class="lab-feed-stats" aria-live="off"><span>Générés : <strong id="feed-generated">0</strong></span><span>Nouveau : <strong id="feed-visible">0</strong> visibles</span><span>Actuel : <strong id="feed-legacy">0</strong></span><span>Regroupés : <strong id="feed-merged">0</strong></span><span>En attente : <strong id="feed-pending">0</strong></span></div>
+    <div class="lab-mode-row"><span>Déclencher :</span><button type="button" data-emit="physical">Dégât</button><button type="button" data-emit="critical">Critique</button><button type="button" data-emit="executionCritical">Exécution critique</button><button type="button" data-emit="hybrid">Hybride</button><button type="button" data-emit="multi">Multi-composants</button><button type="button" data-emit="proc">FX gauche</button><button type="button" data-emit="stun">Stun !</button><button type="button" data-emit="poison">Poison !</button><button type="button" data-emit="burn">Brûlure !</button></div>
+    <div class="lab-feed-stats" aria-live="off"><span>Générés : <strong id="feed-generated">0</strong></span><span>Historique : <strong id="feed-history">0</strong></span><span>Premier plan : <strong id="feed-front">0</strong></span><span>Sorties : <strong id="feed-exiting">0</strong></span><span>Actuel : <strong id="feed-legacy">0</strong></span></div>
     <p class="lab-note" id="feed-status" role="status">Flux arrêté. Active-le ou déclenche un événement à la main.</p>
-    <p class="lab-note">Même événement envoyé aux deux scènes. À gauche, au centre ou à droite selon la rafale ; priorité aux critiques et exécutions. « Figer » permet d’inspecter le placement.</p>
+    <p class="lab-note">Fond : liste compacte des dégâts reçus. Devant : déclenchements à gauche · dernier dégât au centre · effet à droite. « Figer » permet d’inspecter les deux blocs.</p>
   </section>
   <div class="lab-controls" aria-label="Réglages de la comparaison">
     <div class="lab-views" aria-label="Affichage"><button type="button" data-view="compare" aria-pressed="true">Comparer</button><button type="button" data-view="new" aria-pressed="false">Nouveau</button><button type="button" data-view="old" aria-pressed="false">Actuel</button></div>
@@ -261,7 +271,8 @@
     <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. Désactiver « Mouvements CSS » remet les sprites au repos et fige les autres animations CSS ; les GIF continuent de jouer.</p>
     <p>Les dimensions restent proportionnelles avec des plafonds de base : auréole et étourdissement 64 px de large ; mysticisme 140 × 200 px ; soin 110 × 160 px ; brûlure 110 × 140 px ; cercle au sol 190 px de large. L’écart de base de l’auréole est plafonné à 5 px. Les marges transparentes verticales du SVG sont recadrées par son affichage CSS. Tous ces plafonds suivent ensuite le scale du parent.</p>
     <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
-    <p>En mode « Messages / dégâts », les nouveaux messages utilisent une file par entité : six actifs, au plus deux sorties courtes, puis une attente regroupée par catégorie si les six places sont occupées par des événements plus importants. Les petits dégâts de même nature se regroupent à saturation, sans perdre leur somme ; le suffixe ×N compte les occurrences. Les catégories critiques restent séparées des ordinaires. L’ordre est chronologique dans chaque couloir, les anciens montent sans redescendre. Un événement prioritaire peut accélérer la sortie d’un message moins important.</p>
+    <p>En mode « Messages / dégâts », deux blocs partagent le repère au-dessus des auras. Le bloc z-index 1 garde les huit derniers dégâts reçus, avec des lignes de 14 px : le nouveau arrive en bas, les précédents montent. Les lignes s’effacent en 2,2 secondes. Soins, déclenchements et statuts n’entrent pas dans cette liste. À saturation, la ligne la plus ancienne sort.</p>
+    <p>Le bloc z-index 2 réserve trois emplacements : déclenchements/soins à gauche, dernier dégât au centre, texte d’effet court à droite. Chaque emplacement affiche seulement son dernier événement ; une sortie de 120 ms adoucit son remplacement. Le popup central disparaît en 700 ms, 850 ms pour un critique ou une exécution. Le dernier dégât passe toujours devant, même après un critique. Un seul picto représente la nature de la source, y compris hybride ; les composants sont additionnés sans détail. Le montant et le suffixe « crit ! » prennent la couleur de cette nature. Les exécutions gardent un pop plus marqué et leur picto de déclenchement à gauche, sans titre au-dessus du montant.</p>
     <p>Le nouveau flux anime uniquement transform et opacity. Un seul timer génère les événements de démonstration ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
 </main>
@@ -295,7 +306,7 @@
       <div class="cast-animation-container" data-family="ground"><img class="cast cast-default" src="media/assets/effects/castingfx-base.gif" alt=""></div>
       <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat" data-sample>−128</div></div>
       <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat" data-sample>Résistance !</div></div>
-      <div class="lab-message-feed" data-family="messages"><span class="lab-feed-waiting" hidden></span></div>
+      <div class="lab-message-feed" data-family="messages"><div class="lab-damage-history"></div><div class="lab-message-front"><div class="lab-front-slot" data-zone="left"></div><div class="lab-front-slot" data-zone="center"></div><div class="lab-front-slot" data-zone="right"></div></div></div>
       <div class="lab-guide" aria-hidden="true"></div>
     </div>
   </div>
@@ -340,8 +351,8 @@
   const measuredSizes = Array(6).fill(null);
   const legacyBases = new WeakMap();
   let auraSelection = null;
-  const feedStates = Array.from({ length: 6 }, () => ({ active: [], exiting: [], pending: new Map(), legacy: new Set(), layer: null, oldRoot: null, laneCursor: 0, lastAt: -Infinity }));
-  const feed = { running: false, paused: false, hidden: document.hidden, timer: null, rate: 4, sequence: 0, generated: 0, merged: 0 };
+  const feedStates = Array.from({ length: 6 }, () => ({ history: [], front: new Map(), exiting: new Map(), legacy: new Set(), layer: null, historyLayer: null, zones: {}, oldRoot: null }));
+  const feed = { running: false, paused: false, hidden: document.hidden, timer: null, rate: 4, sequence: 0, generated: 0 };
   let batchVersion = 0;
   let selection = catalog.slice(0, 6).map(model => model.key);
   const clone = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
@@ -517,6 +528,8 @@
     }
     measuredSizes[index] = size;
     feedStates[index].layer = pair.new.querySelector('.lab-message-feed');
+    feedStates[index].historyLayer = pair.new.querySelector('.lab-damage-history');
+    feedStates[index].zones = Object.fromEntries([...pair.new.querySelectorAll('.lab-front-slot')].map(node => [node.dataset.zone, node]));
     feedStates[index].oldRoot = pair.old;
     updateMessageTargets();
     // Réserver de la place dans le décor à partir des valeurs déjà connues.
@@ -547,19 +560,30 @@
     }
   }
 
-  // 5. File visuelle locale. Aucun accès à la géométrie dans ce bloc.
-  // Les entrées sont des événements ; les animations natives gèrent leur durée.
-  const messageTypes = {
-    physical: { priority: 0, icon: 'physicalDamage', color: '#ff8680', duration: 1800 },
-    magical: { priority: 0, icon: 'magicalDamage', color: '#b998ff', duration: 1800 },
-    heal: { priority: 0, icon: 'healing', color: '#83f79a', duration: 1800 },
-    miss: { priority: 0, icon: 'miss-shot', color: '#d9e0e9', duration: 1800 },
-    critical: { priority: 1, icon: 'criticalPower', color: '#ffb45a', label: 'CRITIQUE', duration: 2300 },
-    execution: { priority: 2, icon: 'execution', color: '#ff7769', label: 'EXÉCUTION', duration: 2500 },
-    executionCritical: { priority: 3, icon: 'execution-critical', color: '#ffce86', label: 'EXÉCUTION CRITIQUE', duration: 2800 }
+  // 5. Historique + dernier événement. Aucun accès à la géométrie ici.
+  // La nature déclarée par la source commande le picto ET la couleur.
+  const natures = {
+    physicalDamage: { icon: 'physicalDamage', color: '#ff8680' },
+    magicalDamage: { icon: 'magicalDamage', color: '#b998ff' },
+    hybridalDamage: { icon: 'hybridalDamage', color: '#ff64ee' }
   };
-  const limits = { active: 6, exiting: 2, legacy: 48 };
-  const demoSequence = ['physical', 'magical', 'physical', 'heal', 'critical', 'physical', 'miss', 'magical', 'execution', 'physical', 'critical', 'executionCritical'];
+  const messageTypes = {
+    physical: { category: 'damage', nature: 'physicalDamage' },
+    magical: { category: 'damage', nature: 'magicalDamage' },
+    hybrid: { category: 'damage', nature: 'hybridalDamage', components: [64, 96] },
+    multi: { category: 'damage', nature: 'magicalDamage', components: [35, 90, 25] },
+    critical: { category: 'damage', nature: 'physicalDamage', priority: 1, critical: true },
+    execution: { category: 'damage', nature: 'physicalDamage', priority: 2, trigger: 'execution' },
+    executionCritical: { category: 'damage', nature: 'magicalDamage', priority: 3, critical: true, trigger: 'execution-critical' },
+    heal: { category: 'trigger', icon: 'healing', color: '#83f79a' },
+    proc: { category: 'trigger', icon: 'bloodFury', color: '#ff7769' },
+    miss: { category: 'status', label: 'Esquive !', color: '#d9e0e9' },
+    stun: { category: 'status', label: 'Stun !', color: '#ffe8a2' },
+    poison: { category: 'status', label: 'Poison !', color: '#91e44c' },
+    burn: { category: 'status', label: 'Brûlure !', color: '#ff9d4b' }
+  };
+  const limits = { history: 8, front: 3, exiting: 3, legacy: 48 };
+  const demoSequence = ['physical', 'magical', 'physical', 'proc', 'critical', 'stun', 'hybrid', 'heal', 'physical', 'poison', 'multi', 'execution', 'burn', 'critical', 'miss', 'executionCritical'];
   let demoCursor = 0;
   const byId = id => document.getElementById(id);
   const suspended = () => feed.paused || feed.hidden;
@@ -567,16 +591,12 @@
   function writeText(node, value) { if (node.textContent !== String(value)) node.textContent = value; }
 
   function updateFeedStats() {
-    let visible = 0, legacy = 0, waiting = 0;
+    const counts = { generated: feed.generated, history: 0, front: 0, exiting: 0, legacy: 0 };
     for (const state of feedStates) {
-      visible += state.active.length + state.exiting.length;
-      legacy += state.legacy.size;
-      const pending = [...state.pending.values()].reduce((sum, packet) => sum + packet.count, 0);
-      waiting += pending;
-      const badge = state.layer?.querySelector('.lab-feed-waiting');
-      if (badge) { badge.hidden = !pending; writeText(badge, `${pending} en attente · regroupés`); }
+      counts.history += state.history.length; counts.front += state.front.size;
+      counts.exiting += state.exiting.size; counts.legacy += state.legacy.size;
     }
-    for (const [id, value] of Object.entries({ generated: feed.generated, visible, legacy, merged: feed.merged, pending: waiting })) writeText(byId(`feed-${id}`), value);
+    for (const [id, value] of Object.entries(counts)) writeText(byId(`feed-${id}`), value);
   }
 
   function updateFeedControls() {
@@ -598,125 +618,121 @@
     updateFeedStats();
   }
 
-  function contentFor(packet) {
-    const type = messageTypes[packet.kind], content = document.createElement('div');
-    content.className = packet.kind === 'miss' ? 'BattleText' : 'damage-popup total-damage damage-popup--nature';
-    if (type.priority) content.classList.add('popup-critical');
-    if (packet.kind === 'executionCritical') content.classList.add('damage-popup--execution-critical');
-    content.style.setProperty('--stat-color', type.color);
-    const icon = document.createElement('span');
-    icon.className = `picto-stat damage-popup-nature-icon ${type.icon}`;
-    icon.setAttribute('aria-hidden', 'true');
-    if (packet.kind === 'execution') icon.style.backgroundImage = "url('media/assets/ui/picto-execution.svg')";
+  function makePacket(kind, value, details) {
+    const type = messageTypes[kind];
+    const nature = natures[details.nature] ? details.nature : type.nature;
+    const components = details.components ?? type.components;
+    const total = value ?? (components ? components.reduce((sum, part) => sum + Math.max(0, Number(part) || 0), 0) : (40 + feed.sequence * 37 % 160) * ((type.priority || 0) + 1));
+    return { ...type, ...natures[nature], nature, kind, priority: type.priority || 0, critical: Boolean(type.critical),
+      value: type.category === 'damage' || kind === 'heal' ? Math.max(0, Math.round(Number(total) || 0)) : 0, sequence: ++feed.sequence };
+  }
+
+  function contentFor(packet, legacy = false) {
+    const content = document.createElement('div');
+    content.className = packet.category === 'status' ? 'BattleText' : 'damage-popup total-damage damage-popup--nature';
+    if (legacy && packet.critical) content.classList.add('popup-critical');
+    if (legacy && packet.kind === 'executionCritical') content.classList.add('damage-popup--execution-critical');
+    content.style.setProperty('--stat-color', packet.color);
+    if (packet.icon) {
+      const icon = document.createElement('span');
+      const iconClass = legacy && packet.critical ? packet.kind === 'executionCritical' ? 'execution-critical' : 'criticalPower' : packet.icon;
+      icon.className = `picto-stat damage-popup-nature-icon ${iconClass}`;
+      icon.setAttribute('aria-hidden', 'true');
+      if (iconClass === 'execution') icon.style.backgroundImage = "url('media/assets/ui/picto-execution.svg')";
+      content.append(icon);
+    }
     const value = document.createElement('span'); value.className = 'damage-popup-value';
-    const count = document.createElement('span'); count.className = 'lab-event-count';
-    content.append(icon, value, count);
-    renderPacket(content, packet);
+    value.textContent = packet.category === 'damage' ? `−${packet.value}${legacy && packet.critical ? '!' : ''}` : packet.kind === 'heal' ? `+${packet.value}` : packet.label || '';
+    if (value.textContent) content.append(value);
+    if (!legacy && packet.category === 'damage' && packet.critical) {
+      const suffix = document.createElement('span'); suffix.className = 'lab-critical-suffix'; suffix.textContent = 'crit !'; content.append(suffix);
+    }
     return content;
   }
 
-  function renderPacket(content, packet) {
-    writeText(content.querySelector('.damage-popup-value'), packet.kind === 'miss' ? 'Esquive !' : `${packet.kind === 'heal' ? '+' : '−'}${packet.value}`);
-    const count = content.querySelector('.lab-event-count');
-    count.hidden = packet.count === 1;
-    writeText(count, `×${packet.count}`);
-  }
-
-  function removeCard(state, card) {
+  function removeCard(card) {
     for (const animation of [card.life, card.exit]) if (animation) { animation.onfinish = null; animation.cancel(); }
     card.node.remove();
-    for (const list of [state.active, state.exiting]) { const index = list.indexOf(card); if (index !== -1) list.splice(index, 1); }
   }
   function removeLegacy(state, card) {
     card.clock.onfinish = null; card.clock.cancel(); card.node.remove(); state.legacy.delete(card);
   }
   function clearEntityFeed(state) {
-    for (const card of [...state.active, ...state.exiting]) removeCard(state, card);
+    for (const card of [...state.history, ...state.front.values(), ...state.exiting.values()]) removeCard(card);
     for (const card of [...state.legacy]) removeLegacy(state, card);
-    state.pending.clear(); state.lastAt = -Infinity; state.laneCursor = 0;
+    state.history.length = 0; state.front.clear(); state.exiting.clear();
   }
   function clearFeed() {
-    feedStates.forEach(clearEntityFeed); feed.generated = 0; feed.merged = 0; demoCursor = 0;
+    feedStates.forEach(clearEntityFeed); feed.generated = 0; demoCursor = 0;
     updateFeedStats();
   }
 
-  // Le rang ne redescend jamais. Les changements ne touchent que le transform
-  // du conteneur ; son enfant porte le pop, la réduction et la disparition.
-  function layoutMessages(state) {
-    const ranks = new Map();
-    for (const card of [...state.active].reverse()) {
-      const rank = ranks.get(card.lane) || 0;
-      const base = card.lane < 0 ? 17 : card.lane > 0 ? 34 : 0;
-      card.up = Math.max(card.up, base + rank * 56);
-      card.node.style.transform = `translate(${card.lane}px, ${-card.up}px)`;
-      ranks.set(card.lane, rank + 1);
-    }
-  }
-
-  function flushPending(state) {
-    while (state.active.length < limits.active && state.pending.size) {
-      const next = [...state.pending.values()].sort((a, b) => messageTypes[b.kind].priority - messageTypes[a.kind].priority)[0];
-      state.pending.delete(next.kind); spawnMessage(state, next);
-    }
-    layoutMessages(state); updateFeedStats();
-  }
-
-  function retireMessage(state, card) {
-    state.active.splice(state.active.indexOf(card), 1); state.exiting.push(card);
-    card.life.onfinish = null;
-    card.exit = card.node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 170, fill: 'forwards' });
-    if (suspended()) card.exit.pause();
-    card.exit.onfinish = () => { removeCard(state, card); updateFeedStats(); };
-    while (state.exiting.length > limits.exiting) removeCard(state, state.exiting[0]);
-  }
-
-  function spawnMessage(state, packet) {
-    const type = messageTypes[packet.kind], now = performance.now();
-    const busy = now - state.lastAt < 450 || state.active.some(card => card.priority > 0);
-    const lane = type.priority ? 0 : busy ? [-76, 76, 0][state.laneCursor++ % 3] : 0;
-    state.lastAt = now;
-    const node = document.createElement('div'); node.className = 'lab-feed-item';
-    node.dataset.kind = packet.kind; node.dataset.priority = type.priority;
-    // Priorité fixe ; à priorité égale, le dernier nœud ajouté passe devant.
-    node.style.zIndex = type.priority + 1;
-    node.style.setProperty('--popup-color', type.color);
+  function makeCard(packet, className) {
+    const node = document.createElement('div'); node.className = className;
+    node.dataset.kind = packet.kind; node.dataset.priority = packet.priority; node.dataset.nature = packet.nature || '';
+    node.dataset.sequence = packet.sequence;
+    node.style.setProperty('--popup-color', packet.color);
     const body = document.createElement('div'); body.className = 'lab-feed-life';
-    if (type.label) { const label = document.createElement('span'); label.className = 'lab-event-label'; label.textContent = type.label; body.append(label); }
-    const content = contentFor(packet); body.append(content); node.append(body); state.layer.append(node);
-    const card = { node, packet, content, priority: type.priority, lane, up: 0, life: null, exit: null };
-    state.active.push(card); layoutMessages(state);
-    const peak = type.priority ? 1.2 : 1.12;
-    card.life = body.animate([
-      { transform: 'translateY(4px) scale(.6)', opacity: 0, offset: 0 },
-      { transform: `translateY(0px) scale(${peak})`, opacity: 1, offset: .08 },
-      { transform: 'translateY(-3px) scale(1)', opacity: 1, offset: .24 },
-      { transform: 'translateY(-17px) scale(.9)', opacity: 1, offset: .65 },
-      { transform: 'translateY(-38px) scale(.74)', opacity: 0, offset: 1 }
-    ], { duration: type.duration, easing: 'linear', fill: 'forwards' });
-    if (suspended()) { card.life.currentTime = 200; card.life.pause(); }
-    card.life.onfinish = () => { removeCard(state, card); flushPending(state); };
+    body.append(contentFor(packet)); node.append(body);
+    return { node, body, packet, up: 0, life: null, exit: null };
+  }
+
+  function addHistory(state, packet) {
+    const card = makeCard(packet, 'lab-history-row');
+    state.history.push(card); state.historyLayer.append(card.node);
+    while (state.history.length > limits.history) removeCard(state.history.shift());
+    // Rang connu : 14 px par ligne. Les anciennes ne redescendent jamais.
+    [...state.history].reverse().forEach((row, rank) => {
+      row.up = Math.max(row.up, rank * 14);
+      row.node.style.transform = `translateY(${-row.up}px)`;
+      row.node.style.opacity = Math.max(.24, .82 - rank * .075);
+    });
+    card.life = card.body.animate([
+      { transform: 'translateY(3px)', opacity: 0, offset: 0 },
+      { transform: 'translateY(0px)', opacity: 1, offset: .06 },
+      { transform: 'translateY(-5px)', opacity: 1, offset: .6 },
+      { transform: 'translateY(-10px)', opacity: 0, offset: 1 }
+    ], { duration: 2200, fill: 'forwards' });
+    if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
+    card.life.onfinish = () => { state.history.splice(state.history.indexOf(card), 1); removeCard(card); updateFeedStats(); };
+  }
+
+  function replaceFront(state, zone, packet) {
+    const outgoing = state.exiting.get(zone);
+    if (outgoing) { removeCard(outgoing); state.exiting.delete(zone); }
+    const previous = state.front.get(zone);
+    if (previous) {
+      previous.life.onfinish = null;
+      if (suspended()) removeCard(previous);
+      else {
+        previous.node.style.zIndex = '0'; state.exiting.set(zone, previous);
+        previous.exit = previous.node.animate([{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-6px)' }], { duration: 120, fill: 'forwards' });
+        previous.exit.onfinish = () => { state.exiting.delete(zone); removeCard(previous); updateFeedStats(); };
+      }
+    }
+    const card = makeCard(packet, 'lab-front-card');
+    card.node.style.zIndex = '1'; state.front.set(zone, card); state.zones[zone].append(card.node);
+    const peak = packet.priority ? 1.12 : 1.06;
+    card.life = card.body.animate([
+      { transform: 'translateY(3px) scale(.78)', opacity: .2, offset: 0 },
+      { transform: `translateY(0px) scale(${peak})`, opacity: 1, offset: .12 },
+      { transform: 'translateY(-1px) scale(1)', opacity: 1, offset: .4 },
+      { transform: 'translateY(-9px) scale(.94)', opacity: 0, offset: 1 }
+    ], { duration: zone === 'center' ? packet.priority ? 850 : 700 : 900, fill: 'forwards', easing: 'ease-out' });
+    if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
+    card.life.onfinish = () => { state.front.delete(zone); removeCard(card); updateFeedStats(); };
   }
 
   function receiveMessage(state, packet) {
-    if (state.active.length < limits.active) { spawnMessage(state, packet); return; }
-    const priority = messageTypes[packet.kind].priority;
-    const victim = state.active.filter(card => card.priority < priority).sort((a, b) => a.priority - b.priority)[0];
-    if (victim) { retireMessage(state, victim); spawnMessage(state, packet); return; }
-    // Saturation : addition de même catégorie, sans relancer sa durée de vie.
-    const recent = [...state.active].reverse().find(card => card.packet.kind === packet.kind && (card.life.currentTime || 0) < 500);
-    if (recent) {
-      recent.packet.value += packet.value; recent.packet.count += packet.count;
-      renderPacket(recent.content, recent.packet); feed.merged += packet.count;
-    } else {
-      const pending = state.pending.get(packet.kind);
-      if (pending) { pending.value += packet.value; pending.count += packet.count; feed.merged += packet.count; }
-      else state.pending.set(packet.kind, { ...packet });
-    }
+    if (packet.category === 'damage') {
+      addHistory(state, packet); replaceFront(state, 'center', packet);
+      if (packet.trigger) replaceFront(state, 'left', { ...packet, category: 'trigger', kind: 'proc', icon: packet.trigger, label: '', critical: false, value: 0, priority: 0 });
+    } else replaceFront(state, packet.category === 'trigger' ? 'left' : 'right', packet);
   }
 
   function receiveLegacy(state, packet) {
-    const node = contentFor(packet); node.dataset.feedLegacy = packet.kind;
-    state.oldRoot.querySelector(packet.kind === 'miss' ? '.pop-down-txt' : '.pop-up-txt').append(node);
+    const node = contentFor(packet, true); node.dataset.feedLegacy = packet.kind; node.dataset.sequence = packet.sequence;
+    state.oldRoot.querySelector(packet.category === 'damage' ? '.pop-up-txt' : '.pop-down-txt').append(node);
     // Horloge native sans effet visuel : le témoin conserve son animation CSS.
     const clock = node.animate([{}, {}], { duration: 2000 });
     const card = { node, clock }; state.legacy.add(card);
@@ -725,12 +741,12 @@
     while (state.legacy.size > limits.legacy) removeLegacy(state, state.legacy.values().next().value);
   }
 
-  function emitMessage(index, kind, value) {
+  function emitMessage(index, kind, value, details = {}) {
     const state = feedStates[index];
     if (lab.dataset.mode !== 'messages' || !state?.layer || !messageTypes[kind]) return;
-    const packet = { kind, value: kind === 'miss' ? 0 : Math.max(0, Math.round(value ?? (40 + (feed.sequence * 37 % 160)) * (messageTypes[kind].priority + 1))), count: 1, sequence: ++feed.sequence };
+    const packet = makePacket(kind, value, details);
     feed.generated++;
-    receiveLegacy(state, packet); receiveMessage(state, { ...packet }); updateFeedStats();
+    receiveLegacy(state, packet); receiveMessage(state, packet); updateFeedStats();
   }
 
   function emitToTargets(kind) {
@@ -750,7 +766,7 @@
   function syncSuspension() {
     lab.dataset.feedPaused = String(suspended());
     for (const state of feedStates) {
-      for (const card of [...state.active, ...state.exiting]) for (const animation of [card.life, card.exit]) if (animation) suspended() ? animation.pause() : animation.play();
+      for (const card of [...state.history, ...state.front.values(), ...state.exiting.values()]) for (const animation of [card.life, card.exit]) if (animation) suspended() ? animation.pause() : animation.play();
       for (const card of state.legacy) card.node.getAnimations({ subtree: true }).forEach(animation => suspended() ? animation.pause() : animation.play());
     }
     scheduleFeed(); updateFeedControls();
@@ -811,8 +827,8 @@
     window.visualLab.ready = mountAll().catch(showError);
   });
   window.visualLab = { metrics, ready: null, popups: { emit: emitMessage, clear: clearFeed, limits,
-    inspect: () => ({ running: feed.running, paused: feed.paused, timer: feed.timer !== null, generated: feed.generated, merged: feed.merged,
-      states: feedStates.map(state => ({ active: state.active.map(card => ({ ...card.packet, lane: card.lane, up: card.up, priority: card.priority, z: Number(card.node.style.zIndex), time: card.life.currentTime })), exiting: state.exiting.length, pending: [...state.pending.values()].map(packet => ({ ...packet })), legacy: state.legacy.size })) }) } };
+    inspect: () => ({ running: feed.running, paused: feed.paused, timer: feed.timer !== null, generated: feed.generated,
+      states: feedStates.map(state => ({ history: state.history.map(card => ({ ...card.packet, up: card.up, time: card.life.currentTime })), front: Object.fromEntries([...state.front].map(([zone, card]) => [zone, { ...card.packet, time: card.life.currentTime }])), exiting: state.exiting.size, legacy: state.legacy.size })) }) } };
   window.visualLab.ready = mountAll().catch(showError);
 })();
 </script>
