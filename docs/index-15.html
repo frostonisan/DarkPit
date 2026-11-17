@@ -79,6 +79,32 @@
     .lab-doc code { color: #d3e0bd; }
     .lab-doc a { color: var(--lab-mint); }
     .lab-legend { padding: 8px 17px 12px; color: #a7b4ab; font-size: 11px; }
+    .lab-modes { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 16px; }
+    .lab-mode-panel { margin: 14px 0; padding: 16px; border: 1px solid #506454; background: #1a241e; }
+    .lab-mode-panel p { color: #b5c6ba; font-size: 12px; }
+    .lab-mode-panel label { display: inline-flex; align-items: center; gap: 8px; }
+    .lab-mode-row { display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    .lab-aura-choice img { width: 35px; height: 25px; object-fit: cover; }
+    .lab-rate { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 20px; max-width: 720px; margin: 12px 0; }
+    .lab-rate input[type=range] { width: 100%; min-width: 0; grid-column: 1/-1; height: 28px; }
+    .lab-rate output { color: #b6f8dc; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .lab-rate meter { width: 100%; height: 14px; grid-column: 1/-1; accent-color: #8cdaca; }
+    .lab-rate small { grid-column: 1/-1; color: #9eb4a6; }
+    .lab-feed-stats { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 12px; font: 12px/1.7 ui-monospace, monospace; color: #bdd7c6; }
+    .lab-feed-stats strong { color: #fff1ca; }
+    .lab-type-list { padding-top: 10px; border-top: 1px solid #425446; }
+    .lab-type-list label { font-size: 12px; }
+    .lab-note { margin-top: 10px !important; }
+    .lab button:disabled { opacity: .45; cursor: default; }
+    .lab[data-mode=auras] [data-family=messages], .lab[data-mode=messages] [data-sample] { display: none; }
+    .lab[data-mode=messages][data-with-auras=false] [data-family=aura],
+    .lab[data-mode=messages][data-with-auras=false] [data-family=body],
+    .lab[data-mode=messages][data-with-auras=false] [data-family=status],
+    .lab[data-mode=messages][data-with-auras=false] [data-family=ground] { display: none; }
+    .lab[data-mode=messages] .lab-world { height: calc((var(--scene-size, 540px) + var(--message-headroom, 210px)) * var(--lab-scale) + 110px); }
+    .lab[data-mode=messages][data-with-auras=true] .lab-world { --message-headroom: 290px; }
+    .lab[data-mode=messages] .lab-slot { --slot-width: max(270px, calc(var(--slot-base, 120px) * var(--lab-scale) + 80px)); }
+    .lab[data-mode=messages][data-with-auras=false] .lab-frame { --shown-auras: 0; --status-space: 0px; }
     @media (max-width: 700px) { .lab { padding: 18px 12px 28px; } .lab-header { align-items: flex-start; } .lab-local { display: none; } .lab h1 { font-size: 26px; } .lab-controls { gap: 12px 16px; } .lab-perf { gap: 5px 15px; } }
 
     /* 2. Témoin actuel : structure de createEntity.js, rendue de face dans le décor.
@@ -99,7 +125,8 @@
        Le scale(.85) existant est conservé sur le parent entitesContainer commun.
        Les contrôles ne changent ensuite que le transform du parent lab-scale. */
     .lab-unified { position: relative; transform-origin: center bottom; }
-    .lab-frame { --head-gap: min(calc(var(--sprite-h) * .025), 5px); --halo-height: calc(var(--halo-size) * .38); --status-size: min(calc(var(--sprite-w) * .48), calc(var(--sprite-h) * .65), 64px); --status-space: 0px; position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
+    .lab-frame { --shown-auras: var(--aura-count, 1); --head-gap: min(calc(var(--sprite-h) * .025), 5px); --halo-height: calc(var(--halo-size) * .38); --status-size: min(calc(var(--sprite-w) * .48), calc(var(--sprite-h) * .65), 64px); --status-space: 0px; position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
+    .lab[data-auras=false] .lab-frame { --shown-auras: 0; }
     .lab-sprite-facing { line-height: 0; }
     .lab-frame .sprite { position: relative; display: inline-block; top: 0; line-height: 0; vertical-align: bottom; }
     .lab-frame .sprite > canvas { display: block; position: static; }
@@ -110,34 +137,85 @@
     .lab-frame > .cast-animation-container { z-index: -1; }
     .lab-frame .life-sup { position: absolute; inset: 0; }
     .lab-frame .life-aura-anim { width: 100%; height: 100%; }
-    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap)); left: 50%; width: var(--halo-size); height: var(--halo-height); transform: translateX(-50%); }
+    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap) + var(--aura-row, 0) * (var(--halo-height) + var(--head-gap))); left: 50%; width: var(--halo-size); height: var(--halo-height); transform: translateX(-50%); }
     /* Les SVG d'auréole ont de grandes marges verticales transparentes.
        Cover dans une fenêtre basse rapproche le dessin, sans déformer l'anneau. */
     .lab-frame .life-aura-img { width: 100%; height: 100%; object-fit: cover; --amp: min(calc(var(--sprite-h) * .025), 3px); }
     /* Chaque famille a une règle commune, indépendante du modèle de l'entité. */
     .lab-frame .effect-vfx { margin: 0; object-fit: contain; }
-    .lab-frame .effect-vfx.stun { width: var(--status-size); height: auto; left: 50%; top: auto; bottom: calc(100% + var(--halo-height) + var(--head-gap) * 2); transform: translateX(-50%); }
+    .lab-frame .effect-vfx.stun { width: var(--status-size); height: auto; left: 50%; top: auto; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap)); transform: translateX(-50%); }
     /* Plafonds locaux par famille, avant le scale global. Aucun cas par monstre. */
     .lab-frame .effect-vfx.mysticism { width: min(80%, calc(var(--sprite-h) * .55), 140px); height: min(90%, 200px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .effect-vfx.heal { width: min(70%, calc(var(--sprite-h) * .6), 110px); height: min(90%, 160px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .effect-vfx.burn { width: min(75%, calc(var(--sprite-h) * .7), 110px); height: min(70%, 140px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .cast { --ground-size: min(calc(var(--sprite-w) * 1.2), calc(var(--sprite-h) * 1.5), 190px); position: absolute; width: var(--ground-size); height: calc(var(--ground-size) * .32); object-fit: fill; left: 50%; top: 100%; transform: translate(-50%, -50%); animation: none; }
-    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + var(--halo-height) + var(--head-gap) * 2 + var(--status-space) + 8px); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
+    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 8px); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
     .lab-frame .pop-up-txt { margin-bottom: 32px; }
     .lab-frame .BattleText { width: 100%; left: 0; white-space: nowrap; }
     .lab-frame .damage-popup { position: relative; width: 100%; left: 0; }
     /* Le miroir concerne le dessin ; les textes conservent leur sens de lecture. */
     .lab[data-mirror=true] .lab-sprite-facing { transform: scaleX(-1); }
     .lab[data-mirror=true] .lab-legacy .sprite-container { transform: scaleX(-1); }
+
+    /* 4. FLUX DE MESSAGES. Ancre fixe ; position, apparition et vie sont séparées.
+       Les coordonnées de couloir sont connues : aucune mesure de texte ou de DOM.
+       Font-size est fixe par catégorie ; seuls transform et opacity sont animés. */
+    .lab-message-feed { display: none; position: absolute; left: 50%; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; pointer-events: none; line-height: 1.2; }
+    .lab[data-mode=messages] .lab-message-feed { display: block; }
+    .lab-feed-item { position: absolute; bottom: 0; left: -85px; width: 170px; text-align: center; transition: transform 320ms cubic-bezier(.2,.7,.3,1); transform-origin: center bottom; }
+    .lab-feed-life { transform-origin: center bottom; font: 700 19px/1.15 system-ui, sans-serif; }
+    .lab-feed-item[data-priority="1"] .lab-feed-life { font-size: 25px; }
+    .lab-feed-item[data-priority="2"] .lab-feed-life { font-size: 27px; }
+    .lab-feed-item[data-priority="3"] .lab-feed-life { font-size: 31px; }
+    .lab .lab-feed-item .damage-popup, .lab .lab-feed-item .BattleText { position: static !important; display: flex; align-items: center; justify-content: center; gap: 4px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; margin: 0 !important; font: inherit; white-space: nowrap; animation: none !important; transform: none !important; }
+    .lab .lab-feed-item .damage-popup-value { color: var(--popup-color, #fff); text-shadow: 0 1px 3px #000, 0 0 3px #000; }
+    .lab .lab-feed-item[data-priority="1"] .damage-popup-value { text-shadow: 0 0 5px #e98724, 0 1px 3px #000; }
+    .lab .lab-feed-item[data-priority="3"] .damage-popup-value { text-shadow: 0 0 5px #ff3026, 0 1px 3px #000; }
+    .lab .lab-feed-item .picto-stat { flex: 0 0 21px; width: 21px; height: 21px; margin: 0; background-size: contain; background-position: center; background-repeat: no-repeat; transform: none; }
+    .lab .lab-feed-item[data-priority="3"] .picto-stat { flex-basis: 28px; width: 28px; height: 28px; }
+    .lab-event-label { display: block; margin-bottom: 2px; font: 700 10px/1.2 system-ui, sans-serif; letter-spacing: .06em; color: var(--popup-color); text-shadow: 0 1px 3px #000; }
+    .lab-event-count { font: 600 11px/1 system-ui, sans-serif; margin-left: 4px; color: #e0e8de; }
+    .lab-legacy .lab-event-label { font-size: 11px; }
+    .lab-feed-waiting { position: absolute; top: 5px; left: -75px; width: 150px; color: #e9d29c; font: 10px/1.2 system-ui; text-align: center; }
+    .lab[data-feed-paused=true] .lab-feed-item { transition: none; }
   </style>
 </head>
 <body>
-<main class="lab" id="lab" data-view="compare" data-decor="prison" data-auras="true" data-status="true" data-body="true" data-ground="true" data-messages="true" data-motion="true" data-guides="false" data-mirror="false">
+<main class="lab" id="lab" data-mode="overview" data-with-auras="false" data-view="compare" data-decor="prison" data-auras="true" data-status="true" data-body="true" data-ground="true" data-messages="true" data-motion="true" data-guides="false" data-mirror="false">
   <header class="lab-header">
     <div><span class="lab-eyebrow">Dark Pit / laboratoire 15</span><h1>Un sprite. Un gabarit. Tous ses effets.</h1>
       <p class="lab-subtitle">La taille vient du CSS du monstre. Les calques sont installés à sa création ; le parent commun prend ensuite le relais.</p></div>
     <span class="lab-local">ESSAI LOCAL · BATTLE</span>
   </header>
+  <div class="lab-modes" aria-label="Mode du laboratoire"><button type="button" data-mode="overview" aria-pressed="true">Vue d’ensemble</button><button type="button" data-mode="auras" aria-pressed="false">Auras</button><button type="button" data-mode="messages" aria-pressed="false">Messages / dégâts</button></div>
+  <section class="lab-mode-panel" id="aura-panel" hidden aria-label="Sélection des auras">
+    <h2>Choisir les auréoles</h2><p>Une sélection commune pour comparer les tailles. Tu peux combiner les trois types.</p>
+    <div class="lab-mode-row">
+      <label class="lab-aura-choice"><input type="checkbox" data-aura="fadedLife"><img src="media/assets/effects/picto-aura-fadedlife.svg" alt="">Vie fanée</label>
+      <label class="lab-aura-choice"><input type="checkbox" data-aura="extraLife" checked><img src="media/assets/effects/picto-aura-extralife.svg" alt="">Vie supplémentaire</label>
+      <label class="lab-aura-choice"><input type="checkbox" data-aura="eternalLife"><img src="media/assets/effects/picto-aura-eternallife.svg" alt="">Vie éternelle</label>
+      <button type="button" id="aura-profiles">Retrouver les profils variés</button>
+    </div>
+  </section>
+  <section class="lab-mode-panel" id="message-panel" hidden aria-label="Essai des messages de combat">
+    <h2>Du coup isolé à l’avalanche</h2>
+    <div class="lab-rate"><label for="message-rate">Quantité de messages</label><output id="message-rate-value" for="message-rate">4 / s / entité</output><input id="message-rate" type="range" min="0" max="20" step="1" value="4"><meter id="message-meter" min="0" max="20" low="5" high="12" optimum="4" value="4" aria-label="Intensité des messages"></meter><small>0 : aucun nouveau message · 4 : combat courant · 12–20 : rafale soutenue</small></div>
+    <div class="lab-mode-row">
+      <button type="button" id="feed-run" aria-pressed="false">Activer le flux</button>
+      <button type="button" id="feed-freeze" aria-pressed="false">Figer la lecture</button>
+      <button type="button" id="feed-burst">Rafale ×12</button>
+      <button type="button" id="feed-clear">Vider</button>
+      <label>Cible <select id="message-target"><option value="all">Toutes les entités</option></select></label>
+      <label><input type="checkbox" id="feed-with-auras">Garder les auras</label>
+    </div>
+    <div class="lab-mode-row lab-type-list" aria-label="Types générés">
+      <label><input type="checkbox" data-message-kind="physical" checked>Physique</label><label><input type="checkbox" data-message-kind="magical" checked>Magique</label><label><input type="checkbox" data-message-kind="heal" checked>Soin</label><label><input type="checkbox" data-message-kind="miss" checked>Raté / esquive</label><label><input type="checkbox" data-message-kind="critical" checked>Critique</label><label><input type="checkbox" data-message-kind="execution" checked>Exécution</label><label><input type="checkbox" data-message-kind="executionCritical" checked>Exécution critique</label>
+    </div>
+    <div class="lab-mode-row"><span>Déclencher :</span><button type="button" data-emit="physical">Un dégât</button><button type="button" data-emit="critical">Un critique</button><button type="button" data-emit="execution">Une exécution</button><button type="button" data-emit="executionCritical">Une exécution critique</button></div>
+    <div class="lab-feed-stats" aria-live="off"><span>Générés : <strong id="feed-generated">0</strong></span><span>Nouveau : <strong id="feed-visible">0</strong> visibles</span><span>Actuel : <strong id="feed-legacy">0</strong></span><span>Regroupés : <strong id="feed-merged">0</strong></span><span>En attente : <strong id="feed-pending">0</strong></span></div>
+    <p class="lab-note" id="feed-status" role="status">Flux arrêté. Active-le ou déclenche un événement à la main.</p>
+    <p class="lab-note">Même événement envoyé aux deux scènes. À gauche, au centre ou à droite selon la rafale ; priorité aux critiques et exécutions. « Figer » permet d’inspecter le placement.</p>
+  </section>
   <div class="lab-controls" aria-label="Réglages de la comparaison">
     <div class="lab-views" aria-label="Affichage"><button type="button" data-view="compare" aria-pressed="true">Comparer</button><button type="button" data-view="new" aria-pressed="false">Nouveau</button><button type="button" data-view="old" aria-pressed="false">Actuel</button></div>
     <label for="scale">Échelle du parent <input id="scale" type="range" min="0.5" max="1.5" step="0.05" value="1"><output id="scale-value" class="lab-scale-value" for="scale">100 %</output></label>
@@ -155,7 +233,7 @@
     <label><input type="checkbox" data-toggle="mirror">Retourner les sprites</label>
     <label title="Remet les sprites au repos et fige les autres animations CSS. Les GIF existants continuent de jouer."><input type="checkbox" data-toggle="motion" checked>Mouvements CSS</label>
   </div>
-  <div class="lab-perf" aria-live="polite"><span>Nouveau : <strong id="init-count">0</strong> calibrages au montage</span><span>Zoom / calques : <strong id="interaction-reads">0</strong> lecture géométrique</span><span>Suivi JS : <strong>aucune boucle, aucun observateur</strong></span></div>
+  <div class="lab-perf" aria-live="polite"><span>Nouveau : <strong id="init-count">0</strong> calibrages au montage</span><span>Zoom / calques / messages : <strong id="interaction-reads">0</strong> lecture géométrique</span><span>Suivi géométrique : <strong>aucune boucle, aucun observateur</strong></span></div>
   <p class="lab-error" id="error" hidden role="alert"></p>
   <section class="lab-scene" data-kind="new" aria-labelledby="new-title">
     <div class="lab-scene-header"><h2 id="new-title">01 — Conteneurs communs</h2><small>Taille CSS → gabarit → calques → scale du parent</small></div>
@@ -182,7 +260,9 @@
       └─ messages           ← au-dessus, mêmes espacements pour tous</pre>
     <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. Désactiver « Mouvements CSS » remet les sprites au repos et fige les autres animations CSS ; les GIF continuent de jouer.</p>
     <p>Les dimensions restent proportionnelles avec des plafonds de base : auréole et étourdissement 64 px de large ; mysticisme 140 × 200 px ; soin 110 × 160 px ; brûlure 110 × 140 px ; cercle au sol 190 px de large. L’écart de base de l’auréole est plafonné à 5 px. Les marges transparentes verticales du SVG sont recadrées par son affichage CSS. Tous ces plafonds suivent ensuite le scale du parent.</p>
-    <p>Les tailles et espacements proposés sont des réglages à juger ici. L’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
+    <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
+    <p>En mode « Messages / dégâts », les nouveaux messages utilisent une file par entité : six actifs, au plus deux sorties courtes, puis une attente regroupée par catégorie si les six places sont occupées par des événements plus importants. Les petits dégâts de même nature se regroupent à saturation, sans perdre leur somme ; le suffixe ×N compte les occurrences. Les catégories critiques restent séparées des ordinaires. L’ordre est chronologique dans chaque couloir, les anciens montent sans redescendre. Un événement prioritaire peut accélérer la sortie d’un message moins important.</p>
+    <p>Le nouveau flux anime uniquement transform et opacity. Un seul timer génère les événements de démonstration ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
 </main>
 
@@ -199,8 +279,8 @@
             <div class="sprite side-A hb iddle" data-monster data-role="sprite"><canvas class="sprite-canvas side-A" data-monster width="500" height="500" role="img"></canvas></div>
             <div class="lab-guide" aria-hidden="true"></div>
           </div></div></div>
-          <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat">−128</div></div>
-          <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat">Résistance !</div></div>
+          <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat" data-sample>−128</div></div>
+          <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat" data-sample>Résistance !</div></div>
         </div>
       </div>
     </div>
@@ -213,8 +293,9 @@
       <div class="aura-container" data-role="auras" data-family="aura"></div>
       <div class="effects-container" data-role="effects"></div>
       <div class="cast-animation-container" data-family="ground"><img class="cast cast-default" src="media/assets/effects/castingfx-base.gif" alt=""></div>
-      <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat">−128</div></div>
-      <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat">Résistance !</div></div>
+      <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat" data-sample>−128</div></div>
+      <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat" data-sample>Résistance !</div></div>
+      <div class="lab-message-feed" data-family="messages"><span class="lab-feed-waiting" hidden></span></div>
       <div class="lab-guide" aria-hidden="true"></div>
     </div>
   </div>
@@ -257,6 +338,10 @@
   const slots = { new: [], old: [] };
   const versions = Array(6).fill(0);
   const measuredSizes = Array(6).fill(null);
+  const legacyBases = new WeakMap();
+  let auraSelection = null;
+  const feedStates = Array.from({ length: 6 }, () => ({ active: [], exiting: [], pending: new Map(), legacy: new Set(), layer: null, oldRoot: null, laneCursor: 0, lastAt: -Infinity }));
+  const feed = { running: false, paused: false, hidden: document.hidden, timer: null, rate: 4, sequence: 0, generated: 0, merged: 0 };
   let batchVersion = 0;
   let selection = catalog.slice(0, 6).map(model => model.key);
   const clone = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
@@ -281,12 +366,14 @@
     console.error(error);
   }
 
-  function addEffects(root, profile) {
+  function makeAura(root, life, row = 0) {
     const aura = clone('life-aura');
-    aura.querySelector('.life-aura-anim').classList.add(`anim-${profile.life}`);
+    aura.dataset.aura = life;
+    aura.style.setProperty('--aura-row', row);
+    aura.querySelector('.life-aura-anim').classList.add(`anim-${life}`);
     const image = aura.querySelector('img');
-    image.src = `media/assets/effects/${lives[profile.life].file}`;
-    image.style.animationDuration = `${lives[profile.life].duration}ms`;
+    image.src = `media/assets/effects/${lives[life].file}`;
+    image.style.animationDuration = `${lives[life].duration}ms`;
     if (root.classList.contains('lab-unified')) {
       // L'ancre porte le placement, son enfant porte l'animation de l'effet.
       // Un tremblement/pulse d'auréole ne déplace ainsi jamais le repère commun.
@@ -296,7 +383,24 @@
       wrap.append(animation);
       animation.append(image);
     }
-    root.querySelector('[data-role=auras]').append(aura);
+    return aura;
+  }
+
+  function syncRootAuras(root) {
+    const keys = auraSelection ?? [root.dataset.life];
+    root.querySelector('[data-role=auras]').replaceChildren(...keys.map((life, row) => makeAura(root, life, row)));
+    root.querySelector('.lab-frame')?.style.setProperty('--aura-count', keys.length);
+    if (root.classList.contains('lab-legacy')) sizeLegacyAuras(root);
+  }
+
+  function syncSelectedAuras() {
+    for (const kind of ['new', 'old']) for (const slot of slots[kind]) {
+      if (slot) syncRootAuras(slot.querySelector('[data-model]'));
+    }
+  }
+
+  function addEffects(root, profile) {
+    syncRootAuras(root);
     const effects = root.querySelector('[data-role=effects]');
     for (const effect of [profile.body && { type: profile.body, src: profile.src, family: 'body' },
       profile.status && { type: 'stun', src: 'stun.gif', family: 'status' }].filter(Boolean)) {
@@ -333,13 +437,22 @@
     const rect = root.querySelector('[data-role=sprite]').getBoundingClientRect();
     metrics.legacyRectReads++;
     const base = Math.max(rect.width, rect.height) || 64;
+    legacyBases.set(root, base);
+    sizeLegacyAuras(root);
+  }
+
+  function sizeLegacyAuras(root) {
+    const base = legacyBases.get(root);
+    if (!base) return;
     const inverse = Math.min(1.35, Math.max(.45, (120 / Math.max(1, base)) ** 1.15));
-    const config = lives[root.dataset.life];
-    const wrap = root.querySelector('.life-aura-wrap');
-    wrap.style.transform = `translate(-50%, -45%) translateY(${Math.round(base * config.offset * inverse)}px)`;
-    const image = wrap.querySelector('img');
-    image.style.width = image.style.height = `${Math.round(base * config.ratio * inverse)}px`;
-    image.style.setProperty('--amp', `${Math.max(2, Math.round(base * config.amp * inverse))}px`);
+    for (const aura of root.querySelectorAll('.life-sup[data-aura]')) {
+      const config = lives[aura.dataset.aura];
+      const wrap = aura.querySelector('.life-aura-wrap');
+      wrap.style.transform = `translate(-50%, -45%) translateY(${Math.round(base * config.offset * inverse)}px)`;
+      const image = wrap.querySelector('img');
+      image.style.width = image.style.height = `${Math.round(base * config.ratio * inverse)}px`;
+      image.style.setProperty('--amp', `${Math.max(2, Math.round(base * config.amp * inverse))}px`);
+    }
   }
 
   function createSlot(kind, index, model) {
@@ -364,6 +477,7 @@
     const model = modelFor(key), profile = profiles[index];
     const image = await loadSprite(model.sprite);
     if (version !== versions[index]) return;
+    clearEntityFeed(feedStates[index]);
     const pair = {};
     // Monter les deux arbres avant les lectures. Tous les calques sont déjà présents.
     for (const kind of ['new', 'old']) {
@@ -402,6 +516,9 @@
       slots[kind][index].querySelector('small').textContent = `Base CSS : ${Math.round(size.width)} × ${Math.round(size.height)} px`;
     }
     measuredSizes[index] = size;
+    feedStates[index].layer = pair.new.querySelector('.lab-message-feed');
+    feedStates[index].oldRoot = pair.old;
+    updateMessageTargets();
     // Réserver de la place dans le décor à partir des valeurs déjà connues.
     // Le slider peut ainsi agrandir les géants sans les couper, sans relire le DOM.
     const sceneSize = Math.max(400, ...measuredSizes.filter(Boolean).map(item =>
@@ -430,15 +547,259 @@
     }
   }
 
+  // 5. File visuelle locale. Aucun accès à la géométrie dans ce bloc.
+  // Les entrées sont des événements ; les animations natives gèrent leur durée.
+  const messageTypes = {
+    physical: { priority: 0, icon: 'physicalDamage', color: '#ff8680', duration: 1800 },
+    magical: { priority: 0, icon: 'magicalDamage', color: '#b998ff', duration: 1800 },
+    heal: { priority: 0, icon: 'healing', color: '#83f79a', duration: 1800 },
+    miss: { priority: 0, icon: 'miss-shot', color: '#d9e0e9', duration: 1800 },
+    critical: { priority: 1, icon: 'criticalPower', color: '#ffb45a', label: 'CRITIQUE', duration: 2300 },
+    execution: { priority: 2, icon: 'execution', color: '#ff7769', label: 'EXÉCUTION', duration: 2500 },
+    executionCritical: { priority: 3, icon: 'execution-critical', color: '#ffce86', label: 'EXÉCUTION CRITIQUE', duration: 2800 }
+  };
+  const limits = { active: 6, exiting: 2, legacy: 48 };
+  const demoSequence = ['physical', 'magical', 'physical', 'heal', 'critical', 'physical', 'miss', 'magical', 'execution', 'physical', 'critical', 'executionCritical'];
+  let demoCursor = 0;
+  const byId = id => document.getElementById(id);
+  const suspended = () => feed.paused || feed.hidden;
+  const selectedKinds = () => [...document.querySelectorAll('[data-message-kind]:checked')].map(node => node.dataset.messageKind);
+  function writeText(node, value) { if (node.textContent !== String(value)) node.textContent = value; }
+
+  function updateFeedStats() {
+    let visible = 0, legacy = 0, waiting = 0;
+    for (const state of feedStates) {
+      visible += state.active.length + state.exiting.length;
+      legacy += state.legacy.size;
+      const pending = [...state.pending.values()].reduce((sum, packet) => sum + packet.count, 0);
+      waiting += pending;
+      const badge = state.layer?.querySelector('.lab-feed-waiting');
+      if (badge) { badge.hidden = !pending; writeText(badge, `${pending} en attente · regroupés`); }
+    }
+    for (const [id, value] of Object.entries({ generated: feed.generated, visible, legacy, merged: feed.merged, pending: waiting })) writeText(byId(`feed-${id}`), value);
+  }
+
+  function updateFeedControls() {
+    byId('feed-run').setAttribute('aria-pressed', String(feed.running));
+    writeText(byId('feed-run'), feed.running ? 'Arrêter le flux' : 'Activer le flux');
+    byId('feed-freeze').setAttribute('aria-pressed', String(feed.paused));
+    writeText(byId('feed-freeze'), feed.paused ? 'Reprendre la lecture' : 'Figer la lecture');
+    byId('feed-burst').disabled = !selectedKinds().length;
+    const status = !selectedKinds().length ? 'Aucun type sélectionné.' : feed.paused ? 'Lecture figée. Les déclencheurs manuels restent disponibles.' : lab.dataset.messages === 'false' ? 'Calque messages masqué : génération suspendue.' : feed.running ? (feed.rate ? `Flux actif : ${feed.rate} événements / seconde / entité ciblée.` : 'Jauge à zéro : aucun nouvel événement.') : 'Flux arrêté. Active-le ou déclenche un événement à la main.';
+    writeText(byId('feed-status'), status);
+    updateFeedStats();
+  }
+
+  function updateMessageTargets() {
+    const select = byId('message-target');
+    const value = select.value || 'all';
+    select.replaceChildren(new Option('Toutes les entités', 'all'), ...selection.map((key, index) => new Option(`${index + 1} · ${modelFor(key).name}`, index)));
+    select.value = value;
+    updateFeedStats();
+  }
+
+  function contentFor(packet) {
+    const type = messageTypes[packet.kind], content = document.createElement('div');
+    content.className = packet.kind === 'miss' ? 'BattleText' : 'damage-popup total-damage damage-popup--nature';
+    if (type.priority) content.classList.add('popup-critical');
+    if (packet.kind === 'executionCritical') content.classList.add('damage-popup--execution-critical');
+    content.style.setProperty('--stat-color', type.color);
+    const icon = document.createElement('span');
+    icon.className = `picto-stat damage-popup-nature-icon ${type.icon}`;
+    icon.setAttribute('aria-hidden', 'true');
+    if (packet.kind === 'execution') icon.style.backgroundImage = "url('media/assets/ui/picto-execution.svg')";
+    const value = document.createElement('span'); value.className = 'damage-popup-value';
+    const count = document.createElement('span'); count.className = 'lab-event-count';
+    content.append(icon, value, count);
+    renderPacket(content, packet);
+    return content;
+  }
+
+  function renderPacket(content, packet) {
+    writeText(content.querySelector('.damage-popup-value'), packet.kind === 'miss' ? 'Esquive !' : `${packet.kind === 'heal' ? '+' : '−'}${packet.value}`);
+    const count = content.querySelector('.lab-event-count');
+    count.hidden = packet.count === 1;
+    writeText(count, `×${packet.count}`);
+  }
+
+  function removeCard(state, card) {
+    for (const animation of [card.life, card.exit]) if (animation) { animation.onfinish = null; animation.cancel(); }
+    card.node.remove();
+    for (const list of [state.active, state.exiting]) { const index = list.indexOf(card); if (index !== -1) list.splice(index, 1); }
+  }
+  function removeLegacy(state, card) {
+    card.clock.onfinish = null; card.clock.cancel(); card.node.remove(); state.legacy.delete(card);
+  }
+  function clearEntityFeed(state) {
+    for (const card of [...state.active, ...state.exiting]) removeCard(state, card);
+    for (const card of [...state.legacy]) removeLegacy(state, card);
+    state.pending.clear(); state.lastAt = -Infinity; state.laneCursor = 0;
+  }
+  function clearFeed() {
+    feedStates.forEach(clearEntityFeed); feed.generated = 0; feed.merged = 0; demoCursor = 0;
+    updateFeedStats();
+  }
+
+  // Le rang ne redescend jamais. Les changements ne touchent que le transform
+  // du conteneur ; son enfant porte le pop, la réduction et la disparition.
+  function layoutMessages(state) {
+    const ranks = new Map();
+    for (const card of [...state.active].reverse()) {
+      const rank = ranks.get(card.lane) || 0;
+      const base = card.lane < 0 ? 17 : card.lane > 0 ? 34 : 0;
+      card.up = Math.max(card.up, base + rank * 56);
+      card.node.style.transform = `translate(${card.lane}px, ${-card.up}px)`;
+      ranks.set(card.lane, rank + 1);
+    }
+  }
+
+  function flushPending(state) {
+    while (state.active.length < limits.active && state.pending.size) {
+      const next = [...state.pending.values()].sort((a, b) => messageTypes[b.kind].priority - messageTypes[a.kind].priority)[0];
+      state.pending.delete(next.kind); spawnMessage(state, next);
+    }
+    layoutMessages(state); updateFeedStats();
+  }
+
+  function retireMessage(state, card) {
+    state.active.splice(state.active.indexOf(card), 1); state.exiting.push(card);
+    card.life.onfinish = null;
+    card.exit = card.node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 170, fill: 'forwards' });
+    if (suspended()) card.exit.pause();
+    card.exit.onfinish = () => { removeCard(state, card); updateFeedStats(); };
+    while (state.exiting.length > limits.exiting) removeCard(state, state.exiting[0]);
+  }
+
+  function spawnMessage(state, packet) {
+    const type = messageTypes[packet.kind], now = performance.now();
+    const busy = now - state.lastAt < 450 || state.active.some(card => card.priority > 0);
+    const lane = type.priority ? 0 : busy ? [-76, 76, 0][state.laneCursor++ % 3] : 0;
+    state.lastAt = now;
+    const node = document.createElement('div'); node.className = 'lab-feed-item';
+    node.dataset.kind = packet.kind; node.dataset.priority = type.priority;
+    // Priorité fixe ; à priorité égale, le dernier nœud ajouté passe devant.
+    node.style.zIndex = type.priority + 1;
+    node.style.setProperty('--popup-color', type.color);
+    const body = document.createElement('div'); body.className = 'lab-feed-life';
+    if (type.label) { const label = document.createElement('span'); label.className = 'lab-event-label'; label.textContent = type.label; body.append(label); }
+    const content = contentFor(packet); body.append(content); node.append(body); state.layer.append(node);
+    const card = { node, packet, content, priority: type.priority, lane, up: 0, life: null, exit: null };
+    state.active.push(card); layoutMessages(state);
+    const peak = type.priority ? 1.2 : 1.12;
+    card.life = body.animate([
+      { transform: 'translateY(4px) scale(.6)', opacity: 0, offset: 0 },
+      { transform: `translateY(0px) scale(${peak})`, opacity: 1, offset: .08 },
+      { transform: 'translateY(-3px) scale(1)', opacity: 1, offset: .24 },
+      { transform: 'translateY(-17px) scale(.9)', opacity: 1, offset: .65 },
+      { transform: 'translateY(-38px) scale(.74)', opacity: 0, offset: 1 }
+    ], { duration: type.duration, easing: 'linear', fill: 'forwards' });
+    if (suspended()) { card.life.currentTime = 200; card.life.pause(); }
+    card.life.onfinish = () => { removeCard(state, card); flushPending(state); };
+  }
+
+  function receiveMessage(state, packet) {
+    if (state.active.length < limits.active) { spawnMessage(state, packet); return; }
+    const priority = messageTypes[packet.kind].priority;
+    const victim = state.active.filter(card => card.priority < priority).sort((a, b) => a.priority - b.priority)[0];
+    if (victim) { retireMessage(state, victim); spawnMessage(state, packet); return; }
+    // Saturation : addition de même catégorie, sans relancer sa durée de vie.
+    const recent = [...state.active].reverse().find(card => card.packet.kind === packet.kind && (card.life.currentTime || 0) < 500);
+    if (recent) {
+      recent.packet.value += packet.value; recent.packet.count += packet.count;
+      renderPacket(recent.content, recent.packet); feed.merged += packet.count;
+    } else {
+      const pending = state.pending.get(packet.kind);
+      if (pending) { pending.value += packet.value; pending.count += packet.count; feed.merged += packet.count; }
+      else state.pending.set(packet.kind, { ...packet });
+    }
+  }
+
+  function receiveLegacy(state, packet) {
+    const node = contentFor(packet); node.dataset.feedLegacy = packet.kind;
+    state.oldRoot.querySelector(packet.kind === 'miss' ? '.pop-down-txt' : '.pop-up-txt').append(node);
+    // Horloge native sans effet visuel : le témoin conserve son animation CSS.
+    const clock = node.animate([{}, {}], { duration: 2000 });
+    const card = { node, clock }; state.legacy.add(card);
+    if (suspended()) node.getAnimations({ subtree: true }).forEach(animation => animation.pause());
+    clock.onfinish = () => { removeLegacy(state, card); updateFeedStats(); };
+    while (state.legacy.size > limits.legacy) removeLegacy(state, state.legacy.values().next().value);
+  }
+
+  function emitMessage(index, kind, value) {
+    const state = feedStates[index];
+    if (lab.dataset.mode !== 'messages' || !state?.layer || !messageTypes[kind]) return;
+    const packet = { kind, value: kind === 'miss' ? 0 : Math.max(0, Math.round(value ?? (40 + (feed.sequence * 37 % 160)) * (messageTypes[kind].priority + 1))), count: 1, sequence: ++feed.sequence };
+    feed.generated++;
+    receiveLegacy(state, packet); receiveMessage(state, { ...packet }); updateFeedStats();
+  }
+
+  function emitToTargets(kind) {
+    const target = byId('message-target').value;
+    const chosen = kind || (() => { const enabled = new Set(selectedKinds()), sequence = demoSequence.filter(key => enabled.has(key)); return sequence[demoCursor++ % sequence.length]; })();
+    if (!chosen) return;
+    for (const index of target === 'all' ? [0, 1, 2, 3, 4, 5] : [Number(target)]) emitMessage(index, chosen);
+  }
+
+  // Un unique timer pour la simulation, jamais pour suivre les sprites.
+  function scheduleFeed(immediate = false) {
+    clearTimeout(feed.timer); feed.timer = null;
+    if (!feed.running || suspended() || !feed.rate || lab.dataset.mode !== 'messages' || lab.dataset.messages === 'false' || !selectedKinds().length) return;
+    if (immediate) emitToTargets();
+    feed.timer = setTimeout(() => { feed.timer = null; emitToTargets(); scheduleFeed(); }, 1000 / feed.rate);
+  }
+  function syncSuspension() {
+    lab.dataset.feedPaused = String(suspended());
+    for (const state of feedStates) {
+      for (const card of [...state.active, ...state.exiting]) for (const animation of [card.life, card.exit]) if (animation) suspended() ? animation.pause() : animation.play();
+      for (const card of state.legacy) card.node.getAnimations({ subtree: true }).forEach(animation => suspended() ? animation.pause() : animation.play());
+    }
+    scheduleFeed(); updateFeedControls();
+  }
+  function setMode(mode) {
+    if (lab.dataset.mode === 'messages' && mode !== 'messages') { feed.running = false; feed.paused = false; clearFeed(); syncSuspension(); }
+    lab.dataset.mode = mode;
+    document.querySelectorAll('button[data-mode]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.mode === mode)));
+    byId('aura-panel').hidden = mode !== 'auras'; byId('message-panel').hidden = mode !== 'messages';
+    if (mode === 'auras' && auraSelection === null) { auraSelection = [...document.querySelectorAll('[data-aura]:checked')].map(input => input.dataset.aura); syncSelectedAuras(); }
+    if (mode === 'auras' || mode === 'messages') {
+      const toggle = mode === 'auras' ? 'auras' : 'messages';
+      lab.dataset[toggle] = 'true'; document.querySelector(`[data-toggle=${toggle}]`).checked = true;
+    }
+    scheduleFeed(); updateFeedControls();
+  }
+
+  document.querySelectorAll('button[data-mode]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.mode)));
+  document.querySelectorAll('[data-aura]').forEach(input => input.addEventListener('change', () => { auraSelection = [...document.querySelectorAll('[data-aura]:checked')].map(node => node.dataset.aura); syncSelectedAuras(); }));
+  byId('aura-profiles').addEventListener('click', () => { auraSelection = null; syncSelectedAuras(); });
+  byId('feed-with-auras').addEventListener('change', event => { lab.dataset.withAuras = String(event.target.checked); });
+  byId('message-rate').addEventListener('input', event => {
+    feed.rate = Number(event.target.value); byId('message-meter').value = feed.rate;
+    writeText(byId('message-rate-value'), `${feed.rate} / s / entité`); scheduleFeed(); updateFeedControls();
+  });
+  byId('feed-run').addEventListener('click', () => { feed.running = !feed.running; scheduleFeed(true); updateFeedControls(); });
+  byId('feed-freeze').addEventListener('click', () => { feed.paused = !feed.paused; syncSuspension(); });
+  byId('feed-clear').addEventListener('click', () => { feed.running = false; feed.paused = false; clearFeed(); syncSuspension(); });
+  byId('feed-burst').addEventListener('click', () => { for (let i = 0; i < 12; i++) emitToTargets(); });
+  document.querySelectorAll('[data-message-kind]').forEach(input => input.addEventListener('change', () => { scheduleFeed(); updateFeedControls(); }));
+  document.querySelectorAll('[data-emit]').forEach(button => button.addEventListener('click', () => emitToTargets(button.dataset.emit)));
+  document.addEventListener('visibilitychange', () => { feed.hidden = document.hidden; syncSuspension(); });
+  window.addEventListener('pagehide', () => { feed.running = false; clearTimeout(feed.timer); feed.timer = null; clearFeed(); });
+
   document.getElementById('scale').addEventListener('input', event => setScale(event.target.value));
   document.getElementById('decor').addEventListener('change', event => { lab.dataset.decor = event.target.value; });
   document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
-  document.querySelectorAll('[data-toggle]').forEach(input => input.addEventListener('change', () => { lab.dataset[input.dataset.toggle] = String(input.checked); }));
+  document.querySelectorAll('[data-toggle]').forEach(input => input.addEventListener('change', () => { lab.dataset[input.dataset.toggle] = String(input.checked); if (input.dataset.toggle === 'messages') { scheduleFeed(); updateFeedControls(); } }));
   document.getElementById('preset').addEventListener('change', event => {
     selection = (event.target.value === 'extreme' ? [0, 8, 3, 7, 1, 5] : [0, 1, 2, 3, 4, 5]).map(index => catalog[index].key);
     window.visualLab.ready = mountAll().catch(showError);
   });
   document.getElementById('reset').addEventListener('click', () => {
+    feed.running = false; feed.paused = false; clearFeed(); syncSuspension(); setMode('overview'); auraSelection = null;
+    byId('message-rate').value = '4'; byId('message-rate').dispatchEvent(new Event('input'));
+    byId('feed-with-auras').checked = false; lab.dataset.withAuras = 'false'; byId('message-target').value = 'all';
+    document.querySelectorAll('[data-aura]').forEach(input => { input.checked = input.dataset.aura === 'extraLife'; });
+    document.querySelectorAll('[data-message-kind]').forEach(input => { input.checked = true; });
+    updateFeedControls();
     document.getElementById('scale').value = '1'; setScale(1); setView('compare');
     document.getElementById('decor').value = 'prison'; lab.dataset.decor = 'prison';
     document.getElementById('preset').value = 'mixed';
@@ -449,7 +810,9 @@
     selection = catalog.slice(0, 6).map(model => model.key);
     window.visualLab.ready = mountAll().catch(showError);
   });
-  window.visualLab = { metrics, ready: null };
+  window.visualLab = { metrics, ready: null, popups: { emit: emitMessage, clear: clearFeed, limits,
+    inspect: () => ({ running: feed.running, paused: feed.paused, timer: feed.timer !== null, generated: feed.generated, merged: feed.merged,
+      states: feedStates.map(state => ({ active: state.active.map(card => ({ ...card.packet, lane: card.lane, up: card.up, priority: card.priority, z: Number(card.node.style.zIndex), time: card.life.currentTime })), exiting: state.exiting.length, pending: [...state.pending.values()].map(packet => ({ ...packet })), legacy: state.legacy.size })) }) } };
   window.visualLab.ready = mountAll().catch(showError);
 })();
 </script>
