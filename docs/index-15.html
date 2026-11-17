@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Index 15 · Gabarit des entités</title>
+  <link rel="icon" href="media/assets/ui/favicon.png">
+  <!-- Feuilles de production, intactes et dans l'ordre du jeu. Aucun script du jeu. -->
+  <link rel="stylesheet" href="css/board.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animation.css">
+  <link rel="stylesheet" href="css/monstre.css">
+  <link rel="stylesheet" href="css/battle-infos.css">
+  <link rel="stylesheet" href="css/spell.css">
+  <link rel="stylesheet" href="css/monstre-hitbox.css">
+  <style>
+    /* 1. Présentation du banc d'essai. Ces règles ne sont pas destinées au jeu. */
+    :root { color-scheme: dark; --lab-scale: 1; --lab-gold: #e5c18a; --lab-mint: #8cdaca; }
+    html, body { width: auto; height: auto; min-height: 100%; overflow: auto; user-select: text; background: #111414; }
+    body { margin: 0; color: #e4e6df; font: 14px/1.5 system-ui, sans-serif; }
+    .lab { max-width: 1900px; margin: auto; padding: 24px 28px 40px; }
+    .lab h1, .lab h2, .lab p { margin: 0; }
+    .lab h1 { font: 32px/1.15 Georgia, serif; letter-spacing: -.02em; color: #f6ebd5; }
+    .lab h2 { font: 21px Georgia, serif; color: inherit; }
+    .lab-header { display: flex; justify-content: space-between; gap: 18px; align-items: flex-end; padding-bottom: 22px; }
+    .lab-eyebrow { display: block; margin-bottom: 9px; color: var(--lab-gold); font: 11px/1.4 system-ui; letter-spacing: .16em; text-transform: uppercase; }
+    .lab-subtitle { color: #a6afa9; margin-top: 9px !important; max-width: 780px; }
+    .lab-local { flex-shrink: 0; border: 1px solid #55513e; color: var(--lab-gold); padding: 5px 10px; font-size: 11px; }
+    .lab-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 24px; padding: 16px 0; border-block: 1px solid #343c37; }
+    .lab-controls label, .lab-toggles label { display: inline-flex; align-items: center; gap: 8px; }
+    .lab button, .lab select, .lab input { font: inherit; }
+    .lab button, .lab select { box-sizing: border-box; background: #202622; color: #e4e6df; border: 1px solid #465048; border-radius: 3px; padding: 7px 10px; cursor: pointer; }
+    .lab button:hover, .lab select:hover { border-color: var(--lab-gold); }
+    .lab button[aria-pressed=true] { color: #15201b; background: var(--lab-mint); border-color: var(--lab-mint); }
+    .lab button:focus-visible, .lab select:focus-visible, .lab input:focus-visible { outline: 2px solid var(--lab-gold); outline-offset: 3px; }
+    .lab input[type=range] { width: 145px; accent-color: var(--lab-mint); }
+    .lab input[type=checkbox] { accent-color: var(--lab-mint); width: 15px; height: 15px; margin: 0; }
+    .lab-views { display: flex; gap: 5px; }
+    .lab-scale-value { min-width: 44px; color: var(--lab-gold); font-variant-numeric: tabular-nums; }
+    .lab-toggles { display: flex; flex-wrap: wrap; gap: 10px 21px; padding: 13px 0; color: #bac3bb; font-size: 12px; }
+    .lab-perf { display: flex; flex-wrap: wrap; gap: 8px 26px; font: 11px/1.6 ui-monospace, monospace; color: #9faeaa; padding: 2px 0 17px; }
+    .lab-perf strong { color: var(--lab-mint); font-weight: 500; }
+    .lab-scene { margin-bottom: 24px; border: 1px solid #3b4940; background: #181d19; }
+    .lab-scene-header { padding: 13px 17px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 20px; }
+    .lab-scene-header small { color: #a7b4ab; }
+    .lab-scene[data-kind=new] .lab-scene-header { border-left: 3px solid var(--lab-mint); }
+    .lab-scene[data-kind=old] .lab-scene-header { border-left: 3px solid var(--lab-gold); }
+    .lab-scroll { overflow: auto; scrollbar-color: #627267 #1c241f; }
+    .lab-world { --decor: url('media/decors/prison/background.jpg'); --ground: url('media/decors/prison/ground.jpg'); position: relative; display: flex; width: max-content; min-width: 100%; height: calc(var(--scene-size, 540px) * var(--lab-scale) + 110px); isolation: isolate; background: linear-gradient(#0c18193b, #15201c12 60%, #08110dc9), var(--decor) center 45% / cover; }
+    .lab-world::before { content: ''; position: absolute; inset: 75% 0 0; z-index: -1; background: linear-gradient(#0a140b44, #080e0bd9), var(--ground) center / 450px; border-top: 1px solid #c1cfab26; }
+    .lab-world::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 12px 35px #0006; pointer-events: none; }
+    .lab[data-decor=marecage] .lab-world { --decor: url('media/decors/marecage/background.jpg'); --ground: url('media/decors/marecage/ground.jpg'); }
+    .lab[data-decor=glacier] .lab-world { --decor: url('media/decors/glacier/background.jpg'); --ground: url('media/decors/glacier/ground.jpg'); }
+    .lab-slot { --slot-width: max(200px, calc(var(--slot-base, 120px) * var(--lab-scale) + 50px)); position: relative; width: var(--slot-width); flex: 1 0 var(--slot-width); height: 100%; }
+    .lab-placement { position: absolute; left: 50%; bottom: 110px; transform: translateX(-50%); }
+    .lab-scale { transform: scale(var(--lab-scale)); transform-origin: center bottom; }
+    .lab-caption { position: absolute; bottom: 19px; inset-inline: 8px; text-align: center; z-index: 3; }
+    .lab-caption select { max-width: 100%; width: 206px; background: #101a15dc; font-size: 12px; }
+    .lab-caption small { display: block; color: #c4d2c7; margin-top: 6px; font: 11px/1.4 ui-monospace, monospace; }
+    .lab-error { color: #ffb5a5; padding: 12px; border: 1px solid #8b4a3f; }
+    .lab [hidden] { display: none !important; }
+    .lab[data-view=new] .lab-scene[data-kind=old], .lab[data-view=old] .lab-scene[data-kind=new] { display: none; }
+    .lab[data-auras=false] [data-family=aura], .lab[data-status=false] [data-family=status],
+    .lab[data-body=false] [data-family=body], .lab[data-ground=false] [data-family=ground],
+    .lab[data-messages=false] [data-family=messages] { display: none; }
+    .lab[data-motion=false] .lab-world *, .lab[data-motion=false] .lab-world *::before,
+    .lab[data-motion=false] .lab-world *::after { animation-play-state: paused !important; }
+    .lab[data-motion=false] .lab-repeat { animation: none !important; opacity: 1 !important; transform: none !important; }
+    .lab-repeat { animation-iteration-count: infinite; animation-duration: 3s; }
+    .lab-guide { position: absolute; inset: 0; border: 1px dashed #7df8dc; box-sizing: border-box; pointer-events: none; z-index: 110; display: none; }
+    .lab-guide::before, .lab-guide::after { content: ''; position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #b1ffe7; left: calc(50% - 3px); }
+    .lab-guide::before { top: -4px; } .lab-guide::after { bottom: -4px; }
+    .lab[data-guides=true] .lab-guide { display: block; }
+    .lab-doc { border-top: 1px solid #3a453e; padding-top: 16px; color: #b6c1b8; }
+    .lab-doc summary { cursor: pointer; color: #e3cfab; }
+    .lab-doc p { margin-top: 12px; max-width: 1000px; }
+    .lab-doc pre { overflow: auto; padding: 18px; border-left: 2px solid #688e7c; background: #18201b; color: #cee2d4; font: 12px/1.7 ui-monospace, monospace; }
+    .lab-doc code { color: #d3e0bd; }
+    .lab-doc a { color: var(--lab-mint); }
+    .lab-legend { padding: 8px 17px 12px; color: #a7b4ab; font-size: 11px; }
+    @media (max-width: 700px) { .lab { padding: 18px 12px 28px; } .lab-header { align-items: flex-start; } .lab-local { display: none; } .lab h1 { font-size: 26px; } .lab-controls { gap: 12px 16px; } .lab-perf { gap: 5px 15px; } }
+
+    /* 2. Témoin actuel : structure de createEntity.js, rendue de face dans le décor.
+       Seule la rotation du plan isométrique est neutralisée pour ce banc d'essai.
+       Les top, tailles, scale(.85), calques et exceptions par monstre restent ceux du jeu. */
+    .lab-legacy { position: relative; width: 120px; height: 120px; }
+    .lab-legacy .drag-box { transform: none; }
+    .lab-legacy canvas { vertical-align: bottom; }
+    .lab-legacy .lab-guide { width: var(--sprite-w); height: var(--sprite-h); }
+    /* Styles normalement injectés par ensureLifeAuraStyles(), mêmes valeurs. */
+    .life-aura-wrap { position: absolute; left: 50%; top: 0; pointer-events: none; }
+    .life-aura-img { display: block; width: 100%; height: 100%; pointer-events: none; animation: lifeAuraFloat 1900ms ease-in-out infinite; }
+    @keyframes lifeAuraFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(calc(-1 * var(--amp, 4px))); } }
+
+    /* 3. PROPOSITION. Tout ce bloc reste uniquement dans index-15.html.
+       Une classe de monstre sur le sprite et son canvas, jamais sur les calques.
+       --sprite-w / --sprite-h sont les dimensions CSS locales relevées AU MONTAGE.
+       Le scale(.85) existant est conservé sur le parent entitesContainer commun.
+       Les contrôles ne changent ensuite que le transform du parent lab-scale. */
+    .lab-unified { position: relative; transform-origin: center bottom; }
+    .lab-frame { position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
+    .lab-frame > .sprite { position: relative; display: inline-block; top: 0; line-height: 0; vertical-align: bottom; }
+    .lab-frame.is-calibrated > .sprite { animation: none; }
+    .lab-frame > .sprite > canvas { display: block; position: static; }
+    .lab-frame > .aura-container, .lab-frame > .effects-container,
+    .lab-frame > .cast-animation-container { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; transform: none; pointer-events: none; }
+    .lab-frame > .cast-animation-container { z-index: -1; }
+    .lab-frame .life-sup { position: absolute; inset: 0; }
+    .lab-frame .life-aura-anim { width: 100%; height: 100%; }
+    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--sprite-h) * .04); left: 50%; width: var(--halo-size); height: var(--halo-size); transform: translateX(-50%); }
+    .lab-frame .life-aura-img { width: 100%; height: 100%; --amp: calc(var(--sprite-h) * .025); }
+    /* Chaque famille a une règle commune, indépendante du modèle de l'entité. */
+    .lab-frame .effect-vfx { margin: 0; object-fit: contain; }
+    .lab-frame .effect-vfx.stun { width: calc(var(--sprite-w) * .48); max-width: calc(var(--sprite-h) * .65); height: auto; left: 50%; top: auto; bottom: calc(100% + var(--halo-size) + var(--sprite-h) * .07); transform: translateX(-50%); }
+    .lab-frame .effect-vfx.mysticism { width: 110%; height: 110%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+    .lab-frame .effect-vfx.heal { width: 70%; height: 90%; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+    .lab-frame .effect-vfx.burn { width: 75%; height: 70%; left: 50%; top: auto; bottom: 0; transform: translateX(-50%); }
+    .lab-frame .cast { position: absolute; width: 120%; height: 38%; object-fit: fill; left: 50%; top: 100%; transform: translate(-50%, -50%); animation: none; }
+    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + var(--halo-size) + var(--sprite-h) * .32); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
+    .lab-frame .pop-up-txt { margin-bottom: 32px; }
+    .lab-frame .BattleText { width: 100%; left: 0; white-space: nowrap; }
+    .lab-frame .damage-popup { position: relative; width: 100%; left: 0; }
+    /* Le miroir concerne le dessin ; les textes conservent leur sens de lecture. */
+    .lab[data-mirror=true] .lab-frame > .sprite { transform: scaleX(-1); }
+    .lab[data-mirror=true] .lab-legacy .sprite-container { transform: scaleX(-1); }
+  </style>
+</head>
+<body>
+<main class="lab" id="lab" data-view="compare" data-decor="prison" data-auras="true" data-status="true" data-body="true" data-ground="true" data-messages="true" data-motion="true" data-guides="false" data-mirror="false">
+  <header class="lab-header">
+    <div><span class="lab-eyebrow">Dark Pit / laboratoire 15</span><h1>Un sprite. Un gabarit. Tous ses effets.</h1>
+      <p class="lab-subtitle">La taille vient du CSS du monstre. Les calques sont installés à sa création ; le parent commun prend ensuite le relais.</p></div>
+    <span class="lab-local">ESSAI LOCAL · BATTLE</span>
+  </header>
+  <div class="lab-controls" aria-label="Réglages de la comparaison">
+    <div class="lab-views" aria-label="Affichage"><button type="button" data-view="compare" aria-pressed="true">Comparer</button><button type="button" data-view="new" aria-pressed="false">Nouveau</button><button type="button" data-view="old" aria-pressed="false">Actuel</button></div>
+    <label for="scale">Échelle du parent <input id="scale" type="range" min="0.5" max="1.5" step="0.05" value="1"><output id="scale-value" class="lab-scale-value" for="scale">100 %</output></label>
+    <label for="decor">Décor <select id="decor"><option value="prison">Prison</option><option value="marecage">Marécage</option><option value="glacier">Glacier</option></select></label>
+    <label for="preset">Entités <select id="preset"><option value="mixed">Tailles variées</option><option value="extreme">Cas extrêmes</option></select></label>
+    <button type="button" id="reset">Réinitialiser</button>
+  </div>
+  <div class="lab-toggles" aria-label="Calques et animations">
+    <label><input type="checkbox" data-toggle="auras" checked>Auréoles</label>
+    <label><input type="checkbox" data-toggle="status" checked>Étourd.</label>
+    <label><input type="checkbox" data-toggle="body" checked>Effets du corps</label>
+    <label><input type="checkbox" data-toggle="ground" checked>Cercle au sol</label>
+    <label><input type="checkbox" data-toggle="messages" checked>Messages / dégâts</label>
+    <label><input type="checkbox" data-toggle="guides">Repères du sprite</label>
+    <label><input type="checkbox" data-toggle="mirror">Retourner les sprites</label>
+    <label title="Fige les animations CSS. Les GIF existants continuent de jouer."><input type="checkbox" data-toggle="motion" checked>Mouvements CSS</label>
+  </div>
+  <div class="lab-perf" aria-live="polite"><span>Nouveau : <strong id="init-count">0</strong> calibrages au montage</span><span>Zoom / calques : <strong id="interaction-reads">0</strong> lecture géométrique</span><span>Suivi JS : <strong>aucune boucle, aucun observateur</strong></span></div>
+  <p class="lab-error" id="error" hidden role="alert"></p>
+  <section class="lab-scene" data-kind="new" aria-labelledby="new-title">
+    <div class="lab-scene-header"><h2 id="new-title">01 — Conteneurs communs</h2><small>Taille CSS → gabarit → calques → scale du parent</small></div>
+    <div class="lab-scroll" tabindex="0" aria-label="Scène avec les nouveaux conteneurs, défilement horizontal"><div class="lab-world" id="new-world"></div></div>
+    <p class="lab-legend">Chaque menu remplace la même entité dans les deux scènes. Repère vert = largeur et hauteur CSS du sprite. Le facteur existant × 0,85 est conservé.</p>
+  </section>
+  <section class="lab-scene" data-kind="old" aria-labelledby="old-title">
+    <div class="lab-scene-header"><h2 id="old-title">02 — Règles actuelles</h2><small>Conteneurs séparés, décalages actuels et exceptions par monstre</small></div>
+    <div class="lab-scroll" tabindex="0" aria-label="Scène avec les règles actuelles, défilement horizontal"><div class="lab-world" id="old-world"></div></div>
+    <p class="lab-legend">Témoin HTML de la structure de combat et des CSS actuels. Calcul des auréoles repris d’entitesAura.js. Présentation de face, sans le plan isométrique.</p>
+  </section>
+  <details class="lab-doc" open>
+    <summary>Ce qui est testé, et où lire le code</summary>
+    <p>Les sept feuilles CSS du jeu sont chargées sans modification. Les sprites sont dessinés dans des canvas 500 × 500 comme dans <code>createEntity.js</code> ; leur taille affichée est imposée par <a href="css/monstre.css">monstre.css</a>, notamment <code>height: 120px</code> pour la mouche et <code>width: 220px; height: 140px</code> pour l’escargot. Aucun contour n’est calculé.</p>
+    <p>Le bloc CSS « 3. PROPOSITION », le template <code>unified-entity</code> et <code>calibrateUnified()</code>, dans cette page, contiennent l’essai. Une lecture du style du sprite au montage suffit. Les calques sont ses voisins : ils restent hors de son clip-path. L’animation de repos est portée par leur parent commun.</p>
+    <pre>parent d’échelle             ← transform: scale(...) uniquement
+└─ entitesContainer          ← facteur existant × 0,85
+   └─ gabarit + repos        ← largeur / hauteur CSS, fixées à la création
+      ├─ sprite + canvas    ← classe du monstre, clip-path existant
+      ├─ aura-container     ← haut du gabarit
+      ├─ effects-container  ← centre / haut selon la famille
+      ├─ cast-container     ← bas du gabarit
+      └─ messages           ← au-dessus, mêmes espacements pour tous</pre>
+    <p>Les deux scènes utilisent les mêmes assets et les mêmes effets par colonne. Les messages et auréoles se répètent pour permettre l’observation ; il n’y a ni combat, ni sauvegarde, ni import du moteur. Les compteurs concernent le code de géométrie de ce prototype, pas le coût de rendu des GIF, filtres ou animations CSS. « Mouvements CSS » fige les animations CSS ; les GIF continuent de jouer.</p>
+    <p>Les tailles et espacements proposés sont des réglages à juger ici. L’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
+  </details>
+</main>
+
+<!-- Blocs HTML complets : pas d'import de createEntity.js et aucun démarrage du jeu. -->
+<template id="legacy-entity">
+  <div class="lab-legacy">
+    <div class="entite-box side-A">
+      <div class="cast-animation-container" data-family="ground"><img class="cast cast-default" src="media/assets/effects/castingfx-base.gif" alt=""></div>
+      <div class="drag-box">
+        <div class="effects-container" data-role="effects"></div>
+        <div class="entitesContainer sbire A">
+          <div class="sprite-container A"><div class="img-container img-side-A sbire"><div class="animation-sprite" data-monster>
+            <div class="aura-container side-A" data-monster data-role="auras" data-family="aura"></div>
+            <div class="sprite side-A hb iddle" data-monster data-role="sprite"><canvas class="sprite-canvas side-A" data-monster width="500" height="500" role="img"></canvas></div>
+            <div class="lab-guide" aria-hidden="true"></div>
+          </div></div></div>
+          <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat">−128</div></div>
+          <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat">Résistance !</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<template id="unified-entity">
+  <div class="lab-unified entitesContainer sbire A">
+    <div class="lab-frame">
+      <div class="sprite side-A hb iddle" data-monster data-role="sprite"><canvas class="sprite-canvas side-A" data-monster width="500" height="500" role="img"></canvas></div>
+      <div class="aura-container" data-role="auras" data-family="aura"></div>
+      <div class="effects-container" data-role="effects"></div>
+      <div class="cast-animation-container" data-family="ground"><img class="cast cast-default" src="media/assets/effects/castingfx-base.gif" alt=""></div>
+      <div class="pop-up-txt" data-family="messages"><div class="damage-popup total-damage lab-repeat">−128</div></div>
+      <div class="pop-down-txt" data-family="messages"><div class="BattleText lab-repeat">Résistance !</div></div>
+      <div class="lab-guide" aria-hidden="true"></div>
+    </div>
+  </div>
+</template>
+<template id="life-aura">
+  <div class="aura-fx life-sup"><div class="life-aura-anim"><div class="life-aura-wrap"><img class="life-aura-img" alt=""></div></div></div>
+</template>
+<script>
+(() => {
+  'use strict';
+  const lab = document.getElementById('lab');
+  const catalog = [
+    { key: 'cloporte-commun', name: 'Cloporte commun', sprite: 'cloporte-commun.png' },
+    { key: 'mouche-asticoteuse', name: 'Mouche asticoteuse', sprite: 'mouche-asticoteuse.png' },
+    { key: 'grouille-doigt', name: 'Grouille-Doigt', sprite: 'grouille-doigt.png' },
+    { key: 'escargot-coulissant', name: 'Escargot coulissant', sprite: 'escargot-coulissant.png' },
+    { key: 'jeune-salamandron', name: 'Jeune Salamandron', sprite: 'jeune-salamandron.png' },
+    { key: 'torche-noire', name: 'Torche Noire', sprite: 'torche-noire.png' },
+    { key: 'alpha-poulet', name: 'Alpha Poulet', sprite: 'alpha-poulet.png' },
+    { key: 'foudre-fange', name: 'Foudre-Fange', sprite: 'foudre-fange.png' },
+    { key: 'cockroach-king', name: 'Souverain des Blattes', sprite: 'cockroach-king.png' },
+    { key: 'poisson-macabe', name: 'Poisson macabre', sprite: 'poisson-macabe.png' },
+  ];
+  const profiles = [
+    { life: 'extraLife', body: 'heal', src: 'heal.gif', message: '+24 HP', status: false, ground: false },
+    { life: 'fadedLife', body: null, message: 'Étourdi !', status: true, ground: false },
+    { life: 'eternalLife', body: 'mysticism', src: 'mysticism.gif', message: 'Résistance !', status: false, ground: true },
+    { life: 'extraLife', body: 'mysticism', src: 'mysticism.gif', message: 'Protection !', status: false, ground: true },
+    { life: 'fadedLife', body: 'heal', src: 'heal-green.gif', message: '+42 HP', status: true, ground: false },
+    { life: 'eternalLife', body: 'burn', src: 'burn.gif', message: 'Brûlure !', status: false, ground: true },
+  ];
+  // Valeurs actuelles de LIFE_AURA_MAP et getInverseAuraScale, uniquement pour le témoin.
+  const lives = {
+    extraLife: { file: 'picto-aura-extralife.svg', ratio: .45, offset: .06, amp: .045, duration: 1900 },
+    fadedLife: { file: 'picto-aura-fadedlife.svg', ratio: .35, offset: .12, amp: .04, duration: 2000 },
+    eternalLife: { file: 'picto-aura-eternallife.svg', ratio: .55, offset: 0, amp: .05, duration: 1800 },
+  };
+  const metrics = { unifiedCalibrations: 0, unifiedStyleReads: 0, legacyRectReads: 0, interactionGeometryReads: 0 };
+  const images = new Map();
+  const slots = { new: [], old: [] };
+  const versions = Array(6).fill(0);
+  const measuredSizes = Array(6).fill(null);
+  let batchVersion = 0;
+  let selection = catalog.slice(0, 6).map(model => model.key);
+  const clone = id => document.getElementById(id).content.firstElementChild.cloneNode(true);
+  const modelFor = key => catalog.find(model => model.key === key);
+
+  function loadSprite(file) {
+    if (!images.has(file)) {
+      images.set(file, new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error(`Sprite introuvable : ${file}`));
+        image.src = `media/sprites/${file}`;
+      }));
+    }
+    return images.get(file);
+  }
+
+  function showError(error) {
+    const node = document.getElementById('error');
+    node.textContent = error.message;
+    node.hidden = false;
+    console.error(error);
+  }
+
+  function addEffects(root, profile) {
+    const aura = clone('life-aura');
+    aura.querySelector('.life-aura-anim').classList.add(`anim-${profile.life}`);
+    const image = aura.querySelector('img');
+    image.src = `media/assets/effects/${lives[profile.life].file}`;
+    image.style.animationDuration = `${lives[profile.life].duration}ms`;
+    if (root.classList.contains('lab-unified')) {
+      // L'ancre porte le placement, son enfant porte l'animation de l'effet.
+      // Un tremblement/pulse d'auréole ne déplace ainsi jamais le repère commun.
+      const wrap = aura.querySelector('.life-aura-wrap');
+      const animation = aura.querySelector('.life-aura-anim');
+      aura.append(wrap);
+      wrap.append(animation);
+      animation.append(image);
+    }
+    root.querySelector('[data-role=auras]').append(aura);
+    const effects = root.querySelector('[data-role=effects]');
+    for (const effect of [profile.body && { type: profile.body, src: profile.src, family: 'body' },
+      profile.status && { type: 'stun', src: 'stun.gif', family: 'status' }].filter(Boolean)) {
+      const fx = document.createElement('img');
+      fx.className = `effect-vfx ${effect.type}`;
+      fx.dataset.family = effect.family;
+      fx.src = `media/assets/effects/${effect.src}`;
+      fx.alt = '';
+      effects.append(fx);
+    }
+    root.querySelector('[data-family=ground]').hidden = !profile.ground;
+    root.querySelector('.BattleText').textContent = profile.message;
+  }
+
+  // UNE lecture CSS locale. Pas de boundingClientRect : aucune échelle d'ancêtre absorbée.
+  // Lire avant de couper l'animation permet de reprendre l'animation de repos native.
+  function measureUnified(root) {
+    const sprite = root.querySelector('[data-role=sprite]');
+    const style = getComputedStyle(sprite);
+    metrics.unifiedStyleReads++;
+    return { width: parseFloat(style.width), height: parseFloat(style.height), animation: style.animation };
+  }
+
+  function calibrateUnified(root, size) {
+    if (!(size.width > 0 && size.height > 0)) throw new Error('Dimensions CSS du sprite invalides.');
+    const frame = root.querySelector('.lab-frame');
+    frame.style.setProperty('--sprite-w', `${size.width}px`);
+    frame.style.setProperty('--sprite-h', `${size.height}px`);
+    frame.style.setProperty('--halo-size', `${Math.min(size.width * .4, size.height * .45)}px`);
+    frame.style.animation = size.animation;
+    frame.style.animationPlayState = 'running';
+    frame.classList.add('is-calibrated');
+    metrics.unifiedCalibrations++;
+  }
+
+  function calibrateLegacy(root) {
+    const rect = root.querySelector('[data-role=sprite]').getBoundingClientRect();
+    metrics.legacyRectReads++;
+    const base = Math.max(rect.width, rect.height) || 64;
+    const inverse = Math.min(1.35, Math.max(.45, (120 / Math.max(1, base)) ** 1.15));
+    const config = lives[root.dataset.life];
+    const wrap = root.querySelector('.life-aura-wrap');
+    wrap.style.transform = `translate(-50%, -45%) translateY(${Math.round(base * config.offset * inverse)}px)`;
+    const image = wrap.querySelector('img');
+    image.style.width = image.style.height = `${Math.round(base * config.ratio * inverse)}px`;
+    image.style.setProperty('--amp', `${Math.max(2, Math.round(base * config.amp * inverse))}px`);
+  }
+
+  function createSlot(kind, index, model) {
+    const slot = document.createElement('div');
+    slot.className = 'lab-slot';
+    slot.dataset.index = index;
+    slot.innerHTML = '<div class="lab-placement"><div class="lab-scale"></div></div><div class="lab-caption"><select></select><small></small></div>';
+    const select = slot.querySelector('select');
+    select.setAttribute('aria-label', `Entité ${index + 1}, ${kind === 'new' ? 'nouveau' : 'actuel'}`);
+    for (const entry of catalog) select.add(new Option(entry.name, entry.key));
+    select.value = model.key;
+    select.addEventListener('change', () => {
+      batchVersion++;
+      selection[index] = select.value;
+      window.visualLab.ready = mountPair(index, selection[index]).catch(showError);
+    });
+    return slot;
+  }
+
+  async function mountPair(index, key) {
+    const version = ++versions[index];
+    const model = modelFor(key), profile = profiles[index];
+    const image = await loadSprite(model.sprite);
+    if (version !== versions[index]) return;
+    const pair = {};
+    // Monter les deux arbres avant les lectures. Tous les calques sont déjà présents.
+    for (const kind of ['new', 'old']) {
+      const root = clone(kind === 'new' ? 'unified-entity' : 'legacy-entity');
+      root.dataset.model = key;
+      root.dataset.life = profile.life;
+      root.querySelectorAll('[data-monster]').forEach(node => node.classList.add(key));
+      const canvas = root.querySelector('canvas');
+      canvas.setAttribute('aria-label', model.name);
+      canvas.getContext('2d').drawImage(image, 0, 0, 500, 500);
+      addEffects(root, profile);
+      const slot = createSlot(kind, index, model);
+      slot.querySelector('.lab-scale').append(root);
+      if (slots[kind][index]) slots[kind][index].replaceWith(slot);
+      else document.getElementById(`${kind}-world`).append(slot);
+      slots[kind][index] = slot;
+      pair[kind] = root;
+    }
+    // Même en vue unique, les deux arbres doivent avoir un layout au calibrage.
+    // Le rétablissement est synchrone : aucune image intermédiaire n'est affichée.
+    const previousView = lab.dataset.view;
+    lab.dataset.view = 'compare';
+    let size;
+    try {
+      size = measureUnified(pair.new);
+      calibrateUnified(pair.new, size);
+      calibrateLegacy(pair.old);
+    } finally {
+      lab.dataset.view = previousView;
+    }
+    for (const kind of ['new', 'old']) {
+      slots[kind][index].style.setProperty('--slot-base', `${size.width * .85}px`);
+      pair[kind].style.setProperty('--sprite-w', `${size.width}px`);
+      pair[kind].style.setProperty('--sprite-h', `${size.height}px`);
+      slots[kind][index].querySelector('small').textContent = `Base CSS : ${Math.round(size.width)} × ${Math.round(size.height)} px`;
+    }
+    measuredSizes[index] = size;
+    // Réserver de la place dans le décor à partir des valeurs déjà connues.
+    // Le slider peut ainsi agrandir les géants sans les couper, sans relire le DOM.
+    const sceneSize = Math.max(400, ...measuredSizes.filter(Boolean).map(item =>
+      (item.height * 1.32 + Math.min(item.width * .4, item.height * .45) + 70) * .85 + 30));
+    lab.style.setProperty('--scene-size', `${sceneSize}px`);
+    document.getElementById('init-count').textContent = metrics.unifiedCalibrations;
+  }
+
+  function setScale(value) {
+    lab.style.setProperty('--lab-scale', value);
+    document.getElementById('scale-value').textContent = `${Math.round(value * 100)} %`;
+    // Écriture seule. Aucun recalibrage, ni lecture géométrique.
+  }
+  function setView(view) {
+    lab.dataset.view = view;
+    document.querySelectorAll('button[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === view)));
+  }
+  async function mountAll() {
+    const batch = ++batchVersion;
+    const requested = selection.slice();
+    // Chargement parallèle, montage ordonné pour que les deux scènes restent comparables.
+    await Promise.all(requested.map(key => loadSprite(modelFor(key).sprite)));
+    for (let index = 0; index < requested.length; index++) {
+      if (batch !== batchVersion) return;
+      await mountPair(index, requested[index]);
+    }
+  }
+
+  document.getElementById('scale').addEventListener('input', event => setScale(event.target.value));
+  document.getElementById('decor').addEventListener('change', event => { lab.dataset.decor = event.target.value; });
+  document.querySelectorAll('button[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+  document.querySelectorAll('[data-toggle]').forEach(input => input.addEventListener('change', () => { lab.dataset[input.dataset.toggle] = String(input.checked); }));
+  document.getElementById('preset').addEventListener('change', event => {
+    selection = (event.target.value === 'extreme' ? [0, 8, 3, 7, 1, 5] : [0, 1, 2, 3, 4, 5]).map(index => catalog[index].key);
+    window.visualLab.ready = mountAll().catch(showError);
+  });
+  document.getElementById('reset').addEventListener('click', () => {
+    document.getElementById('scale').value = '1'; setScale(1); setView('compare');
+    document.getElementById('decor').value = 'prison'; lab.dataset.decor = 'prison';
+    document.getElementById('preset').value = 'mixed';
+    document.querySelectorAll('[data-toggle]').forEach(input => {
+      input.checked = !['guides', 'mirror'].includes(input.dataset.toggle);
+      lab.dataset[input.dataset.toggle] = String(input.checked);
+    });
+    selection = catalog.slice(0, 6).map(model => model.key);
+    window.visualLab.ready = mountAll().catch(showError);
+  });
+  window.visualLab = { metrics, ready: null };
+  window.visualLab.ready = mountAll().catch(showError);
+})();
+</script>
+</body>
+</html>
