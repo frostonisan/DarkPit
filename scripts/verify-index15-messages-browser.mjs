@@ -89,6 +89,15 @@ try {
   check(critical.icons === 1 && critical.icon.includes('criticalPower') && critical.text === '−62!!!', 'Critical replaces the nature icon and uses only !!! after the amount');
   check(critical.valueColor === 'rgb(185, 152, 255)' && critical.suffixColor === 'rgb(255, 108, 0)', 'Critical amount keeps its magical color while punctuation is orange');
   check(critical.font === 32 && critical.peak.includes('scale(1.14)'), 'Critical has a bigger pop than normal damage');
+  const smoothing = await page.evaluate(() => {
+    const body = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=center] [data-lane=center] .lab-feed-life');
+    const animation = body.getAnimations()[0];
+    const samples = [0, 80, 240, 700, 980].map(time => { animation.currentTime = time; return Number(__probe.styleOf(body).opacity); });
+    animation.currentTime = 150;
+    return { samples, duration: animation.effect.getTiming().duration, start: animation.effect.getKeyframes()[0].transform };
+  });
+  check(smoothing.samples[0] === 0 && smoothing.samples[1] > 0 && smoothing.samples[1] < smoothing.samples[2] && smoothing.samples[3] > smoothing.samples[4], 'Popup fades in progressively and fades out over its final phase');
+  check(smoothing.start.includes('scale(0.94)') && smoothing.duration === 1000, 'Critical starts near its final size with a softer one-second lifecycle');
   await emit('executionCritical', 1, 214);
   const execution = await describe('center', 'left');
   check(execution.icon.includes('execution-critical') && execution.valueColor === critical.valueColor && execution.suffixColor === 'rgb(255, 0, 6)', 'Execution critical uses its special icon, nature-colored amount and red !!!');
@@ -112,6 +121,37 @@ try {
       group: __probe.styleOf(root.querySelector('.lab-message-feed')).zIndex, aura: __probe.styleOf(root.querySelector('.aura-container')).zIndex };
   });
   check(layers.archive === '1' && layers.front === '2' && Number(layers.group) > Number(layers.aura), 'Each archive stays behind foreground piles and the complete group stays above auras');
+  const anchors = await page.evaluate(async () => {
+    document.getElementById('feed-clear').click();
+    const root = document.querySelector('#new-world .lab-slot[data-index="1"] .lab-message-feed');
+    const capture = () => {
+      const origin = __probe.rectOf(root);
+      return [...root.querySelectorAll('.lab-message-front, .lab-front-slot, .lab-feedback-lanes, .lab-feedback-lane, .lab-feedback-archive')].map(node => {
+        const rect = __probe.rectOf(node);
+        return { position: __probe.styleOf(node).position, x: Number((rect.x - origin.x).toFixed(3)), y: Number((rect.y - origin.y).toFixed(3)), width: rect.width, height: rect.height };
+      });
+    };
+    const empty = capture();
+    document.getElementById('feed-freeze').click();
+    visualLab.popups.emit(1, 'physical', 1);
+    visualLab.popups.emit(1, 'proc');
+    visualLab.popups.emit(1, 'stun', undefined, { durationMs: 1000 });
+    const short = capture();
+    for (let i = 0; i < 5; i++) {
+      visualLab.popups.emit(1, 'executionCritical', 123456);
+      visualLab.popups.emit(1, 'burn', undefined, { durationMs: 123400 });
+    }
+    const long = capture();
+    const styles = [...root.querySelectorAll('.lab-front-card')].map(node => __probe.styleOf(node).position);
+    document.getElementById('feed-freeze').click();
+    await new Promise(resolve => setTimeout(resolve, 1300));
+    const expiredPopups = capture();
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    return { empty, short, long, expiredPopups, drained: capture(), styles };
+  });
+  check(anchors.empty.every(anchor => anchor.position === 'absolute') && anchors.styles.every(position => position === 'absolute'), 'All family, lane, archive and popup containers are absolute');
+  for (const phase of ['short', 'long', 'expiredPopups', 'drained']) assert.deepEqual(anchors[phase], anchors.empty, 'Fixed anchors remain identical during ' + phase);
+  checks.push('All nine piles and both archives stay fixed across short/long values, critical changes, GIFs, fades and removal');
   const after = await page.evaluate(() => ({ rect: __probe.rect, style: __probe.style, raf: __probe.raf }));
   assert.deepEqual(before, after); checks.push('Overflow routing, archives, durations and critical rendering add no geometry reads or JS frames');
 
@@ -183,7 +223,7 @@ try {
     const rect = selector => { const value = __probe.rectOf(root.querySelector(selector)); return { left: value.left, right: value.right, top: value.top, bottom: value.bottom }; };
     return { left: rect('[data-zone=left] [data-lane=center] img'), center: rect('[data-zone=center] [data-lane=center] .damage-popup'), right: rect('[data-zone=right] [data-lane=center] .BattleText'), frame: rect('.lab-frame'), halo: rect('.life-aura-wrap') };
   });
-  check(zones.center.left - zones.left.right < 20 && zones.right.left - zones.center.right < 20, 'Family centers stay tightly grouped');
+  check(zones.center.left - zones.left.right < 32 && zones.right.left - zones.center.right < 32, 'Fixed family positions retain compact spacing around the critical popup');
   check(Math.abs(zones.center.left + zones.center.right - zones.frame.left - zones.frame.right) < .6, 'Damage stays centered on the sprite despite variable text widths');
   check(zones.center.bottom < zones.halo.top, 'The foreground remains above aura anchors');
   await emit('physical', 1, 32); await emit('magical', 1, 65); await emit('proc', 2); await emit('poison'); await emit('burn');
@@ -202,7 +242,7 @@ try {
   await click('#reset'); await ready();
   check(await page.locator('#lab').getAttribute('data-mode') === 'overview' && !(await inspect()).timer, 'Reset restores initial overview');
   assert.deepEqual(errors, []); assert.deepEqual(failedRequests, []);
-  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, failedRequests, stress: snapshot, geometryReads: { before, after }, zones }, null, 2));
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors, failedRequests, stress: snapshot, geometryReads: { before, after }, anchors, smoothing, zones }, null, 2));
   console.log('PASS index-15 messages: ' + checks.length + ' checks; nine piles, GIFs, critical tiers, two archives, effect durations, bounded lifecycle, zero geometry reads.');
 } catch (error) {
   await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
