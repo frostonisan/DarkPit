@@ -185,13 +185,14 @@
     /* Aucun gabarit ne dépend de la largeur du texte, du GIF ou du critique.
        Le scale du parent reste le seul changement d'échelle des ancres. */
     .lab-message-front { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
-    .lab-proc-field { --body-proc-size: clamp(32px, min(calc(var(--sprite-w) * .9), calc(var(--sprite-h) * .75)), 110px); position: absolute; left: 50%; bottom: 60%; width: 0; height: 0; z-index: 160; pointer-events: none; }
+    /* Chaque IMG garde son placement de spell.css dans le gabarit du sprite.
+       Le calque et la durée de vie n'imposent plus une ancre centrale commune. */
+    .lab-proc-field { --body-proc-size: clamp(32px, min(calc(var(--sprite-w) * .9), calc(var(--sprite-h) * .75)), 110px); position: absolute; inset: 0; z-index: 160; pointer-events: none; }
     .lab:not([data-mode=messages]) .lab-proc-field { display: none; }
-    .lab-proc-burst { position: absolute; left: 0; top: 0; width: var(--body-proc-size); height: var(--body-proc-size); translate: -50% -50%; }
-    .lab-proc-burst img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .lab-proc-burst { position: absolute; inset: 0; }
+    .lab-proc-burst img { display: block; max-width: var(--body-proc-size); max-height: var(--body-proc-size); object-fit: contain; }
     /* Le GIF Astralité est presque vide : son picto existant rend le proc lisible. */
-    .lab-proc-burst[data-proc=astrality]::before { content: ''; position: absolute; inset: 6%; border-radius: 50%; background: radial-gradient(circle, #d9eaff80, #7ca9ff33 42%, transparent 72%); }
-    .lab-proc-burst[data-proc=astrality]::after { content: ''; position: absolute; inset: 20%; background: url('media/assets/ui/picto-astrality.svg') center / contain no-repeat; }
+    .lab-proc-burst[data-proc=astrality] img { background: url('media/assets/ui/picto-astrality.svg') center / 60% auto no-repeat, radial-gradient(ellipse, #d9eaff80, #7ca9ff33 42%, transparent 72%); }
     .lab-fountain { position: absolute; left: 0; bottom: 0; width: 0; height: 0; z-index: 2; }
     .lab-front-slot { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
     .lab-front-slot[data-zone=left] { left: -94px; }
@@ -268,7 +269,7 @@
       <div class="lab-mode-row"><button type="button" id="proc-run" aria-pressed="false">Activer les VFX</button><button type="button" id="proc-one">Un proc</button><button type="button" id="proc-burst">Rafale VFX ×6</button></div>
       <div class="lab-proc-choices" id="proc-choices" aria-label="VFX dans le tirage aléatoire"></div>
       <p class="lab-note" id="proc-status" role="status">VFX arrêtés.</p>
-      <small>Même cible que les messages. Apparition au centre du sprite, à 60 % depuis le bas.</small>
+      <small>Même cible que les messages. Chaque VFX conserve son placement actuel sur le gabarit du sprite.</small>
     </section>
     <div class="lab-mode-row">
       <label>Cible <select id="message-target"><option value="all">Toutes les entités</option></select></label>
@@ -333,7 +334,7 @@
     <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
     <p>En mode « Messages / dégâts », les chiffres partent tous du même point absolu. Le dernier apparaît en gros au premier plan ; les précédents continuent leur trajectoire sans être remplacés ni copiés dans une archive. Les arrivées alternent centre, gauche, droite tant qu’un chiffre est visible. Les jets montent puis retombent en courbe et rapetissent jusqu’à disparition. Après une pause sans chiffre visible, le premier jet repart au centre. Huit chiffres au maximum par entité, sans file d’attente.</p>
     <p>Les critiques gardent leur picto et leur pop plus gros ; les exécutions critiques sont les plus importantes. Le montant conserve la couleur de sa nature et les « !!! » leur couleur critique. Durées : 1,35 seconde pour un dégât normal, 1,55 seconde pour un critique, 1,75 seconde pour une exécution critique. Les GIF de capacités restent à gauche, les noms d’effets à droite, avec leurs piles et l’archive compacte des effets. Les durées disponibles sont affichées en secondes, avec au plus une décimale.</p>
-    <p>La jauge VFX tire au hasard parmi les capacités cochées, indépendamment du flux de messages. Ces VFX sont centrés à 60 % de la hauteur du gabarit depuis le bas, avec une taille calculée en CSS à partir de sa largeur et de sa hauteur, plafonnée à 110 px avant le scale du parent. Trois VFX au maximum par entité ; un nouveau proc du même type relance son affichage.</p>
+    <p>La jauge VFX tire au hasard parmi les capacités cochées, indépendamment du flux de messages. Chaque VFX reprend son placement de spell.css sur le gabarit du sprite, ainsi que le centrage de l’ambidextrie défini dans le code du jeu et la classe recoveryGif de la récupération. Les dimensions natives sont plafonnées selon la largeur et la hauteur du sprite, à 110 px au maximum avant le scale du parent. Trois VFX au maximum par entité ; un nouveau proc du même type relance son affichage.</p>
     <p>Le nouveau flux anime uniquement transform et opacity. Deux timers indépendants génèrent les messages et les procs VFX ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
   </div>
@@ -668,6 +669,7 @@
   const archiveSteps = [0, 16, 28, 37, 44, 49, 53, 56];
   const demoSequence = ['physical', 'magical', 'physical', 'proc', 'critical', 'stun', 'hybrid', 'heal', 'physical', 'poison', 'multi', 'execution', 'burn', 'critical', 'miss', 'executionCritical'];
   let demoCursor = 0;
+  let gifPlayback = 0;
   const byId = id => document.getElementById(id);
   const suspended = () => feed.paused || feed.hidden;
   const selectedKinds = () => [...document.querySelectorAll('[data-message-kind]:checked')].map(node => node.dataset.messageKind);
@@ -716,11 +718,25 @@
       value: type.category === 'damage' || kind === 'heal' ? Math.max(0, Math.round(Number(total) || 0)) : 0, sequence: ++feed.sequence };
   }
 
+  function startProcGif(image, file) {
+    // Une lecture indépendante, même si le même GIF joue déjà ou a fini.
+    // Le fragment change le lecteur d'image, pas la ressource en cache ;
+    // fonctionne aussi en file://, sans fetch ni copie des données du GIF.
+    image.src = `media/assets/effects/${file}#lab-play-${++gifPlayback}`;
+  }
+
+  function placeNativeProc(image, fxClass) {
+    image.className = fxClass === 'recovery' ? 'recoveryGif' : `effect-vfx ${fxClass}`;
+    // AmbidextryVFX (damagesCalcul.js) surcharge ce placement de spell.css.
+    if (fxClass === 'ambidextry') Object.assign(image.style, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' });
+  }
+
   function contentFor(packet, legacy = false) {
     if (packet.category === 'trigger') {
       const gif = document.createElement('img');
-      gif.src = `media/assets/effects/${packet.fx}`; gif.alt = ''; gif.dataset.family = 'messages';
-      gif.className = legacy ? `effect-vfx ${packet.fxClass}` : 'lab-proc-gif';
+      startProcGif(gif, packet.fx); gif.alt = ''; gif.dataset.family = 'messages';
+      if (legacy) placeNativeProc(gif, packet.fxClass);
+      else gif.className = 'lab-proc-gif';
       if (legacy) return gif;
       const visual = document.createElement('div'); visual.className = 'lab-proc-visual'; visual.append(gif); return visual;
     }
@@ -937,7 +953,8 @@
     const previous = state.procs.get(key);
     if (previous) { removeCard(previous); state.procs.delete(key); }
     const node = document.createElement('div'); node.className = 'lab-proc-burst'; node.dataset.proc = key;
-    const image = document.createElement('img'); image.src = `media/assets/effects/${asset.file}`; image.alt = asset.label;
+    const image = document.createElement('img'); startProcGif(image, asset.file); image.alt = asset.label;
+    placeNativeProc(image, asset.fxClass);
     node.append(image); state.procLayer.append(node);
     const card = { node, life: null, exit: null }; state.procs.set(key, card);
     while (state.procs.size > limits.bodyProcs) {
@@ -945,11 +962,12 @@
       removeCard(oldCard); state.procs.delete(oldKey);
     }
     [...state.procs.values()].forEach((proc, i) => { proc.node.style.zIndex = String(i + 1); });
-    card.life = node.animate([
-      { transform: 'scale(.88)', opacity: 0, offset: 0, easing: 'ease-out' },
-      { transform: 'scale(1.08)', opacity: 1, offset: .1 },
-      { transform: 'scale(1)', opacity: 1, offset: .8 },
-      { transform: 'scale(.96)', opacity: 0, offset: 1 }
+    // Le fondu laisse intact le transform de placement propre à chaque GIF.
+    card.life = image.animate([
+      { opacity: 0, offset: 0, easing: 'ease-out' },
+      { opacity: 1, offset: .1 },
+      { opacity: 1, offset: .8 },
+      { opacity: 0, offset: 1 }
     ], { duration: asset.duration, fill: 'forwards' });
     if (suspended()) { card.life.currentTime = 150; card.life.pause(); }
     card.life.onfinish = () => { state.procs.delete(key); removeCard(card); };

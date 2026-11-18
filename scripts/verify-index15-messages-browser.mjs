@@ -183,7 +183,7 @@ try {
   for (const [key, file] of [['esoterism', 'esoterism.gif'], ['ambidextry', 'ambidextry.gif'], ['indestructibility', 'indestructibility.gif'], ['bloodfuryexec', 'bloodFuryExec.gif']]) {
     await fresh();
     await page.evaluate(key => { document.getElementById('proc-gif').value = key; visualLab.popups.emit(1, 'proc'); }, key);
-    await page.waitForFunction(file => { const image = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=left] [data-lane=center] img'); return image?.src.endsWith('/' + file) && image.complete && image.naturalWidth > 0; }, file);
+    await page.waitForFunction(file => { const image = document.querySelector('#new-world .lab-slot[data-index="1"] [data-zone=left] [data-lane=center] img'); return image && new URL(image.src).pathname.endsWith('/' + file) && image.complete && image.naturalWidth > 0; }, file);
     check(true, 'Capability GIF loads: ' + file);
   }
   await page.evaluate(() => { document.getElementById('proc-gif').value = 'esoterism'; });

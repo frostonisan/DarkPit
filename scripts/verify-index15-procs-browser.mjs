@@ -26,6 +26,30 @@ const input = (id, value) => page.evaluate(({ id, value }) => { const node = doc
 const ready = () => page.evaluate(() => visualLab.ready);
 const inspect = () => page.evaluate(() => visualLab.procs.inspect());
 const slot = '#new-world .lab-slot[data-index="1"]';
+// Current spell.css placements, including the game's AmbidextryVFX override.
+const placements = {
+  indestructibility: { top: -30 }, astrality: { middle: true }, resilience: { top: 5 },
+  ambidextry: { middle: true, centered: true }, esoterism: { middle: true },
+  transcendence: { top: -20 }, execution: { top: -100 }, recovery: { top: 43, left: .69, centered: true }
+};
+const positions = [];
+const verifyPosition = async key => {
+  const measured = await page.evaluate(({ key, expected }) => {
+    const root = document.querySelector('#new-world .lab-slot[data-index="1"]');
+    const frame = root.querySelector('.lab-frame'), image = root.querySelector('[data-proc="' + key + '"] img');
+    const f = __procProbe.rectOf(frame), r = __procProbe.rectOf(image), style = __procProbe.styleOf(frame);
+    const width = parseFloat(style.width), height = parseFloat(style.height), scale = f.width / width;
+    const cap = Math.max(32, Math.min(width * .9, height * .75, 110)) * scale;
+    return { key, centerX: r.x + r.width / 2, centerY: r.y + r.height / 2,
+      expectedX: f.x + f.width * (expected.left || .5),
+      expectedY: f.y + (expected.middle ? f.height / 2 : expected.top * scale) + (expected.centered ? 0 : r.height),
+      width: r.width, height: r.height, cap, className: image.className };
+  }, { key, expected: placements[key] });
+  check(Math.abs(measured.centerX - measured.expectedX) < .3 && Math.abs(measured.centerY - measured.expectedY) < .3,
+    key + ': respects its own current game placement');
+  check(measured.width <= measured.cap + .2 && measured.height <= measured.cap + .2, key + ': native image size stays within sprite-based caps');
+  positions.push(measured);
+};
 try {
   await page.goto(pathToFileURL(resolve('docs/index-15.html')).href); await ready();
   await page.evaluate(() => document.querySelector('[data-mode=messages]').click());
@@ -49,26 +73,34 @@ try {
       return image?.complete && image.naturalWidth > 0;
     }, key, { polling: 50 });
     check(true, 'Existing game asset loads: ' + assets[key].file);
+    await verifyPosition(key);
   }
-  const positions = await page.evaluate(() => {
+  const field = await page.evaluate(() => {
     const root = document.querySelector('#new-world .lab-slot[data-index="1"]');
     const frame = __procProbe.rectOf(root.querySelector('.lab-frame'));
     const anchor = __procProbe.rectOf(root.querySelector('.lab-proc-field'));
-    return { centered: Math.abs(anchor.x - frame.x - frame.width / 2) < .2,
-      height: Math.abs(anchor.y - (frame.bottom - frame.height * .6)) < .2,
-      visuals: [...root.querySelectorAll('.lab-proc-burst')].map(node => {
-        const r = __procProbe.rectOf(node);
-        return { centered: Math.abs(r.x + r.width / 2 - anchor.x) < .2 && Math.abs(r.y + r.height / 2 - anchor.y) < .2, width: r.width };
-      }) };
+    return ['x', 'y', 'width', 'height'].every(key => Math.abs(anchor[key] - frame[key]) < .2);
   });
-  check(positions.centered && positions.height && positions.visuals.every(node => node.centered), 'VFX are centered at exactly 60 percent of sprite height from the bottom');
+  check(field, 'Proc positioning uses the full calibrated sprite frame');
   check((await inspect()).states[1].length === 3, 'Proc overlay retains at most three active effects');
   await page.evaluate(() => { for (let i = 0; i < 100; i++) visualLab.procs.emit(1, 'indestructibility'); });
   check((await inspect()).states[1].filter(proc => proc.key === 'indestructibility').length === 1, 'Repeated ability procs retrigger without accumulating duplicate nodes');
   await input('scale', '1.5');
-  const scaled = await page.evaluate(() => [...document.querySelectorAll('#new-world .lab-slot[data-index="1"] .lab-proc-burst')].map(node => __procProbe.rectOf(node).width));
-  check(scaled.every(width => width <= 110 * .85 * 1.5 * 1.08 + .2), 'Proc sizes stay capped under shared parent scaling');
+  const scaled = await page.evaluate(() => [...document.querySelectorAll('#new-world .lab-slot[data-index="1"] .lab-proc-burst img')].map(node => __procProbe.rectOf(node).width));
+  check(scaled.every(width => width <= 110 * .85 * 1.5 + .2), 'Proc sizes stay capped under shared parent scaling');
+  await verifyPosition('indestructibility'); await verifyPosition('recovery');
   await input('scale', '1');
+  const independent = await page.evaluate(() => {
+    const root = document.querySelector('#new-world .lab-slot[data-index="1"]');
+    const idle = root.querySelector('[data-role=sprite]').getAnimations().find(animation => animation.animationName === 'bougeote');
+    if (!idle) return false;
+    idle.pause();
+    const sample = time => { idle.currentTime = time; return [...root.querySelectorAll('.lab-proc-burst img')].map(image => {
+      const rect = __procProbe.rectOf(image); return [rect.x, rect.y, rect.width, rect.height];
+    }); };
+    const unchanged = JSON.stringify(sample(0)) === JSON.stringify(sample(240)); idle.play(); return unchanged;
+  });
+  check(independent, 'Sprite tremble does not move the independently placed VFX');
   const after = await page.evaluate(() => ({ rect: __procProbe.rect, style: __procProbe.style, raf: __procProbe.raf }));
   assert.deepEqual(before, after); checks.push('Proc emission, retrigger and scaling add no geometry reads or JS animation frames');
   await page.screenshot({ path: resolve(output, 'sidebar-desktop.png'), fullPage: false });
@@ -104,6 +136,7 @@ try {
   check((await inspect()).states[1].length === 0, 'Replacing an entity clears its body procs');
   await page.evaluate(() => visualLab.procs.emit(1, 'astrality'));
   await page.waitForFunction(() => document.querySelector('#new-world .lab-slot[data-index="1"] [data-proc=astrality] img')?.complete);
+  await verifyPosition('astrality');
   await page.locator(slot).screenshot({ path: resolve(output, 'tall-entity-proc.png') });
   await page.setViewportSize({ width: 390, height: 844 });
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'Sidebar adapts to mobile without horizontal page overflow');
@@ -114,7 +147,7 @@ try {
   check((await inspect()).rate === 2 && (await inspect()).selected.length === Object.keys(assets).length, 'Reset restores the VFX gauge and full random pool');
   assert.deepEqual(errors, []); assert.deepEqual(failedRequests, []);
   await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, layout, positions, errors, failedRequests }, null, 2));
-  console.log('PASS index-15 procs: ' + checks.length + ' checks; sidebar, actual assets, 60% anchor, independent rates, bounded cleanup, zero geometry polling.');
+  console.log('PASS index-15 procs: ' + checks.length + ' checks; sidebar, native effect placements, sprite-based caps, independent rates, bounded cleanup, zero geometry polling.');
 } catch (error) {
   await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
   await writeFile(resolve(output, 'failure.json'), JSON.stringify({ message: error.message, checks, errors, failedRequests }, null, 2));
