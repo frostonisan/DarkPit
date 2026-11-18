@@ -5,15 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Index 16 · Cases groupées</title>
   <link rel="icon" href="media/assets/ui/favicon.png">
+  <link rel="stylesheet" href="css/board.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/animation.css">
   <link rel="stylesheet" href="css/monstre.css">
   <link rel="stylesheet" href="css/battle-infos.css">
   <link rel="stylesheet" href="css/spell.css">
+  <link rel="stylesheet" href="css/monstre-hitbox.css">
   <link rel="stylesheet" href="css/vfx-calibrator.css">
   <link rel="preload" as="image" href="media/assets/effects/dodge-smoke.gif">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111619; color: #e7ecee; }
     * { box-sizing: border-box; }
-    body { margin: 0; }
+    html, body { margin: 0; width: auto; height: auto; overflow: auto; font-family: system-ui, sans-serif; background: #111619; color: #e7ecee; }
     button, input { font: inherit; }
     button { cursor: pointer; }
     button:focus-visible, [tabindex]:focus-visible { outline: 2px solid #e4c478; outline-offset: 4px; }
@@ -62,14 +66,11 @@
     .preview-boundary { stroke: var(--preview-color); stroke-width: 3; fill: none; stroke-dasharray: 6 4; }
     .move-arrow { stroke: #f6bd7d; stroke-width: 2; stroke-dasharray: 5 4; fill: none; }
     .actor-anchor { position: absolute; width: var(--sprite-w,120px); height: var(--sprite-h,120px); padding: 0; border: 0; background: none; transform: translate(-50%,-100%); pointer-events: none; }
-    /* Index 15: placement > scale > base .85 > fixed CSS frame > facing > animated sprite.
-       The canvas stays 500 x 500. Native transforms never overwrite the size factor. */
-    .entity-scale { display: block; transform: scale(var(--entity-scale)); transform-origin: center bottom; transition: transform 160ms ease-out; }
-    .base-scale { transform: scale(.85); transform-origin: center bottom; }
-    .entity-frame { width: var(--sprite-w); height: var(--sprite-h); line-height: 0; }
-    .sprite-facing { line-height: 0; }
-    .entity-frame .sprite { position: relative; display: inline-block; top: 0; vertical-align: bottom; line-height: 0; pointer-events: auto; cursor: grab; }
-    .entity-frame canvas { display: block; position: static; width: auto; max-width: none; filter: drop-shadow(0 9px 5px #0008); }
+    /* The restored battle tree lives on a plane facing the camera. The native
+       drag-box counter-rotation, base .85 and size layer remain unchanged. */
+    .actor-anchor > .entite-box { top: calc(var(--sprite-h) - var(--entity-foot-y) * var(--entity-base-scale)); transform: rotateX(50deg); transform-origin: center 100px; }
+    .entity-size-layer { transform: scale(var(--entity-size-scale,1)); transform-origin: center var(--entity-foot-y,120px); transition: transform 160ms ease-out; }
+    .actor-anchor .sprite { pointer-events: auto; cursor: grab; }
     .actor-anchor.dragging { z-index: 1000 !important; }
     .actor-anchor.dragging .sprite { cursor: grabbing; animation-play-state: paused; }
     .actor-anchor.dragging canvas { filter: drop-shadow(0 14px 7px #000b); }
@@ -89,7 +90,7 @@
     details p { max-width: 900px; line-height: 1.6; }
     #load-error { padding: 14px; color: #ffc1bb; }
     @media (max-width: 720px) { main { padding: 18px 12px; } h1 { font-size: 26px; } header { align-items: flex-start; } .reset { padding: 8px; font-size: 12px; } .roster { gap: 6px; } .entity-panel { padding: 10px 8px; } .card-head { flex-direction: column; font-size: 13px; } .card-detail { font-size: 11px; } .size-controls { grid-template-columns: 1fr 1fr; gap: 6px; } .size-controls input { grid-column: 1/-1; grid-row: 1; } .size-controls button { grid-row: 2; } .size-controls button:last-child { justify-self: end; } .size-steps { margin-inline: 0; } .toolbar .hint { margin-left: 0; } .board-footer { flex-direction: column; gap: 5px; } }
-    @media (prefers-reduced-motion: reduce) { .entity-frame .sprite { animation: none !important; } .entity-scale { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .actor-anchor .sprite { animation: none !important; } .entity-size-layer { transition: none; } }
   </style>
 </head>
 <body>
@@ -120,9 +121,9 @@
       <div class="vfx-control" data-vfx-field="width"><label for="vfx-width">Largeur</label><div><input id="vfx-width" type="range" min="1" max="200" step="0.1"><input id="vfx-width-number" type="number" min="1" max="500" step="0.1" aria-label="Largeur du VFX"><select id="vfx-width-unit" aria-label="Unité de largeur"><option value="%">%</option><option value="px">px</option></select></div></div>
       <div class="vfx-control" data-vfx-field="ratio"><label for="vfx-ratio">Hauteur <small>% de la largeur</small></label><div><input id="vfx-ratio" type="range" min="10" max="300" step="0.1"><input id="vfx-ratio-number" type="number" min="1" max="1000" step="0.1" aria-label="Hauteur en pourcentage de la largeur"><span>%</span></div></div>
       <div class="vfx-control" data-vfx-field="cap"><label for="vfx-cap">Largeur maximale <small>avant agrandissement</small></label><div><input id="vfx-cap" type="range" min="10" max="300" step="1"><input id="vfx-cap-number" type="number" min="1" max="1000" step="1" aria-label="Plafond de largeur"><span>px</span></div></div>
-      <div class="vfx-actions"><label><input type="checkbox" id="vfx-guides" checked>Gabarit</label><button id="vfx-reset" type="button">Réinitialiser cet effet</button></div>
+      <div class="vfx-actions"><label><input type="checkbox" id="vfx-guides" checked>Gabarit</label><label><input type="checkbox" id="vfx-mirror">Côté B</label><button id="vfx-reset" type="button">Réinitialiser cet effet</button></div>
     </fieldset>
-    <p class="vfx-explanation">Les % suivent le gabarit CSS du sprite. Le VFX suit ensuite l’échelle des hexagones, sans subir la tremblote.</p>
+    <p class="vfx-explanation">Même gabarit et mêmes paliers que le combat : ×1, ×1,35, ×1,65 et ×2,5. Les % se rapportent à la taille CSS du sprite, avant agrandissement.</p>
     <div class="vfx-code-heading"><label for="vfx-css">Règle CSS appliquée</label><button id="vfx-copy" type="button" disabled>Copier</button></div>
     <textarea id="vfx-css" readonly spellcheck="false" aria-label="Règle CSS du VFX">Chargement…</textarea>
     <div class="vfx-actions"><button id="vfx-copy-all" type="button" disabled>Copier tous les réglages</button><span id="vfx-feedback" role="status" aria-live="polite"></span></div>
@@ -132,9 +133,32 @@
   <div class="legend"><span><i class="dot" style="background:#94ddbd"></i>Placement libre</span><span><i class="dot" style="background:#f6bd7d"></i>Voisin à déplacer</span><span><i class="dot" style="background:#ff9393"></i>Placement impossible</span></div>
   <p class="note">Taille : curseur ou boutons − / +, de 1 à 6 cases. Le groupement grandit depuis sa case d’ancrage ; réduire libère les cases. Glisse une mouche ou son groupe pour la déplacer.</p>
   <p id="load-error" role="alert" hidden></p>
-  <details><summary>À propos de cet essai</summary><p>Quatre paliers : une case simple, puis les groupements de 2, 3 et 6 hexagones du croquis. Un occupant et un rôle majoritaire par groupe. Le curseur applique chaque palier immédiatement. Les voisins sont replacés au plus près, avec leurs groupes entiers. Taille et déplacements sont validés ensemble ; si l’agrandissement est impossible, la taille précédente et le plateau sont conservés. Réduire ne ramène pas les voisins à leur ancienne place. Au clavier, les flèches du curseur changent la taille ; les flèches sur le nom d’une mouche la déplacent.</p><p>Gabarit et échelles issus du principe d’index 15 : dimensions CSS mesurées une fois au montage, facteur de base 0,85 et agrandissement sur un parent distinct. Le sprite et sa tremblote viennent du jeu. Cette page autonome ne charge pas le moteur de combat et n’utilise aucune sauvegarde.</p></details>
+  <details><summary>À propos de cet essai</summary><p>Quatre paliers : une case simple, puis les groupements de 2, 3 et 6 hexagones du croquis. Un occupant et un rôle majoritaire par groupe. Le curseur applique chaque palier immédiatement. Les voisins sont replacés au plus près, avec leurs groupes entiers. Taille et déplacements sont validés ensemble ; si l’agrandissement est impossible, la taille précédente et le plateau sont conservés. Réduire ne ramène pas les voisins à leur ancienne place. Au clavier, les flèches du curseur changent la taille ; les flèches sur le nom d’une mouche la déplacent.</p><p>Structure DOM et feuilles CSS du combat : dimensions mesurées une fois au montage, facteur de base 0,85 et paliers d’échelle du jeu. Le sprite et sa tremblote viennent du jeu. Cette page autonome ne charge pas le moteur de combat et n’utilise aucune sauvegarde.</p></details>
 </main>
-<template id="fly-template"><button class="actor-anchor" type="button"><span class="entity-scale"><span class="base-scale" style="display:block"><span class="entity-frame" style="display:block"><span class="sprite-facing" style="display:block"><span class="sprite mouche-asticoteuse iddle"><canvas class="mouche-asticoteuse" width="500" height="500" aria-hidden="true"></canvas></span></span></span></span></span></button></template>
+<template id="fly-template">
+  <div class="actor-anchor" role="button" tabindex="0">
+    <div class="entite-box side-A role-gueux" data-battle-id="Box_Entite">
+      <div class="cast-animation-container" data-battle-id="Cast_Animation"></div>
+      <div class="drag-box">
+        <div class="effects-container entity-effects-calibrated vfx-calibration-frame" data-battle-id="effectsContainer"></div>
+        <div class="entitesContainer sbire A">
+          <div class="entity-size-layer">
+            <div class="sprite-container A" data-battle-id="spriteContainer">
+              <div class="img-container img-side-A sbire" data-battle-id="imgContainer">
+                <div class="animation-sprite mouche-asticoteuse side-A" data-battle-id="Animationsprite">
+                  <div class="aura-container side-A mouche-asticoteuse" data-battle-id="auraContainer"></div>
+                  <div class="sprite side-A mouche-asticoteuse hb iddle" data-battle-id="DragSprite"><canvas class="sprite-canvas side-A mouche-asticoteuse" data-battle-id="spriteCanvas" width="500" height="500" aria-hidden="true"></canvas></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pop-up-txt combat-popup-damages" data-battle-id="PopUp"></div>
+          <div class="pop-down-txt combat-popup-status" data-battle-id="PopDow"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
 <script>
 (() => {
   'use strict';
@@ -145,8 +169,8 @@
   const roleOrder = ['gueux', 'mage', 'tank', 'fantassin'];
   const cells = [], byAxial = new Map(), byId = new Map(), views = new Map();
   const sizes = [
-    { scale: .75, shape: [[0,0]] },
-    { scale: 1, shape: [[0,0],[1,0]] },
+    { scale: 1, shape: [[0,0]] },
+    { scale: 1.35, shape: [[0,0],[1,0]] },
     { scale: 1.65, shape: [[0,0],[1,0],[0,1]] },
     { scale: 2.5, shape: [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1]] },
   ];
@@ -286,7 +310,7 @@
       const title=svg('title');title.textContent=`${model.name} · ${caseLabel(hex.members.length)} · ${roleNames[hex.role]}`;group.append(title);
       if(!view) continue;
       const sizeText=`${caseLabel(hex.members.length)} · ×${String(hex.scale).replace('.',',')}`;
-      view.actor.style.setProperty('--entity-scale',hex.scale);
+      view.actor.style.setProperty('--entity-size-scale',hex.scale);
       view.actor.style.left=`${hex.center.x}px`;view.actor.style.top=`${hex.center.y+R*.23}px`;view.actor.style.zIndex=Math.round(hex.center.y);
       view.caption.style.left=`${hex.center.x}px`;view.caption.style.top=`${hex.center.y+R*.64}px`;
       view.caption.textContent=`${caseLabel(hex.members.length)} · ${roleNames[hex.role]}`;
@@ -440,12 +464,29 @@
   const ready=(async()=>{
     const image=new Image();image.src='media/sprites/mouche-asticoteuse.png';await image.decode();
     for(const model of models) {
-      const actor=$('fly-template').content.firstElementChild.cloneNode(true);actor.dataset.entity=model.id;actor.style.setProperty('--entity-scale',sizeFor(model.id).scale);
+      const actor=$('fly-template').content.firstElementChild.cloneNode(true);actor.dataset.entity=model.id;actor.style.setProperty('--entity-size-scale',sizeFor(model.id).scale);
       actor.querySelector('canvas').getContext('2d').drawImage(image,0,0,500,500);$('actors').append(actor);
-      const style=getComputedStyle(actor.querySelector('.sprite'));metrics.spriteMeasurements++;
+      for (const node of actor.querySelectorAll('[data-battle-id]')) node.id=`${node.dataset.battleId}_${model.id}`;
+      const sprite=actor.querySelector('.sprite'), layer=actor.querySelector('.entity-size-layer');
+      const style=getComputedStyle(sprite);metrics.spriteMeasurements++;
       const width=parseFloat(style.width),height=parseFloat(style.height);
       if(!(width>0&&height>0)) throw Error('Dimensions du sprite invalides.');
+      // Same local, untransformed calibration as combatPopups.calibrateEntityVisuals.
+      // This document also works via file://, without loading combat modules.
+      let top=0;for(let node=sprite;node&&node!==layer;node=node.offsetParent) top+=node.offsetTop;
+      const left=parseFloat(getComputedStyle(actor.querySelector('.img-container')).left)||0;
+      const root=actor.querySelector('.entite-box'),drag=actor.querySelector('.drag-box'),dragCSS=getComputedStyle(drag);
+      const baseScale=new DOMMatrixReadOnly(getComputedStyle(actor.querySelector('.entitesContainer')).transform).a;
+      const vars={'--popup-sprite-w':`${width}px`,'--popup-sprite-h':`${height}px`,'--entity-visual-left':`${left}px`,'--entity-foot-y':`${top+height}px`,
+        '--entity-base-scale':baseScale,'--entity-cast-left':'50%','--entity-drag-top':`${drag.offsetTop}px`,
+        '--entity-drag-origin-y':dragCSS.transformOrigin.split(' ')[1],'--entity-drag-transform':dragCSS.transform};
+      const auraX=sprite.offsetLeft,auraY=sprite.offsetTop;
       actor.style.setProperty('--sprite-w',`${width}px`);actor.style.setProperty('--sprite-h',`${height}px`);
+      for(const [key,value] of Object.entries(vars)) root.style.setProperty(key,value);
+      root.dataset.spriteWidth=width;root.dataset.spriteHeight=height;
+      layer.style.setProperty('--entity-foot-y',`${top+height}px`);layer.style.transformOrigin=`calc(50% + ${left}px) var(--entity-foot-y)`;
+      const aura=actor.querySelector('.aura-container');aura.style.setProperty('--aura-local-x',`${auraX}px`);aura.style.setProperty('--aura-local-y',`${auraY}px`);
+      root.classList.add('entity-visual-calibrated');
       const caption=document.createElement('span');caption.className='group-caption';caption.style.setProperty('--color',model.color);$('actors').append(caption);
       const panel=document.createElement('article');panel.className='entity-panel';panel.style.setProperty('--color',model.color);
       const card=document.createElement('button');card.type='button';card.className='entity-card';card.dataset.entity=model.id;

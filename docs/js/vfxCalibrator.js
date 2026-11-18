@@ -13,7 +13,7 @@
     ['recovery', 'Récupération', 'recovery.gif', 110, 1800, 'Capacités'],
     ['stun', 'Étourdissement', 'stun.gif', 64, 2000, 'Effets'],
     ['mysticism', 'Transe mystique', 'mysticism.gif', 140, 2500, 'Effets'],
-    ['heal', 'Soin', 'heal.gif', 110, 1800, 'Effets'],
+    ['heal', 'Soin', 'heal-green.gif', 110, 1800, 'Effets'],
     ['burn', 'Brûlure', 'burn.gif', 110, 2000, 'Effets'],
     ['poison', 'Poison', 'poison.gif', 110, 2000, 'Effets'],
     ['lifesteal', 'Vol de vie', 'blood-loss.gif', 110, 2000, 'Effets'],
@@ -33,10 +33,11 @@
   let selected = catalog[0].key, sequence = 0, revision = 0, timer = null, baseWidth = 120, baseHeight = 120;
   let loading = true;
 
-  function selector(asset) { return `.entity-visual-frame > .effects-container > img.${asset.className.replaceAll(' ', '.')}`; }
+  function selector(asset) { return `.entity-effects-calibrated > img.${asset.className.replaceAll(' ', '.')}`; }
   function cssFor(key) {
     const asset = assets.get(key), value = settings.get(key);
     if (!value) return '';
+    if (!dirty.has(key)) return `/* ${asset.label} : règles du jeu inchangées.\n   Modifie un réglage pour obtenir la règle CSS à copier. */`;
     const width = value.widthUnit === '%' ? `calc(var(--sprite-w) * ${round(value.width / 100)})` : `${round(value.width)}px`;
     // Only geometry is overridden. Native GIF playback, fades, filters and
     // transforms remain intact. Important offsets cover AmbidextryVFX's inline placement.
@@ -44,10 +45,11 @@
   }
   function allCss() { return [...dirty].map(cssFor).join('\n\n'); }
   function applyRules() {
-    rules.textContent = [...new Set([...dirty, selected])].map(cssFor).filter(Boolean).join('\n\n');
+    rules.textContent = allCss();
     $('vfx-css').value = cssFor(selected) || 'Chargement du VFX…';
     $('vfx-count').textContent = `${dirty.size} réglage${dirty.size > 1 ? 's' : ''}`;
     $('vfx-copy-all').disabled = !dirty.size;
+    $('vfx-copy').disabled = loading || !dirty.has(selected);
   }
   function updateFields() {
     const value = settings.get(selected); if (!value) return;
@@ -69,6 +71,9 @@
     for (const preview of previews) {
       preview.frame.hidden = !$('vfx-visible').checked || ($('vfx-target').value !== 'all' && preview.id !== $('vfx-target').value);
       preview.frame.dataset.guides = String($('vfx-guides').checked);
+      const root = preview.host.closest('.entite-box'), mirror = $('vfx-mirror').checked;
+      root.querySelector('.sprite-container').classList.toggle('B', mirror);
+      root.querySelector('.sprite-container').classList.toggle('A', !mirror);
     }
   }
   function play() {
@@ -78,6 +83,8 @@
     for (const preview of previews) {
       const img = new Image(); img.alt = asset.label; img.draggable = false; img.className = asset.className;
       if (asset.key === 'ambidextry') Object.assign(img.style, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' });
+      if (asset.key === 'mysticism') img.classList.add('mysticism-pop');
+      if (asset.key === 'heal') img.classList.add('healing-feedback-vfx');
       img.src = `media/assets/effects/${asset.file}#calibrate-${++sequence}`;
       preview.host.replaceChildren(img);
     }
@@ -106,7 +113,7 @@
         settings.set(key, { top: round((parseFloat(css.top) || 0) / baseHeight * 100), x: round((parseFloat(css.left) || 0) / baseWidth * 100),
           topUnit: '%', xUnit: '%', side: 'left', width: round(w / baseWidth * 100), widthUnit: '%', ratio: round(h / w * 100), cap: assets.get(key).cap });
       }
-      loading = false; updateFields(); applyRules(); $('vfx-controls').disabled = false; $('vfx-copy').disabled = false;
+      loading = false; updateFields(); applyRules(); $('vfx-controls').disabled = false;
       $('vfx-feedback').textContent = key === 'astrality' ? 'Le GIF Astralité est très discret ; le gabarit aide à le repérer.' : 'Les trois tailles utilisent la même règle CSS.';
       schedule();
     } catch (error) {
@@ -131,12 +138,9 @@
       group.append(new Option(asset.label, asset.key));
     }
     for (const actor of document.querySelectorAll('.actor-anchor')) {
-      const frame = document.createElement('span'); frame.className = 'entity-visual-frame vfx-calibration-frame';
-      const width = actor.style.getPropertyValue('--sprite-w'), height = actor.style.getPropertyValue('--sprite-h');
-      frame.style.setProperty('--popup-sprite-w', width); frame.style.setProperty('--popup-sprite-h', height);
-      const host = document.createElement('span'); host.className = 'effects-container'; frame.append(host); actor.querySelector('.entity-frame').append(frame);
-      previews.push({ id: actor.dataset.entity, frame, host });
-      if (previews.length === 1) { baseWidth = parseFloat(width); baseHeight = parseFloat(height); }
+      const root = actor.querySelector('.entite-box'), host = root.querySelector('.effects-container');
+      previews.push({ id: actor.dataset.entity, frame: host, host });
+      if (previews.length === 1) { baseWidth = Number(root.dataset.spriteWidth); baseHeight = Number(root.dataset.spriteHeight); }
     }
     $('vfx-effect').addEventListener('change', () => selectEffect($('vfx-effect').value));
     for (const field of fields) for (const suffix of ['', '-number']) $(`vfx-${field}${suffix}`).addEventListener('input', event => {
@@ -157,7 +161,7 @@
       value.x = round(value.xUnit === '%' ? (baseWidth - x - w) / baseWidth * 100 : baseWidth - x - w);
       value.side = event.target.value; changed();
     });
-    for (const id of ['vfx-visible', 'vfx-target', 'vfx-guides']) $(id).addEventListener('change', () => { syncTargets(); schedule(); });
+    for (const id of ['vfx-visible', 'vfx-target', 'vfx-guides', 'vfx-mirror']) $(id).addEventListener('change', () => { syncTargets(); schedule(); });
     $('vfx-loop').addEventListener('change', schedule);
     $('vfx-replay').addEventListener('click', () => { play(); schedule(); });
     $('vfx-reset').addEventListener('click', () => selectEffect(selected, true));

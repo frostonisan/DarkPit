@@ -23,7 +23,7 @@ async function verify(p,label){
   assert.equal(data.entities.length,3);assert.equal(Object.keys(data.occupied).length,data.entities.reduce((n,e)=>n+e.members.length,0));
   for(const entity of data.entities){
     assert.equal(entity.members.length,[1,2,3,6][entity.sizeIndex]);
-    assert.equal(entity.scale,[.75,1,1.65,2.5][entity.sizeIndex]);
+    assert.equal(entity.scale,[1,1.35,1.65,2.5][entity.sizeIndex]);
     assert.equal(new Set(entity.neighbors).size,entity.neighbors.length);
     assert(!entity.neighbors.includes(`hex-${entity.id}`));
     for(const cell of entity.members){assert(!used.has(cell));used.add(cell);assert.equal(data.occupied[cell],entity.id);}
@@ -67,8 +67,8 @@ try{
     const canvas=actor.querySelector('canvas'),rect=canvas.getBoundingClientRect();return {id:actor.dataset.entity,width:rect.width,height:rect.height,buffer:[canvas.width,canvas.height]};
   }));
   assert(sizes.every(s=>s.buffer[0]===500&&s.buffer[1]===500));
-  assert(Math.abs(sizes[1].width/sizes[0].width-1.65)<.01);assert(Math.abs(sizes[2].width/sizes[0].width-2.5)<.01);
-  assert.equal((await snapshot(page)).metrics.spriteMeasurements,3);checks.push('Original sprite: fixed 500px canvas, measured once, visible scales 1 / 1.65 / 2.5');
+  assert(Math.abs(sizes[1].width/sizes[0].width-1.65/1.35)<.01);assert(Math.abs(sizes[2].width/sizes[0].width-2.5/1.35)<.01);
+  assert.equal((await snapshot(page)).metrics.spriteMeasurements,3);checks.push('Original sprite: fixed 500px canvas, measured once, visible battle scales 1.35 / 1.65 / 2.5');
   await page.screenshot({path:resolve(output,'desktop.png'),fullPage:true});
   const initial=await snapshot(page);
   await drag(page,'yellow','B2',{beforeDrop:async()=>assert.deepEqual((await snapshot(page)).entities,initial.entities)});
@@ -123,7 +123,7 @@ try{
   assert.deepEqual(after.entities,before.entities);assert.equal(after.metrics.commits,before.metrics.commits);
   checks.push('Repeating the same size does not trigger another move');
   await page.waitForTimeout(180);
-  const smallSprite=await page.locator('.actor-anchor[data-entity="yellow"] canvas').boundingBox();assert(Math.abs(smallSprite.width-76.5*after.scale)<.01);
+  const smallSprite=await page.locator('.actor-anchor[data-entity="yellow"] canvas').boundingBox();assert(Math.abs(smallSprite.width-102*after.scale)<.01);
   await drag(page,'yellow','M7');before=await snapshot(page);assert.equal(entity(before,'yellow').anchor,'M7');
   await setSize(page,'yellow',3);after=await snapshot(page);
   assert.deepEqual(after.entities,before.entities);assert.equal(after.metrics.commits,before.metrics.commits);
@@ -211,7 +211,7 @@ try{
     const c=document.querySelector('[data-size-for="yellow"]');c.value=3;c.dispatchEvent(new Event('input',{bubbles:true}));
     const actor=document.querySelector('.actor-anchor[data-entity="cyan"]'),slide=actor.getAnimations()[0];slide.pause();slide.currentTime=210;
     // Grab an exposed part: the growing foreground sprite can overlap the neighbour's centre.
-    document.querySelectorAll('.entity-scale').forEach(el=>el.getAnimations().forEach(a=>a.finish()));
+    document.querySelectorAll('.entity-size-layer,.effects-container').forEach(el=>el.getAnimations().forEach(a=>a.finish()));
     const r=actor.getBoundingClientRect(),canvas=actor.querySelector('canvas').getBoundingClientRect();
     for(const fx of [.85,.95,.65,.5,.2]) for(const fy of [.4,.6,.2,.8]) {
       const pointer={x:canvas.x+canvas.width*fx,y:canvas.y+canvas.height*fy};
