@@ -1,0 +1,110 @@
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const { chromium } = require('C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const output = resolve('outputs/vfx-calibrator'); await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const page = await browser.newPage({ viewport: { width: 1600, height: 1100 } });
+const checks = [], errors = [];
+const check = (ok, label) => { assert.ok(ok, label); checks.push(label); };
+const url = pathToFileURL(resolve('docs/index-16.html')).href;
+page.on('pageerror', error => errors.push(error.message));
+page.on('requestfailed', request => errors.push(request.url()));
+const select = async key => { await page.locator('#vfx-effect').selectOption(key); await page.waitForFunction(key => !vfxCalibrator.inspect().loading && vfxCalibrator.inspect().selected === key, key); };
+const input = async (field, value) => { await page.locator(`#vfx-${field}-number`).fill(String(value)); };
+const state = () => page.evaluate(() => vfxCalibrator.inspect());
+const geometry = () => page.evaluate(() => [...document.querySelectorAll('.vfx-calibration-frame img')].map(img => {
+  const css = getComputedStyle(img), box = img.getBoundingClientRect(), frame = img.closest('.entity-visual-frame').getBoundingClientRect();
+  return { w: parseFloat(css.width), h: parseFloat(css.height), top: parseFloat(css.top), left: parseFloat(css.left), right: parseFloat(css.right), box: box.toJSON(), frame: frame.toJSON(), transform: css.transform };
+}));
+try {
+  await page.addInitScript(() => {
+    window.vfxProbe = { writes: 0, rect: 0, style: 0, raf: 0 };
+    const write = Storage.prototype.setItem, rect = Element.prototype.getBoundingClientRect, style = window.getComputedStyle, raf = window.requestAnimationFrame;
+    Storage.prototype.setItem = function (...args) { vfxProbe.writes++; return write.apply(this, args); };
+    Element.prototype.getBoundingClientRect = function (...args) { vfxProbe.rect++; return rect.apply(this, args); };
+    window.getComputedStyle = function (...args) { vfxProbe.style++; return style.apply(this, args); };
+    window.requestAnimationFrame = function (...args) { vfxProbe.raf++; return raf.apply(this, args); };
+  });
+  await page.goto(url); await page.evaluate(() => vfxCalibrator.ready);
+  check(await page.locator('#vfx-effect option').count() === 20, 'Twenty real game VFX are individually selectable');
+  await page.locator('#vfx-loop').uncheck();
+  check(await page.locator('.vfx-calibration-frame img').count() === 3, 'One preview per entity, outside the animated sprite');
+  const initial = await geometry();
+  check(Math.abs(initial[1].box.width / initial[0].box.width - 1.65) < .01 && Math.abs(initial[2].box.width / initial[0].box.width - 2.5) < .01, 'VFX inherit the same size factors as the entities');
+  check(await page.evaluate(() => [...document.querySelectorAll('.vfx-calibration-frame')].every(frame => !frame.closest('.sprite-facing') && frame.closest('.entity-scale'))), 'VFX stay independent of sprite motion and inside its scale parent');
+  await input('top', 12.5); await input('x', 32); await input('width', 75); await input('ratio', 120); await input('cap', 80);
+  let read = await state(), boxes = await geometry();
+  check(boxes.every(box => Math.abs(box.top - 15) < .02 && Math.abs(box.left - 38.4) < .02 && box.w === 80 && box.h === 96), 'Top, left, proportional width, height and cap update live on every entity');
+  check(read.css === await page.locator('#vfx-css').inputValue() && read.css.includes('top: 12.5% !important;') && read.css.includes('width: var(--vfx-size)') && read.css.includes('0.75'), 'Displayed CSS is exactly the applied rule');
+  const leftBox = boxes[0].box;
+  await page.locator('#vfx-side').selectOption('right'); boxes = await geometry();
+  check(Math.abs(boxes[0].box.x - leftBox.x) < .02 && (await state()).css.includes('left: auto !important;'), 'Switching to right preserves the visible position and clears left');
+  await input('x', 5); boxes = await geometry();
+  check(boxes.every(box => Math.abs(box.right - 6) < .02), 'Right control is applied as an actual right offset');
+  const beforeUnit = boxes[0].box;
+  await page.locator('#vfx-x-unit').selectOption('px'); await page.locator('#vfx-top-unit').selectOption('px'); await page.locator('#vfx-width-unit').selectOption('px');
+  boxes = await geometry();
+  check(Math.abs(boxes[0].box.x - beforeUnit.x) < .02 && Math.abs(boxes[0].box.y - beforeUnit.y) < .02 && (await state()).css.includes('right: 6px'), 'Changing percent/pixel units preserves placement and size');
+  const remembered = (await state()).settings.indestructibility;
+  await select('ambidextry'); await input('top', 21); await input('x', 35);
+  boxes = await geometry();
+  check(boxes.every(box => Math.abs(box.top - 25.2) < .02 && Math.abs(box.left - 42) < .02), 'Exported CSS overrides native inline Ambidextry placement while retaining its transform');
+  await select('indestructibility'); check(JSON.stringify((await state()).settings.indestructibility) === JSON.stringify(remembered), 'Switching effects retains each individual setting');
+  check((await state()).allCss.includes('img.effect-vfx.indestructibility') && (await state()).allCss.includes('img.effect-vfx.ambidextry'), 'Combined export includes every edited effect');
+  const exported = (await state()).css;
+  const portable = await page.evaluate(css => {
+    const frame = document.createElement('div'); frame.className = 'entity-visual-frame';
+    frame.style.cssText = 'position:absolute;left:0;top:0;width:60px;height:300px;--popup-sprite-w:60px;--popup-sprite-h:300px';
+    const host = document.createElement('div'); host.className = 'effects-container';
+    const img = new Image(); img.className = 'effect-vfx indestructibility'; img.src = 'media/assets/effects/indestructibility.gif'; host.append(img); frame.append(host); document.body.append(frame);
+    const style = document.createElement('style'); style.textContent = css; document.head.append(style);
+    const value = getComputedStyle(img); const result = { w: parseFloat(value.width), h: parseFloat(value.height), right: parseFloat(value.right), top: parseFloat(value.top) };
+    frame.remove(); style.remove(); return result;
+  }, exported);
+  check(portable.w === 80 && portable.h === 96 && portable.right === 6 && portable.top === 15, 'Copied rule works on a game-shaped frame with no calibrator-specific selectors');
+  await page.evaluate(() => { window.copiedVfxCss = ''; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedVfxCss = text; } } }); });
+  await page.locator('#vfx-copy').click(); check(await page.evaluate(() => copiedVfxCss) === exported, 'Copy current rule exports the displayed CSS');
+  await page.locator('#vfx-copy-all').click(); check(await page.evaluate(() => copiedVfxCss) === (await state()).allCss, 'Copy all exports both independent rules');
+  await page.locator('#vfx-target').selectOption('cyan'); check(await page.locator('.vfx-calibration-frame:not([hidden])').count() === 1, 'A single entity can be isolated for calibration');
+  await page.locator('#vfx-visible').uncheck(); check(await page.locator('.vfx-calibration-frame:not([hidden])').count() === 0 && !(await state()).timer, 'Hiding effects stops the replay timer');
+  await page.locator('#vfx-visible').check(); await page.locator('#vfx-target').selectOption('all');
+  const beforeReplay = await page.locator('.vfx-calibration-frame img').first().getAttribute('src');
+  await page.locator('#vfx-replay').click();
+  check(await page.locator('.vfx-calibration-frame img').first().getAttribute('src') !== beforeReplay && await page.locator('.vfx-calibration-frame img').count() === 3, 'Replay restarts fresh GIF readers without accumulating nodes');
+  await page.locator('#vfx-loop').check(); const seq = (await state()).sequence;
+  await page.waitForFunction(seq => vfxCalibrator.inspect().sequence > seq, seq);
+  check(await page.locator('.vfx-calibration-frame img').count() === 3, 'Automatic replay remains bounded to three images');
+  await page.locator('#vfx-loop').uncheck();
+  const keys = await page.locator('#vfx-effect option').evaluateAll(options => options.map(option => option.value));
+  for (const key of keys) {
+    await select(key);
+    check(await page.locator('.vfx-calibration-frame img').first().evaluate(img => img.complete && img.naturalWidth > 0) && !!(await state()).settings[key], `${key}: actual asset decodes and native CSS dimensions calibrate`);
+  }
+  await select('indestructibility');
+  const probes = await page.evaluate(() => {
+    const before = { ...vfxProbe }, slider = document.getElementById('vfx-top');
+    for (let i = 0; i < 100; i++) { slider.value = String(i - 50); slider.dispatchEvent(new Event('input', { bubbles: true })); }
+    return { before, after: { ...vfxProbe }, measurements: hexGroupLab.snapshot().metrics.spriteMeasurements };
+  });
+  check(JSON.stringify(probes.before) === JSON.stringify(probes.after) && probes.measurements === 3, 'One hundred adjustments do not read geometry, remeasure sprites, schedule animation frames or write saves');
+  await page.locator('#vfx-reset').click(); await page.waitForFunction(() => !vfxCalibrator.inspect().loading);
+  check(!(await state()).dirty.includes('indestructibility') && (await state()).dirty.includes('ambidextry') && (await state()).settings.indestructibility.top === -25, 'Reset restores just the chosen effect from game CSS');
+  await input('top', 24); await input('width', 55); await input('cap', 100);
+  await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  check(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), 'Mobile layout has no horizontal page overflow');
+  await input('top', 18); check((await state()).settings.indestructibility.top === 18, 'Mobile numeric controls apply immediately');
+  await page.screenshot({ path: resolve(output, 'mobile.png'), fullPage: true });
+  check(await page.evaluate(() => vfxProbe.writes) === 0, 'The standalone tool never writes to game saves');
+  assert.deepEqual(errors, []);
+  await writeFile(resolve(output, 'report.json'), JSON.stringify({ checks, errors }, null, 2));
+  console.log(`PASS VFX calibrator: ${checks.length} checks, all real GIFs, live CSS, independent settings, copy, scale, replay, mobile and no save writes.`);
+} catch (error) {
+  await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
+  await writeFile(resolve(output, 'failure.json'), JSON.stringify({ message: error.message, checks, errors }, null, 2));
+  throw error;
+} finally { await browser.close(); }

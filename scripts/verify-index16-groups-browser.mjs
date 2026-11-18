@@ -111,7 +111,7 @@ try{
   assert.equal(await page.locator('#status').getAttribute('data-kind'),'push');
   await page.waitForTimeout(180);
   const grownSprite=await page.locator('.actor-anchor[data-entity="yellow"] canvas').boundingBox();
-  assert(Math.abs(grownSprite.width-255)<.01);assert.equal(after.metrics.geometryReads,before.metrics.geometryReads);
+  assert(Math.abs(grownSprite.width-255*after.scale)<.01);assert.equal(after.metrics.geometryReads,before.metrics.geometryReads);
   await page.screenshot({path:resolve(output,'live-growth.png'),fullPage:true});
   const grown=after;
   await setSize(page,'yellow',0);after=await verify(page,'Shrinking frees cells; pushed neighbours keep their new positions');
@@ -123,7 +123,7 @@ try{
   assert.deepEqual(after.entities,before.entities);assert.equal(after.metrics.commits,before.metrics.commits);
   checks.push('Repeating the same size does not trigger another move');
   await page.waitForTimeout(180);
-  const smallSprite=await page.locator('.actor-anchor[data-entity="yellow"] canvas').boundingBox();assert(Math.abs(smallSprite.width-76.5)<.01);
+  const smallSprite=await page.locator('.actor-anchor[data-entity="yellow"] canvas').boundingBox();assert(Math.abs(smallSprite.width-76.5*after.scale)<.01);
   await drag(page,'yellow','M7');before=await snapshot(page);assert.equal(entity(before,'yellow').anchor,'M7');
   await setSize(page,'yellow',3);after=await snapshot(page);
   assert.deepEqual(after.entities,before.entities);assert.equal(after.metrics.commits,before.metrics.commits);

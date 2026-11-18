@@ -6,6 +6,9 @@
   <title>Index 16 · Cases groupées</title>
   <link rel="icon" href="media/assets/ui/favicon.png">
   <link rel="stylesheet" href="css/monstre.css">
+  <link rel="stylesheet" href="css/battle-infos.css">
+  <link rel="stylesheet" href="css/spell.css">
+  <link rel="stylesheet" href="css/vfx-calibrator.css">
   <link rel="preload" as="image" href="media/assets/effects/dodge-smoke.gif">
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #111619; color: #e7ecee; }
@@ -98,6 +101,7 @@
     <label><input id="roles" type="checkbox" checked>Rôles des cases</label>
     <span class="hint">Glisser pour déplacer · Échap pour annuler</span>
   </div>
+  <div class="vfx-workbench">
   <section class="board-shell" aria-label="Damier hexagonal">
     <div class="board-viewport" id="viewport"><div class="board-stage" id="stage"><div class="board-world" id="world">
       <svg id="board" aria-label="Cases du plateau"><defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#f6bd7d"/></marker></defs><g id="cells"></g><g id="groups"></g><g id="preview"></g></svg>
@@ -105,6 +109,26 @@
     </div></div></div>
     <div class="board-footer"><p id="status" role="status" aria-live="polite">Chargement des mouches…</p><span id="count">3 entités · 11 cases réservées</span></div>
   </section>
+  <aside class="vfx-panel" aria-labelledby="vfx-title">
+    <div class="vfx-heading"><div><span class="eyebrow">Aperçu CSS en direct</span><h2 id="vfx-title">Calibrer un VFX</h2></div><span id="vfx-count">0 réglage</span></div>
+    <fieldset id="vfx-controls" disabled>
+      <label class="vfx-select-label" for="vfx-effect">Effet à régler</label><select id="vfx-effect"></select>
+      <div class="vfx-actions"><label><input type="checkbox" id="vfx-visible" checked>Afficher</label><label><input type="checkbox" id="vfx-loop" checked>Boucler</label><button type="button" id="vfx-replay">Relancer</button></div>
+      <label class="vfx-select-label" for="vfx-target">Aperçu sur</label><select id="vfx-target"><option value="all">Les trois entités</option><option value="yellow">Mouche jaune</option><option value="cyan">Mouche turquoise</option><option value="purple">Mouche violette</option></select>
+      <div class="vfx-control" data-vfx-field="top"><label for="vfx-top">Position verticale <code>top</code></label><div><input id="vfx-top" type="range" min="-150" max="200" step="0.1"><input id="vfx-top-number" type="number" min="-500" max="500" step="0.1" aria-label="Valeur de top"><select id="vfx-top-unit" aria-label="Unité de top"><option value="%">%</option><option value="px">px</option></select></div></div>
+      <div class="vfx-control" data-vfx-field="x"><label for="vfx-x">Position horizontale <select id="vfx-side" aria-label="Ancrage horizontal"><option value="left">left</option><option value="right">right</option></select></label><div><input id="vfx-x" type="range" min="-150" max="200" step="0.1"><input id="vfx-x-number" type="number" min="-500" max="500" step="0.1" aria-label="Position horizontale"><select id="vfx-x-unit" aria-label="Unité horizontale"><option value="%">%</option><option value="px">px</option></select></div></div>
+      <div class="vfx-control" data-vfx-field="width"><label for="vfx-width">Largeur</label><div><input id="vfx-width" type="range" min="1" max="200" step="0.1"><input id="vfx-width-number" type="number" min="1" max="500" step="0.1" aria-label="Largeur du VFX"><select id="vfx-width-unit" aria-label="Unité de largeur"><option value="%">%</option><option value="px">px</option></select></div></div>
+      <div class="vfx-control" data-vfx-field="ratio"><label for="vfx-ratio">Hauteur <small>% de la largeur</small></label><div><input id="vfx-ratio" type="range" min="10" max="300" step="0.1"><input id="vfx-ratio-number" type="number" min="1" max="1000" step="0.1" aria-label="Hauteur en pourcentage de la largeur"><span>%</span></div></div>
+      <div class="vfx-control" data-vfx-field="cap"><label for="vfx-cap">Largeur maximale <small>avant agrandissement</small></label><div><input id="vfx-cap" type="range" min="10" max="300" step="1"><input id="vfx-cap-number" type="number" min="1" max="1000" step="1" aria-label="Plafond de largeur"><span>px</span></div></div>
+      <div class="vfx-actions"><label><input type="checkbox" id="vfx-guides" checked>Gabarit</label><button id="vfx-reset" type="button">Réinitialiser cet effet</button></div>
+    </fieldset>
+    <p class="vfx-explanation">Les % suivent le gabarit CSS du sprite. Le VFX suit ensuite l’échelle des hexagones, sans subir la tremblote.</p>
+    <div class="vfx-code-heading"><label for="vfx-css">Règle CSS appliquée</label><button id="vfx-copy" type="button" disabled>Copier</button></div>
+    <textarea id="vfx-css" readonly spellcheck="false" aria-label="Règle CSS du VFX">Chargement…</textarea>
+    <div class="vfx-actions"><button id="vfx-copy-all" type="button" disabled>Copier tous les réglages</button><span id="vfx-feedback" role="status" aria-live="polite"></span></div>
+    <p class="vfx-explanation">À coller en fin de <code>battle-infos.css</code>. Chaque effet garde ses réglages pendant cette session.</p>
+  </aside>
+  </div>
   <div class="legend"><span><i class="dot" style="background:#94ddbd"></i>Placement libre</span><span><i class="dot" style="background:#f6bd7d"></i>Voisin à déplacer</span><span><i class="dot" style="background:#ff9393"></i>Placement impossible</span></div>
   <p class="note">Taille : curseur ou boutons − / +, de 1 à 6 cases. Le groupement grandit depuis sa case d’ancrage ; réduire libère les cases. Glisse une mouche ou son groupe pour la déplacer.</p>
   <p id="load-error" role="alert" hidden></p>
@@ -445,5 +469,6 @@
   window.hexGroupLab={ready,snapshot:()=>({entities:[...logicalHexes.values()].map(h=>({id:h.occupant,anchor:h.anchor,sizeIndex:h.sizeIndex,scale:h.scale,role:h.role,members:h.members.map(c=>c.id),center:{...h.center},neighbors:neighbors(h).map(n=>n.id)})),occupied:Object.fromEntries(occupied),metrics:{...metrics},scale:boardScale}),logicalAt:id=>{const h=logicalAt(id);return h&&{id:h.id,occupant:h.occupant,role:h.role,members:h.members.map(c=>c.id)};}};
 })();
 </script>
+<script src="js/vfxCalibrator.js"></script>
 </body>
 </html>

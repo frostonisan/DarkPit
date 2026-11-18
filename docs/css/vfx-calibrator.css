@@ -1,0 +1,41 @@
+/* The calibrator borrows the game's visual rules; these styles only arrange its controls. */
+body main { max-width: 1720px; }
+.vfx-workbench { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 18px; align-items: start; }
+.vfx-workbench > .board-shell { position: sticky; top: 12px; min-width: 0; }
+.vfx-panel { min-width: 0; padding: 16px; background: #1b2429; border: 1px solid #4e5b60; border-top: 3px solid #8edbd0; border-radius: 6px; font-size: 12px; }
+.vfx-heading, .vfx-code-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.vfx-heading h2 { font: 23px/1.2 Georgia,serif; margin: 5px 0 15px; color: #f2e5c7; }
+#vfx-count { white-space: nowrap; color: #8edbd0; font-size: 11px; }
+.vfx-panel fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.vfx-panel select, .vfx-panel button, .vfx-panel input[type=number] { border: 1px solid #51626b; border-radius: 4px; background: #111c22; color: #e3ecee; font: inherit; padding: 5px 7px; }
+.vfx-panel button:hover { border-color: #8edbd0; background: #283a3d; }
+.vfx-panel button:disabled { opacity: .45; cursor: default; }
+.vfx-panel input:focus-visible, .vfx-panel select:focus-visible, .vfx-panel textarea:focus-visible { outline: 2px solid #8edbd0; outline-offset: 2px; }
+.vfx-panel > fieldset > select { width: 100%; height: 32px; }
+.vfx-select-label { display: block; margin: 8px 0 5px; color: #c8d5da; }
+.vfx-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 10px 0; }
+.vfx-actions label { display: inline-flex; align-items: center; gap: 4px; }
+.vfx-control { border-bottom: 1px solid #34424a; padding: 9px 0; }
+.vfx-control > label { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; color: #dbe7eb; }
+.vfx-control > label select { margin-left: auto; padding: 1px 6px; }
+.vfx-control > label code { margin-left: auto; color: #8edbd0; }
+.vfx-control small { font-size: 10px; margin-left: auto; color: #94a8b2; }
+.vfx-control > div { display: grid; grid-template-columns: minmax(0,1fr) 67px 49px; align-items: center; gap: 7px; }
+.vfx-control input { width: 100%; min-width: 0; }
+.vfx-control input[type=range] { margin: 0; accent-color: #8edbd0; }
+.vfx-control > div > span { color: #a4bac4; }
+.vfx-explanation { font-size: 11px; line-height: 1.5; color: #a4b7c0; margin: 9px 0; }
+.vfx-code-heading { margin-top: 12px; color: #d8e6e9; }
+#vfx-css { display: block; width: 100%; min-height: 214px; resize: vertical; border: 1px solid #465963; border-radius: 4px; padding: 10px; margin-top: 7px; background: #0c1418; color: #b9e6cd; font: 11px/1.5 ui-monospace,Consolas,monospace; white-space: pre; overflow: auto; }
+#vfx-feedback { flex: 1 0 100%; font-size: 11px; color: #8edbd0; }
+.entity-frame { position: relative; }
+.entity-frame > .vfx-calibration-frame { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.vfx-calibration-frame[data-guides=true] { outline: 1px dashed #8edbd080; }
+.vfx-calibration-frame[data-guides=true]::before, .vfx-calibration-frame[data-guides=true]::after { content: ''; position: absolute; pointer-events: none; z-index: 101; }
+.vfx-calibration-frame[data-guides=true]::before { top: 0; bottom: 0; left: 50%; border-left: 1px dotted #8edbd050; }
+.vfx-calibration-frame[data-guides=true]::after { top: 50%; left: 0; right: 0; border-top: 1px dotted #8edbd050; }
+.vfx-calibration-frame img { pointer-events: none; }
+.vfx-calibration-frame[data-guides=true] img { outline: 1px dotted #e5c18a80; }
+.vfx-panel [hidden], .vfx-calibration-frame[hidden] { display: none; }
+@media (max-width: 1000px) { .vfx-workbench { grid-template-columns: minmax(0,1fr) 310px; gap: 10px; } .vfx-panel { padding: 12px; } }
+@media (max-width: 760px) { .vfx-workbench { grid-template-columns: 1fr; } .vfx-workbench > .board-shell { position: static; } .vfx-panel { width: 100%; } }
