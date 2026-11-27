@@ -321,6 +321,10 @@ export function collectLevelResources({ entities = [], biome, stage = {}, invent
   for (const visual of Object.values(EFFECT_VISUALS)) sources.add(resourceKey(visual.src));
   collectValues(PERMANENT_CRYSTAL_LEVELS, sources);
   sources.add(resourceKey('./media/assets/ui/hexastone.png'));
+  // Critical icons can first appear during combat, before any attack helper is opened.
+  for (const kind of ['power', 'umbra', 'physic', 'magic', 'piercing', 'hybrid', 'cinetic', 'spectral', 'prismatic']) {
+    sources.add(resourceKey(`./media/assets/ui/picto-crit-${kind}.svg`));
+  }
   for (const file of ['chest-cracked', 'chest-cracked-opened', 'chest-loot', 'chest-cracked-loot',
     'chest-unlocking', 'chest-closed', 'chest-destroyed', 'chest-is-opened', 'chest-opened', 'chest-locked',
     'battle-card-bonus', 'battle-card-malus']) {

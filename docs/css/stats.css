@@ -12,6 +12,20 @@
 
 .attack-nature-distribution { margin: 6px 0; color: #bfc5cf; font-size: 14px; }
 
+.attack-critical-panel { margin-top: 14px; padding: 12px; border: 1px solid #ffffff25; background: #08090b70; min-width: 0; overflow-wrap: anywhere; }
+
+.attack-critical-panel > strong { display: flex; align-items: center; gap: 8px; float: none; margin: 0; font-size: 18px; text-align: left; }
+
+.attack-critical-panel > strong .picto-stat { flex: 0 0 28px; width: 28px; height: 28px; margin: 0; background-size: contain; }
+
+.attack-critical-panel .attack-critical-bonus { margin: 8px 0; color: #eadbb8; font-size: 13px; }
+
+.attack-critical-panel ul { margin: 8px 0 0; padding-left: 16px; color: #dedee4; font-size: 13px; line-height: 1.45; }
+
+.attack-critical-panel li + li { margin-top: 6px; }
+
+.attack-critical-panel small { display: block; margin-top: 10px; color: #aaa6a0; font-size: 11px; line-height: 1.4; }
+
 .attack-light-amount { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 
 .attack-nature-effect .picto-stat { width: 16px; height: 16px; }
@@ -1216,7 +1230,16 @@ position: relative;
 
 .picto-stat.mysticTrance{background-image: url('../media/assets/ui/picto-trance-mystic.svg');}
 
-.picto-stat.criticalPower{background-image: url('../media/assets/ui/picto-crit-power.svg');background-size: 26px}
+.picto-stat.criticalPower{background-image: url('../media/assets/ui/picto-crit-umbra.svg');background-size: 26px}
+
+.picto-stat.criticalHit { background-image: url('../media/assets/ui/picto-crit-power.svg'); background-size: 26px; }
+.picto-stat.criticalHit.physicalDamage { background-image: url('../media/assets/ui/picto-crit-physic.svg'); }
+.picto-stat.criticalHit.magicalDamage { background-image: url('../media/assets/ui/picto-crit-magic.svg'); }
+.picto-stat.criticalHit:is(.piercingDamage, .transpiercingDamage) { background-image: url('../media/assets/ui/picto-crit-piercing.svg'); }
+.picto-stat.criticalHit.hybridalDamage { background-image: url('../media/assets/ui/picto-crit-hybrid.svg'); }
+.picto-stat.criticalHit.physicalPiercingDamage { background-image: url('../media/assets/ui/picto-crit-cinetic.svg'); }
+.picto-stat.criticalHit.magicalPiercingDamage { background-image: url('../media/assets/ui/picto-crit-spectral.svg'); }
+.picto-stat.criticalHit.hybridalPiercingDamage { background-image: url('../media/assets/ui/picto-crit-prismatic.svg'); }
 
 .picto-stat.criticalChance{background-image: url('../media/assets/ui/picto-crit-chance.svg');background-size: 26px}
 

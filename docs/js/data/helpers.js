@@ -265,6 +265,7 @@ const HASTE_EFFECT_ICONS = {
 // Labels for visual effects that are not standalone entries in statsData.
 export const HELPER_PICTOGRAM_NAMES = {
   day: 'Début de la journée',
+  criticalHit: 'Coup critique',
   criticalChance: 'Chance de critique',
   criticalDamage: 'Dégâts critiques',
   cognitiveExplosion: 'Explosion cognitive',
@@ -387,6 +388,7 @@ const possessive = name => /^[aeiouhàâäéèêëîïôöùûü]/i.test(name) ?
 const RANGE_PENALTY_EFFECT = { name: 'Malus distance', icon: 'rangeAttack' };
 
 export const STAT_HELPER_DESCRIPTIONS = {
+  criticalHit: 'Permet à l’entité de réaliser des coups critiques !<br><br>Les coups critiques améliorent grandement les effets des attaques. Voir dans chaque attaque.',
   ...Object.fromEntries(Object.values(GENERATED_STAT_HELPERS).flatMap(family => {
     const target = helperEffectTitle(family.target, family.name);
     const attribute = `${possessive(family.attributeName)} ${helperEffectTitle(family.attribute, family.attributeName)}`;
@@ -413,9 +415,9 @@ export const STAT_HELPER_DESCRIPTIONS = {
   indestructibilityCooldown: 'Délai après une annulation réussie avant de pouvoir déclencher à nouveau Indestructibilité totale. La Force réduit ce délai. Peau indestructible et la régénération restent actives.',
   "vitality": `Augmente les ${helperEffectTitle('HP', 'HP max')}.`,
   "resilience": `Atténue le supplément des coups critiques et les altérations subies. Permet aussi d’annuler les altérations et les entraves.`,
-  "criticalResistance": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
-  "criticalResistancePlus": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
-  "criticalResistanceX": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
+  "criticalResistance": `Réduit le supplément des ${helperEffectTitle('criticalHit', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
+  "criticalResistancePlus": `Réduit le supplément des ${helperEffectTitle('criticalHit', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
+  "criticalResistanceX": `Réduit le supplément des ${helperEffectTitle('criticalHit', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
   "alteration": `Les ${helperEffectTitle('alteration', 'altérations d’état')} sont des malus qui entraînent une instabilité chez la cible et restent sur elle pendant une certaine durée du combat. Elles peuvent l’empêcher de lancer des sorts, ralentir sa vitesse d’incantation, lui infliger des dégâts sur la durée, etc.`,
   "entrave": `Les ${helperEffectTitle('entrave', 'entraves')} sont des malus qui entraînent des répercussions négatives sur le positionnement de l’entité : mouvement forcé, paralysie partielle ou totale, etc.`,
   "alterationResistance": `Atténue les dégâts, l’intensité ou la durée des ${helperEffectTitle('alteration', 'altérations d’état')}, selon leur règle.`,
@@ -469,7 +471,7 @@ export const STAT_HELPER_DESCRIPTIONS = {
   "controlledSpeed": "Atténue le recul de progression de la préparation ou de l’exécution au corps à corps lors des déplacements commandés par le joueur, y compris les échanges de cases entre alliés. Les déplacements imposés par un effet ne sont pas atténués. Passive exclusive à Vivacité, renforcée par l’Agilité. L’atténuation tend vers 99 % au maximum.",
   "agileRetreat": "La Vélocité améliore les chances de réussir chaque tentative de fuite. Le jet conserve ses conditions habituelles : une entité empêchée de fuir ne peut pas partir.",
   "dodge": "Améliore l’esquive.",
-  "criticalChance": `Les attaques qui le peuvent ont une chance de réaliser un ${helperEffectTitle('criticalChance', 'coup critique')}.`,
+  "criticalChance": `Permet à l’entité de réaliser des ${helperEffectTitle('criticalHit', 'coups critiques')} !<br><br>Les coups critiques améliorent grandement les effets des attaques. Voir dans chaque attaque.`,
   "criticalChancePlus": `Améliore la chance de critique avec le ratio fixe d’${helperEffectTitle('agility', 'Agilité')}. Les gains sont exprimés en %.`,
   "criticalChanceX": `Améliore la chance de critique avec les ratios évolutifs de ${helperEffectTitle('criticalPower', 'Puissance critique')} et de l’${helperEffectTitle('agility', 'Agilité')}. Les gains sont exprimés en %.`,
   "criticalDamage": 'Augmente le supplément de dégâts des coups critiques.',
@@ -523,7 +525,7 @@ export const UMBRA_PRESENTATIONS = {
   equilibre: 'Réduit l’aggro générée par les dégâts et améliore la détection des cibles invisibles.',
   vivacite: 'Accélère les tours et facilite les déplacements en combat.',
   vision: 'Améliore la précision et l’efficacité des attaques à distance.',
-  criticalPower: 'Renforce la fréquence et la puissance des coups critiques.',
+  criticalPower: 'Permet à l’entité de réaliser des coups critiques ! Les coups critiques améliorent grandement les effets des attaques. Voir dans chaque attaque.',
   vitality: 'Augmente les points de vie et leur régénération journalière.',
   haste: 'Accélère les différentes phases des attaques.',
   indestructibility: 'Permet d’annuler des dégâts, de les atténuer et de récupérer des points de vie.',
@@ -976,7 +978,7 @@ const ambidextrySecondHitBaseDamagePercent = active('ambidextry') ? balanceData.
 const statEffects = {
   indestructibilityBonus: `• ${effectTitle('indestructibility', 'Indestructibilité totale', { icon: 'indestructibilityTotal' })} : l'entité a ${umbra('indestructibilityBonus', nonlinear('indestructibility', result.indestructibilityBonus, 'indestructibility', statValue ?? safe('indestructibility', 0), ' %'), { icon: 'indestructibilityTotal' })} de chance de nullifier totalement une source de dégâts.`,
   indestructibilityReductionTotal: `• ${effectTitle('indestructibility', 'Peau indestructible', { icon: 'indestructibleSkin' })} : l'entité subit ${umbra('indestructibilityReductionTotal', percent('indestructibility', result.indestructibilityReductionTotal, [percentPart('indestructibility', result.indestructibilityReduction), active('indestructibility') ? percentPart('strength', result.indestructibilityStrengthReduction) : ''], { icon: 'indestructibleSkin' }), { icon: 'indestructibleSkin' })} de dégâts en moins.`,
-  resilienceCritTotalBonus: `• Le supplément de dégâts des ${effectTitle('criticalPower', 'coups critiques')} subis par l'entité est réduit de ${umbra('resilienceCritTotalBonus', percent('resilience', result.resilienceCritTotalBonus, [percentPart('resilience', result.resilienceCritBonus), percentPart('strength', result.resiStrengthCritBonus)]))}.`,
+  resilienceCritTotalBonus: `• Le supplément de dégâts des ${effectTitle('criticalHit', 'coups critiques')} subis par l'entité est réduit de ${umbra('resilienceCritTotalBonus', percent('resilience', result.resilienceCritTotalBonus, [percentPart('resilience', result.resilienceCritBonus), percentPart('strength', result.resiStrengthCritBonus)]))}.`,
   resilienceAlteTotalBonus: `• Les ${effectTitle('alteration', "altérations d'état")} subies par l'entité ont leurs effets réduits de ${umbra('resilienceAlteTotalBonus', percent('resilience', result.resilienceAlteTotalBonus, [percentPart('resilience', result.resilienceAlteBonus), percentPart('intelligence', result.resiIntelCritBonus)]))}.`,
   resilienceTotalCancelBonus: `• ${effectTitle('resilience', 'Résilience totale', { icon: 'resilienceTotal' })} : les ${effectTitle('alteration', "altérations d'état")} et ${effectTitle('entrave', 'entraves')} subies par l'entité ont ${umbra('resilienceTotalCancelBonus', percent('resilience', result.resilienceTotalCancelBonus, [percentPart('resilience', result.resilienceCancelBonus), active('resilience') ? percentPart('strength', result.resiStrengthCancelBonus) : '']), { icon: 'resilienceTotal' })} de chance d'échouer totalement.`,
   ambidextryTotalChance: `• ${effectTitle('ambidextry', 'Chance de deuxième coup', { icon: 'ambidextryChance' })} : l'entité a ${umbra('ambidextryTotalChance', percent('ambidextry', result.ambidextryTotalChance, [percentPart('ambidextry', result.ambidextryProcBonus), percentPart('agility', result.ambidextryAgiChance)], { icon: 'ambidextryChance' }), { icon: 'ambidextryChance' })} de chance de réaliser un deuxième coup lors de son attaque.`,
@@ -1120,7 +1122,7 @@ rangeAttackPiercing: `${piercingRecupHelperBlock}Le projectile perçant vise la 
 	• La cible utilise <span class="physicalResistance">${hybridSplitPercent}%</span> de sa <div class="picto-stat physicalResistance"></div><span class="physicalResistance">résistance physique</span> et <span class="magicalResistance">${hybridSplitPercent}%</span> de sa <div class="picto-stat magicalResistance"></div><span class="magicalResistance">résistance magique</span> pour résister aux dégats hybrides. <br>
 	• L'attaquant utilise <span class="physicalPen">${hybridSplitPercent}%</span> de sa <div class="picto-stat physicalPen"></div><span class="physicalPen">pénétration physique</span></div> et <span class="magicalPen">${hybridSplitPercent}%</span> de sa <div class="picto-stat magicalPen"></div><span class="magicalPen">pénétration magique</span> pour pénétrer les résistances de sa cible.<br>
 	• Seule la partie physique des <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span> est <div class="picto-stat dodge"></div><span class="dodge">esquivable</span>. Leur partie magique atteint la cible.<br>
-	• Les <div class="picto-stat criticalPower"></div><span class="criticalPower">coups critiques</span> sont possibles sur les <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span>.<br>
+	• Les <div class="picto-stat criticalHit"></div><span class="criticalHit">coups critiques</span> sont possibles sur les <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span>.<br>
 	• <div class="picto-stat ambidextry"></div> <span class="ambidextry">Ambidextrie</span> fonctionne sur les <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span>.<br>
 	• <div class="picto-stat esoterism"></div><span class="esoterism">Ésoterisme</span> marche sur la part <div class="picto-stat magicalDamage"></div><span class="magical">magique</span> des <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span>.<br>
 	• Les <div class="picto-stat hybridalDamage"></div><span class="hybridalDamage">attaques hybrides</span> ne peuvent pas <div class="picto-stat brokenSpell"></div><span class="brokenSpell">Péter</span>.`,
@@ -1165,8 +1167,9 @@ recoveryTimeDetail: recoveryTimeDetailHelper,
   bloodFuryExecutionChance: `Une attaque qui le peut a ${autonomous(executionChance(result.bloodFuryExecutionChanceTotal))} de chance d'exécuter sa cible.`,
   bloodFuryTargetThreshold: `Les cibles avec ${autonomous(executionThreshold(result.bloodFuryTargetThresholdTotal))} de leurs HP max ou moins sont exécutables par les attaques qui le peuvent.`,
   bloodFuryExecutionDamage: `Les exécutions infligent ${autonomous(executionDamage(result.bloodFuryExecutionDamageTotal))} dégâts supplémentaires.`,
-  criticalDamage: `Les coups critiques infligent ${autonomous(percent('criticalDamage', result.criticalDamageTotal, critDamageParts))} de dégâts supplémentaires.<br><br>${helperStatIntroduction('criticalDamage', { exclusive: (result.statSystem?.umbra ?? safe('criticalPower', 0)) > 0 })}`,
-  criticalChance: `Les attaques qui le peuvent ont ${autonomous(percent('criticalChance', result.criticalChanceTotal, critChanceParts))} de chance de réaliser un coup critique.`,
+  criticalDamage: `Bonus critique : ${autonomous(percent('criticalDamage', result.criticalDamageTotal, critDamageParts))}. Sa répartition en dégâts et propriétés dépend de la nature de l’attaque : voir son encart Coup critique.<br><br>${helperStatIntroduction('criticalDamage', { exclusive: (result.statSystem?.umbra ?? safe('criticalPower', 0)) > 0 })}`,
+  criticalHit: STAT_HELPER_DESCRIPTIONS.criticalHit,
+  criticalChance: `${helperStatIntroduction('criticalChance')}<br><br>Chance de critique : ${autonomous(percent('criticalChance', result.criticalChanceTotal, critChanceParts))}.`,
   extraLife: `L'entité gagne ${autonomous(figure('extraLife', result.extraLifeMax))} vies transcendées supplémentaires.`,
 	rangeAttackTranspiercing: `Tire un projectile transperçant vers la case visée au lancement. La cible peut se déplacer pour l'éviter ; une autre entité prenant sa place peut être touchée.<br>Aucun jet aléatoire de ratage. Le projectile continue après la mort du tireur.<br>La récupération commence dès son départ.`,
   transpiercingPower: `Bonus de l'attaque pure : ${calculation('transpiercingDamage', result.transpiercingPowerTotal, '', [contribution('piercingDamage', result.transpiercingPowerPiercing), ratioProduct('agility', result.transpiercingPowerAgility, 'agility', result.transpiercingPowerRatio)])}.`,
@@ -2086,6 +2089,66 @@ export function buildAttackAttributeHelpers(attack, nature, { roleLabel, targetL
       + (roleLabel === 'Support' ? '' : `<br><br>Critique : ${criticalRules[nature.key]} La résistance critique réduit d’abord le bonus utilisé. Les ticks de brûlure ne critiquent jamais.<br><br>${attack.isUndodgeable === true || nature.key === 'blue' ? 'Cette attaque est inesquivable.'
         : ['hybrid', 'magical-piercing', 'prism'].includes(nature.key) ? 'L’esquive évite les parties physiques et perçantes. La partie magique reste inesquivable.' : 'Cette attaque est esquivable.'}`),
   };
+}
+
+// Presentation only: the UI supplies the same critical plan used by combat.
+export function buildAttackCriticalDescription(nature, plan, { support = false, canCrit = true } = {}) {
+  const adjective = {
+    red: 'physique', blue: 'magique', yellow: 'perçant', hybrid: 'hybride',
+    'physical-piercing': 'cinétique', 'magical-piercing': 'spectral', prism: 'prismatique', none: 'inerte',
+  }[nature.key] || 'inerte';
+  const title = `Coup critique ${adjective}`;
+  if (support || !canCrit) return { title, lines: [support
+    ? 'Les critiques des attaques de soutien ne sont pas encore définis.'
+    : 'Cette attaque ne peut pas réaliser de coup critique.'], note: '' };
+  const number = value => Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+  const life = `Vol de vie : ${number(plan.lifesteal)} % des dégâts réellement infligés aux PV`;
+  const burn = `Brûlure : le supplément magique est infligé sur ${number(plan.burnSeconds)} s`;
+  const stackCap = nature.signature?.cap ?? plan.stacks;
+  const stacks = number(Math.min(plan.stacks, stackCap));
+  const lines = {
+    red: [
+      'Supplément de dégâts physiques à l’impact.',
+      `Précision : +${number(plan.precision)} points.`, `${life}.`,
+    ],
+    blue: [
+      `${burn}.`,
+      'Explosion : ce même supplément est partagé entre les alliés au contact de la cible, arrondi à l’inférieur. Jusqu’à 6 voisins, ou tout le contour d’un géant.',
+      'Chaque explosion peut critiquer à partir de ses propres dégâts et provoquer une nouvelle brûlure et une nouvelle explosion.',
+    ],
+    yellow: [
+      'Supplément de dégâts perçants à l’impact.',
+      'Exploite la résistance physique de la cible : plus elle est élevée, plus le perçant est efficace. La résistance magique le réduit.',
+    ],
+    hybrid: [
+      'Supplément partagé à parts égales : 50 % physique à l’impact, 50 % magique en brûlure.',
+      `${burn}. ${life}, à l’impact et sur les ticks.`,
+      'Sans explosion ni bonus de précision.',
+    ],
+    'physical-piercing': [
+      'Supplément physique et perçant à l’impact, selon les parts de pureté de l’attaque.',
+      `${life}, proportionnel à la part physique.`,
+      `Rupture : ${stacks} charges, jusqu’à ${number(stackCap)}. Altération d’état qui réduit la résistance physique.`,
+      'Exaust : entrave qui retire 1 mouvement disponible, sans descendre sous 0.',
+    ],
+    'magical-piercing': [
+      'Supplément perçant à l’impact et magique en brûlure, selon les parts de pureté de l’attaque.',
+      `${burn}.`,
+      `Dissolution : ${stacks} charges, jusqu’à ${number(stackCap)}. Altération d’état qui réduit la résistance magique.`,
+      'Déphasage (altération d’état) : le % de PV max perdus retarde d’autant les timings, à l’impact et sur les ticks. Tour, préparation, exécution hors projectile et récupération sont allongés, sans rattrapage.',
+      'La jauge devient verte pendant le temps ajouté. Mouvement, cooldowns et projectiles en vol sont inchangés.',
+    ],
+    prism: [
+      'Les dégâts normaux de l’attaque sont conservés.',
+      'Le supplément devient des PV max retirés par Corruption prismatique, une altération d’état de 20 s.',
+      'Les retraits s’additionnent et renouvellent la durée. La corruption seule ne tue pas : minimum 1 PV.',
+      'À l’expiration, les PV max reviennent sans soin. La mort retire la corruption.',
+    ],
+    none: ['Supplément de dégâts soumis à toutes les résistances, comme l’attaque de base.'],
+  }[nature.key] || [];
+  if (plan.burn > 0) lines.push('La brûlure est une altération d’état. Ses ticks ne critiquent pas ; une nouvelle brûlure reprend les dégâts restants.');
+  return { title, bonus: `Bonus critique : +${number(plan.bonus)} %`, lines,
+    note: 'Valeurs avant protections de la cible. La résistance critique réduit le bonus et ses propriétés ; dégâts, altérations et entraves conservent leurs protections.' };
 }
 
 export function buildAttackSignatureHelper({ resonance, balanceData, signature, getSafe, view, nature, attack }) {

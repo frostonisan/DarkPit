@@ -22,13 +22,19 @@ try {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
-  await page.addStyleTag({ content: 'body{background:#15191d!important} #popup-audit{position:fixed;inset:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow:auto;color:white} .popup-case{background:#252a2f;padding:8px;text-align:center;font:13px Arial} #popup-audit .damage-popup{position:relative;animation:none!important;transform:none!important;opacity:1;margin:8px 0}' });
+  await page.addStyleTag({ content: 'body{background:#15191d!important} #popup-audit{position:fixed;inset:20px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow:auto;color:white} .popup-case{background:#252a2f;padding:8px;text-align:center;font:13px Arial} .popup-case > [id^="PopUp_"]{position:relative;width:100%;height:56px} #popup-audit .combat-popup-flight{left:50%;bottom:50%} #popup-audit .damage-popup{position:relative;animation:none!important;transform:none!important;opacity:1;margin:8px 0}' });
   const failures = await page.evaluate(async () => {
     const { PopUpDamages } = await import("/js/rendering/hud.js");
     document.body.innerHTML = '<main id="popup-audit"></main>';
     const natures = ['physicalDamage', 'magicalDamage', 'transpiercingDamage', 'hybridalDamage',
       'physicalPiercingDamage', 'magicalPiercingDamage', 'hybridalPiercingDamage', 'inerte'];
-    const cases = natures.flatMap(nature => ['normal', 'critical'].map(kind => ({ nature, kind, hp: 23, armor: 0 })));
+    const criticalAssets = ['physic', 'magic', 'piercing', 'hybrid', 'cinetic', 'spectral', 'prismatic', 'power'];
+    await Promise.all(criticalAssets.map(kind => {
+      const image = new Image(); image.src = `/media/assets/ui/picto-crit-${kind}.svg`; return image.decode();
+    }));
+    const { freezeCombatClock } = await import('/js/combat/clock.js');
+    freezeCombatClock();
+    const cases = natures.flatMap(nature => ['normal', 'critical', 'execution-critical'].map(kind => ({ nature, kind, hp: 23, armor: 0 })));
     cases.push({ nature: 'magicalDamage', kind: 'normal', hp: 0, armor: 9 },
       { nature: 'hybridalPiercingDamage', kind: 'normal', hp: 12, armor: 3 },
       { nature: 'physicalDamage', kind: 'critical', hp: 12, armor: 3 },
@@ -49,8 +55,8 @@ try {
       const nature = test.expected || test.nature;
       const icon = popup?.firstElementChild, value = popup?.querySelector('.damage-popup-value');
       const critical = test.kind === 'critical' || test.kind === 'execution-critical';
-      const criticalIcon = test.kind === 'execution-critical' ? 'execution-critical' : 'criticalPower';
-      const criticalAsset = test.kind === 'execution-critical' ? 'picto-critical-bloodFury%20.svg' : 'picto-crit-power.svg';
+      const criticalIcon = `criticalHit.${nature}`;
+      const criticalAsset = `picto-crit-${criticalAssets[natures.indexOf(nature)]}.svg`;
       const colorReference = document.createElement('span');
       colorReference.className = nature;
       card.appendChild(colorReference);
@@ -66,6 +72,9 @@ try {
         || getComputedStyle(value).color === 'rgb(255, 255, 255)'
         || container.querySelector('.damage-popup.detail') || JSON.stringify(target) !== before) failures.push(test);
       if (test.armor > 0 && !status.querySelector('.damage-popup--armor-destroyed')) failures.push({ missingArmorNotice: index });
+      for (const animation of container.getAnimations({ subtree: true })) {
+        animation.pause(); animation.currentTime = 200;
+      }
     }
     return failures;
   });

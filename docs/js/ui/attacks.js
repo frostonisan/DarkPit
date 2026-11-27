@@ -13,6 +13,7 @@ import {
   HELPER_TEXT,
   buildAttackActivationHelper,
   buildAttackSignatureHelper,
+  buildAttackCriticalDescription,
   buildAttackUmbraCompatibilityHelper,
   buildInertEnergyHelper,
   buildAttackMasteryHelper,
@@ -20,6 +21,7 @@ import {
 import { cachedResourceUrl } from "../data/loaderList.js";
 import { attackDetails } from "../data/attackList.js";
 import { balanceData } from "../data/balanceData.js";
+import { criticalNaturePlan } from "../combat/damageRules.js";
 import { isAdminMode } from "../storage/gameStorage.js";
 import { getSafe } from "../entities/rules.js";
 import { entites } from "../entities/runtime.js";
@@ -49,7 +51,7 @@ import {
 import {
   createAttackStatView, getAttackPurity, calculateAttackDamagePreview, calculateDirectAttackDps,
   calculateDirectAttackHps, calculateProfanationSummonLevel, getFinalAttackProjectileSpeed, getEffectiveAttackTimings,
-  calculateCritTotalChance, getRangePenaltyDetails, totalPiercingRecupReductionWithAgi, totalTranspiercingRecupReductionWithAgi,
+  calculateCritTotalChance, calculateCritDamageBonus, getRangePenaltyDetails, totalPiercingRecupReductionWithAgi, totalTranspiercingRecupReductionWithAgi,
   calculateMeleeExecBonus, getAttackUmbraAccess
 } from "../combat/statistics.js";
 import { calculateStatsDisplay } from "./statistics/details.js";
@@ -1779,6 +1781,7 @@ function attackSubmenuInfos(rangeType, natureType, entite, attack = null) {
     frag.append(createAttackNatureSignature(entite, actualAttack));
     if (r === 'range') appendRangeDamageAdvantage(frag, createAttackStatView(entite, actualAttack));
     appendCriticalAdvantages(frag, createAttackStatView(entite, actualAttack), actualAttack);
+    frag.append(createAttackCriticalPanel(entite, actualAttack));
     return frag;
   }
   entite = createAttackStatView(entite, actualAttack);
@@ -1841,6 +1844,7 @@ function attackSubmenuInfos(rangeType, natureType, entite, attack = null) {
   });
   const signature = createAttackNatureSignature(entite, actualAttack);
   if (signature) frag.append(signature);
+  frag.append(createAttackCriticalPanel(entite, actualAttack));
   return frag;
 }
 
@@ -1935,6 +1939,45 @@ function attachHelper(node, key, html, entity, attack) {
   node.dataset.entityId = entity.id;
   node.dataset.helperText = html;
   node.tabIndex = 0;
+}
+
+function createAttackCriticalPanel(entity, attack) {
+  const nature = getAttackNatureRules(attack);
+  const view = createAttackStatView(entity, attack);
+  const plan = criticalNaturePlan(nature, 100, calculateCritDamageBonus(view));
+  const presentation = buildAttackCriticalDescription(nature, plan, {
+    support: getAttackCombatFunctionClass(attack) === 'Support',
+    canCrit: getAttackResolutionFlags(attack).canCrit,
+  });
+  const panel = document.createElement('section');
+  panel.className = 'attack-critical-panel';
+  panel.dataset.criticalNature = nature.key;
+  const title = document.createElement('strong');
+  title.className = nature.stat;
+  const icon = document.createElement('span');
+  icon.className = `picto-stat criticalHit ${nature.stat}`;
+  icon.setAttribute('aria-hidden', 'true');
+  title.append(icon, presentation.title);
+  panel.append(title);
+  if (presentation.bonus) {
+    const bonus = document.createElement('p');
+    bonus.className = 'attack-critical-bonus';
+    bonus.textContent = presentation.bonus;
+    panel.append(bonus);
+  }
+  const list = document.createElement('ul');
+  for (const text of presentation.lines) {
+    const item = document.createElement('li');
+    item.textContent = text;
+    list.append(item);
+  }
+  panel.append(list);
+  if (presentation.note) {
+    const note = document.createElement('small');
+    note.textContent = presentation.note;
+    panel.append(note);
+  }
+  return panel;
 }
 
 function createAttackNatureSignature(entity, attack) {

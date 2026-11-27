@@ -249,7 +249,7 @@ animation:
   flex-basis: 30px;
   width: 30px;
   height: 30px;
-  filter: drop-shadow(0 0 2px #FF6C00);
+  filter: drop-shadow(0 0 2px currentColor);
 }
 .BattleText{position: relative;
 		font-size:15px;

@@ -238,7 +238,7 @@ try {
     ok(cards.map(node => node.dataset.flight).join() === 'center,left,right', 'Damage uses center, left and right fountain paths');
     ok(cards.filter(node => node.dataset.latest === 'true').length === 1 && cards.at(-1).dataset.latest === 'true', 'Only the latest impact keeps its large foreground size');
     ok(cards.every(node => node.querySelectorAll('.damage-popup').length === 1), 'Each hit uses a single amount node throughout its flight');
-    ok(cards[1].querySelector('.damage-popup-critical-icon.criticalPower') && cards[2].querySelector('.damage-popup-critical-icon.execution-critical'), 'Critical icons replace the nature icon');
+    ok(cards[1].querySelector('.damage-popup-critical-icon.criticalHit.magicalDamage') && cards[2].querySelector('.damage-popup-critical-icon.criticalHit.magicalDamage'), 'Both critical tiers use the matching nature critical icon');
     ok(cards[1].querySelector('.combat-popup-critical-suffix').textContent === '!!!', 'Critical suffix is separate from the nature-colored amount');
     ok(cards.every(node => node.querySelector('.damage-popup-value').textContent === '−123'), 'Actual damage amounts are preserved without component breakdowns');
     ok(cards.map(node => parseFloat(__popupProbe.styleOf(node.querySelector('.damage-popup-value')).fontSize)).join() === '24,32,40', 'Normal, critical and execution-critical pops have the validated size tiers');
@@ -266,8 +266,8 @@ try {
     const ordered = [...active].sort((a, b) => Number(a.style.zIndex) - Number(b.style.zIndex));
     ok(ordered.map(node => node.querySelector('.damage-popup-value').textContent).join() === Array.from({ length: 8 }, (_, i) => `−${992 + i}`).join(),
       'Recycling retains the last eight damage amounts in the original stacking order');
-    ok(active.every(node => node.dataset.priority === '0' && !node.querySelector('.combat-popup-critical-suffix')),
-      'A reused normal hit clears the previous critical priority and suffix');
+    ok(active.every(node => node.dataset.priority === '0' && !node.querySelector('.combat-popup-critical-suffix, .criticalHit')),
+      'A reused normal hit clears the previous critical priority, suffix and icon');
     ok(JSON.stringify(target) === dataBefore, 'Rendering leaves entity gameplay data unchanged');
     ok(document.querySelectorAll('.effect-vfx, .aura-fx').length === vfxBefore, 'The new popup renderer neither creates nor alters VFX/auras');
     Popups.clearCombatPopups();
@@ -288,7 +288,7 @@ try {
       && body.getAnimations()[0] !== oldAnimation && card.dataset.flight === 'center',
       'An expired slot restarts with the same nodes, a fresh animation and the center trajectory');
     ok(card.querySelector('.damage-popup-value.magicalDamage').textContent === '−987'
-      && card.querySelector('.execution-critical') && card.querySelector('.combat-popup-critical-suffix'),
+      && card.querySelector('.damage-popup-critical-icon.criticalHit.magicalDamage') && card.querySelector('.combat-popup-critical-suffix'),
       'Reused contents take the new amount, damage nature and critical icon');
     Popups.clearCombatPopups();
     ok(!host.children.length, 'Explicit cleanup removes active messages and releases the spare cache');

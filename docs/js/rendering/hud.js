@@ -420,9 +420,7 @@ export function PopUpDamages(
   const className = `damage-popup total-damage damage-popup--nature ${effectClass} ${popupClass}`
     + (armorLoss > 0 ? ' damage-popup--armor-hit' : '')
     + (isExecutionCritical ? ' damage-popup--execution-critical' : '');
-  const iconClass = isExecutionCritical
-    ? 'picto-stat damage-popup-critical-icon execution-critical'
-    : isCritical ? 'picto-stat damage-popup-critical-icon criticalPower'
+  const iconClass = isCritical ? `picto-stat damage-popup-critical-icon criticalHit ${nature}`
     : `picto-stat damage-popup-nature-icon ${nature}`;
   showDamagePopup(entityContainer, { className, iconClass, valueClass: `damage-popup-value ${nature}`,
     amount: hpLoss + armorLoss, critical: isCritical }, isExecutionCritical ? 3 : isCritical ? 1 : popupType === 'execution' ? 2 : 0);

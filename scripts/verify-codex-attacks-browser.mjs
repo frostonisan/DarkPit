@@ -100,6 +100,10 @@ try {
     check(codex.classList.contains('section-attaques') && !codex.classList.contains('section-stats'), 'New section clears previous section state');
     check(!codex.querySelector('.codex-colomn-3').classList.contains('stat'), 'Stats display modes do not leak into Attacks');
     const surface = codex.querySelector('.section-content.attaques');
+    const supportCritical = codex.querySelector('.codex-attack-context .attack-critical-panel');
+    check(supportCritical?.textContent.includes('soutien ne sont pas encore définis')
+      && !supportCritical.querySelector('.attack-critical-bonus'),
+      'Support attacks do not advertise offensive critical effects');
     check(surface.querySelectorAll('.attack-browser-thumb').length === 2, 'All owned attacks are listed');
     surface.querySelector('.attack-browser-thumb[data-attack-key="resurrection"] img.attack-image').click();
     check(surface.querySelector('.attack-details').dataset.attackKey === 'resurrection', 'Thumbnail opens the chosen attack');
@@ -543,6 +547,42 @@ try {
     check(spectralAttack.displayName === 'Quick Attack' && spectralAttack.magicalRatio === 0.8
       && spectralAttack.piercingRatio === 0.2 && matchingEntity.attackDetails[0].displayName === 'Quick Attack',
       'The suffix does not alter stored names or ratios');
+    for (const [colors, key, label, asset, expected] of [
+      [['red'], 'red', 'physique', 'physic', 'Précision'],
+      [['blue'], 'blue', 'magique', 'magic', 'Chaque explosion peut critiquer à partir de ses propres dégâts'],
+      [['yellow'], 'yellow', 'perçant', 'piercing', 'Exploite la résistance physique'],
+      [['red', 'red', 'red', 'blue'], 'hybrid', 'hybride', 'hybrid', '50 % physique'],
+      [['red', 'red', 'red', 'yellow'], 'physical-piercing', 'cinétique', 'cinetic', 'Exaust'],
+      [['blue', 'blue', 'blue', 'yellow'], 'magical-piercing', 'spectral', 'spectral', 'sans rattrapage'],
+      [['red', 'blue', 'yellow'], 'prism', 'prismatique', 'prismatic', 'Les dégâts normaux de l’attaque sont conservés'],
+      [[], 'none', 'inerte', 'power', 'soumis à toutes les résistances'],
+    ]) {
+      const owner = structuredClone(ratioEntity);
+      const attack = owner.attackDetails[0];
+      attack.essenceSlots = colors.map(color => ({ color, active: true }));
+      attack.attacknature = [];
+      window.dispatchEvent(new CustomEvent('selectedArmyAUpdated', { detail: {
+        source: 'essenceur', entityId: owner.id, entite: owner, attack,
+      } }));
+      const panel = ratioCodex.querySelector('.codex-attack-context .attack-critical-panel');
+      check(ratioCodex.querySelectorAll('.attack-critical-panel').length === 1
+        && panel?.dataset.criticalNature === key
+        && panel.querySelector('strong').textContent === `Coup critique ${label}`
+        && panel.textContent.includes(expected)
+        && !panel.textContent.includes('NaN')
+        && getComputedStyle(panel.querySelector('.criticalHit')).backgroundImage.includes(`picto-crit-${asset}.svg`),
+        `${label}: live essence changes refresh the unique left critical panel and its icon`);
+      if (key === 'magical-piercing') {
+        check(panel.textContent.includes('sur les ticks') && panel.textContent.includes('projectiles en vol sont inchangés')
+          && panel.textContent.includes('La jauge devient verte pendant le temps ajouté')
+          && panel.textContent.includes('Dissolution') && !panel.textContent.includes('Vol de vie'),
+          'Spectral helper explains burn recoil, permanent delay, temporary green and excluded timings');
+        window.__criticalHelperFixture = owner;
+      }
+      if (key === 'prism') check(panel.textContent.includes('20 s') && panel.textContent.includes('sans soin'),
+        'Prismatic helper keeps the alteration duration and capacity-only recovery');
+      check(panel.scrollWidth <= panel.clientWidth + 1, `${label}: critical panel has no horizontal overflow`);
+    }
     ratioCodex.remove();
     const disabled = structuredClone(saved);
     disabled.id = single.id + 1;
@@ -717,6 +757,22 @@ try {
     }
   }
   console.log('PASS: one logical menu layout on five sections at 390, 844, 1280 and 1920px');
+  await page.evaluate(async () => {
+    const { createCodexEntityScan } = await import('/js/ui/codex/index.js');
+    document.querySelectorAll('.codex-entity-scan').forEach(node => node.remove());
+    const host = document.querySelector('#game-windows .Game-UI .menu-map-container');
+    const entity = window.__criticalHelperFixture;
+    const codex = createCodexEntityScan(entity, host, `codex-entity_${entity.id}`);
+    codex.querySelector('.codex-attacks').parentElement.click();
+  });
+  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const panel = page.locator('.codex-attack-context .attack-critical-panel');
+    await panel.scrollIntoViewIfNeeded();
+    assert.equal(await panel.getAttribute('data-critical-nature'), 'magical-piercing');
+    assert.ok(await panel.evaluate(node => node.scrollWidth <= node.clientWidth + 1));
+    await page.screenshot({ path: `outputs/codex-attacks-tests/critical-spectral-${viewport.width}.png` });
+  }
   assert.deepEqual(errors, [], 'No browser runtime errors');
   console.log(reports.join('\n'));
   console.log('PASS: codex attack tab, settings, single/disabled states, inventory deep link and desktop/mobile layout');

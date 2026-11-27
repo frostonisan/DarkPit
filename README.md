@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.6.2-dev — 28 novembre 2026
+## Version actuelle : 0.93.6.3-dev — 28 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,17 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Critiques : encarts par nature et pictogrammes — 0.93.6.3-dev — 28 novembre 2026
+
+Les propriétés de chaque attaque affichent à gauche un encart « Coup critique »
+adapté à sa nature, avec les effets et les valeurs du porteur avant les protections
+de la cible. L’encart suit les changements d’essences et distingue les attaques de
+soutien, dont les critiques restent à définir. Le helper général renvoie vers ces
+encarts. L’Umbra utilise `picto-crit-umbra.svg` ; les coups critiques neutres utilisent
+`picto-crit-power.svg`. Les sept autres natures utilisent leurs pictogrammes dédiés
+dans les encarts et dans les popups de combat, y compris les exécutions critiques.
+Ces pictogrammes sont préchargés avec le niveau.
 
 ### Combat : fonds des bonus et malus temporaires — 0.93.6.2-dev — 28 novembre 2026
 
