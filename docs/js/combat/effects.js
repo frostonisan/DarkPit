@@ -86,6 +86,7 @@ function createDotHelper(key, target, state) {
   if (state.criticalBurn) {
     setEntityEffectView(target, key, {
       kind: 'magicalBurn', label: state.effect.effectDisplay, type: 'dot', endAt: () => state.expiresAt,
+      effectTypes: state.effect.type,
       count: () => Object.keys(state.sources).length,
       read: () => {
         const sources = Object.values(state.sources).map(source => ({
@@ -580,6 +581,7 @@ function applyNatureResistance(target, signature, count = 1) {
 function bindNatureEffectHelper(target, effect) {
   setEntityEffectView(target, `${target.id}-nature-${effect.signature.key}`, {
     kind: effect.signature.key, label: effect.signature.label, type: 'nature', stat: effect.signature.resistance,
+    effectTypes: effect.signature.sign < 0 ? ['alteration'] : [],
     count: () => effect.amounts.length, endAt: () => effect.expiresAt,
     read: () => ({ html: buildSignatureStackHelper({ signature: effect.signature, effect,
       value: effect.signature.sign * effect.amounts.reduce((sum, amount) => sum + amount, 0) }) }),

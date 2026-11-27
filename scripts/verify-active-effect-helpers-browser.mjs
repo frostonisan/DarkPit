@@ -5,7 +5,7 @@ import {resolve,relative,extname,sep} from 'node:path';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
-const root=resolve('docs'),output=resolve('outputs/active-effect-helpers');await mkdir(output,{recursive:true});
+const root=resolve('docs'),output=resolve(process.env.EFFECT_HELPER_OUTPUT || 'outputs/active-effect-helpers');await mkdir(output,{recursive:true});
 const server=createServer(async(req,res)=>{
   const file=resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));
   const rel=relative(root,file);if(rel==='..'||rel.startsWith('..'+sep))return res.writeHead(403).end();
@@ -89,7 +89,7 @@ try{
       const setStat=(e,key,value)=>{e.baseStats[key]=value;E.recomputeEntityStats(e);};
       const applied=effectAttack('silence',6);A.applyEffect(target,'silence',source,applied);
       const silenceNode=badge(target,'silence'),silenceHelper=hover(silenceNode);
-      has(silenceHelper,'Effet : Silence','Effect title');
+      has(silenceHelper,'Altération d’état : Silence','Effect title follows its actual category');
       has(silenceHelper,'Durée restante : 3,0 s','50% alteration resistance reduces 6s to 3s');
       has(silenceHelper,'pendant 3 secondes','Description uses applied duration');
       await advance(1000);has(silenceHelper,'Durée restante : 2,0 s','An already-open helper counts down');
@@ -109,7 +109,9 @@ try{
       has(slow,'Durée restante : 5,0 s','Non-damaging alteration duration is mitigated once');
       has(slow,'40 % pendant 5 secondes','Intensity retained with reduced duration');
       Fx.clearControlEffects(target);apply(target,'immobilisation',source,4);
-      has(hover(badge(target,'immobilisation')),'Durée restante : 4,0 s','Hindrance-only duration is not reduced by alteration resistance');Fx.clearControlEffects(target);
+      const rooted=hover(badge(target,'immobilisation'));
+      has(rooted,'Entrave : Immobilisation','Hindrance title keeps its distinct category');
+      has(rooted,'Durée restante : 4,0 s','Hindrance-only duration is not reduced by alteration resistance');Fx.clearControlEffects(target);
       A.applyEffect(target,'confusion',source,{effets:['confusion'],effectOverrides:{confusion:{effectDuration:4,effectMoveInterval:30,effectMovementRecoilPercent:40}}});
       const confused=hover(badge(target,'confusion'));
       has(confused,'40 points de pourcentage','Forced movement recoil remains the configured movement mechanic');
@@ -121,6 +123,7 @@ try{
       const poisonAttack={effets:['poison'],effectOverrides:{poison:{effectDuration:8,effectDot:160,effectPhysicalRatio:0,effectMagicalRatio:0,effectTickInterval:1}}};
       A.applyEffect(target,'poison',source,poisonAttack);
       const poisonNode=badge(target,'poison'),poisonHelper=hover(poisonNode);
+      has(poisonHelper,'Altération d’état : Poison','Poison category');
       has(poisonHelper,'Dernière fin : 8,0 s','DoT keeps its full duration');
       has(poisonHelper,'10 dégâts/s','DoT intensity includes the 50% alteration resistance');
       const hp=target.stats.HP.current;await advance(1000);
@@ -156,17 +159,35 @@ try{
       const beforeBurn=burned.stats.HP.current;await advance(1000);eq(beforeBurn-burned.stats.HP.current,60,'Actual stacked burn damage agrees');
       has(burnHelper,'Dernier tick subi : 60 HP · 0 armure','Burn helper shows actual last tick');
       apply(target,'sommeil',source,20);const sleepHelper=hover(badge(target,'sommeil'));
+      has(sleepHelper,'Altération d’état · Entrave : Sommeil','Both categories are retained for a mixed control');
       ok(Fx.wakeFromDamage(target,100,30,()=>0),'Damage wakes sleeping target');
       ok(!badge(target,'sommeil')&&!sleepHelper.isConnected,'Wake-up removes the helper immediately');
       const natureTarget=actor('B');const natureAttack=spell('nature',{attacknature:['magicalDamage','piercingDamage']});
       const result=Fx.applyAttackNatureEffect(natureTarget,source,natureAttack);ok(result?.key==='dissolution','Dissolution applies');
       const natureNode=document.querySelector(`[data-helper-key="${natureTarget.id}-effect-dissolution"]`),natureHelper=hover(natureNode);
-      has(natureHelper,'Effet : Dissolution','Nature effect title');has(natureHelper,'Durée restante : 8,0 s','Nature effect helper exposes its real expiry');
+      has(natureHelper,'Altération d’état : Dissolution','Nature alteration title');has(natureHelper,'Durée restante : 8,0 s','Nature effect helper exposes its real expiry');
       await advance(1000);has(natureHelper,'Durée restante : 7,0 s','Nature helper counts down while open');
       Fx.applyAttackNatureEffect(natureTarget,source,natureAttack);has(natureHelper,'2/10 cumuls','Nature helper updates stacks live');has(natureHelper,'Durée restante : 8,0 s','Nature effect refreshes expiry');
       const readBefore=JSON.stringify(C.captureCombatState().alterations);let rolls=0;Math.random=()=>{rolls++;return .9;};
       for(let i=0;i<3;i++)natureNode.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));
       eq(rolls,0,'Hover makes no resistance rolls');ok(readBefore===JSON.stringify(C.captureCombatState().alterations),'Hover does not change applied effects');
+      const corrupted=actor('B');
+      Fx.corruptionPrismatique(corrupted,{effectAmount:78},source);
+      const corruptionBadge=()=>document.querySelector(`[data-helper-key="${corrupted.id}-effect-corruptionPrismatique"]`);
+      let corruptionHelper=hover(corruptionBadge());
+      has(corruptionHelper,'Altération d’état : Corruption prismatique','Corruption is labelled as an alteration in the real in-game helper');
+      has(corruptionHelper,'PV maximum retirés : 78','Corruption amount is preserved');
+      has(corruptionHelper,'Durée restante : 20,0 s','Corruption duration is preserved');
+      Fx.corruptionPrismatique(corrupted,{effectAmount:22},source);
+      has(corruptionHelper,'PV maximum retirés : 100','Cumulative amount refreshes without changing its category');
+      const natureSave=C.captureCombatState()['nature-effects'];
+      await C.restoreCombatState({'nature-effects':natureSave},{entities:E.entites});
+      corruptionHelper=hover(corruptionBadge());
+      has(corruptionHelper,'Altération d’état : Corruption prismatique','Restored corruption keeps its category');
+      Fx.brulure(corrupted,{criticalBurn:true,effectDot:10,effectDuration:5,type:['alteration']},source);
+      has(hover(badge(corrupted,'magicalBurn')),'Altération d’état : Brûlure magique','Critical burn inherits its declared alteration category');
+      Fx.applyAttackNatureEffect(corrupted,source,spell('rupture-title',{attacknature:['physicalDamage','piercingDamage']}));
+      has(hover(document.querySelector(`[data-helper-key="${corrupted.id}-effect-rupture"]`)),'Altération d’état : Rupture','Rupture alteration category');
       // Leave one compact real helper visible for visual review.
       window.__activeEffectAudit={checks,target:natureTarget.id};
       window.dispatchEvent(new Event('battleStopped'));
@@ -177,8 +198,9 @@ try{
   });
   assert.deepEqual(errors,[]);
   await page.evaluate(async()=>{
-    const E = await import("/js/entities/runtime.js"),A = await import("/js/combat/vitals.js"),C = await import("/js/combat/clock.js");
+    const E = await import("/js/entities/runtime.js"),A = await import("/js/combat/vitals.js"),C = await import("/js/combat/clock.js"),Fx=await import('/js/combat/effects.js');
     C.clearCombatClock();C.freezeCombatClock();
+    document.querySelector('.entitylootContainer')?.remove();
     const source=E.entites[0],target=E.entites.find(e=>e.id===window.__activeEffectAudit.target);
     target.baseStats.alterationResistance=50;E.recomputeEntityStats(target);
     const panel=document.createElement('section');panel.style.cssText='position:fixed;left:80px;top:120px;width:430px;padding:24px;background:#111820;color:#eee;border:1px solid #bca366;z-index:10000';
@@ -186,6 +208,7 @@ try{
     const effectsHost=document.getElementById(`effectsContainer_${target.id}`);effectsHost.style.cssText='position:relative;width:60px;height:80px';panel.append(effectsHost);document.body.append(panel);
     A.applyEffect(target,'bafouillage',source,{effets:['bafouillage'],effectOverrides:{bafouillage:{effectDuration:10,effectSlowPercent:40}}});
     A.applyEffect(target,'poison',source,{effets:['poison'],effectOverrides:{poison:{effectDuration:8,effectDot:160,effectPhysicalRatio:0,effectMagicalRatio:0}}});
+    Fx.corruptionPrismatique(target,{effectAmount:156},source);
     document.querySelectorAll('.effect-message-line').forEach(node=>node.remove());
   });
   await page.locator('[data-control-effect="bafouillage"]').hover();
@@ -194,6 +217,16 @@ try{
   await page.locator('[data-dot-effect="poison"]').hover();
   await page.waitForTimeout(1200);
   await page.screenshot({path:resolve(output,'active-poison-helper.png')});
+  for(const width of [1280,390]){
+    await page.setViewportSize({width,height:1000});
+    await page.locator('[data-nature-effect="corruptionPrismatique"]').hover();
+    const helper=page.locator('.stat-hover[data-helper-key$="-effect-corruptionPrismatique"]');
+    await helper.waitFor({state:'visible'});
+    assert.match(await helper.innerText(),/Altération d’état : Corruption prismatique/);
+    await helper.evaluate(node=>new Promise(done=>{const check=()=>Number(getComputedStyle(node).opacity)>=.99?done():requestAnimationFrame(check);check();}));
+    await helper.screenshot({path:resolve(output,`corruption-helper-${width}.png`)});
+    const bounds=await helper.boundingBox();assert.ok(bounds.x>=-1&&bounds.x+bounds.width<=width+1,'Corruption helper remains inside the viewport');
+  }
   assert.deepEqual(errors,[]);
   await writeFile(resolve(output,'browser-report.json'),JSON.stringify({checks,errors},null,2));
   console.log(`Active effect helpers: ${checks.length} checks passed.`);

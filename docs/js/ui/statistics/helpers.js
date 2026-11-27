@@ -664,7 +664,7 @@ function statHelperHeader(host, statKey, calculated, entity) {
   if (host.dataset.activeEffect) {
     const visual = EFFECT_VISUALS[host.dataset.entityEffect];
     const icon = visual ? `<img class="effect-helper-icon ${escape(visual.iconClass || '')}" src="${escape(cachedResourceUrl(visual.src))}" alt="" draggable="false">` : '';
-    return `${icon}Effet : ${escape(host.dataset.activeEffect)}`;
+    return `${icon}${escape(host.dataset.effectCategory || 'Effet')} : ${escape(host.dataset.activeEffect)}`;
   }
   const catalogDefinition = stats.find(stat => normalizeStatKey(stat.key) === normalizeStatKey(statKey));
   const definition = contextualStatDefinition(catalogDefinition, host.matches('.stuff-stat-row') ? null : entity, calculated);

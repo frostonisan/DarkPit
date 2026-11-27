@@ -2,6 +2,7 @@ import {
   updateMovementDisplay, renderMovementCounter,
 } from "../../rendering/hud.js";
 import { clockNow, setInterval, clearInterval, isCombatPaused } from "../../combat/clock.js";
+import { EFFECT_TYPES, getAttackEffectDefinition } from '../../data/attackEffects.js';
 import { getStatSystemResult } from "../../entities/statSystem.js";
 import { getStatEffectMaximum } from '../../data/balanceData.js';
 import { statMaximumLabel, STAT_EFFECT_HELPERS, buildStatCurseHelper, buildEntityRateHelper } from "../../data/helpers.js";
@@ -1298,6 +1299,8 @@ function makeRow(column, group) {
   row.dataset.helperKey = `${column.target.id}-effect-${group.kind}`;
   row.dataset.entityId = String(column.target.id);
   row.dataset.activeEffect = group.label;
+  const effectTypes = group.entries[0].effectTypes || getAttackEffectDefinition(group.kind)?.type || [];
+  row.dataset.effectCategory = effectTypes.map(type => EFFECT_TYPES[type]).filter(Boolean).join(' · ') || 'Effet';
   row.dataset.helperClass = 'active-effect-hover entity-effect-hover';
   row.tabIndex = 0; row.setAttribute('role', 'button');
   const visual = EFFECT_VISUALS[group.kind];
