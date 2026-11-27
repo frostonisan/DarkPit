@@ -1,5 +1,5 @@
 // Release source of truth; this module updates the DOM in normal and admin modes.
-export const GAME_VERSION = '0.93.0.1-dev';
+export const GAME_VERSION = '0.93.1-dev';
 
 import { ensureGameShell } from '../ui/viewport.js';
 import { ENTITY_SIZE_OPTIONS, entitySizeInCells, setEntitySizeInCells, planEntityPlacements, releaseEntityFootprint, hexCoordonne, syncEntityFootprints } from "../board/controller.js";
@@ -58,6 +58,7 @@ import { determineClasse, updateCombatantRoleIndex, updateCombatantTargetZones }
 import {
   ATTACK_ESSENCE_MAX_SLOTS,
   getAttackEssenceColorsFromNatures,
+  getAttackNatureRules,
   readAttackDefinitionsForEntity,
   normalizeAttackArrayValue,
   normalizeAttackDefinitionForEntity,
@@ -149,10 +150,13 @@ const ADMIN_ATTACK_NUMERIC_FIELDS = Object.freeze([
     Object.freeze({ key: 'piercingRatio', label: 'Ratio perçant', step: 0.1 }),
     Object.freeze({ key: 'attackAP', label: 'Coût AP', step: 1 }),
 ]);
+const ADMIN_ATTACK_NATURE_PRESETS = Object.freeze([
+    'hybridalPiercingDamage', 'magicalPiercingDamage', 'physicalPiercingDamage'
+]);
 const ADMIN_ATTACK_LIST_FIELDS = Object.freeze([
     Object.freeze({ key: 'combatFunction', label: 'Fonction', options: ['Attaquant', 'Support'], multi: false, scalar: true, required: true }),
     Object.freeze({ key: 'attackRange', label: 'Portée', options: ['melee', 'range'], multi: false }),
-    Object.freeze({ key: 'attacknature', label: 'Nature', options: ['physicalDamage', 'magicalDamage', 'hybridalDamage', 'piercingDamage'], multi: true }),
+    Object.freeze({ key: 'attacknature', label: 'Nature', options: ['physicalDamage', 'magicalDamage', 'hybridalDamage', 'piercingDamage', ...ADMIN_ATTACK_NATURE_PRESETS], multi: true }),
     Object.freeze({ key: 'attackTarget', label: 'Cible', options: ['enemy', 'ally', 'hexa'], multi: true }),
     Object.freeze({ key: 'effets', label: 'Effets', get options() { return listAttackEffects().map(effect => effect.effectName); }, multi: true }),
     Object.freeze({ key: 'selfEffects', label: 'Effets soi', get options() { return listAttackEffects().map(effect => effect.effectName); }, multi: true }),
@@ -6034,6 +6038,7 @@ export function initializeAdminLevel(entityCatalog, { restoringCombat = false } 
         if (!field || !attack) return;
 
         const effectField = field.key === 'effets' || field.key === 'selfEffects';
+        const nature = field.key === 'attacknature' ? getAttackNatureRules(attack) : null;
         const currentValues = new Set(readAdminAttackListFieldValue(attack, field));
         const options = [...new Set([
             ...(field.key === 'effets' && !field.options.includes('none') ? ['none'] : []),
@@ -6099,14 +6104,21 @@ export function initializeAdminLevel(entityCatalog, { restoringCombat = false } 
                 rows.push({ element: row, searchText: `${field.label} ${label} ${option}` });
                 return;
             }
-            const active = currentValues.has(option);
+            const preset = nature && ADMIN_ATTACK_NATURE_PRESETS.includes(option)
+                ? getAttackNatureRules({ attacknature: [option] }) : null;
+            const label = preset?.label || option;
+            const active = preset ? nature.key === preset.key : currentValues.has(option);
             rows.push(createRow({
-                label: active ? `✓ ${option}` : option,
+                label: active ? `✓ ${label}` : label,
                 identity: field.label,
-                searchText: `${field.label} ${option}`,
+                searchText: `${field.label} ${label} ${option}`,
                 onClick: () => {
                     let nextValues;
-                    if (field.multi === false) {
+                    if (preset) {
+                        // A named combination replaces the previous family; sockets
+                        // and their existing purity still use the shared nature editor.
+                        nextValues = active ? [] : [option];
+                    } else if (field.multi === false) {
                         nextValues = active && !field.required && field.key !== 'attackRange' ? [] : [option];
                     } else if (active) {
                         nextValues = [...currentValues].filter(value => value !== option);

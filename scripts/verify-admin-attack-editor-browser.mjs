@@ -213,6 +213,56 @@ try {
   assert.equal(full.slots, 10, 'Changing a full attack keeps the ten-socket limit');
   assert.deepEqual(full.nature, ['hybridalDamage', 'piercingDamage']);
   assert.equal(full.ledger.ok, true, JSON.stringify(full.ledger));
+  for (const [label, key, colors] of [
+    ['Spectrale', 'magical-piercing', ['blue', 'yellow']],
+    ['Cinétique', 'physical-piercing', ['red', 'yellow']],
+    ['Prismatique', 'prism', ['red', 'blue', 'yellow']],
+  ]) {
+    await choose('Nature', label);
+    const draft = await page.evaluate(async () => {
+      const R = await import('/js/combat/attackResolution.js');
+      return R.getAttackNatureRules(window.__adminActiveLiveEntityDraft.attackDetails[0]);
+    });
+    assert.equal(draft.key, key, `${label} replaces the previous family`);
+    assert.deepEqual(draft.colors, colors, `${label} uses its exact essence combination`);
+    await page.getByRole('button', { name: 'Valider', exact: true }).click();
+    const applied = await page.evaluate(async () => {
+      const E = await import('/js/entities/runtime.js'), R = await import('/js/combat/attackResolution.js');
+      const S = await import('/js/storage/gameStorage.js'), L = await import('/js/items/essences.js');
+      const entity = E.entites[0];
+      E.recomputeEntityStats(entity);
+      const stored = S.loadFromLocalStorage('selectedArmyA', [])[0];
+      const restored = E.enrichEntityStats(structuredClone(stored));
+      return { key: R.getAttackNatureRules(entity.attackDetails[0]).key,
+        stored: R.getAttackNatureRules(stored.attackDetails[0]).key,
+        restored: R.getAttackNatureRules(restored.attackDetails[0]).key,
+        slots: entity.attackDetails[0].essenceSlots.length, ledger: L.validateEntityEssenceLedger(entity) };
+    });
+    assert.deepEqual([applied.key, applied.stored, applied.restored], [key, key, key], `${label} survives validation and restoration`);
+    assert.equal(applied.slots, 10, 'Presets preserve the socket limit');
+    assert.equal(applied.ledger.ok, true, JSON.stringify(applied.ledger));
+    await page.getByRole('button', { name: 'Modifier Nature', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: `✓ ${label} Nature`, exact: true }).count(), 1,
+      'The selected preset remains checked after reopening');
+    await page.screenshot({ path: resolve(output, `nature-${key}.png`), fullPage: true });
+    await page.getByRole('button', { name: /^< Retour attaque / }).click();
+  }
+  await choose('Nature', 'Prismatique');
+  assert.deepEqual(await page.evaluate(() => window.__adminActiveLiveEntityDraft.attackDetails[0].attacknature),
+    ['inerte'], 'A selected preset can be cleared like the existing nature choices');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await choose('Nature', 'Spectrale');
+  await page.getByRole('button', { name: 'Modifier Nature', exact: true }).click();
+  await page.locator('#admin-list-search-input').fill('spect');
+  assert.equal(await page.getByRole('button', { name: '✓ Spectrale Nature', exact: true }).isVisible(), true,
+    'Named presets can be searched on a portrait viewport');
+  await page.locator('#admin-list-search-input').fill('');
+  await page.getByRole('button', { name: 'Cinétique Nature', exact: true }).click();
+  assert.equal(await page.evaluate(async () => (await import('/js/combat/attackResolution.js'))
+    .getAttackNatureRules(window.__adminActiveLiveEntityDraft.attackDetails[0]).key), 'physical-piercing');
+  await page.getByRole('button', { name: 'Modifier Nature', exact: true }).click();
+  assert.equal(await page.locator('#game-version').isVisible(), true, 'Release label remains visible on mobile');
+  await page.screenshot({ path: resolve(output, 'nature-portrait.png'), fullPage: true });
   assert.deepEqual(errors, []);
   console.log('PASS Admin attack editor: name-only identity, draft isolation, nature, range, function, targets, effects, timings, ratios, save/reopen, mastery and essence consistency.');
 } finally { await browser.close(); await new Promise(done => server.close(done)); }

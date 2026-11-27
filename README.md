@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.0.1-dev — 27 novembre 2026
+## Version actuelle : 0.93.1-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,13 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Natures combinées dans l’admin — 0.93.1-dev — 27 novembre 2026
+
+Le sélecteur de nature des attaques propose directement Prismatique, Spectrale
+et Cinétique. Ces choix remplacent la famille précédente par les couleurs
+correspondantes, avec les mêmes emplacements d’essences et la même sauvegarde
+que les autres modifications d’attaque. Le choix actif reste coché à la réouverture.
 
 ### Carte Résilience sur petit écran — 0.93.0.1-dev — 27 novembre 2026
 
