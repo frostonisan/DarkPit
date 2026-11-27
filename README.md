@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.3-dev — 27 novembre 2026
+## Version actuelle : 0.93.4-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,14 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Reprise du combat après un événement — 0.93.4-dev — 27 novembre 2026
+
+Un nouveau combat réactive les survivants arrêtés à la fin du précédent, même
+lorsqu’il commence sur le même plateau après un événement comme le Souverain des
+Blattes. Les anciennes unités reprennent leurs tours avec les nouveaux arrivants.
+Les morts restent inactifs ; les HP sont conservés. Un second appel de démarrage
+pendant le combat ne réinitialise pas les tours et ne double pas leurs gains.
 
 ### Brûlure magique et renouvellement des résistances — 0.93.3-dev — 27 novembre 2026
 

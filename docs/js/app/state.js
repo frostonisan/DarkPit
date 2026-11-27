@@ -448,7 +448,9 @@ export function startGame() {
             return;
         }
         resetBattleResolution();
-        if (isAdminMode() && window.levelRunning === 'admin') initFightEntites();
+        // A post-victory event can start another fight on the same board.
+        // Release the previous battle's stop flags before dispatching any turns.
+        initFightEntites();
         gameStarted = true;
         const participants = entites.filter(entity =>
             (entity?.side === 'A' || entity?.side === 'B')

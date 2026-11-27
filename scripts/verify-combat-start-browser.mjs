@@ -21,7 +21,7 @@ const server = createServer(async (req, res) => {
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 let browser;
 try {
-  browser = await chromium.launch({ channel: 'msedge', headless: true });
+  browser = await chromium.launch({ channel: process.env.VERIFY_BROWSER || 'msedge', headless: true });
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -93,6 +93,36 @@ try {
     check(actor.stats.shift.current === initialMovement && !restarts.length, 'Healthy slow ATB does not receive extra charges or fallback');
 
     reset(); actor = make(); enemy = make('B');
+    const veteran = make('A', 'lord');
+    G.startGame();
+    await until(() => actor.turnCount === 1 && veteran.turnCount === 1, 'Both survivors participate in the first battle');
+    enemy.isDEAD = true; enemy.statut = ['dead']; enemy.stats.HP.current = 0;
+    G.checkGameOver();
+    check(G.battleOutcome === 'victory' && actor.battleStopped && veteran.battleStopped,
+      'Victory freezes the surviving army before the chest event');
+    const recruit = make(), king = make('B'); king.serial = 666;
+    const survivorHp = actor.stats.HP.current, survivorMovement = actor.stats.shift.current;
+    await Events.forceBattle({ eventKey: 'cockRoachHunt' });
+    await until(() => [actor, veteran, recruit, king].every(entity => entity.turnCount === 1 && entity.speedTimer > 0),
+      'Cockroach event starts old survivors, new allies and the king together');
+    check([actor, veteran, recruit, king].every(entity => !entity.battleStopped && entity.status === 'active'),
+      'New event battle releases the previous battle stop flags');
+    check(enemy.isDEAD && enemy.stats.HP.current === 0 && !enemy.turnCount,
+      'Restart does not resurrect or start the old enemy corpse');
+    check(actor.stats.HP.current === survivorHp && actor.stats.shift.current === survivorMovement + 1,
+      'Restart preserves HP and grants exactly one normal first-turn movement refill');
+    await Events.forceBattle({ eventKey: 'cockRoachHunt' });
+    await sleep(650);
+    check([actor, veteran, recruit, king].every(entity => entity.turnCount === 1) && !restarts.length,
+      'Repeated event start does not duplicate turns or require startup recovery');
+
+    G.StopGame({ preserveScene: true });
+    check(actor.battleStopped && king.battleStopped, 'An explicit combat stop freezes both camps');
+    G.startGame();
+    await until(() => [actor, veteran, recruit, king].every(entity => entity.turnCount === 1 && entity.speedTimer > 0),
+      'A new combat after StopGame also reactivates the surviving participants');
+
+    reset(); actor = make(); enemy = make('B');
     const dead = make(); dead.isDEAD = true; dead.stats.HP.current = 0;
     const empty = make(); empty.stats.HP.current = 0;
     omitInitialLaunch();
@@ -140,8 +170,11 @@ try {
     check(!restarts.length, 'Normal surprise wake-up needs no fallback');
 
     reset(); actor = make(); enemy = make('B');
-    actor.battleStopped = true; G.startGame();
+    window.addEventListener('battleStarted', () => { actor.battleStopped = true; }, { once: true });
+    G.startGame();
     check(F.verifyCombatTurnStarts().some(entry => entry.entityId === actor.id && entry.status === 'stopped'), 'Explicit entity stop is respected');
+    G.startGame();
+    check(actor.battleStopped, 'Calling start on an already running battle preserves an explicit entity stop');
     await sleep(600); check(!actor.turnCount, 'Fallback never clears an explicit stop');
 
     reset(); actor = make(); enemy = make('B');
