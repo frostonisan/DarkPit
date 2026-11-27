@@ -322,7 +322,8 @@ export function collectLevelResources({ entities = [], biome, stage = {}, invent
   collectValues(PERMANENT_CRYSTAL_LEVELS, sources);
   sources.add(resourceKey('./media/assets/ui/hexastone.png'));
   for (const file of ['chest-cracked', 'chest-cracked-opened', 'chest-loot', 'chest-cracked-loot',
-    'chest-unlocking', 'chest-closed', 'chest-destroyed', 'chest-is-opened', 'chest-opened', 'chest-locked']) {
+    'chest-unlocking', 'chest-closed', 'chest-destroyed', 'chest-is-opened', 'chest-opened', 'chest-locked',
+    'battle-card-bonus', 'battle-card-malus']) {
     sources.add(resourceKey(`./media/assets/misc/${file}.png`));
   }
   entities.forEach(entity => collectEntityResources(entity, sources));

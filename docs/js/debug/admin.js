@@ -1,5 +1,5 @@
 // Release source of truth; this module updates the DOM in normal and admin modes.
-export const GAME_VERSION = '0.93.6.1-dev';
+export const GAME_VERSION = '0.93.6.2-dev';
 
 import { ensureGameShell } from '../ui/viewport.js';
 import { ENTITY_SIZE_OPTIONS, entitySizeInCells, setEntitySizeInCells, planEntityPlacements, releaseEntityFootprint, hexCoordonne, syncEntityFootprints } from "../board/controller.js";

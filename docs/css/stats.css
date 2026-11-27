@@ -29,10 +29,17 @@
 .entity-effect-column[data-side="B"] { right: auto; left: calc(100% + 5px); align-items: flex-start; }
 
 .entity-effect-column .entity-effect-row {
-  position: relative; display: flex; flex: none; gap: 4px; height: 28px; min-width: 65px;
-  box-sizing: border-box; padding: 0 5px 0 0; border: 1px solid color-mix(in srgb, var(--effect-color) 55%, transparent);
-  border-radius: 3px; background: #08090af0; color: var(--effect-color); cursor: help;
-  box-shadow: 0 1px 3px #0009; line-height: 1; white-space: nowrap;
+  position: relative; display: flex; flex: none; gap: 4px; height: 32px; min-width: 128px;
+  box-sizing: border-box; padding: 0 24px 0 10px; border: 0; border-radius: 0;
+  background: url('../media/assets/misc/battle-card-malus.png') center / 100% 100% no-repeat;
+  color: var(--effect-color); cursor: help; line-height: 1; white-space: nowrap;
+}
+
+/* Beneficial effect identities are supplied by the combat engine. */
+.entity-effect-column .entity-effect-row:is([data-entity-effect^="bonus-"],
+  [data-entity-effect="consolidation"], [data-entity-effect="cohesion"],
+  [data-entity-effect="astralBody"], [data-entity-effect="astralReturn"]) {
+  background-image: url('../media/assets/misc/battle-card-bonus.png');
 }
 
 .entity-effect-row:focus-visible, .entity-effect-row:hover { outline: 1px solid var(--effect-color); outline-offset: 1px; }
@@ -43,13 +50,13 @@
 
 .entity-effect-row .entity-effect-icon.picto-stat { width: 26px; height: 26px; margin: 0; background-size: contain; }
 
-.entity-effect-row .entity-effect-time { font: 12px/1 Arial, sans-serif; color: #fff; min-width: 33px; text-align: right; }
+.entity-effect-row .entity-effect-time { font: 12px/1 Arial, sans-serif; color: #fff; min-width: 33px; margin-left: auto; text-align: right; }
 
 .entity-effect-count { position: absolute; left: -4px; top: -4px; padding: 1px 3px; min-width: 8px; border-radius: 3px; background: #111; border: 1px solid var(--effect-color); font: bold 9px/1 Arial, sans-serif; text-align: center; }
 
 .entity-effect-count[hidden] { display: none; }
 
-.entity-effect-row.is-decaying { border-style: dashed; }
+.entity-effect-row.is-decaying { outline: 1px dashed var(--effect-color); outline-offset: 1px; }
 
 .stat-hover.entity-effect-hover { width: 460px; font-size: 15px; line-height: 1.3; background: #08090af5; }
 
