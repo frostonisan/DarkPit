@@ -3,7 +3,7 @@ import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
-const root = resolve('docs'), output = resolve('outputs/umbra-contributions-2026-11-26/browser');
+const root = resolve('docs'), output = resolve(process.env.UMBRA_HELPER_OUTPUT || 'outputs/umbra-contributions-2026-11-26/browser');
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   const file = resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
@@ -58,6 +58,36 @@ try {
       await card.waitFor({ state: 'visible' });
       assert.doesNotMatch(await card.innerText(), /Total de l’entité|NaN|undefined/, key + ': only Umbra data on card');
       assert.ok(await card.evaluate(n => n.scrollWidth <= n.clientWidth + 2), key + ': no horizontal overflow');
+      const introduction = card.locator('[data-umbra-section="introduction"]');
+      assert.equal(await introduction.locator('[data-helper-value], [data-helper-stat-value], [data-umbra-detail-toggle]').count(), 0,
+        key + ': Confère only links short definitions, including on its numbers');
+      const grants = introduction.locator('[data-helper-source]');
+      assert.equal(await grants.count(), 1 + presentation.directGrants.length);
+      for (const grant of await grants.all()) {
+        const expected = await grant.locator('template').evaluate(t => t.content.textContent.trim());
+        for (const part of ['.picto-stat', '.helper-figure > span:last-child']) {
+          await grant.locator(part).first().click();
+          assert.equal((await details.last().locator('.stat-hover-body').innerText()).trim(), expected,
+            key + ': Confère pictogram and number share the short definition');
+          assert.equal(await details.last().locator('[data-helper-technical], .helper-player-value, .helper-score-total, .helper-umbra-grant').count(), 0);
+          if (key === 'finesse' && await grant.getAttribute('data-helper-source') === 'umbra-grant-piercingDamage' && part === '.picto-stat') {
+            await details.last().screenshot({ path: resolve(output, `finesse-confere-${width}-${admin}.png`), animations: 'disabled' });
+          }
+          await page.keyboard.press('Escape');
+        }
+      }
+      for (const entry of presentation.entries.filter(entry => entry.state === 'X')) {
+        const label = card.locator('.umbra-effect-name[data-helper-entry="' + entry.id + '"]');
+        assert.equal(await label.locator('[data-helper-source], [tabindex]').count(), 0,
+          key + ': statistic name and X have no separate helper anchor');
+        const title = label.locator(':scope > [data-stat-state="X"]');
+        assert.equal(await title.innerText(), entry.name + ' X');
+        await title.click();
+        assert.equal(await details.last().evaluate((node, id) => node._sourceAnchor?.dataset.helperEntry === id, entry.id), true,
+          key + ': the complete X label opens its statistic definition');
+        assert.equal(await details.last().locator('[data-helper-technical], .helper-score-total').count(), 0);
+        await page.keyboard.press('Escape');
+      }
       const ids = [...new Set(await card.locator('[data-helper-value]').evaluateAll(nodes => nodes.map(n => n.dataset.helperValue)))];
       for (const id of ids) {
         const entry = [...presentation.entries, ...presentation.detailEntries].find(entry => entry.id === id);
@@ -68,22 +98,36 @@ try {
         await total.waitFor({ state: 'visible' });
         assert.equal(await total.count(), 1, key + '/' + id + ': one entity total');
         assert.equal(number(await total.locator('.helper-figure').innerText()), Math.round(entry.total.value * 100) / 100, key + '/' + id + ': correct total in helper');
-        if (key === 'vigueur' && id === 'physicalDamageUmbraFlat') {
-          await details.last().evaluate(n => new Promise(resolve => {
-            const visible = () => Number(getComputedStyle(n).opacity) >= .99 ? resolve() : requestAnimationFrame(visible);
-            visible();
-          }));
-          await details.last().screenshot({ path: resolve(output, `direct-helper-${width}-${admin}.png`) });
-        }
         await page.keyboard.press('Escape');
       }
-      if (admin) {
+      {
+        const info = card.locator('[data-umbra-info-toggle]');
+        assert.equal(await info.count(), 1, key + ': global details are available in both modes');
+        assert.equal(await info.getAttribute('title'), 'Voir tous les détails des stats');
+        await info.click();
+        assert.equal(await card.locator('[data-umbra-inline-detail][hidden]').count(), 0, key + ': i opens every ratio');
+        await info.click();
+        assert.equal(await card.locator('[data-umbra-inline-detail]:not([hidden])').count(), 0, key + ': i closes every ratio');
         const toggle = card.locator('[data-umbra-detail-toggle]').first();
         if (await toggle.count()) {
+          assert.equal(await toggle.getAttribute('title'), 'Voir les ratios de la stat');
           await toggle.click();
+          assert.equal(await card.locator('[data-umbra-inline-detail]:not([hidden])').count(), 1, key + ': triangle opens only its row');
+          const source = card.locator('[data-umbra-inline-detail]:not([hidden]) .picto-stat[data-helper-picto-stat="' + key + '"]').first();
+          if (await source.count()) {
+            await source.click();
+            assert.equal((await details.last().locator('.stat-hover-body').innerText()).trim(), presentation.role,
+              key + ': Umbra in a calculation describes its role instead of listing its grants');
+            assert.equal(await details.last().locator('.helper-score-total').count(), 0);
+            if (key === 'finesse') await details.last().screenshot({ path: resolve(output, `finesse-intro-${width}-${admin}.png`), animations: 'disabled' });
+            await page.keyboard.press('Escape');
+          }
           const ratio = card.locator('[data-umbra-inline-detail]:not([hidden]) [data-helper-ratio]').first();
           if (await ratio.count()) {
-            await ratio.click(); await details.last().locator('.helper-score-total').waitFor({ state: 'visible' });
+            await ratio.click(); await details.last().waitFor({ state: 'visible' });
+            assert.equal(await details.last().locator('.helper-score-total').count(), 0, key + ': coefficient helper has no entity total');
+            assert.doesNotMatch(await details.last().innerText(), /Total de l’entité/);
+            if (key === 'finesse') await details.last().screenshot({ path: resolve(output, `finesse-ratio-${width}-${admin}.png`), animations: 'disabled' });
             await page.keyboard.press('Escape');
           }
           const input = card.locator('[data-umbra-inline-detail]:not([hidden]) [data-helper-stat-value]').first();
@@ -102,6 +146,19 @@ try {
       }
       coverage.push({ key, width, admin, values: ids.length });
     }
+  }
+  // The global preference follows navigation, while a triangle only affects its row.
+  for (const admin of [false, true]) {
+    await page.evaluate(admin => audit.show('astrality', admin), admin);
+    await card.locator('[data-umbra-info-toggle]').click();
+    await page.evaluate(admin => audit.show('vigueur', admin), admin);
+    assert.ok(await card.locator('[data-umbra-inline-detail]').evaluateAll(nodes => nodes.length > 0 && nodes.every(node => !node.hidden)));
+    await card.locator('[data-umbra-detail-toggle]').first().click();
+    await page.evaluate(admin => audit.show('esprit', admin), admin);
+    assert.ok(await card.locator('[data-umbra-inline-detail]').evaluateAll(nodes => nodes.length > 0 && nodes.every(node => !node.hidden)), 'A local triangle does not change another Umbra');
+    await card.locator('[data-umbra-info-toggle]').click();
+    await page.evaluate(admin => audit.show('vigueur', admin), admin);
+    assert.ok(await card.locator('[data-umbra-inline-detail]').evaluateAll(nodes => nodes.length > 0 && nodes.every(node => node.hidden)), 'Global collapse resets local choices');
   }
   // An open total follows an entity edit while the Umbra contribution is stable.
   await page.setViewportSize({ width: 1440, height: 1000 });

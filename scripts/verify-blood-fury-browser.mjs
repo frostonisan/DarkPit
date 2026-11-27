@@ -51,7 +51,7 @@ try {
     assert.ok(layout.top>=-1 && layout.bottom<=(width===390?845:1001));
     const params = card.locator('.umbra-unique-passive .umbra-effect-heading');
     assert.equal(await params.count(), 3, 'Parameters are ordinary rows within the exclusive frame');
-    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(), admin ? 4 : 0);
+    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(), 4);
     await card.locator('.umbra-role [data-helper-picto-stat]').click();
     assert.equal(await detail.locator('[data-helper-entry="bloodExecution"]').count(), 1);
     assert.equal(await detail.locator('[data-helper-entry="bloodCrazy"]').count(), 1);

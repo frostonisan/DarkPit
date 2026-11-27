@@ -18,6 +18,7 @@ import {
   buildImprovementHelperFooter,
   HELPER_TEXT,
   HELPER_PICTOGRAM_NAMES,
+  UMBRA_PRESENTATIONS,
   umbraDescription,
   buildStatSourcesHelper,
   buildPlayerStatDescription,
@@ -581,7 +582,7 @@ function readStatHelperContent(host, statKey, entity) {
   }
   const generatedTotal = calculated.umbraHelperCalculations?.[`${calculated.generatedUmbraSource?.target}Total`];
   if (stats.some(stat => stat.key === normalizeStatKey(statKey) && stat.nature === 'umbra')) {
-    if (calculated.umbraPresentation) calculated.helpContent = buildUmbraCard(calculated, { admin: technicalHelpersEnabled() });
+    if (calculated.umbraPresentation) calculated.helpContent = buildUmbraCard(calculated);
     const content = document.createElement('template');
     content.innerHTML = calculated.helpContent;
     calculated = compactAutonomousHelper(content, calculated);
@@ -694,7 +695,7 @@ function refreshStatHelper(helper, host, entity, content = readStatHelperContent
   helper._umbraCalculations = calculated?.umbraHelperCalculations;
   const umbraName = framed ? stats.find(stat => stat.key === normalizeStatKey(host.dataset.stat))?.name : '';
   const html = buildStatHoverCard({
-    umbraTitle: framed ? { key: normalizeStatKey(host.dataset.stat), name: umbraName, technical: technicalHelpersEnabled() } : null,
+    umbraTitle: framed ? { key: normalizeStatKey(host.dataset.stat), name: umbraName } : null,
     umbraHTML: statHelperHeader(host, host.dataset.stat, calculated, entity),
     helperHTML, ambianceHTML: calculated?.ambianceContent || '',
   });
@@ -845,7 +846,6 @@ let umbraCalculationDetailsVisible = false;
 let umbraCalculationHoverSuspended = false;
 
 function applyUmbraCalculationVisibility(helper) {
-  const enabled = technicalHelpersEnabled();
   const preferences = readStatisticCalculationPreferences();
   // Overrides belong to this card and survive its live content refresh only.
   // Their keys are bounded by the current controls; removing the card releases them.
@@ -853,7 +853,7 @@ function applyUmbraCalculationVisibility(helper) {
   const controls = [...helper.querySelectorAll('[data-umbra-detail-toggle]')];
   const keys = new Set(controls.map(button => button.dataset.umbraDetailToggle));
   for (const key of overrides?.keys() || []) if (!keys.has(key)) overrides.delete(key);
-  const isExpanded = key => enabled && (overrides?.get(key)
+  const isExpanded = key => (overrides?.get(key)
     ?? preferences.choices[statisticCalculationChoiceKey(helper.dataset.stat, helper.dataset.statEffect, key)]
     ?? preferences.expanded);
   for (const detail of helper.querySelectorAll('[data-umbra-calculation-details]')) detail.hidden = !isExpanded(detail.dataset.umbraCalculationDetails);
@@ -1092,7 +1092,7 @@ function buildUmbraDetail(anchor, parent, entity) {
       ? buildUmbraEntryExplanation(entry, calculated, { admin: technicalHelpersEnabled() })
       : statEffectDescription(entry.stat, entry.name, entry.exclusive ? 'normal' : entry.state, entry.description);
   } else if (anchor.hasAttribute('data-helper-ratio')) {
-    if (!technicalHelpersEnabled()) return;
+    if (!technicalHelpersEnabled() && !anchor.closest('[data-umbra-inline-detail]:not([hidden])')) return;
     const content = document.createElement('template');
     content.innerHTML = readContext().helperHTML;
     const ratio = [...content.content.querySelectorAll('[data-helper-ratio]')]
@@ -1105,11 +1105,6 @@ function buildUmbraDetail(anchor, parent, entity) {
     header = HELPER_TEXT.ratioValueTitle(name);
     html = buildRatioValueHelper(stat, ratio.dataset.ratioValue, ratio.dataset.ratioUnit, ratio.dataset.ratioRounding, ratio.dataset.ratioSourcePoints);
     if (!html) return;
-    if (statsByKey[normalizeStatKey(stat)]) {
-      const display = calculateStatsDisplay(stat, entity, undefined, { includeHelper: false });
-      html += buildEntityStatTotal(display.statSystem ? { ...display.statSystem, stat }
-        : { stat, value: display.displayValue });
-    }
   } else if (anchor.hasAttribute('data-helper-source')) {
     const content = document.createElement('template');
     content.innerHTML = readContext().helperHTML;
@@ -1155,7 +1150,9 @@ function buildUmbraDetail(anchor, parent, entity) {
     header = statDefinitionHelperTitle(definition, definition.name);
     if (definition.nature === 'umbra') {
       const presentation = calculated.umbraPresentation;
-      if (presentation) {
+      if (!valueKey && anchor.closest('[data-umbra-inline-detail], [data-helper-technical], [data-umbra-calculation], [data-autonomous-calculation]')) {
+        html = '<p>' + (UMBRA_PRESENTATIONS[definition.key] || buildPlayerStatDescription(definition.key, definition.name)) + '</p>';
+      } else if (presentation) {
         const bonuses = [{ stat: presentation.key, name: presentation.name }, ...(presentation.directGrants || []).map(entry => ({
           ...entry, name: statsByKey[normalizeStatKey(entry.stat)]?.name || HELPER_PICTOGRAM_NAMES[entry.stat]
             || entry.name.replace(/ · Bonus direct$/, ''),
@@ -1455,7 +1452,7 @@ export function initializeStatHelpers() {
 
   document.addEventListener('click', event => {
     const button = event.target instanceof Element && event.target.closest('[data-umbra-info-toggle], [data-umbra-detail-toggle]');
-    if (!button || !technicalHelpersEnabled()) return;
+    if (!button) return;
     const owner = button.closest('.umbra-helper-card');
     if (!owner) return;
     // Reflow can place a statistic under a stationary pointer. Wait for actual

@@ -45,7 +45,7 @@ try {
     assert.equal(await card.locator('.umbra-passive-icon').count(),2);
     assert.equal(await card.locator('.umbra-unique-passive [data-umbra-capacity]').count(),2);
     assert.equal(await card.locator('[data-stat-state="X"]').count(),0);
-    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(),admin?2:0);
+    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(),2);
     const fits=async locator=>{
       const metrics=await locator.evaluate(n=>{const r=n.getBoundingClientRect(),b=n.querySelector('.stat-hover-body')||n;return{rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right},scroll:b.scrollHeight>b.clientHeight+2||b.scrollWidth>b.clientWidth+2,overflow:getComputedStyle(b).overflowY};});
       assert.equal(metrics.scroll,false,JSON.stringify(metrics));assert.notEqual(metrics.overflow,'auto');

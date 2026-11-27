@@ -652,9 +652,7 @@ function umbraEntryLabel(entry, framed = false) {
   const icon = framed ? `<span class="umbra-passive-icon" aria-hidden="true">${picto}</span>` : picto;
   const options = umbraEntryTextOptions(entry);
   const text = label => `<span class="${escapeEssenceAttribute(entry.stat)}"${options.state ? ` data-stat-state="${options.state}"` : ''}${options.textStyle ? ` style="${escapeEssenceAttribute(options.textStyle)}"` : ''}>${escapeEssenceHTML(label)}</span>`;
-  const state = entry.state === 'X' ? ' ' + umbraContextLink(`state-${entry.id}`, text('X'), 'Statistique X · Renforcée par une Umbra',
-    'L’Umbra active renforce cette statistique avec les attributs associés. Le bonus accordé contribue au total de l’entité.') : '';
-  return `<span class="umbra-effect-name ${escapeEssenceAttribute(entry.stat)}" data-helper-entry="${escapeEssenceAttribute(entry.id)}" data-helper-picto-stat="${escapeEssenceAttribute(entry.stat)}" tabindex="0">${icon}${text(entry.name)}${state}</span>`;
+  return `<span class="umbra-effect-name ${escapeEssenceAttribute(entry.stat)}" data-helper-entry="${escapeEssenceAttribute(entry.id)}" data-helper-picto-stat="${escapeEssenceAttribute(entry.stat)}" tabindex="0">${icon}${text(entry.name + (entry.state === 'X' ? ' X' : ''))}</span>`;
 }
 
 export function buildEntityStatTotal(model) {
@@ -709,29 +707,28 @@ export function buildTechnicalStatCalculation(model) {
   return `<div class="helper-technical-formula">${parts}${parts ? ' = ' : ''}${helperFigure(model.stat, model.value, model.unit || '', { icon: null, maximum: model.maximum })}</div>${model.note ? `<p>${escapeEssenceHTML(model.note)}</p>` : ''}${buildCalculationSources(model)}`;
 }
 
-export function buildUmbraCard(result, { admin = false } = {}) {
+export function buildUmbraCard(result) {
   const presentation = result.umbraPresentation;
   if (!presentation) return '';
-  return buildUmbraPresentationCard(presentation, { result, admin });
+  return buildUmbraPresentationCard(presentation, { result });
 }
 
-// Calculations sit below their value's row. The UI toggles each occurrence;
-// player cards never include the controls or technical markup.
+// Players and admins can reveal the same inline ratios, globally or per row.
 function buildUmbraInlineCalculation(entry, result, scope) {
   const models = result.umbraHelperCalculations || {};
   const calculationId = entry.calculationId || entry.id;
   const model = models[calculationId];
   if (!model?.parts) return '';
   return {
-    button: `<button type="button" class="umbra-detail-toggle" data-umbra-detail-toggle="${escapeEssenceAttribute(scope)}" aria-expanded="false" aria-label="Calcul de ${escapeEssenceAttribute(entry.name)}"><span class="umbra-detail-triangle" aria-hidden="true">▶</span></button>`,
+    button: `<button type="button" class="umbra-detail-toggle" data-umbra-detail-toggle="${escapeEssenceAttribute(scope)}" aria-expanded="false" title="Voir les ratios de la stat" aria-label="Voir les ratios de la stat : ${escapeEssenceAttribute(entry.name)}"><span class="umbra-detail-triangle" aria-hidden="true">▶</span></button>`,
     formula: `<span data-umbra-section="calculation" data-umbra-calculation-details="${escapeEssenceAttribute(scope)}" data-umbra-inline-detail="${escapeEssenceAttribute(calculationId)}" data-helper-technical hidden>${helperCalculationParts(model, { concise: true, ratioPath: scope }) || helperFigure(entry.stat, 0)}</span>`,
   };
 }
 
-function buildUmbraPresentationCard(presentation, { result, admin = false } = {}) {
+function buildUmbraPresentationCard(presentation, { result } = {}) {
   const corners = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
   const separator = '<div class="umbra-card-line" aria-hidden="true"></div>';
-  const value = (entry, { calculation = true, ...options } = {}) => umbraEntryValue(entry, { ...options, result: admin && calculation ? result : null });
+  const value = (entry, { calculation = true, ...options } = {}) => umbraEntryValue(entry, { ...options, result: calculation ? result : null });
   const section = entry => {
     const passiveStyle = entry.exclusive && !entry.outsidePassiveFrame && !entry.passiveOf;
     const formulas = [];
@@ -752,9 +749,12 @@ function buildUmbraPresentationCard(presentation, { result, admin = false } = {}
   const passiveEntries = passives.flatMap(passive => [passive, ...presentation.entries.filter(entry => entry.passiveOf === passive.stat)]);
   const normal = presentation.entries.filter(entry => !passiveEntries.includes(entry));
   const grant = umbraContextLink('grant', helperFigure(presentation.key, presentation.points, '', { signed: true }),
-    `Umbra : ${presentation.name} · Points accordés`,
-    `${helperFigure(presentation.key, presentation.points)} points de ${escapeEssenceHTML(presentation.name)} alimentent les capacités de cette Umbra. Chaque effet possède sa propre valeur, indiquée dans la carte.${buildEntityStatTotal({ stat: presentation.key, value: presentation.points })}`);
-  const directGrants = (presentation.directGrants || []).map(entry => value(entry, { icon: entry.stat, calculation: false }));
+    `Umbra : ${presentation.name}`, buildPlayerStatDescription(presentation.key, presentation.name));
+  const directGrants = (presentation.directGrants || []).map(entry => {
+    const name = entry.name.replace(/ · Bonus direct$/, '');
+    return umbraContextLink(`grant-${entry.stat}`, helperFigure(entry.stat, entry.value, entry.unit, { signed: true }),
+      HELPER_TEXT.statTitle(name), buildPlayerStatDescription(entry.stat, name));
+  });
   const passiveTitle = umbraContextLink('exclusive-passives', passives.length > 1 ? 'Passives exclusives' : 'Passive exclusive',
     `Passives exclusives · ${presentation.name}`,
     `Ces capacités sont accordées par l’Umbra ${escapeEssenceHTML(presentation.name)}. Elles agissent automatiquement lorsque leurs conditions sont réunies : ${passives.map(entry => escapeEssenceHTML(entry.name)).join(', ')}.`);
@@ -1725,7 +1725,7 @@ export function umbraDescription(nature, attribut, type, key = '') {
 
 export function buildStatHoverCard({ umbraHTML, helperHTML, ambianceHTML, umbraTitle }) {
   return `
-    ${umbraTitle ? `<div class="umbra-title-card"><span class="umbra-title-content" data-helper-picto-stat="${escapeEssenceAttribute(umbraTitle.key)}" tabindex="0"><span class="picto-stat ${escapeEssenceAttribute(umbraTitle.key)}" aria-hidden="true"></span><span class="umbra-header-name ${escapeEssenceAttribute(umbraTitle.key)}">${escapeEssenceHTML(umbraTitle.name)}</span></span>${umbraTitle.technical ? `<button type="button" class="umbra-info-button" data-umbra-info-toggle aria-label="Afficher ou masquer les calculs de l’Umbra ${escapeEssenceAttribute(umbraTitle.name)}" aria-expanded="false">i</button>` : ''}</div>` : ''}
+    ${umbraTitle ? `<div class="umbra-title-card"><span class="umbra-title-content" data-helper-picto-stat="${escapeEssenceAttribute(umbraTitle.key)}" tabindex="0"><span class="picto-stat ${escapeEssenceAttribute(umbraTitle.key)}" aria-hidden="true"></span><span class="umbra-header-name ${escapeEssenceAttribute(umbraTitle.key)}">${escapeEssenceHTML(umbraTitle.name)}</span></span><button type="button" class="umbra-info-button" data-umbra-info-toggle title="Voir tous les détails des stats" aria-label="Voir tous les détails des stats" aria-expanded="false">i</button></div>` : ''}
     <div class="stat-hover-header">
       ${
         umbraHTML

@@ -125,11 +125,12 @@ try {
     for (const key of keys) {
       await page.evaluate(key => audit.show(key), key);
       await card.waitFor({ state: 'visible' });
-      assert.equal(await card.locator('[data-umbra-info-toggle]').count(), 0, key + ': calculations control is admin-only');
+      assert.equal(await card.locator('[data-umbra-info-toggle]').count(), 1, key + ': calculations control is available to players');
       assert.ok((await card.locator('.umbra-role').innerText()).length > 15, key + ': explanatory introduction');
       assert.match(await card.locator('.umbra-description').innerText(), /^Umbra /);
       assert.match(await card.locator('[data-umbra-section="introduction"]').innerText(), /^Confère/);
-      assert.equal(await card.locator('[data-umbra-detail-toggle], [data-umbra-inline-detail], [data-helper-technical]').count(), 0);
+      assert.ok(await card.locator('[data-umbra-detail-toggle]').count());
+      assert.equal(await card.locator('[data-umbra-inline-detail]:not([hidden])').count(), 0);
       assert.ok(await card.evaluate(node => node.scrollWidth <= node.clientWidth + 2), key + ': no horizontal overflow');
       assert.doesNotMatch(await card.innerText(), /Détail du calcul|Ratio|NaN|undefined/);
       for (const id of signedSamples[key] || []) assert.match(await card.locator(`[data-helper-value="${id}"]`).innerText(), /^\+\s*\d/, key + ': additive bonus has a plus sign');
@@ -169,7 +170,7 @@ try {
         }
         const displayed = model.directGrants.map(gift => [gift.stat, gift.value]);
         for (const gift of model.directGrants) {
-          if (!root.querySelector(`[data-umbra-section="introduction"] .picto-stat[data-helper-picto-stat="${gift.stat}"] + [data-helper-value="${gift.id}"]`)) failures.push('Missing direct gift ' + gift.stat);
+          if (!root.querySelector(`[data-umbra-section="introduction"] [data-helper-source="umbra-grant-${gift.stat}"] .picto-stat.${gift.stat}`)) failures.push('Missing direct gift ' + gift.stat);
         }
         return { failures, expectedGifts, displayed };
       });
@@ -184,7 +185,7 @@ try {
       assert.ok(actual);
       const auditResult = await card.evaluate(root => {
         const selector = '[data-helper-entry], [data-helper-value], [data-helper-source], [data-helper-picto-stat], [data-helper-stat-value]';
-        const anchors = [...root.querySelectorAll(selector)].filter(node => node.tabIndex >= 0);
+        const anchors = [...root.querySelectorAll(selector)].filter(node => node.tabIndex >= 0 && node.getClientRects().length);
         const failed = [];
         for (const anchor of anchors) {
           anchor.focus();
@@ -218,13 +219,14 @@ try {
     await card.evaluate(node => new Promise(resolve => { const check = () => Number(getComputedStyle(node).opacity) >= .99 ? resolve() : requestAnimationFrame(check); check(); }));
     await card.screenshot({ path: resolve(output, `vitalite-player-${width}.png`) });
     await page.evaluate(() => audit.show('vigueur'));
-    assert.match(await card.locator('[data-umbra-section="introduction"] [data-helper-value="physicalDamageUmbraFlat"]').innerText(), /50/);
-    await card.locator('[data-umbra-section="introduction"] [data-helper-picto-stat="physicalDamage"]').click();
+    const directGrant = card.locator('[data-umbra-section="introduction"] [data-helper-source="umbra-grant-physicalDamage"]');
+    assert.match(await directGrant.innerText(), /50/);
+    await directGrant.locator('.picto-stat').click();
     assert.equal(await details.last().locator('[data-helper-technical], .helper-player-value').count(), 0, 'Confère pictogram describes its statistic');
     await page.keyboard.press('Escape');
-    await card.locator('[data-helper-value="physicalDamageUmbraFlat"]').click();
-    assert.match(await details.last().innerText(), /Bonus direct/);
-    assert.match(await details.last().innerText(), /50/);
+    await directGrant.locator('.helper-figure > span:last-child').click();
+    assert.match(await details.last().innerText(), /Puissance [Pp]hysique/);
+    assert.doesNotMatch(await details.last().innerText(), /Bonus direct|Total de l’entité|50/);
     const directPosition = await checkSubhelperPosition(details.last(), 'PP direct bonus');
     assert.ok(directPosition.rect.top <= directPosition.anchor.top + 1, 'A low anchor can lift its helper without clipping it');
     await page.mouse.move(2, 2);
@@ -368,9 +370,7 @@ try {
         await ratio.locator('.helper-figure > span:not(.picto-stat)').click();
         assert.match(await details.last().innerText(), /Ratio|ratio/);
         await checkSubhelperPosition(details.last(), 'Ratio subhelper');
-        await details.last().locator('[data-helper-stat-value]').first().click();
-        assert.equal(await details.count(), 1, 'The statistic replaces its ratio subhelper: ' + JSON.stringify(errors));
-        assert.equal((await checkSubhelperPosition(details.last(), 'Replacement statistic subhelper')).nested, false);
+        assert.equal(await details.last().locator('.helper-score-total').count(), 0, 'A coefficient helper has no entity total');
         await page.keyboard.press('Escape');
         assert.equal(await details.count(), 0, 'Escape closes the only detail and keeps the card');
         await toggle.click();
@@ -402,7 +402,8 @@ try {
     assert.ok(await card.locator('[data-umbra-inline-detail]').evaluateAll(nodes => nodes.every(node => node.hidden)), 'A new global command clears prior individual choices');
     await page.evaluate(() => audit.G.setAdminMode(false));
     assert.equal(await details.count(), 0, 'Player mode closes technical subhelpers');
-    assert.equal(await card.locator('[data-umbra-inline-detail], [data-umbra-info-toggle]').count(), 0, 'Player mode removes technical rows and toggle');
+    assert.equal(await card.locator('[data-umbra-info-toggle]').count(), 1, 'Player mode retains its global details control');
+    assert.ok(await card.locator('[data-umbra-inline-detail]').count(), 'Player mode retains inline ratios');
   }
 
   await page.evaluate(() => audit.show('astrality'));

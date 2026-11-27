@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.5-dev — 27 novembre 2026
+## Version actuelle : 0.93.5.2-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,16 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Umbras : helpers et accès aux détails — 0.93.5.2-dev — 27 novembre 2026
+
+Les 27 cartes donnent uniquement une définition courte sur les pictogrammes et
+les montants de « Confère ». Le pictogramme, le nom et le X d’une statistique
+ouvrent ensemble sa description. En mode joueur comme en admin, le bouton i
+commande tous les détails et chaque triangle commande sa propre ligne. Leurs
+survols indiquent « Voir tous les détails des stats » et « Voir les ratios de la
+stat ». Dans les calculs, le pictogramme d’une Umbra reprend son introduction ;
+les helpers des ratios et multiplicateurs n’affichent plus le total de l’entité.
 
 ### Résilience : progression et protections — 0.93.5-dev — 27 novembre 2026
 

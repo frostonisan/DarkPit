@@ -102,7 +102,7 @@ try{
     await page.evaluate(admin=>{audit.G.setAdminMode(admin);audit.e.baseStats={HP:10000,esoterism:150,agility:150,strength:150,intelligence:150};audit.e.modifierStats={};audit.e.seuilUmbra=150;
       audit.E.recomputeEntityStats(audit.e,{equippedItems:[],persistEquipment:false,skipReverseArchetype:true});audit.show('esoterism');},admin);
     await card.waitFor({state:'visible'});assert.equal(await page.locator('#game-version').isVisible(),true);assert.equal(await card.locator('.umbra-passive-icon').count(),2);assert.equal(await card.locator('[data-stat-state="X"]').count(),0);
-    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(),admin?5:0);
+    assert.equal(await card.locator('[data-umbra-detail-toggle]').count(),5);
     const fits=async locator=>{
       const m=await locator.evaluate(n=>{const r=n.getBoundingClientRect(),b=n.querySelector('.stat-hover-body')||n;return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,scroll:b.scrollHeight>b.clientHeight+2||b.scrollWidth>b.clientWidth+2,overflow:getComputedStyle(b).overflowY};});
       assert.ok(!m.scroll&&m.overflow!=='auto'&&m.top>=-1&&m.left>=-1&&m.right<=width+1&&m.bottom<=height+1,JSON.stringify(m));
