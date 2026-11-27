@@ -5,7 +5,7 @@ import { resolve, relative, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const root = resolve('docs'), output = resolve('outputs/equilibre-presence-2026-11-27/browser');
+const root = resolve('docs'), output = resolve('outputs/equilibre-retrait-aggro-2026-11-27/browser');
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   const file = resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
@@ -70,25 +70,25 @@ try {
       }
       const attacker={id:981100,name:'Lord',stats:{},role:['lord']};
       const balanced={...e,id:981101,name:'Balanced',role:['gueux'],totalDamage:100};
-      const ordinary={id:981102,name:'Ordinary',role:['gueux'],stats:{HP:1000},totalDamage:110};
+      const ordinary={id:981102,name:'Ordinary',role:['gueux'],stats:{HP:1000},totalDamage:80};
       let selected; L.lordEnemyTarget([balanced,ordinary],[],v=>selected=v,attacker);
       ok(selected===ordinary,'Actual lord targeting discounts balanced damage aggro');
       const choose=(a,b)=>{let chosen;L.lordEnemyTarget([a,b],[],v=>chosen=v,attacker);return chosen;};
-      const source={id:981110,name:'Presence',role:[],stats:{HP:1000,equilibreAggroBonus:50,equilibreAggroReduction:20},totalAggroDamage:100,totalDamage:900,totalHeal:10,kills:2};
-      const expected=((100*.8)+(10*1.1)+(2*2))*1.5;
+      const source={id:981110,name:'Retired presence field',role:[],stats:{HP:1000,equilibreAggroBonus:50,equilibreAggroReduction:20},totalAggroDamage:100,totalDamage:900,totalHeal:10,kills:2};
+      const expected=(100*.8)+(10*1.1)+(2*2);
       const rival=score=>({id:981111,name:'Rival',role:[],stats:{HP:1000},totalDamage:score});
-      ok(choose(source,rival(expected-.001))===source,'Presence multiplies damage, healing and kills exactly once');
-      ok(choose(source,rival(expected+.001)).name==='Rival','Reduction precedes presence; no other damage counted');
+      ok(choose(source,rival(expected-.001))===source,'Damage reduction, healing and kills keep their original threat weights');
+      ok(choose(source,rival(expected+.001)).name==='Rival','Retired presence field is ignored; only eligible damage contributes');
       source.totalAggroDamage=0;source.totalHeal=0;source.kills=0;
-      ok(choose(source,rival(.001)).name==='Rival','Balanced damage stays zero even with presence');
+      ok(choose(source,rival(.001)).name==='Rival','Balanced damage stays excluded from threat');
       source.totalHeal=10;
-      ok(choose(source,rival(16.49))===source,'Healing alone benefits from presence');
+      ok(choose(source,rival(10.99))===source,'Healing keeps its original threat without amplification');
       source.totalHeal=0;source.kills=1;
-      ok(choose(source,rival(2.99))===source,'Kills alone benefit from presence');
+      ok(choose(source,rival(1.99))===source,'Kills keep their original threat without amplification');
       source.role=['tank'];
-      ok(choose(source,rival(4.79))===source,'Tank role still multiplies presence');
-      source.stats.equilibreAggroBonus=0;
-      ok(choose(source,rival(4.79)).name==='Rival','Live source change takes effect at next targeting');
+      ok(choose(source,rival(3.19))===source,'Native tank role multiplier is retained');
+      source.role=[];
+      ok(choose(source,rival(3.19)).name==='Rival','Role change takes effect at next targeting');
       const invisible={id:981103,name:'Invisible',stats:{HP:100,occultism:1,agility:0},role:['gueux'],isInvisible:true,occultismInvisible:true};
       const alternative={...ordinary,stats:{HP:1000}};
       Math.random=()=>0;
@@ -102,14 +102,14 @@ try {
   const root=page.locator('[data-umbra-pinned="true"]:not([data-umbra-detail])');
   await page.evaluate(()=>{audit.mode('Stats');audit.open('equilibre');});
   await root.waitFor({state:'visible'});
-  assert.equal(await root.locator('.umbra-effect-row').count(),4);
+  assert.equal(await root.locator('.umbra-effect-row').count(),3);
   assert.equal(await root.locator('[data-umbra-passive="equilibreBalancedAttackChance"]').count(),1);
   assert.match(await root.locator('.umbra-description').innerText(),/Intelligence.*niveau 2/i);
   const geometry=await root.evaluate(node=>({width:node.getBoundingClientRect().width,
-    icon:getComputedStyle(node.querySelector('.picto-stat.equilibreAggroBonus')).backgroundImage}));
-  assert.match(geometry.icon,/picto-aggro/);
-  assert.doesNotMatch(await root.innerText(),/Total de l’entité|NaN|undefined/);
-  checks.push('Four effects, Presence pictogram, source-only card and exclusive passive');
+    icon:getComputedStyle(node.querySelector('.picto-stat.equilibreBalancedAttackChance')).backgroundImage}));
+  assert.match(geometry.icon,/picto-balance-strike/);
+  assert.doesNotMatch(await root.innerText(),/Total de l’entité|Présence équilibrée|NaN|undefined/);
+  checks.push('Three effects, retained balanced attack pictogram and source-only card');
   // Opening calculation details must not widen the card.
   const toggle=root.locator('[data-umbra-detail-toggle]').first();await toggle.click();
   const width=await root.evaluate(node=>node.getBoundingClientRect().width);assert.equal(width,geometry.width);
@@ -131,64 +131,70 @@ try {
   checks.push('Opening calculations preserves width');
   // Every requested stat retains its real total and pictogram in the Codex.
   await page.evaluate(()=>audit.mode('Stats','stat'));
-  for(const key of ['equilibreAggroBonus','equilibreAggroReduction','equilibreInvisibleDetection','equilibreBalancedAttackChance']) {
+  for(const key of ['equilibreAggroReduction','equilibreInvisibleDetection','equilibreBalancedAttackChance']) {
     const row=page.locator(`#icon-audit .stat-container[data-stat="${key}"]`).filter({visible:true});
     assert.ok(await row.count(),`Codex row: ${key}`);
   }
-  checks.push('All four stats appear in Codex');
+  assert.equal(await page.locator('#icon-audit [data-stat="equilibreAggroBonus"]').count(),0);
+  checks.push('Three retained stats in Codex; retired presence absent');
   await page.evaluate(()=>{audit.mode('Level up');audit.open('equilibre');});
   assert.equal(await root.locator('[data-umbra-passive="equilibreBalancedAttackChance"]').count(),1);
   checks.push('Level up retains the same card and passive');
   // Source total, separate entity total, individual calculation preference and portrait layout.
   await page.evaluate(async()=>{
     const E=await import('/js/entities/runtime.js');
-    audit.entity.baseStats.equilibreAggroBonus=7;audit.entity.baseStats.equilibreAggroBonusPlus=5;
+    audit.entity.baseStats.equilibreAggroReduction=7;audit.entity.baseStats.equilibreAggroReductionPlus=5;
     E.recomputeEntityStats(audit.entity,{equippedItems:[],persistEquipment:false,skipReverseArchetype:true});
     const G=await import('/js/storage/gameStorage.js');G.saveToLocalStorage('selectedArmyA',[audit.entity]);
     audit.UI.closeOpenHelpers();audit.host.replaceChildren();
     audit.UI.createCodexEntityScan(audit.entity,audit.host,`codex-entity_${audit.entity.id}`);
     audit.mode('Stats');audit.open('equilibre');
   });
-  const presence=root.locator('[data-umbra-capacity="equilibreAggroBonusUmbraGrant"]');
-  const amount=presence.locator('[data-helper-value] .helper-figure').first();
+  const reduction=root.locator('[data-umbra-capacity="equilibreAggroReductionUmbraGrant"]');
+  const amount=reduction.locator('[data-helper-value] .helper-figure').first();
   const number=text=>Number(text.replace(/[^0-9.−-]/g,'').replace('−','-'));
   const expected=await page.evaluate(()=>{
     const d=audit.UI.calculateStatsDisplay('equilibre',audit.entity);
-    const e=d.umbraPresentation.entries.find(e=>e.stat==='equilibreAggroBonus');return {own:e.value,total:e.total.value};
+    const e=d.umbraPresentation.entries.find(e=>e.stat==='equilibreAggroReduction');return {own:e.value,total:e.total.value};
   });
   assert.equal(number(await amount.innerText()),Math.round(expected.own*100)/100);
   await amount.click();
   const detail=page.locator('[data-umbra-detail]').last();await detail.locator('.helper-score-total').waitFor({state:'visible'});
   assert.equal(number(await detail.locator('.helper-score-total .helper-figure').innerText()),Math.round(expected.total*100)/100);
   await page.keyboard.press('Escape');
-  const presenceToggle=presence.locator('[data-umbra-detail-toggle]');await presenceToggle.click();
-  assert.equal(await presenceToggle.getAttribute('aria-expanded'),'true');
+  const reductionToggle=reduction.locator('[data-umbra-detail-toggle]');
+  if(await reductionToggle.getAttribute('aria-expanded')==='true')await reductionToggle.click();
+  await reductionToggle.click();
+  assert.equal(await reductionToggle.getAttribute('aria-expanded'),'true');
   await page.evaluate(()=>audit.open('equilibre'));
-  assert.equal(await presenceToggle.getAttribute('aria-expanded'),'true');
+  assert.equal(await reductionToggle.getAttribute('aria-expanded'),'true');
   assert.equal(await root.locator('[data-umbra-capacity="equilibreInvisibleDetectionUmbraGrant"] [data-umbra-detail-toggle]').getAttribute('aria-expanded'),'false');
   await page.setViewportSize({width:390,height:844});
   await page.evaluate(()=>audit.open('equilibre'));
   await root.waitFor({state:'visible'});
   assert.ok(await root.evaluate(n=>n.scrollWidth<=n.clientWidth+2),'Portrait card has no horizontal overflow');
-  const formula=presence.locator('[data-umbra-inline-detail]');
+  const formula=reduction.locator('[data-umbra-inline-detail]');
   assert.ok(await formula.isVisible());
   assert.equal(await formula.evaluate(n=>getComputedStyle(n).textAlign),'center');
   await page.waitForFunction(()=>getComputedStyle(document.querySelector('[data-umbra-pinned="true"]:not([data-umbra-detail])')).opacity==='1');
   await root.screenshot({path:resolve(output,'equilibre-mobile.png')});
   await page.evaluate(()=>{audit.UI.closeOpenHelpers();});
-  const version=page.locator('#game-version');assert.match(await version.innerText(),/0.92.6-dev/);
+  const version=page.locator('#game-version');
+  const {gameVersion}=JSON.parse(await readFile(resolve('package.json'),'utf8'));
+  assert.ok((await version.innerText()).includes(gameVersion));
   assert.ok(await version.isVisible(),'Current version remains visible on mobile');
   checks.push('External totals, saved per-effect calculations, centered formulas and mobile layout');
   const lab=await browser.newPage();lab.on('pageerror',error=>errors.push(error.message));
   await lab.goto(`http://127.0.0.1:${server.address().port}/index-14.html`);
-  for(const [key,limit] of [['equilibreAggroBonus',99],['equilibreAggroReduction',60],['equilibreInvisibleDetection',99],['equilibreBalancedAttackChance',40]]){
+  for(const [key,limit] of [['equilibreAggroReduction',60],['equilibreInvisibleDetection',99],['equilibreBalancedAttackChance',40]]){
     await lab.locator('#conversion-stat').selectOption(key);
     assert.equal(await lab.locator('#conversion-limit').inputValue(),String(limit));
     await lab.locator('#conversion-agility').fill('50');await lab.locator('#conversion-points').fill('50');
     assert.match(await lab.locator('#conversion-result').innerText(),/Équilibre/);
     assert.doesNotMatch(await lab.locator('#conversion-result').innerText(),/NaN|undefined/);
   }
-  checks.push('Index 14 displays the four configured curves live');
+  assert.equal(await lab.locator('#conversion-stat option[value="equilibreAggroBonus"]').count(),0);
+  checks.push('Index 14 displays only the three retained Equilibre curves');
   assert.deepEqual(errors,[]);
   await writeFile(resolve(output,'browser-checks.json'),JSON.stringify(checks,null,2));
   console.log('PASS:\n'+checks.join('\n'));

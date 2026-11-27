@@ -40,7 +40,7 @@ export const STAT_SYSTEM_ORIGINS = Object.freeze({
   extraLife: 'transcendence', transcendenceTotal: 'transcendence',
   criticalChance: 'criticalPower', criticalDamage: 'criticalPower',
   criticalResistance: 'resilience', alterationResistance: 'resilience', hindranceResistance: 'resilience', resilienceTotal: 'resilience',
-  equilibreAggroBonus: 'equilibre', equilibreAggroReduction: 'equilibre', equilibreInvisibleDetection: 'equilibre', equilibreBalancedAttackChance: 'equilibre',
+  equilibreAggroReduction: 'equilibre', equilibreInvisibleDetection: 'equilibre', equilibreBalancedAttackChance: 'equilibre',
   bloodFuryExecutionChance: 'bloodFury', bloodFuryTargetThreshold: 'bloodFury',
   bloodFuryExecutionDamage: 'bloodFury', bloodThirsty: 'bloodFury',
   hpBattleRegen: 'indestructibility', attackCooldownReduc: 'haste',
@@ -53,7 +53,7 @@ export const STAT_SYSTEM_ORIGINS = Object.freeze({
 const percentages = new Set(['physicalPen', 'magicalPen', 'physicalResistance', 'magicalResistance',
   'dodge', 'velocity', 'controlledSpeed', 'fatalSurvival', 'astralBody', 'transcendenceTotal', 'criticalChance', 'criticalDamage',
   'criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal',
-  'equilibreAggroBonus', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance',
+  'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance',
   'bloodFuryExecutionChance', 'bloodFuryTargetThreshold', 'bloodThirsty', 'hpBattleRegen',
   'attackCooldownReduc', 'attackPreparationReduc', 'attackExecutionReduc', 'attackRecoveryReduc',
   'attackProjectileSpeed', 'marathon', 'trailer', 'weaponOrfevre', 'weaponCollector']);
@@ -176,7 +176,6 @@ function makeRules() {
   add('resilienceTotal', { directPercentage: true });
   add('controlledSpeed', { directPercentage: true, requiresUmbra: true });
   add('equilibreAggroReduction', { ratioPercent: true, attribute: 'intelligence', equilibre: true });
-  add('equilibreAggroBonus', { ratioPercent: true, attribute: 'strength', equilibre: true });
   add('equilibreInvisibleDetection', { ratioPercent: true, attribute: 'agility', equilibre: true });
   add('equilibreBalancedAttackChance', { directPercentage: true });
   for (const key of ['bloodFuryExecutionChance', 'bloodFuryTargetThreshold', 'bloodFuryExecutionDamage']) {

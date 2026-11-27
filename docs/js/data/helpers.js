@@ -371,7 +371,6 @@ const GENERATED_STAT_HELPERS = Object.fromEntries([
   ['hindranceResistance', 'Résistance aux entraves', 'resilience', 'Résilience', 'agility', 'Agilité'],
   ['alterationResistance', 'Résistance aux altérations', 'resilience', 'Résilience', 'intelligence', 'Intelligence'],
   ['criticalResistance', 'Résistance aux critiques', 'resilience', 'Résilience', 'strength', 'Force'],
-  ['equilibreAggroBonus', 'Présence équilibrée', 'equilibre', 'Équilibre', 'strength', 'Force'],
   ['equilibreInvisibleDetection', 'Perception équilibrée', 'equilibre', 'Équilibre', 'agility', 'Agilité'],
   ['equilibreAggroReduction', 'Réduction d’aggro', 'equilibre', 'Équilibre', 'intelligence', 'Intelligence'],
   ['criticalChance', 'Chance de critique', 'criticalPower', 'Puissance critique', 'agility', 'Agilité'],
@@ -441,16 +440,13 @@ export const STAT_HELPER_DESCRIPTIONS = {
   "transcendence": "Accorde une affinité avec les résurrections.",
   "haste": `La ${helperEffectTitle('haste', 'Hâte')} permet à l'entité d'enchaîner ses attaques plus rapidement.`,
   "equilibreAggroReduction": "Réduit l’aggro générée par les dégâts de l’entité.",
-  equilibreAggroBonus: "Augmente l’aggro générée par les dégâts, les soins et les éliminations de l’entité. Le bonus s’applique après la réduction d’aggro des dégâts et se cumule avec le multiplicateur du rôle. Les dégâts d’une attaque équilibrée ne génèrent toujours aucune aggro.",
-  equilibreAggroBonusPlus: `Augmente l’aggro générée par les dégâts, les soins et les éliminations, avec l’aide de la ${helperEffectTitle('strength', 'Force')}.`,
-  equilibreAggroBonusX: `L’entité utilise sa ${helperEffectTitle('strength', 'Force')} et son ${helperEffectTitle('equilibre', 'Équilibre')} pour augmenter l’aggro générée par ses dégâts, ses soins et ses éliminations.`,
   "equilibreAggroReductionPlus": `Réduit l’aggro générée par les dégâts de l’entité, avec l’aide de son ${helperEffectTitle('intelligence', 'Intelligence')}.`,
   "equilibreAggroReductionX": `L’entité utilise son ${helperEffectTitle('intelligence', 'Intelligence')} et son ${helperEffectTitle('equilibre', 'Équilibre')} pour réduire l’aggro générée par ses dégâts.`,
   "equilibreInvisibleDetection": "Réduit l’évitement du ciblage des ennemis invisibles, en points de pourcentage. L’évitement restant ne peut pas être négatif.",
   "equilibreInvisibleDetectionPlus": `Réduit l’évitement du ciblage des ennemis invisibles, avec l’aide de l’${helperEffectTitle('agility', 'Agilité')}.`,
   "equilibreInvisibleDetectionX": `L’entité utilise son ${helperEffectTitle('agility', 'Agilité')} et son ${helperEffectTitle('equilibre', 'Équilibre')} pour réduire l’évitement du ciblage des ennemis invisibles.`,
   "equilibreBalancedAttackChance": `Chance que l’attaque ne génère aucune aggro. Passive exclusive à ${helperEffectTitle('equilibre', 'Équilibre')}, renforcée par l’${helperEffectTitle('intelligence', 'Intelligence')}.`,
-  "equilibre": `L'${helperEffectTitle('equilibre', 'Équilibre')} module l’attention des ennemis selon ses attributs et améliore sa perception des cibles invisibles.`,
+  "equilibre": `L'${helperEffectTitle('equilibre', 'Équilibre')} réduit l’attention des ennemis et améliore sa perception des cibles invisibles.`,
   "mysticism": `Le ${helperEffectTitle('mysticism', 'Mysticisme')} peut déclencher une ${helperEffectTitle('mysticism', 'transe mystique')} pendant la ${helperEffectTitle('preparationTime', 'préparation')} de l'attaque.`,
   "criticalPower": `Confère ${helperEffectTitle('criticalChance', 'Chance de critique', { state: 'X' })} et la passive exclusive ${helperEffectTitle('criticalDamage', HELPER_TEXT.criticalDamageName(true))}.`,
   "ambidextry": "L'entité est si agile qu'elle peut manier ses deux bras pour attaquer plusieurs fois.",
@@ -524,7 +520,7 @@ export const UMBRA_PRESENTATIONS = {
   astrality: 'Repousse la mort et protège des attaques purement magiques.',
   robustness: 'Accorde une armure qui se régénère chaque jour.',
   resilience: 'Atténue les coups critiques et aide à résister aux altérations et aux entraves.',
-  equilibre: 'Module l’aggro générée selon la Force et l’Intelligence, et améliore la détection des cibles invisibles.',
+  equilibre: 'Réduit l’aggro générée par les dégâts et améliore la détection des cibles invisibles.',
   vivacite: 'Accélère les tours et facilite les déplacements en combat.',
   vision: 'Améliore la précision et l’efficacité des attaques à distance.',
   criticalPower: 'Renforce la fréquence et la puissance des coups critiques.',
@@ -781,7 +777,7 @@ function helperStatIntroduction(stat, { icon = false, value = null, flatValue = 
       ? `, ${helperFigure(family.target, `+${Number(flatValue)}`, '', { icon: null })} <span class="picto-stat ${family.target}" role="img" aria-label="${family.name}"></span>` : '';
     const abilities = [helperEffectTitle(family.target, family.name, { state: 'X' }),
       ...(stat === 'resilience' ? [helperEffectTitle('alterationResistance', 'Résistance aux altérations', { state: 'X' }), helperEffectTitle('hindranceResistance', 'Résistance aux entraves', { state: 'X' }), helperEffectTitle('resilienceTotal', 'Résilience totale')] : []),
-      ...(stat === 'equilibre' ? [helperEffectTitle('equilibreAggroBonus', 'Présence équilibrée', { state: 'X' }), helperEffectTitle('equilibreInvisibleDetection', 'Perception équilibrée', { state: 'X' }), helperEffectTitle('equilibreBalancedAttackChance', 'Attaque équilibrée')] : []),
+      ...(stat === 'equilibre' ? [helperEffectTitle('equilibreInvisibleDetection', 'Perception équilibrée', { state: 'X' }), helperEffectTitle('equilibreBalancedAttackChance', 'Attaque équilibrée')] : []),
       ...(stat === 'astrality' ? [helperEffectTitle('astralCooldown', 'Cooldown astral'), helperEffectTitle('astralReturn', 'Retour astral'), helperEffectTitle('astralBody', 'Corps astral')] : []),
       ...(stat === 'bloodFury' ? [helperEffectTitle('bloodExecution', 'Exécution'), helperEffectTitle('bloodCrazy', 'Démence sanguinaire'), helperEffectTitle('bloodGlutony', 'Voracité sanguinaire')] : []),
       ...(stat === 'hypercognition' ? [helperEffectTitle('cognitiveGenerator', 'Générateur cognitif')] : []),
@@ -1074,7 +1070,6 @@ const helpContent = {
   alterationResistance: `${STAT_HELPER_DESCRIPTIONS.alterationResistance}<br><br>L’entité les atténue de ${autonomous(percent('alterationResistance', result.statSystem?.value ?? result.resilienceAlteTotalBonus ?? safe('alterationResistance', 0)))}. La brûlure perd des dégâts. Rupture et Dissolution perdent de l’intensité par charge, sans supprimer de charges. Corruption prismatique retire moins de HP maximum. Déphasage applique moins de recul. Les contrôles d’altération qui agissent sur la durée sont raccourcis.`,
   resilienceTotal: `${STAT_HELPER_DESCRIPTIONS.resilienceTotal}<br><br>L’entité a ${autonomous(percent('resilienceTotal', result.statSystem?.value ?? result.resilienceTotalCancelBonus ?? safe('resilienceTotal', 0)))} de chance d’annuler totalement une altération ou une entrave.`,
   equilibreAggroReduction: `${STAT_HELPER_DESCRIPTIONS.equilibreAggroReduction}<br><br>Réduction d’aggro : ${autonomous(percent('equilibreAggroReduction', result.statSystem?.value ?? safe('equilibreAggroReduction', 0)))}.`,
-  equilibreAggroBonus: `${STAT_HELPER_DESCRIPTIONS.equilibreAggroBonus}<br><br>Bonus d’aggro : ${autonomous(percent('equilibreAggroBonus', result.statSystem?.value ?? safe('equilibreAggroBonus', 0)))}.`,
   equilibreInvisibleDetection: `${STAT_HELPER_DESCRIPTIONS.equilibreInvisibleDetection}<br><br>Réduction de l’évitement adverse : ${autonomous(percent('equilibreInvisibleDetection', result.statSystem?.value ?? safe('equilibreInvisibleDetection', 0)))}.`,
   equilibreBalancedAttackChance: `${STAT_HELPER_DESCRIPTIONS.equilibreBalancedAttackChance}<br><br>Chance de déclenchement : ${autonomous(percent('equilibreBalancedAttackChance', result.statSystem?.value ?? safe('equilibreBalancedAttackChance', 0)))}.`,
   fatalSurvival: `${STAT_HELPER_DESCRIPTIONS.fatalSurvival}<br><br>Chance totale : ${autonomous('', { icon: 'fatalSurvival' })}.<br>${helperEffectTitle('astralCooldown', 'Cooldown astral')} : ${formatStatNumber(result.astralCooldown?.seconds)} s après chaque réussite.${safe('astrality', 0) > 0 ? ' Réduit par l’Agilité grâce à Astralité.' : ' Délai de base ; l’Agilité ne le réduit pas sans Umbra.'}${result.astralUnavailableSeconds > 0 ? `<br>Récupération : ${formatStatNumber(result.astralUnavailableSeconds)} s restantes.` : ''}`,
@@ -1255,7 +1250,6 @@ const umbraAbilities = {
     ['transcendenceConsoProtectionPercent', 'Transcendance totale', STAT_HELPER_DESCRIPTIONS.transcendenceTotal, 'transcendenceTotal', 'transcendenceTotal'],
   ],
   equilibre: [
-    ['equilibreAggroBonus', 'Présence équilibrée', STAT_HELPER_DESCRIPTIONS.equilibreAggroBonus, 'equilibreAggroBonus'],
     ['equilibreAggroReduction', 'Réduction d’aggro', "Réduit l’aggro générée par les dégâts de l’entité."],
     ['equilibreInvisibleDetection', 'Perception équilibrée', "Réduit l’évitement du ciblage des ennemis invisibles, en points de pourcentage.", null, 'balance-view'],
     ['equilibreBalancedAttackChance', 'Attaque équilibrée', "Chance que la prochaine attaque ne génère aucune aggro.", null, 'balance-strike'],
@@ -1296,7 +1290,7 @@ function structuredUmbraHelper() {
     ['generatedUmbraSource', family.name, buildPlayerStatDescription(family.target), family.target],
     ...(key === 'hypercognition' ? [['hypercognitionEssences', 'Générateur cognitif', 'Essences d’intelligence hypercognitive liées à l’entité, équipées et disponibles comprises. Aucun emplacement supplémentaire.', 'cognitiveGenerator', 'essence-hyperco', true]] : []),
     ...(key === 'resilience' ? [['resilienceAlteTotalBonus', 'Résistance aux altérations', '', 'alterationResistance'], ['resilienceHindranceBonus', 'Résistance aux entraves', '', 'hindranceResistance'], ['resilienceTotalCancelBonus', 'Résilience totale', '', 'resilienceTotal']] : []),
-    ...(key === 'equilibre' ? [['equilibreAggroBonus', 'Présence équilibrée', '', 'equilibreAggroBonus'], ['equilibreInvisibleDetection', 'Perception équilibrée', '', 'equilibreInvisibleDetection'], ['equilibreBalancedAttackChance', 'Attaque équilibrée', '', 'equilibreBalancedAttackChance']] : []),
+    ...(key === 'equilibre' ? [['equilibreInvisibleDetection', 'Perception équilibrée', '', 'equilibreInvisibleDetection'], ['equilibreBalancedAttackChance', 'Attaque équilibrée', '', 'equilibreBalancedAttackChance']] : []),
     ...(key === 'bloodFury' ? [
       ['bloodFuryExecutionBonus', 'Chance d’exécution', STAT_HELPER_DESCRIPTIONS.bloodFuryExecutionChance, 'bloodFuryExecutionChance'],
       ['bloodFuryExecChanceBonus', 'Seuil de HP', STAT_HELPER_DESCRIPTIONS.bloodFuryTargetThreshold, 'bloodFuryTargetThreshold'],
@@ -1473,7 +1467,7 @@ function structuredUmbraHelper() {
     } else {
         output.helpContent = "";
     }
-const simpleResistanceHelper = ['criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal', 'equilibreAggroBonus', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance', 'controlledSpeed', 'velocity'].includes(canonicalHelpKey);
+const simpleResistanceHelper = ['criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance', 'controlledSpeed', 'velocity'].includes(canonicalHelpKey);
 if (!isUmbraHelper) output.helpContent += resilienceLimitHelper(canonicalHelpKey);
 if (!simpleResistanceHelper
     && (GENERATED_STAT_HELPERS[canonicalHelpKey] || canonicalHelpKey === 'bullsEye') && result.statSystem) {
@@ -1526,7 +1520,6 @@ export const STAT_EFFECT_HELPERS = {
   calculateOccultismCritChanceBonus: 'occultismCritChanceBonus',
   calculateOccultismDodgeBonus: 'occultismDodgeBonus',
   calculateEquilibreAggroReduction: 'equilibreAggroReduction',
-  calculateEquilibreAggroBonus: 'equilibreAggroBonus',
   calculateEquilibreInvisibleDetection: 'equilibreInvisibleDetection',
   calculateEquilibreAttackChance: 'equilibreBalancedAttackChance',
   calculateMysticismProcChance: 'mysticismProcChance',

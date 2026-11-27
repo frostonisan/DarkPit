@@ -1164,12 +1164,6 @@ function createShiftStatDom(entite) {
 }));
 
 utilitaireBlock.appendChild(createValideStatDom({
-  stat: "equilibreAggroBonus",
-  label: "Présence équilibrée :",
-  value: "+ ${value} %",
-  entite
-}));
-utilitaireBlock.appendChild(createValideStatDom({
   stat: "equilibreInvisibleDetection",
   label: "Perception équilibrée :",
   value: "${value} %",

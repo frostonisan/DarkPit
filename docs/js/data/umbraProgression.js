@@ -43,7 +43,6 @@
     resilienceTotal: { ...resilienceCurve, maxPercent: 25, attribute: 'strength', sourceRatio: 0.25, attributeInfluence: 1 },
   };
   const equilibre = {
-    equilibreAggroBonus: { constant: 98, maxPercent: 99, attribute: 'strength', ratios: { source: 1, attribute: 0.5 } },
     equilibreAggroReduction: { constant: 98, maxPercent: 60, attribute: 'intelligence', ratios: { source: 1, attribute: 0.5 } },
     equilibreInvisibleDetection: { constant: 98, maxPercent: 99, attribute: 'agility', ratios: { source: 1, attribute: 0.5 } },
     equilibreBalancedAttackChance: { constant: 25, maxPercent: 40, attribute: 'intelligence', sourceRatio: 0.25, attributeInfluence: 1 },

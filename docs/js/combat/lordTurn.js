@@ -1,4 +1,4 @@
-import { calculateEquilibreAggroBonus, calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateOccultismTargetableChanceDisplay, clearForcedInvisibleTargetAccuracy, isOccultismInvisibleTarget, markForcedInvisibleTargetAccuracy } from "./statistics.js";
+import { calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateOccultismTargetableChanceDisplay, clearForcedInvisibleTargetAccuracy, isOccultismInvisibleTarget, markForcedInvisibleTargetAccuracy } from "./statistics.js";
 import { withStatReadSnapshot } from "../entities/statSystem.js";
 import { EffectMessage } from "./effects.js";
 import { listingFocusLord } from "../rendering/hud.js";
@@ -35,10 +35,8 @@ function calculateLordAggroEntry(entity) {
     aggroRole = 1.2;
   }
 
-  // Presence amplifies all generated threat after damage-only reduction.
   // Balanced attacks already contribute zero to totalAggroDamage.
-  const aggroBonus = calculateEquilibreAggroBonus(entity);
-  const aggroScore = (aggroDamage + aggroHeal + aggroKills) * (1 + aggroBonus / 100) * aggroRole;
+  const aggroScore = (aggroDamage + aggroHeal + aggroKills) * aggroRole;
 
   return {
     name: entity.name,
@@ -50,7 +48,6 @@ function calculateLordAggroEntry(entity) {
     aggroDamage,
     rawDamageAggro: totalDamage,
     aggroReduction,
-    aggroBonus,
     aggroScore,
     aggroRole,
     role: roles,
@@ -238,7 +235,6 @@ export function lordEnemyTarget(defendingEntities, deadEnemies, resolve, attacke
         `Soins - ${entity.totalHeal}pts, ` +
         `Kills - ${entity.kills}, ` +
         `Multiplicateur rôle - x${entity.aggroRole}, ` +
-        `Présence équilibrée - +${entity.aggroBonus.toFixed(2)}%, ` +
         `Score d'aggro - ${entity.aggroScore.toFixed(2)}pts`
       );
     });

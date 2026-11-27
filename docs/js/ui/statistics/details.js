@@ -56,7 +56,7 @@ import {
   calculateMysticismIntelTranceDuration, calculateMysticismTranceDuration, calculateMysticismBasePreparationAcceleration, calculateMysticismIntelPreparationAcceleration,
   calculateMysticismPreparationAcceleration, calculateMysticismBaseDamageBonus, calculateMysticismIntelDamageBonus, calculateMysticismTotalDamageBonus,
   vivaciteResult, equilibreResult, calculateEquilibreBaseAggroReduction, calculateEquilibreIntelAggroReduction,
-  calculateEquilibreAggroBonus, calculateEquilibreAggroReduction, calculateEquilibreBaseInvisibleDetection, calculateEquilibreAgiInvisibleDetection, calculateEquilibreInvisibleDetection,
+  calculateEquilibreAggroReduction, calculateEquilibreBaseInvisibleDetection, calculateEquilibreAgiInvisibleDetection, calculateEquilibreInvisibleDetection,
   calculateEquilibreBaseBalancedAttackChance, calculateEquilibreIntelBalancedAttackChance, calculateEquilibreAttackChance, calculateOccultismBaseInvisibilityChance,
   calculateOccultismAgiInvisibilityChance, calculateOccultismInvisibilityChance, calculateOccultismBaseTargetableChance, calculateOccultismAgiTargetableChance,
   calculateOccultismTargetableChance, calculateOccultismBaseDodgeBonus, calculateOccultismAgiDodgeBonus, calculateOccultismDodgeBonus,
@@ -261,7 +261,6 @@ bloodThirstyTotal: 0,
 		equilibreBaseAggroReduction: 0,
 		equilibreIntelAggroReduction: 0,
 		equilibreAggroReduction: 0,
-		equilibreAggroBonus: 0,
 		equilibreBaseInvisibleDetection: 0,
 		equilibreAgiInvisibleDetection: 0,
 		equilibreInvisibleDetection: 0,
@@ -695,7 +694,6 @@ if (statKey === "equilibre") {
   result.equilibreBaseAggroReduction = calculateEquilibreBaseAggroReduction(entite);
   result.equilibreIntelAggroReduction = calculateEquilibreIntelAggroReduction(entite);
   result.equilibreAggroReduction = calculateEquilibreAggroReduction(entite);
-  result.equilibreAggroBonus = calculateEquilibreAggroBonus(entite);
   result.equilibreBaseInvisibleDetection = calculateEquilibreBaseInvisibleDetection(entite);
   result.equilibreAgiInvisibleDetection = calculateEquilibreAgiInvisibleDetection(entite);
   result.equilibreInvisibleDetection = calculateEquilibreInvisibleDetection(entite);
@@ -1912,7 +1910,7 @@ function buildUmbraHelperCalculations(statKey, entite, statValue, result) {
     'precisionBonus', 'indestructibilityBonus', 'indestructibilityReductionTotal',
     'hpBattleRegenPercent', 'astralityTotal',
     'mysticismProcChance', 'mysticismTranceDuration', 'mysticismPreparationAcceleration', 'mysticismDamageBonus',
-    'equilibreAggroBonus', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance',
+    'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance',
     'occultismInvisibilityChance', 'occultismTargetableChance', 'occultismDodgeBonus', 'occultismCritChanceBonus',
     'critTotalChance', 'critDamageBonus', 'resilienceCritTotalBonus', 'resilienceAlteTotalBonus',
     'bloodFuryExecutionBonus', 'bloodFuryExecDamage', 'bloodFuryBloodThirstyBonus',
@@ -2145,7 +2143,7 @@ function buildUmbraHelperCalculations(statKey, entite, statValue, result) {
       break;
     }
     case 'equilibre': {
-      for (const target of ['equilibreAggroReduction', 'equilibreAggroBonus', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance']) {
+      for (const target of ['equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance']) {
         const total = buildStatSystemModel(equilibreResult(entite, target), entite);
         calculations[`${target}Total`] = total;
         calculations[target] = total.contributions.find(part => part.kind === 'umbra');

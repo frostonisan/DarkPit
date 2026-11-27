@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.5.3-dev — 27 novembre 2026
+## Version actuelle : 0.93.6-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,16 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Équilibre : retrait de Présence équilibrée — 0.93.6-dev — 27 novembre 2026
+
+Équilibre conserve la réduction d’aggro, Perception équilibrée et sa passive
+exclusive Attaque équilibrée, avec leurs ratios, limites et plafonds existants.
+L’augmentation d’aggro est retirée du combat, des cartes, du Codex, des choix
+administrateur et du laboratoire. Aucune nouvelle passive ne la remplace.
+Le rôle tank garde son multiplicateur d’aggro habituel.
+L’idée et sa formule sont conservées dans [Aggro en réserve](docs/AGGRO_EN_RESERVE.txt),
+avec la référence de l’implémentation à reprendre si une future décision le prévoit.
 
 ### Jauges : indication du retard spectral — 0.93.5.3-dev — 27 novembre 2026
 
@@ -140,6 +150,9 @@ Les cartes séparent les deux protections exclusives et leurs paramètres ; les
 helpers et calculs admin reprennent les mêmes valeurs que le moteur.
 
 ### Équilibre : Présence équilibrée — 0.92.6-dev — 27 novembre 2026
+
+Cet ajout a été retiré en 0.93.6-dev et conservé en réserve ; la description
+ci-dessous documente cette ancienne version.
 
 Présence équilibrée augmente l’aggro générée par les dégâts, les soins et les
 éliminations. Ses ratios d’Équilibre et de Force suivent la progression commune

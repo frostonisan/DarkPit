@@ -636,13 +636,6 @@ adjectif:"",
   uniquePassive: true,
   description: STAT_HELPER_DESCRIPTIONS.resilienceTotal
 },{
-  name: "Présence équilibrée",
-  key: "equilibreAggroBonus",
-  nature: "statistic",
-  attribut: "force",
-  type: "special",
-  description: STAT_HELPER_DESCRIPTIONS.equilibreAggroBonus
-},{
   name: "Réduction d’aggro",
   key: "equilibreAggroReduction",
   nature: "statistic",

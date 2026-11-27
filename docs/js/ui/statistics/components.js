@@ -31,7 +31,7 @@ import {
   transpiercingAgiRatio, transpiercingTotal, brutalityPercantBonus, psionicPercantBonus,
   calculateMeleeExecBonus, calculateMysticismProcChance, calculateMysticismTranceDuration,
   calculateMysticismPreparationAcceleration, calculateMysticismTotalDamageBonus,
-  calculateEquilibreAggroBonus, calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection,
+  calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection,
   calculateEquilibreAttackChance, calculateAgileRetreatChance, calculateOccultismInvisibilityChance,
   calculateOccultismTargetableChanceDisplay, calculateOccultismDodgeBonus,
   calculateOccultismCritChanceBonus, calculateOccultismShadowFragilityPercent,
@@ -618,7 +618,7 @@ calculateBrokenSpellDamage,
 calculateMeleeExecBonus,
 calculateMysticismProcChance, calculateMysticismTranceDuration, calculateMysticismPreparationAcceleration, calculateMysticismTotalDamageBonus,
 calculateLvlMaxEntiteWithWill: (e) => { const willValue = readEntityKey(e, "will"); return calculateStatsDisplay("will", e, willValue)?.lvlMaxEntite ?? 0;},
-calculateEquilibreAggroBonus, calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateEquilibreAttackChance,
+calculateEquilibreAggroReduction, calculateEquilibreInvisibleDetection, calculateEquilibreAttackChance,
 calculateAgileRetreatChance,
 calculateOccultismInvisibilityChance, calculateOccultismTargetableChanceDisplay, calculateOccultismDodgeBonus, calculateOccultismCritChanceBonus, calculateOccultismShadowFragilityPercent,
 calculateMovementMaxCharges, calculateMovementStartingChargePercent, calculateMovementStartingCharges, calculateMovementMarathonChance, getMarathonChance, getTrailerChance,
@@ -739,7 +739,7 @@ const hasValue =
       ? Number((resistance.reductionRatio * 100).toFixed(2))
       : resistance?.value ?? calculateResistanceReductionPercent(rawValue);
   }
-  if (['dodge', 'precision', 'bullsEye', 'criticalChance', 'criticalDamage', 'criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal', 'equilibreAggroBonus', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance', 'velocity', 'controlledSpeed', 'agileRetreat'].includes(normalizeStatKey(stat)) && valueTemplate?.includes('%')) rawValue = Number(Number(rawValue).toFixed(2));
+  if (['dodge', 'precision', 'bullsEye', 'criticalChance', 'criticalDamage', 'criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance', 'velocity', 'controlledSpeed', 'agileRetreat'].includes(normalizeStatKey(stat)) && valueTemplate?.includes('%')) rawValue = Number(Number(rawValue).toFixed(2));
 
   // ✅ Filtre "zéro" uniquement si on dépend de rawValue (pas de value manuel)
   if (!showZero && !isManualValue) {
@@ -1488,7 +1488,7 @@ const STAT_SYNC_CALCULATORS = {
   calculateMysticismTotalDamageBonus,
   calculateLvlMaxEntiteWithWill: entite =>
     calculateLvlMaxEntiteWithWill(entite, Number(getSafe(entite, "will", 0)) || 0),
-  calculateEquilibreAggroBonus, calculateEquilibreAggroReduction,
+  calculateEquilibreAggroReduction,
   calculateEquilibreInvisibleDetection,
   calculateEquilibreAttackChance,
   calculateAgileRetreatChance,

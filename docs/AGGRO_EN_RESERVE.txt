@@ -1,0 +1,66 @@
+Augmentation d’aggro — idée conservée en réserve
+Décision du 27 novembre 2026
+
+Statut : retirée d’Équilibre ; aucun effet actif dans le jeu.
+Attaque équilibrée est conservée. Aucune passive de remplacement n’est retenue.
+Le nom utilisé pendant l’essai était « Présence équilibrée ».
+L’emplacement et le nom définitifs restent à décider avant une réintégration.
+
+Intention
+Permettre à une entité de tank d’attirer davantage les ennemis qui utilisent
+le score d’aggro. Actuellement, ce score sert au ciblage des lords ; les sbires
+utilisent leurs priorités de rôle. Le multiplicateur natif du rôle tank reste
+indépendant de cette idée et n’est pas retiré.
+
+Implémentation de référence
+Commit c3b0683e102c5862354ef460457f53e508bc7d94, branche version-2,
+avant le retrait. Clé technique : equilibreAggroBonus.
+Configuration : docs/js/data/umbraProgression.js, entrée equilibreAggroBonus.
+Sources : docs/js/entities/statSystem.js, fonction calculateEquilibreAggroBonus
+dans docs/js/combat/statistics.js ; application dans docs/js/combat/lordTurn.js.
+Carte, helpers, Codex, CSS et laboratoire Index 14 sont présents dans ce commit.
+Une copie des sources avant retrait est gardée localement dans
+outputs/equilibre-retrait-aggro-2026-11-27/baseline/.
+Ces sources sont une référence de conception, pas un ensemble à restaurer
+intégralement par-dessus les évolutions ultérieures du jeu.
+
+Formule expérimentée
+E = points effectifs d’Équilibre ; F = points effectifs de Force.
+R_E et R_F = multiplicateurs des courbes progressives communes.
+Poids = E × R_E + F × 0,5 × R_F.
+Bonus généré (%) = 99 × Poids / (98 + Poids).
+En X, l’Umbra active les deux courbes progressives ; sans Umbra, une source +
+active seulement le coefficient autonome fixe de Force (0,5).
+Sans Umbra ni source +, la Force seule n’active pas le bonus.
+Les pourcentages normal et + s’ajoutent une fois ; plafond total 99 %.
+Limites individuelles, rendements de dépassement et cristaux suivent le
+système commun. La courbe seule approche son plafond ; MAX suit l’arrondi.
+
+Application expérimentée
+Aggro = [dégâts admissibles × (1 − réduction / 100)
+         + soins × 1,1 + éliminations × 2]
+        × (1 + bonus / 100) × multiplicateur du rôle.
+Le bonus ne recrée pas l’aggro des dégâts exclus par Attaque équilibrée.
+
+Repères de l’ancienne formule, sans bonus autonomes
+Limite 150 ; E = F = 150 : +80,13369 %.
+Limite 1500 ; E = F = 300 : +91,61081 %.
+Limite 1500 ; E = F = 1500 : +98,54818 %.
+
+Motif du retrait
+Équilibre produit simultanément une réduction d’aggro et peut annuler l’aggro
+des dégâts avec Attaque équilibrée. Ces effets contrarient la voie tank.
+À E = F = 150 et Intelligence = 0, +80,13369 % et −44,34088 % se combinent
+en seulement +0,26083 % d’aggro des dégâts avant la passive. Celle-ci a déjà
+24 % de chance d’annuler cette aggro. Ce mélange n’est pas retenu.
+
+Pour une reprise future
+Choisir explicitement une place compatible avec le rôle de tank, puis revoir
+la calibration, les interactions et les courbes avec l’utilisateur.
+Le plafond 99 %, le nom et le rattachement à Équilibre ci-dessus décrivent
+l’essai retiré ; ils ne constituent pas une validation d’une future version.
+Les préférences de calcul par effet, les contributions propres sur la carte
+et le total de l’entité dans le helper de valeur restent les conventions UI.
+
+Ne pas activer cette idée automatiquement. Aucun nouveau cooldown, aucune
+dissipation de malus et aucune nouvelle passive ne sont autorisés par ce retrait.

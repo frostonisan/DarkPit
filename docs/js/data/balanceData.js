@@ -505,7 +505,7 @@ export function getStatEffectMaximum(key) {
     case 'alterationResistance': case 'resilienceAlteTotalBonus': return p.resilience.alterationResistance.maxPercent;
     case 'hindranceResistance': case 'resilienceHindranceBonus': return p.resilience.hindranceResistance.maxPercent;
     case 'resilienceTotal': case 'resilienceTotalCancelBonus': return p.resilience.resilienceTotal.maxPercent;
-    case 'equilibreAggroBonus': case 'equilibreAggroReduction': case 'equilibreInvisibleDetection': case 'equilibreBalancedAttackChance': return p.equilibre[key].maxPercent;
+    case 'equilibreAggroReduction': case 'equilibreInvisibleDetection': case 'equilibreBalancedAttackChance': return p.equilibre[key].maxPercent;
     case 'velocity': case 'controlledSpeed': return p.vivacite[key].maxPercent;
     case 'agileRetreat': return p.vivacite.retreat.maxPercent;
     case 'transcendenceTotal': case 'transcendenceConsoProtectionPercent': return b.transcendence.consoProtection.maxPercent;

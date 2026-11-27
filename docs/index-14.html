@@ -341,7 +341,6 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     { key:'criticalDamage', name:'Dégâts critiques', passiveName:'Super dégât critique', source:'criticalPower', type:'power', uniquePassive:true, gift:0, unit:' %', description:'Regroupe le supplément critique de base, les apports directs et le bonus de Puissance critique lorsqu’elle est active.' },
     { key:'velocity', name:'Vélocité', source:'vivacite', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'Réduit le délai de remplissage de l’ATB. Retraite agile utilise cette Vélocité pour améliorer le jet de fuite.' },
     { key:'controlledSpeed', name:'Vitesse contrôlée', source:'vivacite', type:'power', attribute:'agility', uniquePassive:true, coefficient:0, gift:0, unit:' %', description:'Passive exclusive : atténue la déstabilisation due aux déplacements commandés par le joueur. Les déplacements imposés par un effet sont exclus.' },
-    { key:'equilibreAggroBonus', name:'Présence équilibrée', source:'equilibre', type:'power', attribute:'strength', coefficient:.5, gift:0, unit:' %', description:'Augmente l’aggro des dégâts, soins et éliminations après la réduction d’aggro des dégâts.' },
     { key:'equilibreAggroReduction', name:'Réduction d’aggro', source:'equilibre', type:'power', attribute:'intelligence', coefficient:.5, gift:0, unit:' %', description:'Réduit l’aggro générée par les dégâts de l’entité.' },
     { key:'equilibreInvisibleDetection', name:'Perception équilibrée', source:'equilibre', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'Réduit l’évitement du ciblage des ennemis invisibles en points de pourcentage.' },
     { key:'equilibreBalancedAttackChance', name:'Attaque équilibrée', source:'equilibre', type:'power', attribute:'intelligence', uniquePassive:true, coefficient:0, gift:0, unit:' %', description:'Passive exclusive : chance que l’attaque ne génère aucune aggro.' },
@@ -517,10 +516,10 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     for(const original of EFFECTS) {
       const spec=original.type==='critical'?{...original,attribute:'agility',coefficient:.4}:original;
       const u=umbras[spec.source], fixed=number(input.fixed?.[spec.key]), plus=number(input.plus?.[spec.key]);
-      const supportsDirect=spec.type!=='precision'&&!spec.derivedOnly&&spec.source!=='astrality'&&spec.key!=='equilibreAggroBonus', fixedApplied=supportsDirect?fixed:0, plusApplied=supportsDirect?plus:0;
+      const supportsDirect=spec.type!=='precision'&&!spec.derivedOnly&&spec.source!=='astrality', fixedApplied=supportsDirect?fixed:0, plusApplied=supportsDirect?plus:0;
       // In this rank-one scope, criticalPower is absent. criticalDamagePlus
       // activates the current critical damage rule; Precision alone does not.
-      const active=spec.key!=='equilibreAggroBonus'&&(spec.type==='critical'?plus>0:u>0 || plusApplied>0);
+      const active=spec.type==='critical'?plus>0:u>0 || plusApplied>0;
       const coefficient=active && spec.attribute?spec.coefficient:0;
       const attributeValue=spec.attribute?attributes[spec.attribute]:0;
       const attributeUsed=spec.source==='haste'?Math.min(150,Number(attributeValue.toFixed(2))):attributeValue;
@@ -549,8 +548,6 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
         native=u>0?(spec.uniquePassive?50:5):0;
         attributeGain=u>0?nearest(bonus*(1-(1-Math.min(Math.max(0,attributeUsed)/150,1))**2),2):0;
         generated=nearest(native+attributeGain,2);
-        // Presence is new: the historical snapshot must not invent an old barème.
-        if(spec.key==='equilibreAggroBonus')native=attributeGain=generated=points=0;
       }
       if(spec.source==='robustness') {
         native=Math.ceil(u);common=active?10:0;
@@ -600,14 +597,14 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
           cap:cfg.maxPercent,capped:false,capLoss:0,pointLimit:live.calculateStatPointLimit(number(input.umbras?.astrality),0,0,limit)});
         continue;
       }
-      if(['fatalSurvival','astralBody','criticalChance','criticalDamage','criticalResistance','alterationResistance','hindranceResistance','equilibreAggroBonus','equilibreAggroReduction','equilibreInvisibleDetection','velocity'].includes(spec.key)) {
+      if(['fatalSurvival','astralBody','criticalChance','criticalDamage','criticalResistance','alterationResistance','hindranceResistance','equilibreAggroReduction','equilibreInvisibleDetection','velocity'].includes(spec.key)) {
         const row=snapshot.results[spec.key],used=umbras[spec.source]||0,a=attributes[spec.attribute]||0,chance=spec.key!=='criticalDamage';
         const ratioPercent=['astrality','resilience','equilibre','vivacite'].includes(spec.source),cfg=ratioPercent?live[spec.source][spec.key]:live.critical.chanceCurve;
-        const fixed=spec.key==='equilibreAggroBonus'?row.fixed:row.fixedApplied,plus=spec.key==='equilibreAggroBonus'?row.plus:row.plusApplied;
+        const fixed=row.fixedApplied,plus=row.plusApplied;
         const detail=spec.source==='astrality'?(spec.key==='astralBody'?live.astralBodyDetails(used,a,undefined,limit):live.astralityChanceDetails(used,a,row.fixed,row.plus,undefined,limit)):ratioPercent?live[spec.source==='vivacite'?'vivaciteDetails':spec.source==='equilibre'?'equilibreDetails':'resilienceDetails'](spec.key,used,a,fixed,plus,undefined,limit):chance?live.criticalChanceDetails(used,a,row.fixedApplied,row.plusApplied,undefined,limit):live.criticalDamageDetails(used,limit);
         const generated=chance?detail.generated:detail.value,common=chance?0:live.critical.damage.nativeBasePercent;
         const total=chance?detail.value:Math.max(0,common+generated+row.fixedApplied+row.plusApplied);
-        Object.assign(row,{updated:true,supportsDirect:spec.source==='astrality'?!spec.derivedOnly:spec.key==='equilibreAggroBonus'||row.supportsDirect,critical:!ratioPercent,ratioPercent,uniquePassive:spec.uniquePassive||!chance&&used>0,unit:' %',name:!chance&&used>0?spec.passiveName:spec.name,
+        Object.assign(row,{updated:true,supportsDirect:spec.source==='astrality'?!spec.derivedOnly:row.supportsDirect,critical:!ratioPercent,ratioPercent,uniquePassive:spec.uniquePassive||!chance&&used>0,unit:' %',name:!chance&&used>0?spec.passiveName:spec.name,
           u:number(input.umbras?.[spec.source]),umbraUsed:used,active:used>0||chance&&plus>0,
           attribute:chance?spec.attribute:null,attributeUsed:a,attributeValue:a,
           attributeGain:chance?detail.attribute.value:0,attributeBase:chance?cfg.ratios.attribute:0,
@@ -692,7 +689,6 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   const statConversions = Object.freeze([
     {key:'velocity',name:'Vélocité'}, {key:'controlledSpeed',name:'Vitesse contrôlée'},
-    {key:'equilibreAggroBonus',name:'Présence équilibrée'},
     {key:'equilibreAggroReduction',name:'Réduction d’aggro'}, {key:'equilibreInvisibleDetection',name:'Perception équilibrée'}, {key:'equilibreBalancedAttackChance',name:'Attaque équilibrée'},
     {key:'bullsEye',name:'Bull’s Eye'}, {key:'dodge',name:'Esquive'},
     {key:'physicalResistance',name:'Résistance physique'}, {key:'magicalResistance',name:'Résistance magique'},

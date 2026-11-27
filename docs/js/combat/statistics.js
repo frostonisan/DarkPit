@@ -2567,9 +2567,6 @@ export function calculateEquilibreIntelAggroReduction(entity) {
 export function calculateEquilibreAggroReduction(entity) {
   return equilibreResult(entity, 'equilibreAggroReduction').value;
 }
-export function calculateEquilibreAggroBonus(entity) {
-  return equilibreResult(entity, 'equilibreAggroBonus').value;
-}
 export function calculateEquilibreBaseInvisibleDetection(entity) {
   return equilibreResult(entity, 'equilibreInvisibleDetection').base;
 }
