@@ -19,7 +19,7 @@ import {
 } from "../data/attackEffects.js";
 import {
   getActionElapsed, getMovementElapsed, getPhaseElapsed, isEntityActionPaused,
-  isEntityMovementBlocked
+  isEntityMovementBlocked, recordSpectralTimingDelay
 } from "./control.js";
 import {
   removeCombatVisualAfter, setTimeout, clockNow,
@@ -582,7 +582,8 @@ export async function runPhaseTimer(attacker, phase, duration, { canContinue = n
   const dur = saved?.duration ?? Math.max(1, Number(duration) || 1);
   let endTime = saved?.endTime ?? combatNow() + dur;
   let lastTick = saved?.lastTick ?? combatNow();
-  const state = attacker._phaseTimer = { phase, duration: dur, endTime, lastTick, nextAt: saved?.nextAt, recoils: saved?.recoils || [] };
+  const state = attacker._phaseTimer = { phase, duration: dur, endTime, lastTick, nextAt: saved?.nextAt, recoils: saved?.recoils || [],
+    ...(saved?.spectralDelayUntil ? { spectralDelayUntil: saved.spectralDelayUntil } : {}) };
   const interrupted = () => attacker._phaseTimer !== state || (canContinue && !canContinue()) || attacker.isDEAD
     || attacker.statut?.includes('dead') || Number(attacker.stats?.HP?.current) <= 0 || attacker.battleStopped;
   if (interrupted()) return false;
@@ -606,7 +607,9 @@ export async function runPhaseTimer(attacker, phase, duration, { canContinue = n
     for (const recoil of state.recoils.splice(0)) {
       const at = Math.max(cursor, Math.min(now, recoil.at));
       endTime += at - cursor - elapsed(attacker, cursor, at);
+      const beforeRecoil = endTime;
       endTime = Math.min(at + dur, endTime + dur * recoil.percent / 100);
+      if (recoil.spectral) recordSpectralTimingDelay(state, endTime - beforeRecoil, now);
       cursor = at;
     }
     endTime += now - cursor - elapsed(attacker, cursor, now);

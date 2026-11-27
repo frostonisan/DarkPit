@@ -1,5 +1,6 @@
 import { setDisplayStyle as setTimerStyle, setDisplayText as setTimerText, setDisplayClass as setTimerClass, toggleDisplayClass as toggleTimerClass, setDOMAttribute, setDOMText, replaceDOMClassGroup } from "./displayBatch.js";
 import { readTimerDisplayState } from "../combat/timerState.js";
+import { updateSpectralTimingFeedback } from './timers.js';
 import { getOpenViewRoots } from '../ui/viewRoots.js';
 import { getStatSystemResult } from "../entities/statSystem.js";
 import { getEquipmentResourceCurrent } from "../items/resourceStocks.js";
@@ -38,6 +39,7 @@ function timerNode(entity, id) {
   return current;
 }
 export function updateTimerDisplay(entite, timerView = readTimerDisplayState(entite)) {
+  try {
   if (timerView.skip) return;
   const hudNode = id => timerNode(entite, id);
   if (timerView.search) {
@@ -203,6 +205,9 @@ if (prepSpan && execSpan) {
     setTimerStyle(execSpan, "display", 'none');
   }
 }
+  } finally {
+    updateSpectralTimingFeedback(entite, id => timerNode(entite, id));
+  }
 }
 
 const levelBattleStarts = new WeakMap();

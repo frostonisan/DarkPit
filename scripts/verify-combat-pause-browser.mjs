@@ -5,7 +5,7 @@ import { resolve, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const root = resolve('docs'), output = resolve('outputs/paused-combat');
+const root = resolve('docs'), output = resolve(process.env.PAUSE_OUTPUT || 'outputs/paused-combat');
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   const file = resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
@@ -104,6 +104,7 @@ try {
       e: entites.map(e => ({ id:e.id,hp:e.stats.HP.current,turn:e.turnCount,prep:e.preparationTime,speed:e.speedTimer,action:e._combatAction,cooldowns:e.attackSelection?.readyAt,
         phaseTimer:e._phaseTimer,executionRecoils:e.executionRecoils })),
       spectralBurns:(await import('/js/combat/effects.js')).getActiveEffectStates().filter(state=>state.criticalBurn),
+      spectralBars: [...document.querySelectorAll('.spectral-delay')].map(el=>({id:el.id,color:getComputedStyle(el,'::after').backgroundColor})),
       projectiles:[...document.querySelectorAll('.projectile-parent')].map(el=>({id:el.id,transform:el.style.transform})),
       effects: [...document.querySelectorAll('.effect-vfx')].map(el=>el.id),
       melee: [...document.querySelectorAll('canvas[id^=meleeClone_]')].map(el=>({id:el.id, transform:getComputedStyle(el).transform,opacity:getComputedStyle(el).opacity})),
@@ -174,18 +175,26 @@ try {
       Fx.applySpectralRecoil(E.entites[0], E.entites[1], 100, 1000);
       Fx.brulure(E.entites[0], { criticalBurn: true, spectralBurn: true, effectDot: 50, effectDuration: 5 }, E.entites[1]);
     });
-    await page.evaluate(()=>P.pauseCombat());
+    // Freeze in the same browser turn that observes the short indication;
+    // a round trip through the test runner can outlive an early clamped recoil.
+    await page.waitForFunction(() => {
+      if (!['atbFill_', 'currentAttackBar_'].some(prefix => document.getElementById(prefix + E.entites[0].id)?.classList.contains('spectral-delay'))) return false;
+      void P.pauseCombat(); return true;
+    });
+    await page.waitForFunction(() => Clock.isCombatPaused() && !document.querySelector('#combat-pause-control').disabled);
     const read=()=>page.evaluate(async()=>{
       const { entites } = await import("/js/entities/runtime.js");
       const Fx = await import('/js/combat/effects.js');
       return entites.map(e=>({hp:e.stats.HP.current,speed:e.speedTimer,prep:e.preparationTime,recovery:e.recoveryTime,turn:e.turnCount,
         action:e._combatAction,phaseTimer:e._phaseTimer,executionRecoils:e.executionRecoils,
         spectralBurns:Fx.getActiveEffectStates(e).filter(state=>state.criticalBurn),
+        spectralBars:['atbFill_', 'currentAttackBar_'].map(prefix=>{const el=document.getElementById(prefix+e.id);return {green:el.classList.contains('spectral-delay'),color:getComputedStyle(el,'::after').backgroundColor};}),
         boosts:Object.values(e.battleBoosts||{}).flat().map(b=>({id:b.id,value:b.value,expiresAt:b.expiresAt})),
         filter:document.getElementById(`spriteCanvas_${e.id}`).style.filter,
         popup:document.getElementById(`PopUp_${e.id}`).textContent}));
     });
-    const before=await read();await page.waitForTimeout(1400);assert.deepEqual(await read(),before);
+    const before=await read();assert.ok(before[0].spectralBars.some(bar=>bar.green),'pause captures active spectral indication');
+    await page.waitForTimeout(1400);assert.deepEqual(await read(),before);
     await page.reload();
     await page.waitForFunction(()=>document.querySelector('#combat-pause-control')?.textContent==='Pause tactique · Espace pour reprendre' && !document.querySelector('#combat-pause-control').disabled);
     assert.deepEqual(await read(),before,phase+' restore');

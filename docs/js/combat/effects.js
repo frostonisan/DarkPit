@@ -1,4 +1,4 @@
-import { resetInterruptedPreparationBar } from "../rendering/timers.js";
+import { resetInterruptedPreparationBar, updateSpectralTimingFeedback, clearSpectralTimingFeedback } from "../rendering/timers.js";
 import { updateScore } from "./score.js";
 import { advanceCombatTimerState } from "./timerState.js";
 import { updateHealthBar, presentEntityVitals } from "../rendering/vitalFeedback.js";
@@ -667,7 +667,9 @@ exaust.tacticalConsequence = ['direct']; exaust.tacticalScope = 'attack';
 
 export function dephasage(target, effect, attacker, onEnd) {
   onEnd?.();
-  return applyControlRecoil(target, calculateResilienceEffectIntensity(target, effect.effectAmount), { allTimings: true });
+  const applied = applyControlRecoil(target, calculateResilienceEffectIntensity(target, effect.effectAmount), { allTimings: true });
+  if (applied) updateSpectralTimingFeedback(target);
+  return applied;
 }
 dephasage.tacticalConsequence = ['direct']; dephasage.tacticalScope = 'attack';
 corruptionPrismatique.tacticalConsequence = ['temporaire']; corruptionPrismatique.tacticalScope = 'attack';
@@ -967,6 +969,7 @@ export function getActiveEffectStates(target) {
 }
 
 export function clearCombatEffects(target = null) {
+  clearSpectralTimingFeedback(target);
   for (const [key, state] of activeAlterations) if (!target || state.target === target.id) removeDotEffect(key);
   clearControlEffects(target); clearAttackNatureEffects(target); clearAstralityEffects(target); clearTranscendentalCooldown(target); clearIndestructibilityCooldown(target); clearEsoterismCooldown(target);
 }

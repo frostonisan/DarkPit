@@ -141,19 +141,41 @@ export function getExecutionProgress(entity, from, to, duration) {
   return progress + getActionElapsed(entity, cursor, to);
 }
 
+// Presentation deadlines belong to the affected phase and never change its
+// progress. Repeated spectral hits add their actual, clamped delay.
+export function recordSpectralTimingDelay(state, delay, at = combatNow()) {
+  if (delay > 0) state.spectralDelayUntil = Math.max(at, state.spectralDelayUntil || 0) + delay;
+}
+
+export function getSpectralTimingFeedback(entity, now = combatNow()) {
+  if (!entity || entity.isDEAD || entity.battleStopped || entity.orderPhase || !(entity.stats?.HP?.current > 0)) return null;
+  const action = entity._combatAction;
+  let state, phase;
+  if (action?.stage === 'preparation') { state = action.preparation; phase = 'preparationTime'; }
+  else if (action?.stage === 'transport') { state = action; phase = 'executionTime'; }
+  else { state = entity._phaseTimer || entity._resumePhaseTimer; phase = state?.phase; }
+  return state?.spectralDelayUntil > now ? { phase, until: state.spectralDelayUntil } : null;
+}
+
 export function applyControlRecoil(entity, percent, { allTimings = false } = {}) {
   const action = entity._combatAction;
+  const event = { at: combatNow(), percent, ...(allTimings ? { spectral: true } : {}) };
   if (action?.stage === 'preparation') {
-    (action.preparationRecoils ||= []).push({ at: combatNow(), percent });
+    (action.preparationRecoils ||= []).push(event);
     return true;
   }
   if (action?.stage === 'transport' && !(action.attack.attackRange || []).some(range => ['range','ranged','distance'].includes(range))) {
-    (entity.executionRecoils ||= []).push({ at: combatNow(), percent });
+    if (allTimings) {
+      const delays = Object.values(action.executions || {}).map(({ startedAt, duration }) =>
+        Math.max(0, Math.min(getExecutionProgress(entity, startedAt, event.at, duration), duration * percent / 100)));
+      recordSpectralTimingDelay(action, Math.max(0, ...delays), event.at);
+    }
+    (entity.executionRecoils ||= []).push(event);
     return true;
   }
   const phase = entity._phaseTimer || entity._resumePhaseTimer;
   if (allTimings && !entity.orderPhase && ['speedTimer', 'recoveryTime'].includes(phase?.phase)) {
-    (phase.recoils ||= []).push({ at: combatNow(), percent });
+    (phase.recoils ||= []).push(event);
     return true;
   }
   return false;

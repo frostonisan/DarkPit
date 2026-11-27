@@ -5,7 +5,7 @@ import { resolve, relative, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const root = resolve('docs'), output = resolve('outputs/critical-full-audit-2026-11-27/spectral');
+const root = resolve('docs'), output = resolve(process.env.SPECTRAL_OUTPUT || 'outputs/spectral-timing-color-2026-11-27/spectral');
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   const file = resolve(root, '.' + new URL(req.url, 'http://localhost').pathname), rel = relative(root, file);
@@ -35,6 +35,7 @@ try {
     const Control = await import('/js/combat/control.js'), State = await import('/js/app/state.js');
     const R = await import('/js/combat/attackResolution.js'), DR = await import('/js/combat/damageRules.js');
     const Display = await import('/js/rendering/displayBatch.js');
+    const Hud = await import('/js/rendering/hud.js');
     window.levelRunning = 'worldmap'; State.setGameOver(false);
     const checks = [], scenarios = [], ok = (value, label) => { if (!value) throw Error(label); checks.push(label); };
     const eq = (actual, expected, label) => ok(Math.abs(actual - expected) < 0.01, `${label}: ${actual} / ${expected}`);
@@ -46,7 +47,7 @@ try {
       e.isDEAD = false; e.statut = ['alive']; e.stats.speed = 1000; e.baseSpeedTimer = 0;
       e.speedTimer = 0; e.preparationTime = 0; e.executionTime = 0; e.recoveryTime = 0;
       const hex = document.createElement('div'); hex.className = 'hex Neutral'; hex.dataset.position = e.position;
-      hex.innerHTML = `<div id="Box_Entite_${id}" class="entite-box"><div id="sbire_${id}"><div id="effectsContainer_${id}"></div><div id="PopDow_${id}"></div></div><div id="atbFill_${id}"></div><div id="currentAttackBar_${id}"></div></div>`;
+      hex.innerHTML = `<div id="Box_Entite_${id}" class="entite-box"><div id="sbire_${id}"><div id="effectsContainer_${id}"></div><div id="PopDow_${id}"></div></div><div id="atbFill_${id}" class="atb-fill"></div><div id="HUATBfill_${id}" class="headsup-atb-fill"></div><div id="scanATBFill_${id}" class="atb-scan-fill"></div><div id="currentAttackBar_${id}" class="attack-bar-fill"></div></div>`;
       host.append(hex); E.entites.push(e); return e;
     };
     const random = Math.random, date = Date.now;
@@ -65,6 +66,7 @@ try {
       now = end; await flush(); await T.settleCombatTimeline(); Display.flushCombatDisplay();
     };
     const bar = (e, key = 'atbFill') => parseFloat(document.getElementById(`${key}_${e.id}`).style.width);
+    const green = (e, key = 'atbFill') => document.getElementById(`${key}_${e.id}`).classList.contains('spectral-delay');
     const source = actor('A');
     const recoil = (e, percent) => Fx.applySpectralRecoil(e, source, e.stats.HP.max * percent / 100, e.stats.HP.max);
     const attack = (range = 'melee', preparationTime = 1000) => ({ functionName: 'spectral-timing', displayName: 'Spectral timing',
@@ -158,12 +160,72 @@ try {
         eq(target.stats.HP.current, 9990, 'Delayed melee applies damage once'); delete caster._combatAction;
         scenarios.push({ phase: 'melee', restore, normalMs: 1000, actualMs: ended });
       }
+      // Only the actual added time is green, not the entire delayed phase.
+      for (const phase of ['speedTimer', 'recoveryTime', 'preparation', 'melee']) {
+        const e = actor('A'), target = actor('B'), start = C.clockNow();
+        const key = ['preparation', 'melee'].includes(phase) ? 'currentAttackBar' : 'atbFill';
+        const task = ['speedTimer', 'recoveryTime'].includes(phase)
+          ? A.runPhaseTimer(e, phase, 1000) : F.executeAttack(e, target, attack('melee', phase === 'preparation' ? 1000 : 0));
+        await advance(400); ok(!green(e, key), `${phase}: normal phase color before impact`);
+        recoil(e, 20); await advance(50);
+        ok(green(e, key), `${phase}: green during the added delay`);
+        const until = Control.getSpectralTimingFeedback(e).until;
+        eq(until - C.clockNow(), phase === 'melee' ? e.currentAttack.executionTime * .2 - 50 : 200, `${phase}: green duration equals actual recoil`);
+        const node = document.getElementById(`${key}_${e.id}`);
+        ok(getComputedStyle(node, '::after').backgroundColor === 'rgb(147, 219, 117)', `${phase}: shared spectral palette is visibly applied`);
+        if (phase === 'speedTimer' || phase === 'recoveryTime') {
+          ok(green(e, 'HUATBfill') && green(e, 'scanATBFill'), `${phase}: HUD and scan share the color`);
+        }
+        // A reconstructed view must receive the indication and expire normally.
+        node.replaceWith(node.cloneNode()); Hud.updateTimerDisplay(e); Display.flushCombatDisplay();
+        ok(green(e, key), `${phase}: indication survives view reconstruction`);
+        C.freezeCombatClock(); await advance(5000);
+        ok(green(e, key), `${phase}: pause freezes the color`); C.resumeCombatClock();
+        await advance(until - C.clockNow() - 1); ok(green(e, key), `${phase}: green until its exact deadline`);
+        await advance(1); ok(!green(e, key), `${phase}: original color restored at the end of added time`);
+        ok(C.clockNow() - start < 1200, `${phase}: color ends before the delayed action`);
+        await advance(1500); await task;
+      }
+      {
+        const e = actor(), task = A.runPhaseTimer(e, 'speedTimer', 1000);
+        await advance(400); recoil(e, 20); await advance(100);
+        const firstEnd = Control.getSpectralTimingFeedback(e).until;
+        recoil(e, 10); await advance(50);
+        eq(Control.getSpectralTimingFeedback(e).until, firstEnd + 100, 'Repeated recoil extends green by its added delay');
+        await advance(firstEnd - C.clockNow()); ok(green(e), 'New recoil keeps green past the first deadline');
+        await advance(100); ok(!green(e), 'Cumulative green ends after both added durations');
+        await advance(550); await task;
+        const early = actor(), earlyTask = A.runPhaseTimer(early, 'speedTimer', 1000);
+        await advance(10); recoil(early, 80); await advance(40);
+        eq(Control.getSpectralTimingFeedback(early).until - C.clockNow(), 10, 'Clamped recoil colors only its earned 10ms');
+        await advance(10); ok(!green(early), 'Clamped color does not last the requested 800ms');
+        await advance(950); await earlyTask;
+        const fractional = actor(), fractionalTask = A.runPhaseTimer(fractional, 'speedTimer', 1000);
+        await advance(400); recoil(fractional, .25); await advance(50);
+        ok(green(fractional), 'Fractional recoil starts its indication');
+        await advance(3); ok(!green(fractional), 'Fractional millisecond expiry does not leave a stuck green gauge');
+        await advance(600); await fractionalTask;
+        const dying = actor(), dyingTask = A.runPhaseTimer(dying, 'speedTimer', 1000);
+        await advance(400); recoil(dying, 20); await advance(50);
+        dying.isDEAD = true; Fx.clearCombatEffects(dying); Display.flushCombatDisplay();
+        ok(!green(dying), 'Death removes the green indication immediately');
+        await advance(50); await dyingTask;
+        const stopped = actor(), stoppedTask = A.runPhaseTimer(stopped, 'speedTimer', 1000);
+        await advance(400); recoil(stopped, 20); await advance(50);
+        stopped.battleStopped = true; window.dispatchEvent(new Event('battleStopped')); Display.flushCombatDisplay();
+        ok(!green(stopped), 'Combat stop removes the green indication');
+        await advance(50); await stoppedTask;
+      }
       // A real spectral impact followed by every burn tick contributes only its own HP damage.
       for (const phase of ['speedTimer', 'recoveryTime']) {
         const e = actor(); e.stats.speed = 10000; e.maxRecoveryTime = 10000;
         const start = C.clockNow(); let ended;
         const task = A.runPhaseTimer(e, phase, 10000).then(() => { ended = T.combatNow() - start; });
-        await advance(2000); hit(e, 100, 60); await advance(4500);
+        await advance(2000); hit(e, 100, 60); await advance(50);
+        ok(green(e), `${phase}: real spectral impact colors the gauge`);
+        await advance(150); ok(!green(e), `${phase}: impact indication expires while burn persists`);
+        await advance(850); ok(green(e), `${phase}: spectral burn tick colors the gauge again`);
+        await advance(3450);
         eq(e.stats.HP.current, 9840, `${phase}: spectral impact plus burn conserves 160 damage`);
         ok(!Fx.getActiveEffectStates(e).some(state => state.criticalBurn), `${phase}: finite burn completed`);
         await advance(50); // The tick queues recoil after the phase pulse at the same instant.

@@ -12,6 +12,7 @@ import {
   getPhaseElapsed,
   waitPreparationPulse,
   getExecutionProgress,
+  recordSpectralTimingDelay,
   getControlState,
   getActionResumeTime,
   isEntityActionPaused,
@@ -130,7 +131,9 @@ let cursor = progressFrom;
 for (const recoil of recoils.splice(0)) {
   const at = Math.max(cursor, Math.min(now, recoil.at));
   virtualProgressMs += getPhaseElapsed(attacker, cursor, at, 'preparationTime') * speedMultiplier;
+  const beforeRecoil = virtualProgressMs;
   virtualProgressMs = Math.max(0, virtualProgressMs - totalDuration * recoil.percent / 100);
+  if (recoil.spectral) recordSpectralTimingDelay(state, (beforeRecoil - virtualProgressMs) / speedMultiplier, now);
   cursor = at;
 }
 virtualProgressMs += getPhaseElapsed(attacker, cursor, now, 'preparationTime') * speedMultiplier;
@@ -510,10 +513,18 @@ async function launchAttackTransport(flight, options = {}, restored = null) {
   if (!restored && !options.secondHit && !options.broken) awardAttackMastery(attacker, attack, { launch: true });
   if (!flags.isRange && !flags.isMelee) return 'unsupported-range';
   const duration = flags.isRange ? attack.executionTime : Math.max(options.secondHit ? 120 : 200, attack.executionTime);
+  const action = attacker._combatAction;
+  const execution = flags.isMelee ? { startedAt: options.actionStartedAt ?? combatNow(), duration: options.actionDuration ?? duration } : null;
+  // At most the primary and Ambidextry flights of this action. These clock
+  // references survive F5 with the action and are released with each impact.
+  if (execution && action) (action.executions ||= {})[flight.id] = execution;
   const impact = resolveAttackImpact(flight, { ...options,
-    ...(flags.isMelee ? { actionStartedAt: options.actionStartedAt ?? combatNow(),
-      actionDuration: options.actionDuration ?? duration } : {}),
+    ...(execution ? { actionStartedAt: execution.startedAt, actionDuration: execution.duration } : {}),
     at: restored?.at ?? combatNow() + duration });
+  if (execution && action) {
+    const release = () => { delete action.executions?.[flight.id]; };
+    impact.then(release, release);
+  }
   return presentAttackTransport(flight, impact, { duration, isRange: flags.isRange, options, restored });
 }
 

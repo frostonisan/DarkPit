@@ -616,6 +616,12 @@ top: 0;
 
 .speed-interface.recuperation .atb-fill{background-color: blue;}
 
+/* The existing spectral nature class supplies --stat-color. The overlay keeps
+   that color visible above preparation gradients and other phase modifiers. */
+:is(.atb-fill, .headsup-atb-fill, .atb-scan-fill, .attack-bar-fill).spectral-delay::after {
+  background: linear-gradient(to bottom, #ffffff33, #0000004d), var(--stat-color);
+}
+
 .attack-bar-container {
 contain: layout style;
 width: 170px;
