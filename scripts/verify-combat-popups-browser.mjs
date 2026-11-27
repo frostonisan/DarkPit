@@ -24,8 +24,8 @@ const check = (ok, label) => { assert.ok(ok, label); checks.push(label); };
 page.on('pageerror', error => errors.push(error.message));
 page.on('console', message => { if (message.type() === 'error' && !message.text().includes('Failed to load resource')) console.error(message.text()); });
 const evaluateChecks = async fn => checks.push(...await page.evaluate(fn));
-// Compare rendered coordinates with the untouched index-15, at identical
-// sprite dimensions, scale, priority, flight and animation progress.
+// Keep the reference's lifetime and typography contracts, and measure the new
+// centered impact, shorter travel and smaller older cards at identical scales.
 async function sampleFountain({ production, entityIndex = 0 }) {
   const Board = production ? await Promise.all([import("/js/board/controller.js"), import("/js/rendering/boardElements.js")]).then(parts => Object.defineProperties({}, Object.fromEntries(parts.flatMap(part => Object.keys(part).map(key => [key, { enumerable: true, get: () => part[key] }]))))) : null;
   const owner = production ? document.getElementById(`Box_Entite_${E.entites[entityIndex].id}`) : document.querySelector('.lab-unified');
@@ -65,6 +65,8 @@ async function sampleFountain({ production, entityIndex = 0 }) {
             const rect = readRect(body), base = readRect(sprite), unit = base.width / width;
             const css = production ? __popupProbe.styleOf(body) : getComputedStyle(body);
             results.push({ size, auras, type, path: card.dataset.flight, progress, duration,
+              centerX: (rect.left + rect.width / 2 - base.left - base.width / 2) / unit,
+              centerY: (rect.top + rect.height / 2 - base.top) / unit, spriteHeight: base.height / unit,
               x: (rect.left - base.left - base.width / 2) / unit, y: (rect.bottom - base.top) / unit,
               w: rect.width / unit, h: rect.height / unit, opacity: Number(css.opacity),
               font: css.font, padding: css.paddingInline });
@@ -234,12 +236,14 @@ try {
     for (const type of ['normal', 'critical', 'execution-critical']) D.PopUpDamages(target, 123, [], '', { magical: 123 }, type, 0, 'magicalDamage');
     const cards = [...document.querySelectorAll(`#PopUp_${target.id} > .combat-popup-flight`)];
     ok(cards.map(node => node.dataset.flight).join() === 'center,left,right', 'Damage uses center, left and right fountain paths');
+    ok(cards.filter(node => node.dataset.latest === 'true').length === 1 && cards.at(-1).dataset.latest === 'true', 'Only the latest impact keeps its large foreground size');
     ok(cards.every(node => node.querySelectorAll('.damage-popup').length === 1), 'Each hit uses a single amount node throughout its flight');
     ok(cards[1].querySelector('.damage-popup-critical-icon.criticalPower') && cards[2].querySelector('.damage-popup-critical-icon.execution-critical'), 'Critical icons replace the nature icon');
     ok(cards[1].querySelector('.combat-popup-critical-suffix').textContent === '!!!', 'Critical suffix is separate from the nature-colored amount');
     ok(cards.every(node => node.querySelector('.damage-popup-value').textContent === '−123'), 'Actual damage amounts are preserved without component breakdowns');
     ok(cards.map(node => parseFloat(__popupProbe.styleOf(node.querySelector('.damage-popup-value')).fontSize)).join() === '24,32,40', 'Normal, critical and execution-critical pops have the validated size tiers');
     const frames = cards[0].querySelector('.combat-popup-life').getAnimations()[0].effect.getKeyframes();
+    ok(Number(frames[0].opacity) === 1 && new DOMMatrix(frames[0].transform).a >= 1.39, 'An impact starts visible and enlarged immediately');
     ok([.8, .9, 1].every((offset, index) => frames.some(frame => Math.abs(frame.offset - offset) < .0001 && Number(frame.opacity) === [1, .5, 0][index])), 'Damage keeps the approved 80/90/100 percent fade');
     D.PopUpDamages(target, 10, [], '', {}, 'execution', 0, 'physicalDamage');
     const execution = document.querySelector(`#PopUp_${target.id} > .combat-popup-flight:last-child`);
@@ -302,17 +306,27 @@ try {
     const actual = await page.evaluate(sampleFountain, { production: true, entityIndex });
     const expected = await reference.evaluate(sampleFountain, { production: false });
     assert.equal(actual.length, expected.length);
-    let maxDifference = 0;
+    let maxRise = 0;
     actual.forEach((point, index) => {
       const wanted = expected[index];
       for (const field of ['size','auras','type','path','progress','duration','font','padding']) assert.equal(point[field], wanted[field], `${key} ${field}`);
-      for (const field of ['x','y','w','h','opacity']) {
-        const delta = Math.abs(point[field] - wanted[field]); maxDifference = Math.max(maxDifference, delta);
-        assert.ok(delta < .15, `${key} ${point.type}/${point.path} scale ${point.size} at ${point.progress}: ${field} ${point[field]} != index15 ${wanted[field]}`);
+      if (point.progress > 0) assert.ok(Math.abs(point.opacity - wanted.opacity) < .001, `${key}: fade and duration preserved`);
+      const rise = point.spriteHeight / 2 - point.centerY;
+      maxRise = Math.max(maxRise, rise);
+      assert.ok(rise <= 32 && rise >= -10, `${key}: compact cascade at scale ${point.size}: rise ${rise}`);
+      if (point.progress === 0) {
+        assert.ok(Math.abs(point.centerX) < .15 && Math.abs(point.centerY - point.spriteHeight / 2) < .15,
+          `${key}: impact centered on the entity at scale ${point.size}: ${point.centerX}, ${point.centerY}`);
+        assert.equal(point.opacity, 1, `${key}: impact is visible immediately`);
+        if (point.path === 'right') {
+          const previous = actual.find(sample => sample.size === point.size && sample.auras === point.auras
+            && sample.type === point.type && sample.progress === 0 && sample.path === 'left');
+          assert.ok(point.h >= previous.h * 1.9, `${key}: newest impact is larger than the cascade`);
+        }
       }
     });
-    comparisons.push({ key, samples: actual.length, maxDifference });
-    checks.push(`${key}: ${actual.length} rendered samples match index-15 (four scales, four damage tiers, three paths, two aura modes)`);
+    comparisons.push({ key, samples: actual.length, maxRise });
+    checks.push(`${key}: ${actual.length} centered compact cascade samples (four scales, four damage tiers, three paths, two aura modes); lifetime and typography preserved`);
   }
   await reference.close();
   const stressMs = await page.evaluate(() => window.__popupStressMs);
@@ -321,11 +335,25 @@ try {
   await evaluateChecks(() => {
     const passed = [], ok = (value, label) => { if (!value) throw Error(label); passed.push(label); };
     const target = E.entites[0], attacker = E.entites[1];
+    U.EffectMessage(target, 'OVERKILL !');
+    const overkill = document.querySelector(`#PopUp_${target.id} .combat-popup-flight`);
+    ok(overkill?.querySelector('.damage-popup--overkill .picto-stat.overkill')
+      && overkill.dataset.latest === 'true' && overkill.textContent === 'OVERKILL !', 'Overkill uses the centered damage cascade and its original icon');
+    ok(!document.querySelector(`#PopDow_${target.id} .overkill`), 'Overkill is not duplicated in the status history');
+    D.PopUpDamages(target, 8, [], '', {}, 'normal');
+    ok(!overkill.hasAttribute('data-latest') && document.querySelector(`#PopUp_${target.id} [data-latest="true"]`).textContent === '−8', 'A later damage replaces Overkill in the foreground');
+    Popups.clearCombatPopups();
     FX.stun(target, { effectName: 'stun', effectDisplay: 'Stun', effectDuration: 3 }, attacker);
     FX.poison(target, { effectDot: 2, effectDuration: 4 }, attacker);
     FX.brulure(target, { effectDot: 2 }, attacker);
     const texts = [...document.querySelectorAll(`#PopDow_${target.id} .combat-popup-front`)].map(node => node.textContent);
     ok(texts.some(text => /^Stun 3 scd !$/.test(text)) && texts.some(text => /^Poison .* scd !$/.test(text)) && texts.some(text => /^Brûlure .* scd !$/.test(text)), 'Real stun, poison and burn applications send their durations to the popup feed: ' + JSON.stringify(texts));
+    FX.clearCombatEffects(); Popups.clearCombatPopups();
+    FX.brulure(target, { criticalBurn: true, effectDuration: 3, effectDot: 30 }, attacker);
+    const magicalFire = document.getElementById(`brulureVFX_${target.id}`);
+    ok(magicalFire?.matches('.burn.magical-burn.magicalDamage') && getComputedStyle(magicalFire).opacity === '0.6', 'Magical burn reuses one smaller translucent flame');
+    const message = document.querySelector(`#PopDow_${target.id} .combat-popup-front .BattleText`);
+    ok(message?.textContent === 'Brûlure magique 3 scd !' && message.classList.contains('magicalDamage'), 'Magical burn popup uses its explicit label and magic damage color');
     FX.clearCombatEffects(); Popups.clearCombatPopups();
     U.showHealingFeedback(target, 17);
     ok(document.querySelector(`#PopDow_${target.id} .combat-popup-front`).textContent.includes('+17 HP'), 'Real healing feedback uses the text feed');
@@ -335,6 +363,17 @@ try {
     Popups.clearCombatPopups();
     return passed;
   });
+  await page.evaluate(async () => {
+    FX.brulure(E.entites[0], { criticalBurn: true, effectDuration: 10, effectDot: 30 }, E.entites[1]);
+    for (const value of [18, 24, 32]) D.PopUpDamages(E.entites[0], value, [], '', {}, 'normal', 0, 'magicalDamage');
+    U.EffectMessage(E.entites[1], 'OVERKILL !');
+    for (const node of document.querySelectorAll('.combat-popup-card')) {
+      node.getAnimations({ subtree: true }).forEach(animation => { animation.pause(); animation.currentTime = node.dataset.latest === 'true' ? 40 : 350; });
+    }
+  });
+  await page.screenshot({ path: resolve(output, 'magic-burn-and-centered-impacts.png'), fullPage: true });
+  await page.locator('.combat-popup-flight:has(.damage-popup--overkill)').screenshot({ path: resolve(output, 'overkill-centered.png') });
+  await page.evaluate(() => { FX.clearCombatEffects(); Popups.clearCombatPopups(); });
   await page.evaluate(async () => {
     // Expired cached cards must not enter the existing paused DOM snapshot.
     for (let i = 0; i < 3; i++) D.PopUpDamages(E.entites[0], 40 + i, [], '', {}, 'normal');
@@ -353,7 +392,7 @@ try {
     return { paused: clock.isCombatPaused(), frames: [...document.querySelectorAll('.entity-visual-calibrated')].map(frame => ({ style: frame.style.cssText,
       width: frame.dataset.spriteWidth, height: frame.dataset.spriteHeight,
       hosts: [...frame.children].map(node => node.className), rows: [...frame.querySelectorAll('.life-aura-slot')].map(node => [node.dataset.life,node.style.cssText]) })),
-      cards: [...document.querySelectorAll('.combat-popup-card')].map(node => ({ text: node.textContent, flight: node.dataset.flight,
+      cards: [...document.querySelectorAll('.combat-popup-card')].map(node => ({ text: node.textContent, flight: node.dataset.flight, latest: node.dataset.latest,
       deadline: node.dataset.combatRemoveAt, animations: node.querySelector('.combat-popup-life').getAnimations().map(animation => ({ time: animation.currentTime, state: animation.playState })) })) };
   });
   const beforePause = await readPaused(); await page.waitForTimeout(200); assert.deepEqual(await readPaused(), beforePause);

@@ -293,7 +293,9 @@ animation:
 .combat-popup-lane[data-lane=right] { z-index: 1; transform: translate(18px, -46px); }
 .combat-popup-history { bottom: 24px; z-index: 1; }
 .combat-popup-card { position: absolute; left: 0; bottom: 0; width: max-content; text-align: center; transform-origin: center bottom; }
-.combat-popup-flight { translate: -50% 0; }
+.combat-popup-flight { translate: -50% 50%; scale: .5; transform-origin: center; }
+.combat-popup-flight[data-latest="true"] { scale: 1; }
+.combat-popup-flight .combat-popup-life { transform-origin: center; }
 .combat-popup-life { padding-inline: 6px; font: 700 24px/1.1 Georgia, 'Times New Roman', serif; font-variant-numeric: lining-nums tabular-nums; transform-origin: center bottom; }
 .combat-popup-flight[data-priority="1"] .combat-popup-life { font-size: 32px; padding-inline: 10px; }
 .combat-popup-flight[data-priority="2"] .combat-popup-life { font-size: 28px; }
@@ -324,6 +326,12 @@ animation:
 .combat-popup-flight[data-priority="1"] .picto-stat { flex-basis: 28px; width: 28px; height: 28px; }
 .combat-popup-flight[data-priority="3"] .picto-stat { flex-basis: 34px; width: 34px; height: 34px; }
 .combat-popup-history-row .picto-stat { flex-basis: 14px; width: 14px; height: 14px; }
+.combat-popup-life .damage-popup--overkill .picto-stat.overkill {
+  flex-basis: 120px; width: 120px; height: 42px;
+  background-size: 128px;
+  filter: drop-shadow(0 0 5px #bb000075);
+}
+.damage-popup--overkill .damage-popup-value { font-size: 0; }
 .combat-popup-status-icon { flex: 0 0 16px; width: 16px; height: 16px; object-fit: cover; border-radius: 2px; }
 .combat-popup-history-row .combat-popup-status-icon { flex-basis: 14px; width: 14px; height: 14px; }
 
@@ -382,6 +390,7 @@ animation:
 :is(.entity-visual-frame, .entity-visual-calibrated) .effect-vfx.mysticism { width: min(80%, calc(var(--sprite-h) * .55), 140px); height: min(90%, 200px); }
 :is(.entity-visual-frame, .entity-visual-calibrated) .effect-vfx.heal { width: min(70%, calc(var(--sprite-h) * .6), 110px); height: min(90%, 160px); }
 :is(.entity-visual-frame, .entity-visual-calibrated) .effect-vfx.burn { width: min(75%, calc(var(--sprite-h) * .7), 110px); height: min(70%, 140px); }
+:is(.entity-visual-frame, .entity-visual-calibrated) .effect-vfx.burn.magical-burn { width: min(50%, calc(var(--sprite-h) * .46), 72px); height: min(46%, 92px); }
 :is(.entity-visual-frame, .entity-visual-calibrated) .mysticism.mysticism-pop { animation-name: entityMysticismIn; }
 :is(.entity-visual-frame, .entity-visual-calibrated) .mysticism.mysticism-fade-out { animation-name: entityMysticismOut; }
 @keyframes entityMysticismIn { from { transform: translateX(-50%) scale(0); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
@@ -402,6 +411,9 @@ animation:
 }
 .entity-visual-calibrated .combat-popup-status {
   transform: scale(var(--entity-size-scale, 1)) translate(94px, calc(10px - var(--sprite-h) - var(--popup-headroom)));
+}
+.entity-visual-calibrated .combat-popup-damages {
+  transform: scale(var(--entity-size-scale, 1)) translateY(calc(-.5 * var(--sprite-h)));
 }
 .entity-visual-calibrated .animation-sprite { animation: none; }
 .entity-visual-calibrated .animation-sprite.dodge > .sprite { animation: dodgeEffectA .6s ease-out; }
@@ -446,6 +458,10 @@ animation:
 .effect-vfx.transcendence{height: 80px;filter: drop-shadow(0px 0 8px #fff);top:-20px;}
 .effect-vfx.poison{height: 22px;filter: drop-shadow(0px 0 8px #00FF10DB);}
 .effect-vfx.burn{height: 28px;filter:drop-shadow(0px 0 8px #FF2400);}
+.effect-vfx.burn.magical-burn {
+  height: 20px; opacity: .6;
+  filter: hue-rotate(220deg) saturate(1.6) drop-shadow(0 0 5px var(--stat-color));
+}
 .effect-vfx.stun { width: 60px; height: auto; top: 0; transform: translate(-50%, -75%); pointer-events: none; }
 .effect-vfx{margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, 50%);}
 .effect-jarret{height: 70px;

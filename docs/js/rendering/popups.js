@@ -78,10 +78,10 @@ function fountainFrames(path, priority) {
   const key = `${path}:${priority}`;
   if (trajectories.has(key)) return trajectories.get(key);
   const direction = path === 'left' ? -1 : path === 'right' ? 1 : 0;
-  const height = direction ? 44 : 58, landing = direction ? 14 : -16;
-  const peak = priority === 3 ? 1.2 : priority === 1 ? 1.14 : 1.06;
+  const height = direction ? 22 : 28, landing = direction ? 8 : -6;
+  const peak = priority === 3 ? 1.5 : priority === 1 ? 1.45 : 1.4;
   const frames = [
-    { transform: 'translate(0px, 0px) scale(.78)', opacity: 0, offset: 0, easing: 'cubic-bezier(.16,1,.3,1)' },
+    { transform: `translate(0px, 0px) scale(${peak})`, opacity: 1, offset: 0 },
     { transform: `translate(0px, 0px) scale(${peak})`, opacity: 1, offset: .065 }
   ];
   for (let step = 1; step <= 18; step++) {
@@ -150,17 +150,20 @@ function acquireDamage(pool) {
   return { ...makeCard(content, 'combat-popup-flight'), content, icon, value, suffix: null };
 }
 
-export function showDamagePopup(host, { className, iconClass, valueClass, amount, critical }, priority = 0) {
+export function showDamagePopup(host, { className, iconClass, valueClass, amount, label, critical }, priority = 0) {
   if (!host.classList.contains('combat-popup-damages')) host.classList.add('combat-popup-damages');
   const pool = damagePool(host);
   if (!pool.active.length) host.dataset.flightCursor = '0';
   const cursor = Number(host.dataset.flightCursor) || 0;
   const path = paths[cursor % paths.length]; host.dataset.flightCursor = String((cursor + 1) % paths.length);
   const view = acquireDamage(pool), { node, body, content, icon, value } = view;
+  const previous = pool.active.at(-1)?.node;
+  if (previous) delete previous.dataset.latest;
+  node.dataset.latest = 'true';
   if (content.className !== className) content.className = className;
   if (icon.className !== iconClass) icon.className = iconClass;
   if (value.className !== valueClass) value.className = valueClass;
-  const text = `−${amount}`;
+  const text = label ?? `−${amount}`;
   if (value.firstChild?.nodeType === Node.TEXT_NODE) {
     if (value.firstChild.data !== text) value.firstChild.data = text;
   } else value.textContent = text;
@@ -254,17 +257,18 @@ export function showEffectPopup(host, content) {
   return content;
 }
 
-export function formatEffectPopup(node, { effectKey, durationSeconds, effectValue, effectUnit = '' }) {
+export function formatEffectPopup(node, { effectKey, effectLabel, effectNature, durationSeconds, effectValue, effectUnit = '' }) {
   const visual = EFFECT_VISUALS[effectKey];
   if (!visual) return false;
-  node.style.color = visual.color;
+  if (effectNature) node.classList.add(effectNature);
+  node.style.color = effectNature ? 'var(--stat-color)' : visual.color;
   node.dataset.effectKey = effectKey;
   const icon = document.createElement('img'); icon.className = 'combat-popup-status-icon'; icon.src = visual.src; icon.alt = '';
   const text = document.createElement('span');
   const seconds = Number.isFinite(durationSeconds) && durationSeconds >= 0 ? Math.round(durationSeconds * 10) / 10 : null;
   const value = seconds !== null ? ` ${String(seconds).replace('.', ',')} scd`
     : Number.isFinite(effectValue) ? ` ${effectValue}${effectUnit}` : '';
-  text.textContent = `${visual.label}${value} !`; node.append(icon, text);
+  text.textContent = `${effectLabel || visual.label}${value} !`; node.append(icon, text);
   return true;
 }
 

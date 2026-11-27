@@ -1,5 +1,5 @@
 import { removeCombatVisualAfter } from "../combat/clock.js";
-import { showEffectPopup, formatEffectPopup } from "../rendering/popups.js";
+import { showDamagePopup, showEffectPopup, formatEffectPopup } from "../rendering/popups.js";
 import { HelpText, HELPER_PICTOGRAM_NAMES } from "../data/helpers.js";
 import { getDisplayStatKey, normalizeStatKey } from "../entities/rules.js";
 import { calculateStatSources } from "../entities/statSystem.js";
@@ -1587,6 +1587,13 @@ export function EffectMessage(target, customText = "MISS", messageType = "normal
     const { container = null } = options;
     if (!target?.id || typeof document === 'undefined') return null;
     const isContentNode = customText instanceof Node;
+    if (customText === 'OVERKILL !' && !container) {
+        const damageHost = document.getElementById(`PopUp_${target.id}`);
+        if (damageHost) return showDamagePopup(damageHost, {
+            className: 'damage-popup damage-popup--overkill', iconClass: 'picto-stat overkill',
+            valueClass: 'damage-popup-value', label: customText,
+        }, 2);
+    }
     const healingMatch = !isContentNode && String(customText).match(/^\+(\d+)\s*HP$/i);
     if (healingMatch) {
         showHealingFeedback(target, Number(healingMatch[1]));

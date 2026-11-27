@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.2-dev — 27 novembre 2026
+## Version actuelle : 0.93.2.1-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,17 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Brûlure magique et popups d’impact — 0.93.2.1-dev — 27 novembre 2026
+
+La brûlure magique réutilise un seul GIF de flamme, plus petit, bleuté et translucide,
+avec une ombre de la couleur des dégâts magiques. Son popup indique « Brûlure
+magique » et sa durée. Les cumuls ne multiplient pas les flammes.
+
+Le dernier dégât apparaît immédiatement plus gros au centre de l’entité. Les dégâts
+précédents deviennent plus petits et leur cascade monte moins haut. OVERKILL utilise
+la même cascade, avec son pictogramme. La limite de huit popups par entité, leur
+réutilisation et la reprise après pause sont conservées.
 
 ### Un seul sous-helper par carte — 0.93.2-dev — 27 novembre 2026
 

@@ -85,7 +85,7 @@ try {
     const dot = (duration, damage) => ({ effectDuration: duration, effectDot: damage, effectPhysicalRatio: 0, effectMagicalRatio: 0 });
     try {
       const resources = Loader.collectLevelResources();
-      ok(visuals.length === 18 && decoded.every(Boolean), 'All 18 current effects have decodable individual artwork');
+      ok(visuals.length === 21 && decoded.every(Boolean), 'All 21 current effects have decodable individual artwork');
       ok(visuals.every(visual => resources.has(Loader.resourceKey(visual.src))), 'Every status image is preloaded with the level');
       ok(visuals.every(visual => /\/statuts\/statut-[\w-]+\.jpg$/.test(visual.src)), 'Only statut- artwork is used');
       for (const visual of visuals) {

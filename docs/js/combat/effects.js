@@ -17,6 +17,7 @@ import {
 } from "./timeline.js";
 import { buildSignatureStackHelper } from "../data/helpers.js";
 import { cachedResourceUrl, playCachedGif } from "../data/loaderList.js";
+import { setDisplayClass } from '../rendering/displayBatch.js';
 import { entites, removedEntities, getMovementWeightMalus, recomputeEntityStats } from "../entities/runtime.js";
 import { summons } from "../data/summons.js";
 import {
@@ -83,7 +84,7 @@ function effectSource(effect, attackerId) {
 function createDotHelper(key, target, state) {
   if (state.criticalBurn) {
     setEntityEffectView(target, key, {
-      kind: 'brulure', label: 'Brûlure critique', type: 'dot', endAt: () => state.expiresAt,
+      kind: 'brulure', label: state.effect.effectDisplay, type: 'dot', endAt: () => state.expiresAt,
       read: () => ({ ...effectSource(state.effect, state.attacker),
         dps: calculateResilienceEffectIntensity(target, Object.values(state.sources).reduce((sum, source) => sum + source.remaining, 0)
           / Math.max(.001, (state.expiresAt - state.accruedAt) / 1000)), interval: state.effect.effectTickInterval, lastTick: state.lastTick }),
@@ -751,6 +752,21 @@ export function scheduleAlterationTicks({ duration, isActive, onTick, onEnd, onT
 const num = v => Number.isFinite(+v) ? +v : 0;
 const dotRuntimes = new Map();
 
+function syncDotVisual(target, kind, active = true) {
+  const id = `${kind}VFX_${target.id}`;
+  let vfx = document.getElementById(id);
+  if (!active) { vfx?.remove(); return; }
+  const container = document.getElementById(`effectsContainer_${target.id}`);
+  if (!container) return;
+  const magical = kind === 'brulure' && activeAlterations.has(`${target.id}:critical-brulure`);
+  const className = `effect-vfx ${kind === 'brulure' ? 'burn' : 'poison'}${magical ? ' magical-burn magicalDamage' : ''}`;
+  if (!vfx) {
+    vfx = document.createElement('img'); vfx.id = id; vfx.className = className;
+    vfx.alt = ''; vfx.src = cachedResourceUrl(`./media/assets/effects/${kind === 'brulure' ? 'burn' : 'poison'}.gif`);
+    container.append(vfx);
+  } else setDisplayClass(vfx, className);
+}
+
 function removeDotEffect(key) {
   const state = activeAlterations.get(key), runtime = dotRuntimes.get(key);
   if (!state) return;
@@ -758,8 +774,9 @@ function removeDotEffect(key) {
   activeAlterations.delete(key); dotRuntimes.delete(key); removeEntityEffectView(key);
   const target = runtime?.target;
   if (!target) return;
-  if (![...activeAlterations.values()].some(other => other.target === state.target && other.kind === state.kind)) {
-    document.getElementById(`${state.kind}VFX_${target.id}`)?.remove();
+  const active = [...activeAlterations.values()].some(other => other.target === state.target && other.kind === state.kind);
+  syncDotVisual(target, state.kind, active);
+  if (!active) {
     toggleEffectClass(target, state.kind, 'remove');
     if (state.kind === 'brulure') target.brulureStacks = 0;
     runtime.onEnd?.();
@@ -783,13 +800,7 @@ function runDot(key, target, state, attacker, onEnd) {
   dotRuntimes.set(key, runtime); activeAlterations.set(key, state);
   toggleEffectClass(target, state.kind, 'add');
   state.runtimeKey = key;
-  const container = document.getElementById(`effectsContainer_${target.id}`);
-  if (container && !document.getElementById(`${state.kind}VFX_${target.id}`)) {
-    const vfx = document.createElement('img'); vfx.id = `${state.kind}VFX_${target.id}`;
-    vfx.className = `effect-vfx ${state.kind === 'brulure' ? 'burn' : 'poison'}`;
-    vfx.alt = ''; vfx.src = cachedResourceUrl(`./media/assets/effects/${state.kind === 'brulure' ? 'burn' : 'poison'}.gif`);
-    container.append(vfx);
-  }
+  syncDotVisual(target, state.kind);
   const damage = (raw, sourceId, rounding, properties = {}) => {
     const source = runtime.sources.get(String(sourceId)) || [...entites, ...removedEntities].find(entity => String(entity.id) === String(sourceId)) || attacker;
     applyDotTick(target, state, Math.max(0, raw), source, {
@@ -892,6 +903,7 @@ export function brulure(target, effect, attacker, onEnd, saved = null) {
   effect = { ...defaultEffect('brulure', attacker), ...effect };
   effect = { ...effect, provenance: effect.provenance || effectProvenance(attacker, null, effect) };
   if (effect.criticalBurn || saved?.criticalBurn) {
+    effect.effectDisplay = 'Brûlure magique';
     const key = `${target.id}:critical-brulure`, now = clockNow();
     const state = saved || activeAlterations.get(key) || { kind: 'brulure', criticalBurn: true,
       target: target.id, attacker: attacker.id, sources: {}, nextTickAt: now + 1000 };
@@ -906,6 +918,10 @@ export function brulure(target, effect, attacker, onEnd, saved = null) {
       state.expiresAt = now + effect.effectDuration * 1000;
     }
     runDot(key, target, state, attacker, onEnd);
+    if (!saved) EffectMessage(target, 'Brûlure magique !', 'normal', {
+      effectKey: 'brulure', effectLabel: effect.effectDisplay, effectNature: 'magicalDamage',
+      durationSeconds: (state.expiresAt - now) / 1000,
+    });
     return true;
   }
   const key = `${target.id}:brulure`, now = clockNow();
