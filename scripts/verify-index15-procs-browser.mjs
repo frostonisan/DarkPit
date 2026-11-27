@@ -5,10 +5,10 @@ import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 const output = resolve('outputs/index-15-procs');
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.VISUAL_LAB_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+const browser = await chromium.launch({ ...(process.env.VISUAL_LAB_BROWSER ? { executablePath: process.env.VISUAL_LAB_BROWSER } : {}), headless: true });
 const page = await browser.newPage({ viewport: { width: 1536, height: 1000 } });
 const checks = [], errors = [], failedRequests = [];
 const check = (ok, label) => { assert.ok(ok, label); checks.push(label); };
@@ -26,7 +26,7 @@ const input = (id, value) => page.evaluate(({ id, value }) => { const node = doc
 const ready = () => page.evaluate(() => visualLab.ready);
 const inspect = () => page.evaluate(() => visualLab.procs.inspect());
 const slot = '#new-world .lab-slot[data-index="1"]';
-// Current spell.css placements, including the game's AmbidextryVFX override.
+// Current effects.css placements, including the game's AmbidextryVFX override.
 const placements = {
   indestructibility: { top: -30 }, astrality: { middle: true }, resilience: { top: 5 },
   ambidextry: { middle: true, centered: true }, esoterism: { middle: true },

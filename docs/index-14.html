@@ -20,7 +20,8 @@ header,.controls,.tools { display:flex; gap:12px; align-items:center; flex-wrap:
 header { justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--line); }
 .subtitle,.muted,small { color:var(--muted); } .subtitle { margin-top:5px; }
 .controls { margin:15px 0 8px; gap:10px 22px; } .controls label { display:flex; gap:8px; align-items:center; }
-[data-ui=mode-toggle] { border-color:var(--gold); } [data-ui=mode-toggle][aria-pressed=true] { border-color:#87badb; color:#b9def4; }
+[data-mode][aria-selected=true] { border-color:var(--gold); color:var(--gold); background:#302a1e; }
+[data-ui=maj-context] { padding:10px 12px; border-left:3px solid #21bea9; background:var(--panel); }
 [data-ui=current-rules] { margin-top:12px; }
 .entity-toolbar,.entity-header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
 .entity-toolbar { margin:18px 0; }
@@ -34,6 +35,7 @@ header { justify-content:space-between; padding-bottom:16px; border-bottom:1px s
 .stat-total { padding:10px 12px; background:var(--panel); border:1px solid var(--line); border-radius:4px; }
 .stat-total>span { display:block; font-size:12px; } .stat-total output { display:block; color:var(--gold); font-size:21px; font-weight:600; }
 .stat-total small { display:block; margin-top:4px; line-height:1.5; }
+.stat-total button { margin-top:8px; padding:4px 7px; font-size:11px; }
 .context { margin-bottom:15px; font-size:12px; color:var(--muted); }
 .pickers { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:18px 0; }
 .picker { position:relative; min-width:0; }
@@ -113,6 +115,18 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
 .curve-legend { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:11px; color:var(--muted); }
 .curve-legend i { display:inline-block; width:15px; border-top:2px solid #21bea9; vertical-align:middle; margin-right:5px; }
 .curve-legend .projected { border-top-style:dashed; opacity:.5; } .curve-legend .cycle { border-color:#e1a657; } .curve-legend .limit { border-color:#ed836f; } .curve-legend .departure { border-color:#8db8ff; }
+.conversion-layout { display:grid; grid-template-columns:minmax(240px,320px) minmax(0,1fr); gap:24px; margin-top:16px; }
+.conversion-fields { display:grid; gap:12px; align-content:start; }
+.conversion-fields label { display:grid; gap:5px; color:var(--muted); font-size:12px; }
+.conversion-fields input,.conversion-fields select { width:100%; color:var(--text); }
+.conversion-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding-top:12px; border-top:1px solid var(--line); }
+.conversion-fields [aria-invalid=true] { border-color:var(--force); }
+.conversion-result { font-size:20px; color:var(--gold); font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.conversion-plot { min-width:0; }
+#conversion-chart { height:280px; }
+#conversion-status { min-height:22px; color:var(--force); }
+.conversion-fields button { justify-self:start; }
+@media(max-width:760px) { .conversion-layout { grid-template-columns:1fr; gap:12px; } }
 @media(max-width:760px) { main { padding:14px; } .entity { padding:12px; } }
 @container entity (max-width:640px) {
   .pickers { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -141,7 +155,7 @@ summary { cursor:pointer; color:var(--text); } .rules ul { padding-left:20px; } 
   <header>
     <div><h1>Atelier des Umbras I</h1><p class="subtitle">Index 14 · Acquisition, ratios et calculs en direct.</p></div>
   </header>
-  <details class="common-balancing" id="common-balancing">
+  <details class="common-balancing" id="common-balancing" hidden>
     <summary>Paramètres communs d’équilibrage</summary>
     <p class="notice">Ces règles s’appliquent à toutes les entités et à tous les profils du Concept. Les chiffres sont recalculés en direct.</p>
     <div class="curve-field balance-field">
@@ -168,6 +182,34 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     </div>
     <p class="notice">La référence fixe la longueur des cycles. Modifier la limite d’une entité démarre une nouvelle courbe à ses points actuels, dès le point suivant. Les nouvelles entités démarrent avec la limite de référence.</p>
   </details>
+  <details class="curve-panel" id="stat-conversion" open>
+    <summary>Progression des statistiques · points ↔ %</summary>
+    <p class="notice">Réglez les points, le pourcentage ou la limite de l’effet avec les formules New. Résilience totale dépend des points de Résilience et du ratio de Force. Modifier le pourcentage retrouve les points nécessaires. Cet essai reste indépendant des entités ci-dessous.</p>
+    <div class="conversion-layout">
+      <div class="conversion-fields">
+        <label>Statistique<select id="conversion-stat"></select></label>
+        <label>Limite de l’effet (%)<input id="conversion-limit" type="number" min="0" max="100" step="any" inputmode="decimal" aria-describedby="conversion-status"></label>
+        <label><span id="conversion-shape-label">Score à mi-limite</span><input id="conversion-shape" type="number" min="0" step="any" inputmode="decimal" aria-describedby="conversion-shape-help conversion-status"></label>
+        <small id="conversion-shape-help"></small>
+        <label id="conversion-agility-field" hidden>Agilité (points retenus)<input id="conversion-agility" type="number" min="0" step="any" inputmode="decimal"></label>
+        <label id="conversion-influence-field" hidden>Influence du ratio d’Agilité<input id="conversion-influence" type="number" min="0" step="any" inputmode="decimal"></label>
+        <div class="conversion-pair">
+          <label><span id="conversion-points-label">Score total (points)</span><input id="conversion-points" type="number" min="0" step="any" inputmode="decimal" aria-describedby="conversion-status conversion-infinite"><span id="conversion-infinite" hidden>∞ points</span></label>
+          <label>Effet obtenu (%)<input id="conversion-percent" type="number" min="0" step="any" inputmode="decimal" aria-describedby="conversion-status"></label>
+        </div>
+        <button type="button" id="conversion-reset">Reprendre les réglages du jeu</button>
+      </div>
+      <div class="conversion-plot">
+        <output class="conversion-result" id="conversion-result" aria-live="polite"></output>
+        <canvas id="conversion-chart" role="img" aria-label="Conversion du score en pourcentage"></canvas>
+        <div class="curve-legend"><span><i></i>Effet obtenu</span><span><i class="limit"></i>Limite approchée à l’infini</span></div>
+        <p class="notice" id="conversion-formula"></p>
+        <p class="notice" id="conversion-origin"></p>
+      </div>
+    </div>
+    <p id="conversion-status" role="status" aria-live="polite"></p>
+    <p class="notice">Valeurs avant arrondi. Les paramètres de chaque statistique sont conservés pendant cette session. Cet essai ne modifie pas les réglages du jeu.</p>
+  </details>
   <div class="entity-toolbar"><h2>Entités</h2><button type="button" id="add-entity">+ Entité</button></div>
   <div class="entities" id="entities"></div>
   <p class="empty" id="no-entities" hidden>Ajoutez une entité pour commencer.</p>
@@ -177,14 +219,17 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <label>Nom de l’entité<input class="entity-name" type="text" maxlength="100" autocomplete="off"></label>
     <div class="tools"><button type="button" id="example">Exemple PP</button><button type="button" id="clear">Vider</button><button type="button" data-remove-entity>− Entité</button></div>
   </div>
-  <div class="controls">
-    <button type="button" id="mode-toggle" aria-pressed="false" aria-label="Passer à la version actuelle">Calculs : <strong id="mode-name">Concept</strong> ⇄</button>
+  <div class="controls" role="tablist" aria-label="Mode de calcul">
+    <button type="button" id="mode-maj" data-mode="maj" role="tab" aria-selected="true">New</button>
+    <button type="button" id="mode-current" data-mode="current" role="tab" aria-selected="false" tabindex="-1">Old</button>
   </div>
-  <p class="notice">Mêmes éléments et mêmes saisies dans les deux modes. Seuls les calculs appliqués changent.</p>
+  <p class="notice">New : calculs du jeu. Old : anciennes formules. Vos saisies sont conservées entre les deux versions.</p>
+  <p class="notice" id="maj-context" hidden></p>
+  <div id="mode-panel" role="tabpanel">
   <details class="curve-panel" open>
-    <summary>Courbe des ratios · progression par cycles</summary>
+    <summary>Courbe de progression</summary>
     <div class="controls">
-      <label>Profil Concept <select id="curve-profile" aria-label="Profil de courbe"></select></label>
+      <label><span id="curve-profile-label">Profil Concept</span> <select id="curve-profile" aria-label="Profil de courbe"></select></label>
       <label>Statistique <select id="curve-effect" aria-label="Statistique de la courbe"></select></label>
       <label>Afficher <select id="curve-view" aria-label="Valeur représentée"><option value="ratio">Multiplicateur des ratios</option><option value="total">Total de la statistique</option></select></label>
     </div>
@@ -195,7 +240,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <div class="curve-settings" id="curve-settings"></div>
     <p class="notice" id="curve-common-rules"></p>
     <div class="curve-settings entity-gauges" id="entity-gauges"></div>
-    <p class="notice">Au-delà de la limite, les Umbras progressent au rendement résiduel. Les attributs restent plafonnés. Les stats fixes sont illimitées. Le niveau reste un repère, sans gain automatique.</p>
+    <p class="notice">New utilise les réglages partagés avec le jeu. Le niveau reste un repère, sans gain automatique.</p>
     <div class="curve-metrics" style="margin-top:12px"><div>Ratio d’attribut<output id="curve-attribute"></output></div><div>Apport calculé de l’Umbra<output id="curve-native"></output></div><div>Total de l’entité<output id="curve-total"></output></div></div>
     <p class="notice" id="curve-next"></p>
   </details>
@@ -205,7 +250,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <div class="attribute-inputs" id="attribute-inputs" aria-label="Attributs de l’entité"></div>
     <div class="table-wrap">
       <table id="effects-table" hidden>
-        <caption>Apport de chaque ligne. Les vues X sont déjà comprises dans l’Umbra. Cliquez sur un nom pour le détail. Les bases sont réglables par statistique et par entité ; elles s’appliquent au Concept et se synchronisent entre les lignes d’une même stat.</caption>
+        <caption>Apport de chaque ligne. Les vues X sont déjà comprises dans l’Umbra. Cliquez sur un nom pour le détail ou sur « Voir la courbe » dans les totaux.</caption>
         <thead><tr><th scope="col">Élément</th><th scope="col">Points</th><th scope="col">Ratio / effet</th><th scope="col">Contribution de la ligne</th><th scope="col"><span class="muted">Retirer</span></th></tr></thead>
         <tbody id="effects"></tbody>
       </table>
@@ -213,8 +258,8 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     <div id="status" role="status" aria-live="polite"></div>
   </section>
   <details class="rules">
-    <summary>Règles et dons fixes de l’entité</summary>
-    <div id="concept-settings">
+    <summary>Règles de calcul</summary>
+    <div id="concept-settings" hidden>
     <p>Paramètres du concept · toujours modifiables, appliqués uniquement au calcul Concept.</p>
     <details><summary>Dons fixes par point d’Umbra</summary><div class="gift-settings" id="gift-settings"></div></details>
     <ul>
@@ -235,20 +280,21 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     </ul>
     </div>
     <div id="current-rules">
-      <p>Version actuelle : formules des JS du projet (statSystem.js, damagesCalcul.js, entites.js et balanceData.js).</p>
-      <p>Ratios, arrondis et plafonds propres à chaque effet. Le don fixe supplémentaire, la courbe globale et la limite commune du concept ne s’appliquent pas.</p>
-      <p>Les mêmes saisies sont conservées dans les deux modes. La réduction d’esquive adverse vient directement de Précision ; ses apports fixe/+ du concept n’ont pas d’équivalent actuel.</p>
+      <p>Old : référence des formules avant la mise à jour des Umbras.</p>
+      <p>Ratios, arrondis et plafonds propres à chaque effet. Les saisies restent conservées quand vous revenez à New.</p>
     </div>
-    <p class="notice">Les totaux additionnent les apports une seule fois. Si un plafond est atteint, les contributions affichées sont réparties dans l’ordre : fixe, stat+, Umbra.</p>
+    <p>New : réglages et calculs progressifs partagés avec le jeu. Les points saisis représentent des points naturels ; aucun équipement ou buff n’est simulé. Les autres Umbras conservent leur formule de référence.</p>
+    <p class="notice">Les totaux additionnent les apports une seule fois. Si un plafond est atteint, les contributions affichées sont réparties dans l’ordre : fixe, stat+, Umbra. Pour une passive exclusive en New, l’apport de l’Umbra est conservé en premier.</p>
   </details>
+  </div>
   </section>
   </template>
   <footer>Simulation autonome · Aucune lecture ni écriture des sauvegardes du jeu.</footer>
 </main>
+<script src="js/data/umbraProgression.js"></script>
 <script>
-/* Standalone snapshot of rank-1 native effects. Source: balanceData.js,
-   entites.js, entityRules.js and damagesCalcul.js. Only this lab applies the
-   proposed acquisition limit, shared ratio curve and additional fixed grants. */
+/* Concept and Old retain their comparison formulas. New uses the shared
+   numerical rules and settings imported by the game balanceData.js. */
 (() => {
   'use strict';
   const ATTRIBUTES = [
@@ -257,17 +303,24 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   ];
   const UMBRAS = [
     { key:'vigueur', name:'Vigueur', axis:'strength', role:'Attaque' },
+    { key:'astrality', name:'Astralité', axis:'intelligence', role:'Défense · niveau 2' },
+    { key:'robustness', name:'Robustesse', axis:'strength', role:'Défense · niveau 2' },
     { key:'constitution', name:'Constitution', axis:'strength', role:'Défense' },
     { key:'vitality', name:'Vitalité', axis:'strength', role:'Utilitaire' },
+    { key:'equilibre', name:'Équilibre', axis:'intelligence', role:'Utilitaire · niveau 2' },
+    { key:'resilience', name:'Résilience', axis:'strength', role:'Utilitaire · niveau 2' },
     { key:'esprit', name:'Esprit', axis:'intelligence', role:'Attaque' },
     { key:'integrite', name:'Intégrité', axis:'intelligence', role:'Défense' },
     { key:'haste', name:'Hâte', axis:'intelligence', role:'Utilitaire' },
     { key:'finesse', name:'Finesse', axis:'agility', role:'Attaque' },
+    { key:'criticalPower', name:'Puissance critique', axis:'agility', role:'Attaque · niveau 2' },
     { key:'adresse', name:'Adresse', axis:'agility', role:'Défense' },
-    { key:'precision', name:'Précision', axis:'agility', role:'Utilitaire' },
+    { key:'vivacite', name:'Vivacité', axis:'agility', role:'Utilitaire · niveau 2' },
+    { key:'vision', name:'Vision', axis:'agility', role:'Utilitaire' },
   ];
   const EFFECTS = [
     { key:'physicalDamage', name:'Puissance physique', source:'vigueur', type:'power', attribute:'strength', coefficient:.5, gift:1, unit:'', description:'Renforce les dégâts des attaques qui utilisent la puissance physique.' },
+    { key:'armor', name:'Armure', source:'robustness', type:'power', attribute:'strength', coefficient:.5, gift:1, unit:'', description:'Réserve qui absorbe les dégâts. Armure solaire recharge uniquement l’armure accordée par Robustesse au début de la journée, si l’entité est vivante.' },
     { key:'physicalResistance', name:'Résistance physique', source:'constitution', type:'resistance', attribute:'strength', coefficient:.5, gift:1, unit:' %', cap:100, description:'Réduit les dégâts physiques subis.' },
     { key:'HP', name:'HP max', source:'vitality', type:'hp', gift:1, unit:'', description:'Détermine les points de vie maximum. Aucun ratio de Force n’est ajouté à cette mécanique.' },
     { key:'dayHpRegen', name:'Régénération journalière', source:'vitality', type:'regen', gift:0, unit:' HP', description:'HP récupérés au début de la journée si l’entité est vivante. Utilise les HP max calculés ci-dessus.' },
@@ -280,8 +333,23 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     { key:'attackProjectileSpeed', name:'Vitesse des projectiles', source:'haste', type:'projectile', attribute:'strength', coefficient:25/150, gift:0, unit:' %', cap:95, description:'Augmente la vitesse des projectiles. Le ratio de Force est converti en accélération.' },
     { key:'piercingDamage', name:'Puissance perçante', source:'finesse', type:'power', attribute:'agility', coefficient:.5, gift:1, unit:'', description:'Renforce les dégâts des attaques qui utilisent la puissance perçante.' },
     { key:'dodge', name:'Esquive', source:'adresse', type:'dodge', attribute:'agility', coefficient:.5, gift:1, unit:' %', cap:100, description:'Chance d’esquiver les attaques esquivables.' },
-    { key:'precisionReduction', name:'Réduction d’esquive adverse', source:'precision', type:'precision', gift:1, unit:' %', cap:100, description:'Réduit l’esquive adverse. En combat, la cible conserve sa chance minimale d’esquiver.' },
-    { key:'criticalDamage', name:'Bonus de dégâts critiques', source:'precision', type:'critical', gift:0, unit:' %', description:'Bonus fourni par Précision aux attaques qui réalisent un coup critique. N’accorde aucune chance de critique.' },
+    { key:'precision', name:'Précision', source:'vision', type:'power', attribute:'agility', coefficient:.5, gift:1, unit:'', description:'Réduit l’esquive adverse et l’évitement lié à l’invisibilité. Le score est converti en pourcentage après cumul.' },
+    { key:'fatalSurvival', name:'Survie fatale', source:'astrality', type:'power', attribute:'intelligence', coefficient:.5, gift:0, unit:' %', get description(){return `Chance de rester à 1 HP au coup fatal. Sans Astralité : récupération de ${globalThis.umbraProgression.astrality.astralCooldown.baseSeconds} s après chaque réussite. Avec Astralité, seule l’Agilité réduit ce cooldown. Retour astral distribue le soin pendant ce même délai.`;} },
+    { key:'astralReturn', name:'Retour astral', source:'astrality', type:'power', attribute:'strength', coefficient:.5, derivedOnly:true, gift:0, unit:' %', description:'Restauration après Survie fatale avec Astralité. La Force augmente le soin de 10 % vers 100 % des HP maximum. L’Agilité avec l’Umbra réduit le cooldown astral, qui est aussi la durée du soin.' },
+    { key:'astralBody', name:'Corps astral', source:'astrality', type:'power', attribute:'intelligence', coefficient:.5, uniquePassive:true, derivedOnly:true, gift:0, unit:' %', description:'Jet après 3 secondes d’inactivité. Rend les attaques magiques pures hostiles inopérantes, dégâts et malus compris. Durée de base multipliée par le ratio d’Astralité.' },
+    { key:'criticalChance', name:'Chance de critique', source:'criticalPower', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'New : chance directe en %, normale sans ratio, + avec Agilité fixe, X avec les deux courbes. Limite 99 % à l’infini.' },
+    { key:'criticalDamage', name:'Dégâts critiques', passiveName:'Super dégât critique', source:'criticalPower', type:'power', uniquePassive:true, gift:0, unit:' %', description:'Regroupe le supplément critique de base, les apports directs et le bonus de Puissance critique lorsqu’elle est active.' },
+    { key:'velocity', name:'Vélocité', source:'vivacite', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'Réduit le délai de remplissage de l’ATB. Retraite agile utilise cette Vélocité pour améliorer le jet de fuite.' },
+    { key:'controlledSpeed', name:'Vitesse contrôlée', source:'vivacite', type:'power', attribute:'agility', uniquePassive:true, coefficient:0, gift:0, unit:' %', description:'Passive exclusive : atténue la déstabilisation due aux déplacements commandés par le joueur. Les déplacements imposés par un effet sont exclus.' },
+    { key:'equilibreAggroBonus', name:'Présence équilibrée', source:'equilibre', type:'power', attribute:'strength', coefficient:.5, gift:0, unit:' %', description:'Augmente l’aggro des dégâts, soins et éliminations après la réduction d’aggro des dégâts.' },
+    { key:'equilibreAggroReduction', name:'Réduction d’aggro', source:'equilibre', type:'power', attribute:'intelligence', coefficient:.5, gift:0, unit:' %', description:'Réduit l’aggro générée par les dégâts de l’entité.' },
+    { key:'equilibreInvisibleDetection', name:'Perception équilibrée', source:'equilibre', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'Réduit l’évitement du ciblage des ennemis invisibles en points de pourcentage.' },
+    { key:'equilibreBalancedAttackChance', name:'Attaque équilibrée', source:'equilibre', type:'power', attribute:'intelligence', uniquePassive:true, coefficient:0, gift:0, unit:' %', description:'Passive exclusive : chance que l’attaque ne génère aucune aggro.' },
+    { key:'criticalResistance', name:'Résistance aux critiques', source:'resilience', type:'power', attribute:'strength', coefficient:.5, gift:0, unit:' %', description:'Réduit seulement le supplément critique ; les dégâts du coup normal sont conservés.' },
+    { key:'alterationResistance', name:'Résistance aux altérations', source:'resilience', type:'power', attribute:'intelligence', coefficient:.5, gift:0, unit:' %', description:'Réduit les dégâts des DoT ou la durée des altérations sans dégâts.' },
+    { key:'hindranceResistance', name:'Résistance aux entraves', source:'resilience', type:'power', attribute:'agility', coefficient:.5, gift:0, unit:' %', description:'Chance de résister à une entrave, après un échec de Résilience totale. Ignore aussi le surcoût du poids si le jet réussit.' },
+    { key:'resilienceTotal', name:'Résilience totale', source:'resilience', type:'power', attribute:'strength', uniquePassive:true, coefficient:0, gift:0, unit:' %', description:'Passive exclusive : chance d’annuler entièrement une altération à son application.' },
+    { key:'bullsEye', name:'Bull’s Eye', source:'vision', type:'power', gift:0, unit:'', description:'Réduit le malus de dégâts à distance. Le score dépend de Vision et tend vers 100 % de réduction.' },
   ];
   const number = value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
   const ceiling = (value, decimals=0) => {
@@ -395,6 +463,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   function calculate(input) {
     if(input.mode==='current')return calculateCurrent(input);
+    if(input.mode==='maj')return calculateMaj(input);
     const limit=number(input.limit??DEFAULT_CURVE.interval);
     const normal=calculateNormal(input,0);
     const umbras=Object.fromEntries(UMBRAS.map(spec=>[spec.key,number(input.umbras?.[spec.key])]));
@@ -448,15 +517,15 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     for(const original of EFFECTS) {
       const spec=original.type==='critical'?{...original,attribute:'agility',coefficient:.4}:original;
       const u=umbras[spec.source], fixed=number(input.fixed?.[spec.key]), plus=number(input.plus?.[spec.key]);
-      const supportsDirect=spec.type!=='precision', fixedApplied=supportsDirect?fixed:0, plusApplied=supportsDirect?plus:0;
+      const supportsDirect=spec.type!=='precision'&&!spec.derivedOnly&&spec.source!=='astrality'&&spec.key!=='equilibreAggroBonus', fixedApplied=supportsDirect?fixed:0, plusApplied=supportsDirect?plus:0;
       // In this rank-one scope, criticalPower is absent. criticalDamagePlus
       // activates the current critical damage rule; Precision alone does not.
-      const active=spec.type==='critical'?plus>0:u>0 || plusApplied>0;
+      const active=spec.key!=='equilibreAggroBonus'&&(spec.type==='critical'?plus>0:u>0 || plusApplied>0);
       const coefficient=active && spec.attribute?spec.coefficient:0;
       const attributeValue=spec.attribute?attributes[spec.attribute]:0;
       const attributeUsed=spec.source==='haste'?Math.min(150,Number(attributeValue.toFixed(2))):attributeValue;
       const attributeRaw=spec.source==='haste'?(attributeUsed/150)*(coefficient*150):attributeUsed*coefficient;
-      const attributeGain=spec.source==='haste'?Math.round(attributeRaw):spec.type==='critical'?nearest(attributeRaw,1):attributeRaw;
+      let attributeGain=spec.source==='haste'?Math.round(attributeRaw):spec.type==='critical'?nearest(attributeRaw,1):attributeRaw;
       let native=0, generated=0, points=0, nativeRatio=0, common=0;
       const shared=['power','resistance','dodge'].includes(spec.type);
       if(shared) {
@@ -475,11 +544,36 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       if(spec.type==='projectile')generated=nearest((1/(1-Math.min(95,attributeGain)/100)-1)*100,2);
       if(spec.type==='precision') { native=u<=0?0:u===1?5:Math.min(80,Number((5+75*(1-Math.exp(-.025*(u-1)))).toFixed(1))); generated=native; }
       if(spec.type==='critical') { native=active?nearest(u*.5,1):0; common=active?50:0; generated=common+native+attributeGain; }
+      if(spec.source==='equilibre') {
+        const bonus=spec.key==='equilibreAggroReduction'?20:spec.key==='equilibreInvisibleDetection'?25:7;
+        native=u>0?(spec.uniquePassive?50:5):0;
+        attributeGain=u>0?nearest(bonus*(1-(1-Math.min(Math.max(0,attributeUsed)/150,1))**2),2):0;
+        generated=nearest(native+attributeGain,2);
+        // Presence is new: the historical snapshot must not invent an old barème.
+        if(spec.key==='equilibreAggroBonus')native=attributeGain=generated=points=0;
+      }
+      if(spec.source==='robustness') {
+        native=Math.ceil(u);common=active?10:0;
+        attributeGain=active?Math.ceil(10+989*(-Math.expm1(-(((attributeValue+30)**3-30**3)/100**3))))-10:0;
+        generated=native+common+attributeGain;
+      }
+      if(spec.source==='vivacite') {
+        if(spec.key==='velocity') {
+          const v=Math.max(0,Math.min(150,Math.round(u+(active?attributeValue*.5:0))));
+          generated=v<=30?v:30+35*(1-Math.exp(-.015*(v-30)))/(1-Math.exp(-.015*120));
+        }else generated=0;
+      }
+      if(spec.source==='astrality') {
+        // Positive fractional scores stay at the historical first-point base; never take a negative square root.
+        native=spec.key==='fatalSurvival'&&u>0?Math.min(40,nearest(2+38*Math.sqrt(Math.max(0,u-1)/100),1)):0;
+        attributeGain=spec.key==='fatalSurvival'&&u>0?nearest(60*(1-(1-Math.min(attributeValue,150)/150)**2),1):0;
+        generated=native+attributeGain;common=0;
+      }
       let enhanced=plusApplied+generated;
       if(spec.type==='hp')enhanced=Math.ceil(enhanced);
       if(spec.type==='regen')enhanced=Math.floor(enhanced);
       if(spec.source==='haste' || spec.type==='critical')enhanced=nearest(enhanced,1);
-      const uncapped=nearest(fixedApplied+enhanced,6), total=nearest(Math.min(spec.cap??Infinity,uncapped),6);
+      const uncapped=nearest(fixedApplied+enhanced,6), total=nearest(Math.min(spec.key==='velocity'?65:spec.key==='controlledSpeed'?0:spec.cap??Infinity,uncapped),6);
       results[spec.key]={...spec,u,fixed,plus,fixedApplied,plusApplied,supportsDirect,active,multiplier:1,
         coefficient,attributeValue,attributeUsed,attributeRaw,attributeGain,giftRate:0,gift:0,native,nativeRatio,common,generated,points,uncapped,total,
         roundingAdjustment:nearest(uncapped-fixedApplied-plusApplied-generated,6),
@@ -487,12 +581,108 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     }
     return {mode:'current',level:Math.max(1,Math.floor(number(input.level))),limit:number(input.limit??150),attributes,umbras,results};
   }
+  function calculateMaj(input) {
+    const live=globalThis.umbraProgression, limit=live.getUmbraThreshold(input);
+    const keys=new Set(live.getProgressiveStatKeys());
+    const retained=values=>Object.fromEntries(Object.entries(values||{}).map(([key,value])=>
+      [key,keys.has(key)?live.calculateStatPointLimit(number(value),0,0,limit).value:number(value)]));
+    const attributes=retained(input.attributes),umbras=Object.fromEntries(Object.entries(input.umbras||{}).map(([key,value])=>
+      [key,live.calculateStatPointLimit(number(value),0,0,limit).value]));
+    const snapshot=calculateCurrent({...input,attributes,umbras});
+    for(const spec of EFFECTS) {
+      if(spec.key==='astralReturn') {
+        const row=snapshot.results[spec.key],used=umbras.astrality||0,strength=attributes.strength||0;
+        const detail=live.astralReturnDetails(used,strength,snapshot.results.HP.total,attributes.agility||0,undefined,limit),cfg=live.astrality.astralReturn;
+        Object.assign(row,{updated:true,returnDetails:detail,umbraUsed:used,u:number(input.umbras?.astrality),active:used>0,
+          multiplier:live.getProgressiveRatio(used,'astrality',limit),attributeBase:cfg.ratios.attribute,umbraBase:0,
+          attributeUsed:strength,attributeGain:0,attributeMultiplier:live.getProgressiveRatio(strength,'strength',limit),
+          nativeGain:detail.percent,generated:detail.percent,total:detail.percent,uncapped:detail.percent,
+          cap:cfg.maxPercent,capped:false,capLoss:0,pointLimit:live.calculateStatPointLimit(number(input.umbras?.astrality),0,0,limit)});
+        continue;
+      }
+      if(['fatalSurvival','astralBody','criticalChance','criticalDamage','criticalResistance','alterationResistance','hindranceResistance','equilibreAggroBonus','equilibreAggroReduction','equilibreInvisibleDetection','velocity'].includes(spec.key)) {
+        const row=snapshot.results[spec.key],used=umbras[spec.source]||0,a=attributes[spec.attribute]||0,chance=spec.key!=='criticalDamage';
+        const ratioPercent=['astrality','resilience','equilibre','vivacite'].includes(spec.source),cfg=ratioPercent?live[spec.source][spec.key]:live.critical.chanceCurve;
+        const fixed=spec.key==='equilibreAggroBonus'?row.fixed:row.fixedApplied,plus=spec.key==='equilibreAggroBonus'?row.plus:row.plusApplied;
+        const detail=spec.source==='astrality'?(spec.key==='astralBody'?live.astralBodyDetails(used,a,undefined,limit):live.astralityChanceDetails(used,a,row.fixed,row.plus,undefined,limit)):ratioPercent?live[spec.source==='vivacite'?'vivaciteDetails':spec.source==='equilibre'?'equilibreDetails':'resilienceDetails'](spec.key,used,a,fixed,plus,undefined,limit):chance?live.criticalChanceDetails(used,a,row.fixedApplied,row.plusApplied,undefined,limit):live.criticalDamageDetails(used,limit);
+        const generated=chance?detail.generated:detail.value,common=chance?0:live.critical.damage.nativeBasePercent;
+        const total=chance?detail.value:Math.max(0,common+generated+row.fixedApplied+row.plusApplied);
+        Object.assign(row,{updated:true,supportsDirect:spec.source==='astrality'?!spec.derivedOnly:spec.key==='equilibreAggroBonus'||row.supportsDirect,critical:!ratioPercent,ratioPercent,uniquePassive:spec.uniquePassive||!chance&&used>0,unit:' %',name:!chance&&used>0?spec.passiveName:spec.name,
+          u:number(input.umbras?.[spec.source]),umbraUsed:used,active:used>0||chance&&plus>0,
+          attribute:chance?spec.attribute:null,attributeUsed:a,attributeValue:a,
+          attributeGain:chance?detail.attribute.value:0,attributeBase:chance?cfg.ratios.attribute:0,
+          attributeMultiplier:chance&&used>0?live.getProgressiveRatio(a,spec.attribute,limit):1,
+          umbraBase:chance?cfg.ratios.source:live.critical.damage.sourceRatio,
+          multiplier:live.getProgressiveRatio(used,spec.source,limit),nativeGain:chance?detail.source.value:generated,
+          generated,common,gift:0,giftRate:0,total,uncapped:total,cap:chance?detail.max:Infinity,capped:false,capLoss:0,
+          criticalParts:chance?[detail.source,detail.attribute]:[detail],
+          fixedApplied:chance?detail.normalApplied:row.fixedApplied,plusApplied:chance?detail.plusApplied:row.plusApplied,
+          coefficient:chance?detail.attribute.compact.multiplier.value:0,
+          pointLimit:live.calculateStatPointLimit(number(input.umbras?.[spec.source]),0,0,limit),
+          state:!chance?'normal':used>0?'X':plus>0?'+':'normal'});
+        if(spec.key==='astralBody')row.bodyDetails=detail;
+        if(spec.key==='fatalSurvival')row.cooldownDetails=live.astralCooldownDetails(used,attributes.agility||0,undefined,limit);
+        continue;
+      }
+      if(['bullsEye','resilienceTotal','equilibreBalancedAttackChance','controlledSpeed'].includes(spec.key)) {
+        const attribute=spec.attribute||'agility', row=snapshot.results[spec.key],used=umbras[spec.source]||0,a=attributes[attribute]||0;
+        const curve=spec.key==='resilienceTotal'?live.resilienceCancelDetails(used,a,undefined,limit):spec.key==='equilibreBalancedAttackChance'?live.balancedAttackDetails(used,a,undefined,limit):spec.key==='controlledSpeed'?live.controlledSpeedDetails(used,a,undefined,limit):live.bullsEyeDetails(used,a,undefined,limit);
+        if(spec.key==='controlledSpeed'&&used<=0){row.fixedApplied=0;row.plusApplied=0;}
+        const pooled={total:Math.max(0,Math.min(curve.max,curve.percent+row.fixedApplied+row.plusApplied))};
+        Object.assign(row,{updated:true,directPercentage:true,uniquePassive:true,unit:' %',state:'normal',
+          u:number(input.umbras?.[spec.source]),umbraUsed:used,active:used>0,attribute,attributeUsed:a,attributeValue:a,
+          passiveCurve:curve,generated:curve.percent,nativeGain:curve.percent,gift:0,giftRate:0,coefficient:curve.ratio,
+          description:spec.key!=='bullsEye'?spec.description:'Passive exclusive à Vision : réduction du malus à distance, renforcée par le ratio évolutif d’Agilité.',
+          total:pooled.total,chancePercent:pooled.total,uncapped:curve.percent+row.fixedApplied+row.plusApplied,
+          capped:pooled.total>=curve.max,cap:curve.max,capLoss:Math.max(0,curve.percent+row.fixedApplied+row.plusApplied-pooled.total),
+          pointLimit:live.calculateStatPointLimit(number(input.umbras?.[spec.source]),0,0,limit),
+          attributePointLimit:live.calculateStatPointLimit(number(input.attributes?.[attribute]),0,0,limit)});
+        continue;
+      }
+      const cfg=live.sources[spec.source];
+      if(!cfg?.progressive || cfg.target!==spec.key) {
+        if(spec.type==='resistance') {
+          const row=snapshot.results[spec.key];
+          row.generated=Math.ceil(live.resistanceReductionRatio(row.points,live.resistanceCurve.constant)*100);
+          row.uncapped=nearest(row.fixedApplied+row.plusApplied+row.generated,6);
+          row.total=Math.min(spec.cap??Infinity,row.uncapped);
+          row.capped=row.uncapped>row.total;row.capLoss=row.uncapped-row.total;
+        }
+        continue;
+      }
+      const row=snapshot.results[spec.key],used=umbras[spec.source]||0,a=attributes[cfg.attribute]||0;
+      const active=used>0||row.plusApplied>0;
+      const sourcePart=live.progressivePowerPart(spec.source,used,cfg.ratios.source,true,limit);
+      const attributePart=live.progressivePowerPart(cfg.attribute,a,active?cfg.ratios.attribute:0,used>0,limit);
+      const gift=nearest(used*cfg.flatPerPoint,6),generated=nearest(sourcePart.value+attributePart.value,6);
+      const total=spec.key==='armor'?Math.round(row.fixedApplied+Math.round(row.plusApplied+gift+generated)):nearest(row.fixedApplied+row.plusApplied+gift+generated,6);
+      Object.assign(row,{updated:true,u:number(input.umbras?.[spec.source]),umbraUsed:used,active,
+        attribute:cfg.attribute,attributeValue:a,attributeUsed:a,attributeRaw:attributePart.raw,attributeGain:attributePart.value,
+        attributeBase:cfg.ratios.attribute,attributeMultiplier:attributePart.multiplier,coefficient:attributePart.coefficient,
+        umbraBase:cfg.ratios.source,umbraCoefficient:sourcePart.coefficient,multiplier:sourcePart.multiplier,
+        native:sourcePart.raw,nativeGain:sourcePart.value,nativeBase:used*cfg.ratios.source,
+        giftRate:cfg.flatPerPoint,gift,generated,total,uncapped:total,roundingAdjustment:0,
+        sourcePart,attributePart,pointLimit:live.calculateStatPointLimit(number(input.umbras?.[spec.source]),0,0,limit),
+        attributePointLimit:live.calculateStatPointLimit(number(input.attributes?.[cfg.attribute]),0,0,limit),
+        state:used>0?'X':row.plusApplied>0?'+':'normal'});
+      if(cfg.resistance)Object.assign(row,{resistancePoints:true,unit:'',cap:Infinity,capped:false,capLoss:0,
+        resistanceConstant:live.getResistanceConstant(spec.key),reductionPercent:live.resistanceReductionRatio(total,live.getResistanceConstant(spec.key))*100});
+      if(cfg.precision)Object.assign(row,{precisionPoints:true,chancePercent:live.precisionPercent(total)});
+      if(cfg.dodge)Object.assign(row,{dodgePoints:true,unit:'',cap:Infinity,capped:false,capLoss:0,chancePercent:live.dodgeChancePercent(total)});
+    }
+    return {...snapshot,mode:'maj',limit,results:snapshot.results};
+  }
   function contributions(row,mode='concept') {
+    if(row.critical||row.ratioPercent)return {fixed:row.fixedApplied+row.common,plus:row.plusApplied+(row.umbraUsed>0?0:row.generated),umbra:row.umbraUsed>0?row.generated:0,x:row.umbraUsed>0&&!row.uniquePassive?row.generated:0};
+    if(row.directPercentage) {
+      const fixedTotal=Math.max(0,Math.min(row.passiveCurve.max,row.generated+row.fixedApplied));
+      return {fixed:fixedTotal-row.generated,plus:row.total-fixedTotal,umbra:row.generated,x:0};
+    }
     const fixed=Math.min(row.total,Math.max(0,row.fixedApplied??row.fixed));
     const hasUmbra=row.u>0 && row.active;
     let plusClaim=row.plusApplied??row.plus;
     if(!hasUmbra)plusClaim=row.total-fixed;
-    else if(mode==='current' && row.type==='critical')plusClaim+=row.common+row.attributeGain;
+    else if(mode!=='concept' && row.type==='critical')plusClaim+=row.common+row.attributeGain;
     const plus=Math.min(Math.max(0,row.total-fixed),Math.max(0,plusClaim));
     const umbra=Math.max(0,row.total-fixed-plus);
     // X is a view of the capability already carried by its Umbra, never a
@@ -500,7 +690,89 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const x=hasUmbra?Math.min(row.generated,Math.max(0,umbra-row.gift)):0;
     return {fixed:nearest(fixed,8),plus:nearest(plus,8),umbra:nearest(umbra,8),x:nearest(x,8)};
   }
-  window.umbraLab = Object.freeze({ calculate, initialState, changeLimit, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, referenceLimit:REFERENCE_LIMIT, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS });
+  const statConversions = Object.freeze([
+    {key:'velocity',name:'Vélocité'}, {key:'controlledSpeed',name:'Vitesse contrôlée'},
+    {key:'equilibreAggroBonus',name:'Présence équilibrée'},
+    {key:'equilibreAggroReduction',name:'Réduction d’aggro'}, {key:'equilibreInvisibleDetection',name:'Perception équilibrée'}, {key:'equilibreBalancedAttackChance',name:'Attaque équilibrée'},
+    {key:'bullsEye',name:'Bull’s Eye'}, {key:'dodge',name:'Esquive'},
+    {key:'physicalResistance',name:'Résistance physique'}, {key:'magicalResistance',name:'Résistance magique'},
+    {key:'criticalResistance',name:'Résistance aux critiques'}, {key:'alterationResistance',name:'Résistance aux altérations'}, {key:'hindranceResistance',name:'Résistance aux entraves'}, {key:'resilienceTotal',name:'Résilience totale'},
+    {key:'precision',name:'Précision'}, {key:'criticalChance',name:'Chance de critique'},
+    {key:'fatalSurvival',name:'Survie fatale'}, {key:'astralReturn',name:'Retour astral'}, {key:'astralBody',name:'Corps astral'},
+  ]);
+  function conversionSettings(key) {
+    const live=globalThis.umbraProgression;
+    if(live.astrality[key]) {
+      const cfg=live.astrality[key],returning=key==='astralReturn';
+      return {kind:'critical',astralityKey:key,attribute:returning?'agility':'intelligence',limit:cfg.maxPercent,
+        shape:returning?cfg.constant:live.astralityChanceDetails(1,0,0,0,cfg).constant,start:returning?cfg.basePercent:0,agility:0};
+    }
+    if(live.vivacite[key])return {kind:'critical',vivaciteKey:key,attribute:'agility',limit:live.vivacite[key].maxPercent,shape:live.vivacite[key].constant,start:0,agility:0};
+    if(live.equilibre[key])return {kind:'critical',equilibreKey:key,attribute:live.equilibre[key].attribute,limit:live.equilibre[key].maxPercent,shape:live.equilibre[key].constant,start:0,agility:0};
+    if(live.resilience[key])return {kind:'critical',resilienceKey:key,attribute:live.resilience[key].attribute||'agility',limit:live.resilience[key].maxPercent,shape:live.resilience[key].constant,start:0,agility:0};
+    if(key==='criticalChance')return {kind:'critical',limit:live.critical.chanceCurve.maxPercent,shape:live.critical.chanceCurve.constant,start:0,agility:0};
+    if(key==='bullsEye')return {kind:'passive',limit:live.bullsEyeCurve.maxPercent,shape:live.bullsEyeCurve.constant,
+      start:live.bullsEyeCurve.firstPointPercent,agility:0,influence:live.bullsEyeCurve.agilityInfluence};
+    if(key==='precision')return {kind:'exponential',limit:live.precisionCurve.maxPercent,
+      shape:live.precisionCurve.growthK,start:live.precisionCurve.minPercent};
+    const curve=key==='bullsEye'?live.bullsEyeCurve:key==='dodge'?live.dodgeCurve:live.resistanceCurve;
+    return {kind:'rational',limit:curve.maxPercent,shape:key.endsWith('Resistance')?live.getResistanceConstant(key):curve.constant};
+  }
+  function conversionPercent(points,settings) {
+    const {kind,limit,shape,start=0,seuilUmbra=globalThis.umbraProgression.defaultUmbraThreshold}=settings;
+    if(points===Infinity)return limit;
+    if(!(points>0)&&settings.astralityKey!=='astralReturn')return 0;
+    if(settings.astralityKey) {
+      const live=globalThis.umbraProgression,key=settings.astralityKey,cfg={...live.astrality[key],maxPercent:limit};
+      if(key==='astralReturn')return live.astralReturnDetails(1,points,0,settings.agility,{...cfg,constant:shape},seuilUmbra).percent;
+      const firstWeight=cfg.ratios.source*live.getProgressiveRatio(1,'astrality',seuilUmbra);
+      cfg.firstPointPercent=limit/(1+shape/firstWeight);
+      return live.astralityChanceDetails(points,settings.agility,0,0,cfg,seuilUmbra).value;
+    }
+    if(settings.vivaciteKey) {
+      const live=globalThis.umbraProgression,key=settings.vivaciteKey,cfg={...live.vivacite[key],maxPercent:limit,constant:shape};
+      return key==='controlledSpeed'?live.controlledSpeedDetails(points,settings.agility,cfg,seuilUmbra).percent:live.vivaciteDetails(key,points,settings.agility,0,0,cfg,seuilUmbra).value;
+    }
+    if(settings.equilibreKey) {
+      const live=globalThis.umbraProgression,key=settings.equilibreKey,cfg={...live.equilibre[key],maxPercent:limit,constant:shape};
+      return key==='equilibreBalancedAttackChance'?live.balancedAttackDetails(points,settings.agility,cfg,seuilUmbra).percent:live.equilibreDetails(key,points,settings.agility,0,0,cfg,seuilUmbra).value;
+    }
+    if(settings.resilienceKey) {
+      const live=globalThis.umbraProgression,key=settings.resilienceKey,cfg={...live.resilience[key],maxPercent:limit,constant:shape};
+      return key==='resilienceTotal'?live.resilienceCancelDetails(points,settings.agility,cfg,seuilUmbra).percent:live.resilienceDetails(key,points,settings.agility,0,0,cfg,seuilUmbra).value;
+    }
+    if(kind==='critical')return globalThis.umbraProgression.criticalChanceDetails(points,settings.agility,0,0,{...globalThis.umbraProgression.critical.chanceCurve,maxPercent:limit,constant:shape},seuilUmbra).value;
+    if(kind==='passive')return globalThis.umbraProgression.bullsEyePercent(points,settings.agility,
+      {maxPercent:limit,constant:shape,firstPointPercent:start,agilityInfluence:settings.influence},seuilUmbra);
+    const percent=kind==='rational'?limit/(1+shape/points):start+(limit-start)*-Math.expm1(-shape*(points-1));
+    return Math.max(0,Math.min(limit-Number.EPSILON*limit,percent));
+  }
+  function conversionPoints(percent,settings) {
+    const {kind,limit,shape,start=0}=settings;
+    if(!Number.isFinite(percent)||percent<0||percent>limit)return NaN;
+    if(settings.astralityKey==='astralReturn') {
+      if(percent<start)return NaN;
+      if(percent===start)return 0;
+    }
+    if(percent===0)return 0;
+    if(percent===limit)return Infinity;
+    if(kind==='critical') {
+      // At nonzero Agility, learning the Umbra activates its attribute ratio.
+      if(percent<conversionPercent(Number.EPSILON,settings))return NaN;
+      let lo=0,hi=1;
+      while(conversionPercent(hi,settings)<percent&&hi<Number.MAX_VALUE/2)hi*=2;
+      for(let i=0;i<100;i++){const mid=lo+(hi-lo)/2;if(conversionPercent(mid,settings)<percent)lo=mid;else hi=mid;}
+      return lo+(hi-lo)/2;
+    }
+    if(kind==='passive')return globalThis.umbraProgression.bullsEyeVision(percent,settings.agility,
+      {maxPercent:limit,constant:shape,firstPointPercent:start,agilityInfluence:settings.influence});
+    if(kind==='rational')return shape*(percent/(limit-percent));
+    const points=1-Math.log1p((start-percent)/(limit-start))/shape;
+    // The current Precision curve jumps from zero to a positive percentage.
+    return points>0?points:NaN;
+  }
+  window.umbraLab = Object.freeze({ calculate, initialState, changeLimit, multiplier, curveGain, defaultUmbraBase, ceiling, contributions, referenceLimit:REFERENCE_LIMIT, curveProfiles:CURVE_PROFILES, attributes:ATTRIBUTES, umbras:UMBRAS, effects:EFFECTS,
+    statConversions,conversionSettings,conversionPercent,conversionPoints });
 })();
 </script>
 <script>
@@ -508,7 +780,159 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   'use strict';
   const Lab=window.umbraLab, balance={gain:Lab.initialState().curve.cap,referenceLimit:Lab.referenceLimit};
   const profileDefaults=profile=>({...profile.defaults,cap:balance.gain,interval:balance.referenceLimit});
-  const newEntityState=example=>({...Lab.initialState(example),limit:balance.referenceLimit});
+  const newEntityState=example=>({...Lab.initialState(example),mode:'maj',limit:balance.referenceLimit});
+  function mountStatConversion() {
+    const root=document.getElementById('stat-conversion'),find=id=>root.querySelector(`#conversion-${id}`);
+    const fields=Object.fromEntries(['limit','shape','points','percent','agility','influence'].map(key=>[key,find(key)]));
+    const experiments=new Map();let selected=Lab.statConversions[0].key;
+    const current=()=>{
+      if(!experiments.has(selected))experiments.set(selected,{...Lab.conversionSettings(selected),points:100});
+      return experiments.get(selected);
+    };
+    const fmt=value=>value===Infinity?'∞':new Intl.NumberFormat('fr-FR',{maximumFractionDigits:6}).format(value);
+    const numeric=value=>Number(value.toPrecision(12)).toString();
+    for(const spec of Lab.statConversions) {
+      const option=document.createElement('option');option.value=spec.key;option.textContent=spec.name;find('stat').append(option);
+    }
+    function clearError() {
+      for(const field of Object.values(fields)){field.setCustomValidity('');field.removeAttribute('aria-invalid');}
+      find('status').textContent='';
+    }
+    function fail(field,message) {
+      clearError();field.setCustomValidity(message);field.setAttribute('aria-invalid','true');find('status').textContent=message;
+    }
+    function draw() {
+      const canvas=find('chart'),box=canvas.getBoundingClientRect();if(box.width<1||box.height<1)return;
+      const settings=current(),{points,limit,shape,kind}=settings,percent=Lab.conversionPercent(points,settings);
+      const w=box.width,h=box.height,dpr=window.devicePixelRatio||1;
+      canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+      const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
+      const left=58,right=w-20,top=25,bottom=h-36;
+      const typical=kind==='exponential'?1+6/shape:shape*10;
+      const xMax=Math.max(10,Math.min(Number.MAX_VALUE/2,typical),Number.isFinite(points)?Math.min(Number.MAX_VALUE/2,points*1.25):0);
+      const x=p=>left+(p/xMax)*(right-left),y=p=>bottom-(p/limit)*(bottom-top);
+      ctx.font='11px system-ui';ctx.lineWidth=1;ctx.fillStyle='#a8b4bc';
+      for(let i=0;i<=4;i++) {
+        const fraction=i/4;
+        ctx.strokeStyle='#343e46';ctx.beginPath();ctx.moveTo(left,y(fraction*limit));ctx.lineTo(right,y(fraction*limit));ctx.stroke();
+        ctx.textAlign='right';ctx.fillText(`${fmt(fraction*limit)} %`,left-7,y(fraction*limit)+4);
+        const tick=xMax*fraction,label=tick>=1e7?tick.toExponential(1):fmt(Number(tick.toPrecision(4)));
+        ctx.textAlign='center';ctx.fillText(label,x(tick),bottom+18);
+      }
+      ctx.textAlign='right';ctx.fillText(kind==='passive'?'Vision (points retenus)':'points',right,h-2);
+      ctx.strokeStyle='#ed836f';ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(right,top);ctx.stroke();ctx.setLineDash([]);
+      ctx.strokeStyle='#21bea9';ctx.lineWidth=2.5;ctx.beginPath();
+      for(let i=0;i<=300;i++) {const p=xMax*(i/300),v=Lab.conversionPercent(p,settings);if(i)ctx.lineTo(x(p),y(v));else ctx.moveTo(x(p),y(v));}ctx.stroke();
+      if(Number.isFinite(points)){ctx.fillStyle='#ddc68d';ctx.beginPath();ctx.arc(x(points),y(percent),4,0,Math.PI*2);ctx.fill();}
+      canvas.dataset.stat=selected;canvas.dataset.points=String(points);canvas.dataset.percent=String(percent);canvas.dataset.limit=String(limit);
+      canvas.setAttribute('aria-label',`${find('stat').selectedOptions[0].textContent} : ${fmt(points)} points donnent ${fmt(percent)} %, limite ${fmt(limit)} %.`);
+    }
+    function render(edited=null) {
+      const settings=current(),percent=Lab.conversionPercent(settings.points,settings);
+      const passive=settings.kind==='passive';
+      const values={limit:settings.limit,shape:settings.shape,points:settings.points,percent,agility:settings.agility||0,influence:settings.influence??1};
+      for(const [key,field] of Object.entries(fields))if(field!==edited)field.value=values[key]===Infinity?'':numeric(values[key]);
+      fields.points.placeholder=settings.points===Infinity?'∞':'';find('infinite').hidden=settings.points!==Infinity;
+      fields.percent.max=String(settings.limit);
+      fields.limit.min=settings.kind==='exponential'||passive||settings.astralityKey==='astralReturn'?String(settings.start):'0';
+      find('agility-field').firstChild.textContent=`${({strength:'Force',intelligence:'Intelligence'})[settings.attribute]||'Agilité'} (points retenus)`;
+      find('agility-field').hidden=!passive&&settings.kind!=='critical';find('influence-field').hidden=!passive;
+      find('points-label').textContent=passive?'Vision (points retenus)':'Score total (points)';
+      find('shape-label').textContent=settings.kind==='rational'?'Score à mi-limite':'Vitesse de progression';
+      find('shape-help').textContent=settings.kind==='rational'
+        ? `${fmt(settings.shape)} points donnent ${fmt(settings.limit/2)} %. Augmenter ce score ralentit la progression.`
+        : `La courbe conserve ${fmt(settings.start)} % à 1 point. Augmenter cette valeur accélère la progression.`;
+      find('result').textContent=`${fmt(settings.points)} points → ${fmt(percent)} %`;
+      find('formula').textContent=settings.kind==='rational'
+        ? `Effet = ${fmt(settings.limit)} × points / (points + ${fmt(settings.shape)}).`
+        : `Effet = ${fmt(settings.start)} + (${fmt(settings.limit)} − ${fmt(settings.start)}) × (1 − exp(−${fmt(settings.shape)} × (points − 1))). À 0 point : 0 %.`;
+      const native=Lab.conversionSettings(selected);
+      find('origin').textContent=`Réglages du jeu : limite ${fmt(native.limit)} % ; ${native.kind==='rational'?'score à mi-limite':'vitesse de progression'} ${fmt(native.shape)}. Vos essais restent dans cet atelier.`;
+      if(passive) {
+        const ratio=1+(globalThis.umbraProgression.getProgressiveRatio(settings.agility,'agility')-1)*settings.influence;
+        find('shape-label').textContent='Étalement de la progression';
+        find('shape-help').textContent='Augmenter cette valeur ralentit la progression. L’Agilité fait évoluer le ratio r. Les points saisis sont ceux retenus après les seuils.';
+        find('result').textContent=`${fmt(settings.points)} Vision · ${fmt(settings.agility)} Agilité → ${fmt(percent)} %`;
+        find('formula').textContent=`r = ${fmt(ratio)}. Bull’s Eye = ${fmt(settings.start)} + ${fmt(settings.limit-settings.start)} / (1 + ${fmt(settings.shape)} / ((Vision − 1) × r)). Entre 0 et 1 Vision : Vision × ${fmt(settings.start)} %.`;
+        find('origin').textContent=`Réglages du jeu : limite ${fmt(native.limit)} % ; étalement ${fmt(native.shape)} ; influence d’Agilité ${fmt(native.influence)}. Vos essais restent dans cet atelier.`;
+      }
+      if(settings.kind==='critical') {
+        find('points-label').textContent='Puissance critique (points retenus)';
+        find('shape-label').textContent='Étalement de la progression';
+        find('shape-help').textContent='Augmenter cette valeur ralentit la progression. Les deux ratios suivent les courbes communes du jeu.';
+        find('result').textContent=`${fmt(settings.points)} Puissance critique · ${fmt(settings.agility)} Agilité → ${fmt(percent)} %`;
+        find('formula').textContent='Puissance critique × son ratio + Agilité × son ratio ; rendement décroissant vers la limite. À 0 Puissance critique, la capacité est inactive.';
+        find('origin').textContent=`Réglages du jeu : limite ${fmt(native.limit)} % ; étalement ${fmt(native.shape)}. Vos essais restent dans cet atelier.`;
+      }
+      if(settings.resilienceKey) {
+        const attribute=settings.attribute==='strength'?'Force':settings.attribute==='intelligence'?'Intelligence':'Agilité';
+        find('points-label').textContent='Résilience (points retenus)';
+        find('result').textContent=`${fmt(settings.points)} Résilience · ${fmt(settings.agility)} ${attribute} → ${fmt(percent)} %`;
+        find('formula').textContent=`Résilience et ${attribute} : pourcentage direct calculé par le moteur du jeu.`;
+        if(settings.resilienceKey==='resilienceTotal') {
+          const config=globalThis.umbraProgression.resilience.resilienceTotal;
+          const curve=globalThis.umbraProgression.resilienceCancelDetails(settings.points,settings.agility,
+            {...config,constant:settings.shape,maxPercent:settings.limit});
+          find('shape-help').textContent='Augmenter cette valeur ralentit la progression. La Résilience fournit les points ; la Force fait évoluer leur multiplicateur.';
+          find('formula').textContent=`Résilience totale : S = Résilience × ${fmt(config.sourceRatio*curve.curveRatio)} ; chance = ${fmt(settings.limit)} × S / (${fmt(settings.shape)} + S). À 0 Résilience : 0 % généré.`;
+        }
+      }
+      if(settings.astralityKey) {
+        const cfg=globalThis.umbraProgression.astrality,returning=settings.astralityKey==='astralReturn',attribute=returning?'Agilité':'Intelligence';
+        find('points-label').textContent=returning?'Force (points retenus)':'Astralité (points retenus)';
+        find('result').textContent=`${fmt(settings.points)} ${returning?'Force':'Astralité'} · ${fmt(settings.agility)} ${attribute} → ${fmt(percent)} %`;
+        find('formula').textContent=returning
+          ? `Restauration : ${fmt(percent)} % des HP maximum en ${fmt(globalThis.umbraProgression.astralCooldownDetails(1,settings.agility).seconds)} s de cooldown astral. La Force augmente le soin ; l’Agilité réduit sa durée avec l’Umbra.`
+          : settings.astralityKey==='astralBody'
+            ? `Chance par contrôle. Attente : ${fmt(cfg.astralBody.checkSeconds)} s d’inactivité. Durée : ${fmt(cfg.astralBody.baseDurationSeconds*globalThis.umbraProgression.getProgressiveRatio(settings.points,'astrality'))} s. Aucun contrôle pendant l’effet.`
+            : 'Astralité et Intelligence suivent leurs courbes propres. Chance de rester à 1 HP au coup fatal, indisponible pendant Retour astral.';
+      }
+      if(settings.vivaciteKey) {
+        find('points-label').textContent='Vivacité (points retenus)';
+        find('result').textContent=`${fmt(settings.points)} Vivacité · ${fmt(settings.agility)} Agilité → ${fmt(percent)} %`;
+        find('formula').textContent=settings.vivaciteKey==='velocity'
+          ? 'Vivacité et Agilité suivent chacune leur courbe commune. Le score est converti en réduction du délai de tour.'
+          : 'Vivacité fournit les points de Vitesse contrôlée ; la courbe d’Agilité renforce leur ratio. Atténuation des mouvements commandés par le joueur uniquement.';
+      }
+      if(settings.equilibreKey) {
+        const attribute=settings.attribute==='intelligence'?'Intelligence':'Agilité';
+        find('points-label').textContent='Équilibre (points retenus)';
+        find('result').textContent=`${fmt(settings.points)} Équilibre · ${fmt(settings.agility)} ${attribute} → ${fmt(percent)} %`;
+        find('formula').textContent=`Équilibre et ${attribute} : pourcentage direct calculé par le moteur du jeu.`;
+        if(settings.equilibreKey==='equilibreBalancedAttackChance') {
+          const config=globalThis.umbraProgression.equilibre.equilibreBalancedAttackChance;
+          const curve=globalThis.umbraProgression.balancedAttackDetails(settings.points,settings.agility,{...config,constant:settings.shape,maxPercent:settings.limit});
+          find('shape-help').textContent='Augmenter cette valeur ralentit la progression. Équilibre fournit les points ; Intelligence fait évoluer leur multiplicateur.';
+          find('formula').textContent=`Attaque équilibrée : S = Équilibre × ${fmt(config.sourceRatio*curve.curveRatio)} ; chance = ${fmt(settings.limit)} × S / (${fmt(settings.shape)} + S). À 0 Équilibre : 0 % généré.`;
+        }
+      }
+      draw();
+    }
+    function update(field) {
+      if(field.value===''||field.validity.badInput)return;
+      const key=Object.keys(fields).find(key=>fields[key]===field),value=field.valueAsNumber,settings=current();
+      if(!Number.isFinite(value)||value<0)return fail(field,'Saisissez une valeur positive ou nulle.');
+      if(key==='limit'&&(value<=0||value>100||settings.kind!=='rational'&&value<=settings.start))
+        return fail(field,`La limite doit dépasser ${settings.kind!=='rational'?fmt(settings.start):'0'} % et rester inférieure ou égale à 100 %.`);
+      if(key==='shape'&&value<=0)return fail(field,'Ce réglage doit être strictement supérieur à zéro.');
+      if(key==='percent') {
+        if(value>settings.limit)return fail(field,`Ce pourcentage dépasse la limite de ${fmt(settings.limit)} %.`);
+        const points=Lab.conversionPoints(value,settings);
+        if(Number.isNaN(points))return fail(field,'Aucun score positif ne correspond à ce pourcentage avec cette courbe. Choisissez 0 % ou un pourcentage plus élevé.');
+        settings.points=points;
+      }else settings[key]=value;
+      clearError();render(field);
+    }
+    for(const field of Object.values(fields)) {
+      field.addEventListener('input',()=>update(field));
+      field.addEventListener('change',()=>{update(field);if(!field.validationMessage)render();});
+    }
+    find('stat').addEventListener('change',()=>{selected=find('stat').value;clearError();render();});
+    find('reset').addEventListener('click',()=>{const {points,agility}=current();experiments.set(selected,{...Lab.conversionSettings(selected),points,...(selected==='bullsEye'?{agility}: {})});clearError();render();});
+    const resize=new ResizeObserver(draw);resize.observe(find('chart'));root.addEventListener('toggle',draw);
+    render();
+  }
+  mountStatConversion();
   // Existing game pictograms embedded to keep this lab self-contained.
   const attributeIcons={strength:'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgaWQ9IkNhbHF1ZV8xIiBkYXRhLW5hbWU9IkNhbHF1ZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjcuMzUgMzU4LjIzIj4NCiAgPGRlZnM+DQogICAgPHN0eWxlPg0KICAgICAgLmNscy0xIHsNCiAgICAgICAgZmlsbDogI2MzMDIwMjsNCiAgICAgIH0NCg0KICAgICAgLmNscy0yIHsNCiAgICAgICAgZmlsbDogIzc4MDIwMjsNCiAgICAgIH0NCg0KICAgICAgLmNscy0zIHsNCiAgICAgICAgZmlsbDogbm9uZTsNCiAgICAgIH0NCg0KICAgICAgLmNscy00IHsNCiAgICAgICAgZmlsbDogIzYwNjA2MDsNCiAgICAgIH0NCiAgICA8L3N0eWxlPg0KICA8L2RlZnM+DQogIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTE4Mi44LDQwLjk1YzMyLjEsMzMuNTktMTQuNzYsNDEuOTktMTEuOTUsNjYuMzYsNi41NS0xNC4yNiwyMy45LTE2Ljc4LDMyLjQyLTI5LjMxLDEwLjgzLTE1LjQ0LTQuODYtMzQuOTQtMjAuNDctMzcuMDVaIi8+DQogIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTE5Mi45NCwxMzMuNjNjLS4zOS4wOC0uNzcuMTUtMS4xNy4yMS4zOS0uMDYuNzgtLjEzLDEuMTctLjIxWiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0xNzQuNzgsMTMxLjQ3YzIuMywyLjEzLDIuNDcsMy43MywyLjQ3LDMuNzMsMCwwLTUuNzMuMy04LjU3LjA1LTYuOTctMS41OC04LjAzLTEwLjc0LTEyLjktMTQuOTktMi4wMSwxLjYzLTEuMzEsMTAuODQtNC4zMiw3LjkzLS4yOCwxLjA3LS4wNywyLjE2LjA1LDMuMjMuMDkuODIuNDEsMS42MS45LDIuMjYsNC45LDYuNTYsNy45OSwxMS45NCw4LjcsMjAuNzEsMS4zNiwzLjgzLDUuNTMsNS45LDguMDUsOC45Niw2LjA1LDcuMjUsOS4zOCwxNi40NCwxNC4zNCwyNC40OCwxLjYzLDMuOSwxMC4zMS0xNS42MywxMS43My0xNy41NiwyLjY0LTcuMjcsMTEuMDctMTAuMjQsMTMuMDctMTcuNDMsMS0xMy4wMyw4LjMtMTQuNDYsOC43OS0yMS41OC0uMzEtMS4yNSwxLjAzLS44LDEuNS0uMTcuMzcuMjcuNjEuOTcsMS4xNC43MywxLjAzLTQuOTEuMTUtMTAuOC41LTE2LjAyLjA0LTEuMTMtLjMzLTEuMi0xLjE5LS42MS0xMi44NCw4LjQxLTguODgsMjIuOTMtMjguMDMsMjAuODguNTktLjg5LDEuMjQtMS42OCwxLjk0LTIuNDItLjM4LjA5LS43Ny4xNi0xLjE3LjIxLTUuNTUuODgtMTEuNTgtLjAyLTE2Ljk5LTIuMzdaIi8+DQogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0ibTI1Ny40NiwxMDcuMzVjLTMuMzksMy40MS0zLjA2LDguNy0uODQsMTIuNTYsNS4xNywxMC4zOS0xMC41NSwxNy4yOC0xNC44Niw3LjI3LTQuOC0xMywxMS42OS0yMi44MiwzLjUxLTM3LjIzLTMuMzItNi44My05LjQ2LTExLjQ3LTE2LjYtMTMuNzksOS4xLDkuNTMuOTQsMjguNzItMTIuMjgsMjIuMDktNy42MS00LjU4LTQuNDYtMTQuODUtLjQ4LTIwLjk2LDkuNjItMTYuMjcsMi4xOS0zNy4zMi0xNC45Ny00My4yNiwzLjIsNC4xMyw1Ljc3LDguNDgsNS43OCwxMy45Ni0xMS45OS0xMi4zMi00MS4zMy0yNy41Mi0yMC45OC00Ni43Ny04Ljk4LDEuOTgtMTYuMzMsNy43Ni0yMC4zMSwxNi4yOC0xMC44MiwyMC43NiwxOC42NCwyOS44Nyw4LjE0LDQ3LjEzLTEwLjU4LDE0Ljc5LTMxLjU0LjQyLTIzLjU2LTE1LjY0LS4yMi4wNC0uNDQuMDctLjY2LjExLTguMjMsOC4xNS0xMy45NiwyMC4zMS04Ljk5LDMxLjgzLDYuNjMsNy40NiwxMi4wNCwxNi42OSwyLjYxLDI0LjgyLTguMjEsOC4wNC0zLjk1LDIwLjQ5LDQuNDIsMjYuNDItOC41NS0yMi44LDE1LjQyLTI3LjUyLDQuMS00OC4yMS0xLjA1LTIuNDYtMy40NS01LjEzLTMuMS03LjgxLDI2LjM2LDE4LjM4LDYuNCwxOS44OCwxMS45Niw0MS45NSwyLjg3LDYuMDYsOC4yNCwxMC42NiwxNC40MywxMy4zNSw1LjQxLDIuMzUsMTEuNDQsMy4yNCwxNi45OSwyLjM3LjM5LS4wNi43OC0uMTMsMS4xNy0uMjEsOS43NS04LjkyLDEzLjQ4LTcuMDMsMTkuNTctMjAuNTIsNS44Ni0xMC45NywyMy40LTguODEsMjUuNDMtMjIuODgsNi40NywxMi40NC04LjcyLDIwLjctMTAuMTksMzIuMDktMi4wOSwxMi40MywxNC42MywxNC43MywxNC4zNywyNi42LjA1LDkuNDItNS4wNSwxNS4zNi0xMi4zOSwxOS44Ni0uMTMsMC0uMjYsMC0uMzksMCw0Ljk2LTguMyw1LjI1LTE5LTIuNjctMjUuNSwyLjg1LDI5LjI2LTI0LjY0LDIxLjIxLTMxLjE1LDU1Ljg2LDExLjMyLTExLjUxLDI1LjA1LTE5LjY2LDM4LjYyLTI3Ljc2aDBjMTQuMDEtMTAuMTksMzcuNzgtMTcuMjUsMzcuMTctMzguNDkuNjgtMTEuOTgtMTMuOTktMTQuMTEtMTMuODUtMjUuNTNabS01NC4xOC0yOS4zNGMtOC41MywxMi41Mi0yNS44NywxNS4wNS0zMi40MiwyOS4zMS0yLjgxLTI0LjM3LDQ0LjA1LTMyLjc3LDExLjk1LTY2LjM2LDE1LjYxLDIuMTEsMzEuMzEsMjEuNjIsMjAuNDcsMzcuMDVaIi8+DQogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0ibTM1NS43LDE5Ny4yMmMxLjg5LTIuNzIsMi45LTUuODQsMy45OS04LjlzMS42MS02LjE4LDEuNDUtOS4zNmMtLjAyLS4zMy0uMDQtLjY2LS4wNi0xLS4zMi00LjQ0LTEuNzgtOC43NC00LjMtMTIuMzYtMTEuMjEtMTYuMDgtMjcuNjUtMTYuNTMtMjUuMjMtNDUuNzUsMCwwLDAsMCwwLDBoMGMuMjItMi4xLjAyLTMuOTQuMDgtNi4yLDkuNzgsMzMuNSwyNy43LDI2LjAyLDMzLjQ1LDU0LjE3aDBjMi4yNCw3LjY2LS4zMywxNi4zNS0uNjMsMjMuNDgsOC40Ny0xMi4yNiwxMS4yNy0yOC40Myw1LjYxLTQyLjU0aC4wOWMtMi4yLTQuOTYtNC42OC05Ljg4LTguMDQtMTQuMTZoMGMtOC42Mi0xMC40Ny0xOS4zNy0xOC44Mi0yNi42Ny0zMC40LTQuMjEtNS42My04LjUzLTExLjcyLTEyLjgxLTE3LjItLjk5LTEuMTQtMi4zNi0xLjkzLTIuOTUtMy40My0yLjM1LTIuMTQtNC44Mi00LjQyLTYuNjktNy4xLTEyLjgxLTExLjA1LTIwLjE1LTE4LjYtMzcuOTgtMTMuMjMtMi44Ni45Mi01LjkxLDEuNy04LjgyLDIuNjh2LS4wNWMtLjExLjA3LS4yMi4xNC0uMzMuMjJoMGMtMi40LDEuMTgtMy41NCwzLjU4LTMuMTMsNi4yOCwxLjA1LDUuOTktLjY0LDExLjY2LTEuMzUsMTcuNTMuOCwxLjk4LDIuMDQsMy42MSw0LjE0LDQuMDEsMy4zOC4yMyw1LjgxLDIuNDksOC44LDMuNiw4Ljg3LDIuMTcsMjUuODUtMi4zLDEzLjEtMTIuNzIsNS40OS0uNzIsMTAuNjUtLjIxLDE1LjM4LDIuMTksMS4xNS4xNSwyLjIzLjcxLDMuMiwxLjMyLjQzLjA4Ljg1LjI3LDEuMjQuNDIsMTMuNTEsNi4xNywxNi4wNCwyMy43Niw5LjQ0LDM2LjQ0LjQtMTAuNzYtLjA2LTIzLjIxLTEwLjQzLTI5LjI2bC0uMDMuMDhjLTEuMzQtLjYzLTIuNjctMS4yNi00LjM2LTIuMDUsMTQuMzMsMTYuNzIsMS4xMSwzMC4yMSw4LjA1LDQ3LjQ2LDYuMjQsMTYuMzUsMjQuOTcsMTguOTEsMzUuNTMsMzEuMDguMDEsMCwuMDMsMCwuMDQtLjAxaDBzMCwwLDAsMGMwLDAtLjA2LjA4LS4wNi4wOGwuMDItLjA3Yy01LjY4LTEuOC0xMS4zMi00LjM4LTE3LjQ4LTQuNDQsMCwwLS4wOS0uMDUtLjA5LS4wNS0xLjU5LDAtMy4yLS4wNC00Ljc5LDAtMjIuMjQsMS41OS0zOS41OCwyMi45My0zOS4zMiw0NS40OCw1LTEzLjg5LDE1LTIwLjUyLDI4Ljk1LTIxLjUuMDQtLjA2LjA5LS4wNy4xNS0uMDIsMi4yNi0uNDMsNC40OS0uMTYsNi43Mi4yNS0zOS44MSwxMy40MS0yNS42NCw0MS4yMS00OS4zMiw2Mi4zNyw2LjkyLS43NywxMy40My01LjY0LDE4LjMtMTAuODksNC44MS00LjQ4LDUuMzgtMTEuMDUsOC4xNy0xNi42MywxLjI1LTIuMDYsMi45Ni0zLjM1LDUuMzQtMy43Niw5LjMzLTEuNjEsMTcuMTItNi4yOSwyMy44My0xMi45NywzLjg3LTMuMDcsNC45LTguNzQsOS41My0xMC45OSw0Ljg5LTIuNzMsOC4yMy03LjM4LDExLjExLTEyLjE0LS42LDExLjIyLTUuOTYsMTkuOTEtMTMuNTQsMjcuNTMsOS4zMy0zLjIsMTcuMjItOS4yMSwyMi42Ny0xNy40NmgwWiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0xMTQuMDIsMjY2Ljg1aDBjMTEuMiwxMi44OCwyNy40MywxOS43MSwzNS40NiwzNS43Ni4zMy0zLjUxLS42OC02LjY4LTEuMTMtMTAtLjk1LTQuNzYtMi43My05LjM4LTQuMTYtMTQuMDItNS43Ni0xMi40Ni0xNS4zMS0yMi4zOS0yNy4zLTI4Ljg1LDE1LjIyLTIuMjgsMjkuNTIsMTAuMDksMzIuMTYsMjUuMzUsNS4zNi0xMi44OC0uNTItMjkuNjMtMTMuODctMzQuNjMtMTUuNDMtNS42Ni0zMC4yNi00Ljk4LTQwLjQyLTIwLjgtLjE2LDkuMjQsMi43MSwxOC4yNiw2LjA4LDI2LjczaDBjMS45NCwzLjYyLDMuODgsNy4yMyw1LjgxLDEwLjg1aDBjMi40OCwzLjE3LDQuMzcsNi44Niw3LjM3LDkuNmgwWiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Im0xNzAuODIsMTg4LjE4Yy0uMTEtLjI0LS4zNi0uNDUtLjM1LS43Mi0yLjQ0LTUuMDEtNC44Mi0xMC40Mi04LjYzLTE0LjUtMy42LTIuOC01LjQ5LTYuNDMtNi42NC0xMC43OS0yLjE5LDQuOC0xLjY3LDEwLjU4LDEuMDcsMTUuMS4xOS4yNS0uMDMuNTYtLjMuMjYtMTguNTItOC43LTMuMDYtMTguODYtOS4yMS0zMS45My04LjYzLTE0LjM0LTIwLjU5LTIxLjQ4LTE3LjU5LTQxLjQzLjI4LTIuNTEuODYtNC45NiwxLjQxLTcuNDIsMCwwLDEuMTQtMy40NSwyLjc1LTQuOTUsMS42MS0xLjUsMi4xNS04LjA0LDAtMTEuNjgsMCwwLTEuNjksOC45Mi01LjkyLDEyLjI4LS4wMS4wMS0uMDIuMDItLjA0LjAzLS4wNi4wNS0uMTIuMS0uMTguMTYtLjM1LjMtLjY0LjYtLjg5Ljg5LTEuMzQsMS40Ni0yLjgxLDMuNDgtMy4yNyw0LjQ0LDAsMCwwLDAsMCwwaDBjLS44MSwxLjI2LTEuMjMsMi42Ny0yLjAxLDMuOTQtLjQ0LDIuNzItMS4xNSw1LjQ0LS45NSw4LjIzLjc3LDYuNTYsNSwxMS43OSw4LjI2LDE3LjM0LDkuNDIsMTUuODgtMTMuMywyNS4wMy0xMS42OSw4LjE4LDIuNC02LjQxLS41OS0xMy4yNi02LjAxLTE2LjgxaC0uMDFjLTMuMDYtMS40Mi01Ljk1LTMuMzItOS40NS0zLjM5LDE0LjE4LDEyLjI5LTQuNDEsMjAuNTItMi4xLDMzLjg5LDEuMDMsNi4yOCw1Ljc1LDEyLjU3LDExLjQ4LDEzLjY3LTEuMzktMi45LTMuNDQtNS41Ni00LjA4LTguOTFsLjEtLjAyYy0xLjgtNS42My0xLjIxLTEzLjcyLDMuMDYtMTcuNzQuNTIuMTkuNTEuODcuNDksMS40My0uNTcsNS4zNiwxLjY1LDEwLjExLDUuMTYsMTMuODgsMy41MSwxLjcsNy42NCwyLjgxLDEwLjI2LDUuOTcuODcuNjYsMS41LDEuNiwxLjk0LDIuNiw4LjY5LDI1Ljg3LDI1LjI0LDE0LjIzLDQ2LjQzLDM3LjU5LS44MS0yLjYtMi4xMi02LjExLTMuMTItOS41OVoiLz4NCiAgPGc+DQogICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJtMzYuNjQsMjAzLjVzLS4wNi0uMDQtLjEtLjA2Yy0uMTgtLjEtLjM1LS4xOS0uNTMtLjI5LjIxLjEyLjQyLjIzLjYyLjM1WiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0ibTEwNS42MSw3OC4yNmMuMTUtMi44MS42Mi01LjYuNDQtOC40My0yLjI0LTYuMi0xMi4zOC01Ljc4LTE3Ljc4LTcuNy04LjczLTIuMTktMTYuMSwyLjIyLTIzLjMsNi40MS0xNy41NCwxMi43My0yOC42OSwzMS44NS00My40Miw0Ny41NEMtMi4xNCwxMzYuMTctMTUuOTIsMTYxLjY5LDMuNjYsMTkwLjY0Yy00LjQ4LTE3LjA3LTEtMzcuNDksMTMuOS00Ny45OSw1LjA3LTMuNTYsOS4yMS04LjAxLDEyLjIyLTEzLjU0LDQuMDgtNi4xMywzLjkzLTE0LjcsOS44LTE5LjQ2LjA5LjkxLS4xNSwxLjU4LS40NCwyLjItNC4yOCw4LjI3LS44OCwxNy45My00LjY1LDI2LjM3LTQuOTcsMTUuMTQtMjQuMDEsMTkuMDgtMjcuMzgsMzUuMjQsMCwwLS42NywzLjI5LS42NSw1LjU4LDAsLjAyLjAxLjAzLjAxLjA1LS4zMiw3LjE3LDMuMjcsMTQuMTcsNi41MywyMC4zOS44Ni42NCwxLjYzLDEuODgsMS45MywyLjk2LDIuNjEsMi4yOSw0LjU3LDUuMjMsNy4yLDcuNTFoMGM3Ljg5LDcuMTMsMTcuNTgsMTEuMTYsMjcuNjQsMTMuNjYuMDQtLjEuMDgtLjIxLjEyLS4zMS0uMDQtLjEtLjA3LS4yLS4xLS4zMS00LjI5LTIuMzYtOC44NC00LjI5LTEyLjU4LTcuNTctMS4wNi0uNjItMi4wNy0xLjQzLTIuOTYtMi4zLTcuNS02LjcyLTEyLjgzLTE2LjAxLTEzLjI4LTI2LjM4LDMuNDYsNS44Miw3LjM2LDEwLjgyLDEyLjUyLDE0Ljc1aDBzLS4wNS4wMS0uMDcuMDFjMS4wNy41OSwyLjA0LDEuMzcsMy4xMSwxLjk1LjI1LjE0LjQ5LjI3Ljc0LjQxLDEzLjIsNy40NiwzMy4yNS0yLjY1LDM4LjYzLDE3LjU3LTYuMzgtNC44Ni0xNC43NC02LjI1LTIyLjM5LTUuMTguMjIuNTIuODEuNDQsMS4xLjguOTUuMjYsMS44My42OSwyLjY0LDEuMjcuMjQuMDIuNC4yNC42LjM3di0uMDJjLjQyLjEzLjguMzUsMS4wNy43NSw2Ljg2LDMuMzIsMTAuNTEsOS45MSwxNC4xMywxNi40MSwyLjg4LDUuMTcsNi43NCw5LjczLDExLjQ5LDEzLjEzLDMuOTMsMi44MSw4LjMyLDQuODMsMTIuOTcsNS4yMy0xLjkzLTEuODEtNC4wNC0zLjMzLTUuNzctNS4yOS0xNi4xOS0xNy4zOS00LjIxLTQ0LjI2LTE3LjQyLTYzLjE0LTExLjgxLTE4LjI1LTM0LjY0LTIyLjI3LTUyLjkxLTEzLjI5LDEyLjk5LTE0LjQzLDM4Ljk2LTE4Ljc3LDM4LjctNDIuNjYtLjk1LTExLjQ3LTMuNDgtMjQuMDMsNC42My0zMy42Mi4yOC0uNzcuODgtMS4yOSwxLjQ3LTEuODIuMzUtMS4zOS0yLjUyLjUyLTMuMTkuNTctMTEuNjcsNi43LTEyLjA5LDE4LjEtMTEuNzksMzAuNDYtMTEuNTYtMjMuMjgsNi4xMS00My45LDI5LjkxLTQwLjU2LTIuMzcsMi4yNi00LjUsNC40Ni00LjkzLDcuNzQsMi42LDUuOTcsMTAuMzgsNS40MywxNS43NCw1LjI1LDMuODMtLjE4LDYuMzYtMy44LDEwLjI4LTMuNTMsOC40Ni0xLjQ5LDIuOTctMTAuNDEsMy4zOC0xNi4wM1oiLz4NCiAgPC9nPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0zMTUuNTEsMTYxLjQ1Yy05LjM3LTguMjQtMjEuMS0xMC41Ni0zMy4wNS02LjgzLDUuNTgtOC43NSw0LjctMjAtMy4wMS0yNi43OS40LDIuMDQuNjcsNC4wOC44Myw2LjEzLDEuODMsMTAuNjUtNy4yLDE3Ljg2LTEzLjUyLDI0LjctOS41MywxMi02Ljc5LDEzLjc2LTIyLjI5LDIwLjA1LDEyLjM2LDIuMTIsMTkuOTEsMTUuNzYsMTUuNjQsMjcuNzYtMS43LDUuNjgtNS42NSwxMi4wMS0xMS4wNywxNC4yNCwxLjc4LTMuNjMsMy4yNS03LjMsMy45MS0xMS4yNCwwLDAsLjAxLDAsLjAyLDAsLjk4LTguMjYtMS44OS0xNi40MS04Ljc4LTIxLjExLTMuNTctMi4wMy03LjU5LTMuNDgtMTEuNjktMy4zOC0yMCwuMjktMzguODQsMTcuODUtNDEuODYsMzcuOTMsOC42Ni05LjQyLDE5LjIyLTE0LjU4LDMxLjc3LTE1LjQtMTcuNDQsMTAuODYtMzEuMzgsMjQuNzEtMzcuODksNDUuMzQsMy4wMi0zMC4wNC0yNS44Ni00NC44OC01MC4xMy01MC41Miw5Ljk2LTIuMywzMS44MSwyLjA2LDQxLjAyLDExLjA5LTIuMTYtOC4yMy05LjYzLTE0LjM5LTE2LjEyLTE5LjQ0LTEzLjctMTAuOTQtMzEuOTQtMTEuMDEtNDYuMzEtMjAuMTYtMTcuNzMtMTYuMzUtMzguOTYtMzAuOTktNjEuMzMtMTIuNjcsMTMuOTgsMCwyNi4xNSw4LjgzLDMyLjcxLDIxLjE3LDYuMjcsMTEuNCw3Ljc2LDI1LjI1LDE3Ljg0LDM0LjI2LDAsMCwyLjI5LDIuMDksMy41LDIuNzQsMi43OCwxLjUzLDUuNjIsMi43NSw4LjUxLDMuOTUsMCwwLC4yLjEuNDUuMTksMCwwLDAsMCwwLDAsLjg4LjM3LDMuNDQsMS40NSwzLjQ0LDEuNDUtLjM3LS41Ni0xLjQzLTEuMzMtMS40My0xLjMzLTEwLjgyLTguNzYtMTQuNzQtMjMuMi0xMS45My0zNi42Miw3LjcyLDM0Ljc1LDM1LjAzLDI5LjE5LDUxLjM2LDUyLjcsNy44NCwxNS45OSw5LjExLDI2LjY2LDI0Ljk4LDM3LjQsMy4wNCwxLjg2LDUuNjgsNC45Nyw3LjcsNy45NGwxLjI5LDEuOTZjMy40LDQuNzQsNS44OCwxMC40Miw2LjczLDE2LjIsMy40NiwxNS4zNC0yLjQ2LDMyLjc2LTEwLjg5LDQ1LjQ1LDQuMjMtMTcuOC01LjY2LTMzLjcyLTE1LjMtNDYuMjgsMCwwLDAsMCwwLDAsOS42NSwzLjgsMTYuMjMsMTEuMDMsMTkuMzgsMjAuNzkuNTYtNi4yMy41NC0xMi41NS0xLjc5LTE4LjQtNi40Ni0xNi45MS0yNy43NS0xMS0zMC4wOC0zMS40My02LjI0LDE0Ljc5LTUuMTIsMzMuOTUsNi44Nyw0NS40MiwzLjczLDMuMDEsNy4xOCw2LjMxLDkuNzgsMTAuNDV0MCwwaDBzMCwwLDAsMGM1Ljk4LDguMDMsNy43MiwxNy43LDcuMzEsMjcuODYsMTQuNjctMTUuNjcsMzIuNjgtMzQuNTksMjkuODMtNTguMTMtLjc0LTExLjU3LTEyLjg1LTE3LjM1LTEzLjQ2LTI5LjA0LjMxLTMxLjksMzguOTQtMzMuNTYsNTguOTctNDcuOTcsMTMuNjUtOC43NiwxNy40Mi0yNC4zNCwyNC4wMi0zOC4yMiwyLjc3LTQuOTYsNi4xMy05Ljc5LDEwLjY4LTEzLjE2LS4xNy4xMS0uMzMuMjItLjUuMzIsNi43NS02LjE3LDE0LjU5LTkuMSwyMy44NS05LjM3WiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0yNzMuNTYsMjE5LjkzYy0zLjQ0LDYuNDktOS41OSwxMC43Ni0xMy4yMSwxMi44My0uNjcuNDMtMS4zOS43OS0yLjEyLDEuMTMtLjQ4LjIzLS43NS4zNS0uNzUuMzUtMTcuMDksNi45NC0zNS45NCwxMC4yOS00MC44MiwzMS44Ni0xLjEyLDUtMS45MiwxNS41LDEuMzIsMTkuMiwwLDAsMCwwLDAsMCwuMDgtLjQ2LjIyLTEuMDMuMzgtMS42MSwwLDAsMCwwLDAsMCwwLDAsMCwwLDAsMCwuNDQtMS41NiwxLjA1LTMuMjMsMS4wNS0zLjIzLDQuMjMtMTMuNzcsMTQuNDYtMjQuNjEsMzAuNDUtMjYuMzUtMTYsMTEuMjQtMjYuNjcsMjguNzctMjkuNjMsNDguNTEsNy43Ny0xMS44NCwxOC44Ni0yMC4xNCwyOS42NC0yOC44aDBjLjI1LS4yLDEuMTgtMS4wMSwxLjE4LTEuMDFoMGMxMy45My0xMy43MSwyMi4xOS0zMi45NSwyMi40OS01Mi44OFoiLz4NCiAgPHBhdGggY2xhc3M9ImNscy00IiBkPSJtMjU3LjQ5LDIzNC4yNXMuMjctLjEyLjc1LS4zNWMtLjI1LjEyLS41LjIzLS43NS4zNVoiLz4NCjwvc3ZnPg==',intelligence:'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgaWQ9IkNhbHF1ZV8xIiBkYXRhLW5hbWU9IkNhbHF1ZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjcuMzUgMzU4LjIzIj4NCiAgPGRlZnM+DQogICAgPHN0eWxlPg0KICAgICAgLmNscy0xIHsNCiAgICAgICAgZmlsbDogIzBhYWFmYzsNCiAgICAgIH0NCg0KICAgICAgLmNscy0yIHsNCiAgICAgICAgZmlsbDogIzUxNGVmYzsNCiAgICAgIH0NCiAgICA8L3N0eWxlPg0KICA8L2RlZnM+DQogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0ibTE1Mi43LDI1Ny40YzEuMTIsNS45MSwyLjIzLDExLjgyLDMuMzksMTcuNzIuMTQuNy4wNywxLjU1Ljg4LDIuMTQuMjgtLjY3LjU0LTEuMjIuNzUtMS43OCwzLjg5LTEwLjE5LDEwLjE5LTE4LjU5LDE4LjgyLTI1LjI0LDEwLjYxLTguMTcsMjIuODgtMTIuNjMsMzUuNjktMTUuODguNjctLjE3LDEuMzQtLjMyLDIuMDEtLjQ4LTQuMDgtMS44Ni04LjMyLTIuNS0xMi41NS0zLjA2LTEwLjM5LTEuMzctMjAuMDQuODctMjguOTUsNi4zNi01LjUzLDMuNC0xMS40OSw1LjE0LTE4LjAyLDQuNDMtMTAuMDEtMS4wOS0xNS4yMS03LjExLTE2Ljc3LTE1LjQ4LS4wNy0uNC0uMjUtLjk5LjUxLTEuMjEuMjcuMzguNTQuNzguODIsMS4xNywzLjk5LDUuNjgsOS40Nyw4LjU4LDE2LjM5LDguNjcsNS44My4wNywxMS4xNC0xLjc4LDE1Ljk5LTQuODcsNy45OC01LjA4LDE2LjQ5LTgsMjYuMDYtNi43Nyw0LjAxLjUyLDcuOTUsMS40OSwxMS44LDIuNzYsMy4zNiwxLjExLDYuNzYsMS45NSwxMC4zMywxLjk4LDguNjguMDgsMTQuNzQtNi4wNiwxNC40Ny0xNC43My0uMDItLjYzLS4zMi0xLjMuMjgtMi4wNywyLjMxLDIuNTUsMy43MSw1LjQyLDMuOTUsOC43OC4xNiwyLjI0LjI3LDIuMzgsMi4zOSwxLjQsNC4xNS0xLjkzLDcuODMtNC41LDExLjIzLTcuNjEsNy41OS02Ljk0LDExLjY1LTE1LjQ5LDEyLjMzLTI1LjY5LjI0LTMuNjUtLjE1LTcuMjQtMS4yNy0xMC43NS0xLjk4LTYuMjEtNS0xMS42My0xMC44OC0xNS0xLjgtMS4wMy0zLjE0LTIuMDYtMy4xNi00LjYyLS4wNC01LjU1LTIuNDMtMTAuMzMtNi4wNy0xNC40My0zLjg4LTQuMzgtOC45NC02LjQzLTE0LjY3LTYuOTYtMS4wMi0uMS0xLjc2LS4xMy0yLjE1LTEuMzktMy4yNC0xMC40OS0xMC42Mi0xNi45NS0yMC43Mi0yMC4zNi05LjUzLTMuMjItMTguOTMtMi4yOS0yNy45NiwyLjE1LS45LjQ1LTEuNDkuNjEtMi4zNi0uMjEtNi4yNS01LjktMTMuOTItNy44Ny0yMi4yLTcuMTYtMTAuMzUuODktMTguNzIsNS42NC0yNC43NCwxNC4yMy0uNjYuOTUtMS4yNSwxLjM2LTIuNSwxLjIxLTguMDUtLjk5LTE1LjQyLjg4LTIyLjA5LDUuNS01LjkzLDQuMTEtMTAuMzYsOS40NC0xMi45NywxNi4xOS0uNDUsMS4xNy0xLjA2LDEuNjktMi4yOCwxLjkzLTMuNzkuNzUtNy4xMiwyLjU4LTEwLjEyLDQuOTMtNS4xLDQuMDEtOC45OSw5LjE0LTExLjY0LDE0Ljk1LTMuMzYsNy4zNi01LjYzLDE1LjExLTUuODQsMjMuMzUtLjEyLDQuNzQtLjIyLDkuNDQuODEsMTQuMTEsMy41LDE2LDE0LjkzLDI0LjY3LDI5LjIxLDI3LjE5LDIuNC40MiwyLjU0LjI0LDMtMi4xOC4xMi0uNjUuMzQtMS4yOC40OC0xLjkzLDEuOTEtOC41NSw2LjA0LTE1LjY4LDEzLjIxLTIwLjksNC4zMi0zLjE0LDkuMjQtNC43OSwxNC4zOS01Ljg5LDMuMjYtLjcsNi4yMi0yLjA5LDguODItNC4xNyw0LjEyLTMuMjksNi4zLTcuNjIsNi43Ny0xMi44NS4wNC0uNDQtLjIzLTEuMTEuMzgtMS4yNy43Mi0uMTguODEuNTksMS4wNCwxLjAzLjIzLjQzLjM4Ljg5LjUzLDEuMzYsMi4xOCw2LjkxLS4yOCwxNC4zNC02LjExLDE4LjY2LTMuMDcsMi4yNy02LjYxLDMuMjQtMTAuMjQsNC4xMS0xMC45LDIuNjItMTkuOCwxMi42NC0yMC45NSwyMy43Ny0uNzQsNy4xMywxLDEzLjYxLDUuNjcsMTkuMiw0LjMxLDUuMTQsOS44OSw4LjM5LDE2LjM1LDkuNTQsOS4xNiwxLjYzLDE3Ljg4LS4yMiwyNS45MS01LjA0LDIuMDUtMS4yMywyLjA2LTEuMjIsMi41MSwxLjE2Wm04MC4zMy03OC41NmMxLjc4LTMuMjksMy41Mi02LjU5LDUuNDgtMTAuMjguNDQsMS43MS43NSwyLjk0LDEuMDYsNC4xNi43MiwyLjgyLDIuMDIsNS4xNSw0LjQzLDcuMDYsNC4wMiwzLjE3LDYuMjEsNy40Myw2LjQ4LDEyLjcuMSwxLjk1LjE3LDMuODEtLjM4LDYuMDUtLjc4LTEuNzUtMS4zNi0zLjE5LTIuMDYtNC41OC0zLjAyLTUuOTctNy45Mi05LjgxLTE0LjAyLTEyLjI2LTIuMTEtLjg0LTIuMDgtLjgzLS45OC0yLjg2Wm0tMTA4LjQ3LTM4LjA2cy0uMDEsMC0uMDItLjAxYy0yLjYxLDEuNS00LjY0LDMuNjQtNi4zMyw2LjA3LTIuODYsNC4xMS00LjksOC41OS00Ljk4LDEzLjctLjAzLDEuOC4xOCwzLjYuMTEsNS40Mi0uMTIsMi44OS0xLjQ0LDUuMDctMy4zNiw3LjE3LTIuODksMy4xNy02LjkzLDMuODYtMTAuNTUsNS40Ni02Ljg4LDMuMDMtMTEuODksNy45Ny0xNS4wNywxNC43OS0xLjk0LDQuMTYtMi41OSw4LjU1LTIuNDQsMTMuNDctMS45My0yLjA4LTIuNDgtNC4zNS0yLjU5LTYuNi0uMTQtMi44My4wOS01LjcuMzgtOC41My4xNC0xLjMuNzItMi41OCwxLjI2LTMuOCwzLjIxLTcuNCw4Ljg0LTEyLjM1LDE2LjAzLTE1LjcyLDEuODQtLjg2LDMuNjgtMS42Myw1LjI3LTMuMDIsMi4wNy0xLjgyLDMuMjItMy45NCwzLjU0LTYuNjYsMS4yNC0xMC40NSw3LjE4LTE4LjUzLDE3LjA0LTIxLjc0LjU3LS4xOSwxLjEzLS40NCwxLjctLjAyLDAsMCwwLDAsMCwwbC0uMDUtLjA3cy4wOS4wNS4wOS4wNWMwLDAsMCwwLDAsMCwwLDAsMCwwLDAsMGwtLjAzLjA0Wm02OS45OS02LjcxYzExLjMyLTEuOTUsMjAuMzksMy42MywyMy42NCwxMS44NS0xNS41NC0xMC40OS0yOC42LTYuMDQtNDAuMyw2LjY0LS4zNi03LjU0LDYuMjQtMTYuNywxNi42Ni0xOC41Wm0tNy42Myw1NS4wMmMzLjIyLS41NCw2LjQ5LS42OSw5LjY4LTEuNDYsNi4wNS0xLjQ3LDEwLjM0LTUuMSwxMi42MS0xMC44MiwyLjItNS41NCwyLjY5LTExLjIyLjE2LTE2Ljg3LS4xMi0uMjctLjEtLjU5LS4xNi0uODktLjA1LS4yNC0uMTMtLjQ3LjIzLS43MSwyLjYyLDEuODQsNC42OCw0LjI2LDYuMiw3LjA3LDIuNDYsNC41NywyLjAyLDkuMzUuODgsMTQuMjItLjU4LDIuNDUtMS43NCw0LjY0LTIuNDcsNy0uOTYsMy4xMS0uNTUsNi4wOSwxLjU3LDguNzIsMi4wOSwyLjYsNC4zMyw1LjEsNS41Nyw4LjI3LjAyLjA4LjAzLjE1LjA1LjIzLjAxLjA4LjAzLjE1LjA0LjIzLS4xNS0uMDMtLjI5LS4wNi0uNDQtLjA5aDBjLTIuMDItMS42NC00LjE3LTMuMDYtNi40NS00LjIyLTEuNDItLjczLTIuODktMS4zNi00LjQtMS44OS0uNjEtLjIxLTEuMjItLjQxLTEuODQtLjU5LS4zMS0uMDktLjYyLS4xNy0uOTQtLjI2LTUuMTgtMS4zNC0xMC40NS0xLjQ4LTE1Ljg0LS45NS03Ljk4Ljc5LTE1LjI3LDMuMjQtMjEuOTcsNy41Ny0zLjQ2LDIuMjMtNi4zMiw1LjEtOC44Nyw4LjMxLS4yOC4zNS0uMzkuOTItMS4xNi45OC44Ny02LjE3LDMuNTYtMTEuMyw4LjEtMTUuNDQsNS41MS01LjAyLDEyLjI2LTcuMjEsMTkuNDQtOC40M1ptLTU0Ljg2LTI1LjA1Yy0uMTItLjI4LjAxLS42MS4zMS0uODQsNC44Ny0zLjcxLDEwLjE4LTYuMzUsMTYuNDMtNi41NywxLjE0LS4wNCwxLjE3LS41NywxLjAyLTEuMzctLjMzLTEuNzMtLjgyLTMuNDQtLjk4LTUuMTgtMS4wMS0xMC44NiwyLjUtMTkuNzYsMTEuNTgtMjYuMTcuNTgtLjQxLDEuMjgtLjY2LDEuOTMtLjk4LjA2LS4wMi4xMi0uMDUuMTctLjA3LjAyLDAsLjA1LS4wMi4wNy0uMDMsMCwwLDAsLjAxLDAsLjAyLS4wMS4xLS4wMi4yLS4wMy4yOSwwLDAsMCwwLDAsMC0zLjUsNS4zMS01LjkyLDEwLjk2LTYuMzIsMTcuMTYtLjA5LDEuNDMtLjA4LDIuODkuMDUsNC4zOC40NSw1LjEsMi4wMSw5Ljg5LDQuOTUsMTQuMTcuNzksMS4xNSwxLjg1LDIuMDUsMi43NywzLjA2LDQuNjUsNS4wOCw1Ljk4LDEwLjk3LDQuNjYsMTcuNzMtNy4zNC0xNi42NC0yMS4xMi0xOC4wNC0zNi42LTE1LjYxWiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0xMzQuMDQsNTEuMTljLjI2LDMuNTEsMS4xMyw2Ljk4LDIuNjksMTAuNDEuMTkuNDkuMzkuOTMuNiwxLjI5LDAsMCwwLC4wMi4wMS4wMi43NCwxLjQ2LDEuNjEsMi45MiwyLjYyLDQuMzYuNzQsMS4wNiwxLjc4LDIuMDcsMi44MywzLjAyLDMuNjcsMy44Myw4LjAxLDYuNTYsMTMuNDUsOS4xOCw3LjEsMy40MiwxNC43NSw1LjI0LDIyLjIsNy42MiwzLjMxLDEuMDYsNi40NywyLjQ2LDkuMTgsNC43MSw0LjU4LDMuODEsNC42OCw5LjQ0LjIxLDEzLjQtLjY2LjU4LTEuNDYsMS4wMy0xLjg4LDEuODcuNS4zMS45LjE2LDEuMzIuMDksNS43OC0xLjAyLDExLjU3LTEuMywxNy4zNi0uMDcsMTIuNDYsMi42MywyMi4xNSw4Ljk5LDI3Ljg1LDIwLjcyLjIxLjQzLjM1Ljg5Ljg0LDEuMTQsMi43LDEuMzksNC41MS45NCw2LjIyLTEuNTkuMjQtLjM1LjQ3LS43MS42OC0xLjA4LDQuMjItNy4yOCw0LjY5LTE0LjksMS45NS0yMi43NS0xLjY5LTQuODMtNC41Ni04Ljk2LTcuODktMTIuOC0zLjc2LTQuMzQtOC4xMS03Ljk5LTEyLjgzLTExLjI0LDcuMjUsMy4wNSwxMy43OCw3LjIsMTkuMTksMTIuOTQsNy41OCw4LjA1LDExLjc2LDE3LjQ2LDEwLjk5LDI4LjczLS4zNCw1LjAyLTEuNzIsOS43OS0zLjc1LDE0LjM4LS4xOS40Mi0uNjcuOTMtLjE1LDEuMy41LjM2Ljk4LS4yLDEuMTctLjU3Ljg0LTEuNjgsMi41OS0yLjQ4LDMuNjEtMy45OSwzLjIyLTQuNyw1LjM1LTkuODYsNi4zOS0xNS40NCwxLjMxLTcuMDIuMDYtMTMuNzgtMi42Mi0yMC4yNy0yLjA3LTUuMDMtNS4xNS05LjQ3LTguODItMTMuNDgtNi44OC03LjUxLTE1LjMyLTEyLjg0LTI0LjM1LTE3LjMzLTgtMy45Ny0xNi40NS02Ljg5LTI0LjU2LTEwLjYxLS43NC0uMzQtMS40Ny0uNjgtMi4xOS0xLjA0LDAsMCwwLDAtLjAxLDAtOC4wOS0zLjU4LTEzLjAxLTYuNjEtMTUuOTItOS4xOS0uMi0uMjItOC4zOC05LjIxLDYuNDQtMTUuMDQsMCwwLDAsMCwwLDAsMS43NS0uNjksMy41Ny0xLjM5LDUuMjQtMi4wOWgwczAsMCwwLDBjLjY5LS4yOSwxLjM0LS41NywxLjk2LS44NSwyLjExLTEuMjMsNS4xOS00LjA4LDUuNTMtMTAuMzctLjMxLTQuODEtMi45OS05LjEtOC4xNS0xMS42OS0yLjM0LTEuMTgtNC43OC0xLjk5LTcuMzQtMi40OC04LjkyLTEuNy0zMi42My0uOTEtNDEuMjgsMS40OS0uNDUuMTMtLjk3LjItMS40Ny44LDAsMCwzNi4yMy4xNSw0My41NCw4LjA1LjA4LS4xMy4xNi0uMjcuMjItLjQxLjU2LTEuMjcuMzYtMy4xNC0yLjA2LTUuNzksMS4yMy0uNzIsOC4xMyw1LjM0LDMuMDcsOS43Ny0xLjE0LDEtMi45LDEuOTItNS40NywyLjY2aDBjLTEwLjkzLDMuNTMtMzQuNCw2LjE4LTMxLjI0LDI1Ljg3LjcxLDQuNDIsMS42NSw3LjM4LDIuNzIsOS4yNSwwLDAsNC4zMyw4LjMsMTIuMDksMTIuODUtLjQ1LjA5LS42Ni4xOC0uNzguMTQtLjczLS4yNS0xLjQ1LS41LTIuMTYtLjc1LTE1Ljk3LTQuMTItMjAuMjUtMTkuNTktMjAuMjUtMTkuNTktMS44LTUuOTktMS4yOS0xMi4zNy44NC0xOC45Ni4zMS0uOTYuNjktMS45LDEuMDctMi45My0xLC4wMy0xLjIyLjY3LTEuNTcsMS4xMy0xLjQsMS44NS0yLjU5LDMuODMtMy41Miw1Ljk1LTIuOCw2LjM3LTQuMjUsMTIuNjctMy44OCwxOC44Ni0uMDMsMC0uMDUsMC0uMDgsMCwuMDMuMTMuMDcuMjguMTEuNDJaIi8+DQogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0ibTMyNS4xNywxODkuOTVjLS44NS04LjI4LTMuNDctMTUuOTktOC40NS0yMi44My03LjItOS45LTE2Ljc4LTE2LjE4LTI4LjU1LTE5LjI2LS42Ni0uMTctMS4zMi0uMzQtMi4xMiwwLDIwLjA4LDEyLjIzLDI2LjY2LDI4Ljk2LDI2LjA3LDM4LjAyLTIuNTEtNi40NS02LjI0LTExLjg3LTExLjIzLTE2LjQ0LTMuNzUtMy40My03LjgzLTYuMzktMTIuMzktOC42NC0yLjcyLTEuMzQtNS4zNi0yLjgyLTcuNjYtNC44LTQuNjgtNC4wMS01Ljc2LTkuMzUtMy40OC0xNC41OCwyLjg2LTYuNTQsNi4xLTEyLjksNy40OS0yMC4wMywxLjE0LTUuODYsMS43NC0xMS43MywxLjA3LTE3LjYyLS45NC04LjI4LTQtMTUuODYtOC43My0yMi43Mi01LjAxLTcuMjctMTEuMjUtMTMuMjctMTguNDYtMTguNDItOC4xNC01LjgyLTE2LjkzLTEwLjE5LTI2LjM1LTEzLjQtNy42NC0yLjYtMTUuNDktNC4zNy0yMy40OS01LjQtMi43MS0uMzUtNS40My0uODQtOC4yMi0uNTQsNy40NCwyLjg3LDE0Ljc1LDUuOTgsMjEuODcsOS40OSwxNC42OCw3LjI0LDI4LjEzLDE2LjA0LDM3LjYyLDI5Ljg0LDMuMTMsNC41NSw1LjYsOS40MSw3LjAxLDE0Ljc3LDIuOTYsMTEuMjQsMS4wNCwyMS43OC00LjU2LDMxLjgtMS44NiwzLjM0LTQuMDIsNi41Mi01LjQ4LDEwLjA4LTIuOTQsNy4yMS0xLjM2LDE0LjM4LDQuNDIsMTkuNTgsMS41NywxLjQyLDMuMjcsMi43Myw1LjAzLDMuOTEsMTAuMzgsNi45NSwxOS41MSwxNS4wNiwyNi4wMywyNS45Nyw0LjU4LDcuNjYsNi43NywxNS44Nyw3LjI3LDI0LjYzLjI0LDQuMTMtLjU4LDguMTYtMS43MSwxMi4xNC0xLjIzLDQuMzQtMi44NCw4LjQ4LTUuMjcsMTIuMjktMTAuMjksMTYuMi0yNi4zMSwyMy43Ny00My44NiwyOC44My05LjAyLDIuNi0xOC4yOCw0LjQtMjcuMTYsNy41LTcuNjgsMi42OC0xNC45Niw2LjE0LTIwLjkzLDExLjg2LTcuNDYsNy4xNS0xMS44MSwxNS42OC0xMC42OSwyNi4yNCwxLjA3LDEwLjA1LDYuMDksMTcuNjYsMTUuMzIsMjIuMDgsNC41MywyLjE2LDkuMjcsMy42MywxNC41MSwzLjA1LDcuMjgtLjgxLDEzLjcxLTMuMywxOC41NC04LjkyLDUuNDgtNi4zNyw3LjM5LTE1Ljg3LDIuMjgtMjQuMTktNC44OS03Ljk3LTE1LjY4LTEwLjMtMjMuODUtNS4yOC00LjUsMi43Ny04LjEsOS41NS02LjMyLDE0Ljk2LDIuMDksNi4zMiw5LjcsOC42LDE0Ljc0LDQuMjQsMS4zNS0xLjE3LDIuMi0yLjY3LDMuMjYtNC4xLjQ3LDMuMjguMzEsNi4zNS0yLjA5LDguODUtMy45NSw0LjEyLTguNzUsNS40NC0xNC4yMyw0LjExLTkuNzUtMi4zNy0xNS42Ni0xMS4yOS0xNC4wMi0yMS4yMSwxLjY4LTEwLjE4LDguMTMtMTYuNDgsMTcuMTUtMjAuNTIsMy45Ni0xLjc3LDguMTEtMi45MiwxMi40NS0zLjYyLDMuMjctLjUzLDYuNTctLjk4LDkuODItMS4xLDMuNjItLjEzLDcuMjYtLjIyLDEwLjktLjIxLDguMTguMDIsMTYuMS0xLjQ2LDIzLjc5LTQuMTksNC41NS0xLjYxLDguNzctMy44NywxMi41MS02Ljk2LDIuNjctMi4yMSw1LjI2LTQuNTUsNy4xNC03LjQ2LDQuMDMtNi4yNCw2LjE0LTEzLjEzLDYuMy0yMC41OC4wMi0uODguMzktMS40NCwxLjEzLTEuOTIsNS4yNC0zLjM2LDkuOTYtNy4zNSwxMy45NC0xMi4xNSw4Ljk2LTEwLjc5LDEzLjA0LTIzLjE4LDExLjYxLTM3LjE3WiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0xODMuNDIsMzIyLjg2Yy0yLjEzLTIuNjgtNC40Mi01LjQzLTUuODMtOC4xNi0uNDYtMi44Ni0uNDctNS44OC4wMy05LjA3LDEuOTMtMTIuMTgsOS4yNC0yMC45OCwxOC43Ny0yNy45NSw3LjkxLTUuNzksMTYuOTYtOS42LDI2LjI2LTEyLjcyLDkuMzgtMy4xNSwxOS4wMS01LjUsMjguMzktOC42OCw4Ljk0LTMuMDMsMTcuMjQtNy4yNSwyNC40Mi0xMy4zOCw2LjA5LTUuMiwxMC4zLTExLjc0LDEyLjU0LTE5LjQ3LDEuNTktNS40OCwyLjQ2LTExLjAxLDEuNTItMTYuNzUtMS4yOS03Ljg4LTMuODMtMTUuMjYtOC40Ni0yMS44Mi0yLjc0LTMuODgtNS44OC03LjQyLTkuNTctMTAuNS0uMTIuMTktLjE5LjI1LS4xNy4yOS4yMy42OS40NywxLjM3LjcyLDIuMDYsNC4xOCwxMS42LDIuNTQsMjIuNTEtMy45NywzMi44LTUuMTcsOC4xNy0xMi41NywxMy44NC0yMC45MywxOC4zOS01Ljk0LDMuMjQtMTIuMjgsNS41NS0xOC42OCw3LjY4LTkuNjgsMy4yMi0xOS40Myw2LjI0LTI4LjY4LDEwLjYxLTEyLjMzLDUuODEtMjMuNjEsMTMuMDUtMzIuMTYsMjMuOTItNy4wNCw4Ljk2LTExLjMsMTguOTUtMTAuNjIsMzAuNjEuMDcsMS4yNC4xOSwyLjQ4LjMyLDMuNzIuMTIsMS4xNS4yNSwyLjI5LjM2LDMuNDQtLjk4LTEuNDQtMS44NC0yLjkxLTIuNjItNC40LTQuMjktOC4yMS01Ljc0LTE3LjE3LTUuNjYtMjYuNDktLjUzLS4wMy0uNjIuMi0uNzMuNDIsMCwwLTE4Ljc4LDIzLjcyLDcuOTQsNDMuMzRoMGMyLjU2LDIuMTMsNS42NCw0LjExLDkuMzMsNS43MiwzLjYyLDIuMjcsNy4yNyw0LjYzLDguNjUsNi4zMywxLjA3LDEuMzIsMS45NCwyLjMzLDIuNjIsMy4yNiwyLjk1LDYuNTEtLjg5LDEyLjgzLTIuMzIsMTQuMjMtLjA2LjA1LS4xMi4xMS0uMTguMTYsMCwwLDAsMC0uMDEsMGgwYy0yLjE2LDEuOTItNS4wNSwzLjM5LTguNDksNC40OS0xLjc0LjU2LTMuNi45My01LjQxLDEuMzksMi44Mi4zNiw1LjU2LjU2LDguMjMuMzYsOC45NC0uNjUsMTYuNTYtMi44OSwyMS4xOS04Ljc2LDQtNS4wNywzLjY4LTEwLjYzLjA3LTE2LjYxLTEuODEtMy4wMS00LjYyLTUuNjItNi44OC04LjQ1WiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im01MC43NCwxOTQuOTljLS4zOC03LjcyLjU5LTE1LjI4LDMuNTctMjIuNTYsMy44NC05LjM4LDkuMzUtMTcuNSwxNi45NC0yNC4yNCwzLjEzLTIuNzgsNi42My01LjAzLDEwLjE2LTcuNS0uNjktLjM5LTEuMDctLjItMS40OS0uMS02LjUsMS42OS0xMi4zNSw0LjcxLTE3LjcyLDguNy0uMzIuMjQtLjYyLjcyLTEuMDguNS0uNDgtLjIzLS4yNC0uNzYtLjI0LTEuMTYuMDQtMy4yNi43LTYuNDEsMS44NC05LjQ0LDIuNjItNi45OSw3LjAzLTEyLjY5LDEyLjMzLTE3LjkzLDUuMzQtNS4yOSwxMS40Ny05LjQ0LDE3LjYxLTEzLjYxLDMuOTEtMi42Niw4LjA1LTQuOTcsMTEuODUtNy44LDcuNzQtNS43NywxMy45MS0xMi43MiwxNy4xNS0yMi4wMywyLjU1LTcuMzIsMi45Ni0xNC43My43Ni0yMi4xMi0yLjkxLTkuNzctOC45Ny0xNi43Ny0xOC44NS0yMC4xMi0xMS4yOS0zLjgzLTI0Ljc5LjU0LTMxLjE4LDEwLjI4LTYuNywxMC4yMS0yLjk4LDIzLjUsNy45NiwyNy4zNyw1Ljk5LDIuMTIsMTEuNzUsMS40LDE2Ljc1LTIuODgsMy43MS0zLjE4LDQuODUtNy4zOCw0LjE2LTEyLS43My00Ljg4LTUuNzQtNy42Ni0xMC44OC02LjM3LTIuODcuNzItNC42NCwyLjY5LTUuOTYsNS4xOS0uMTUuMjktLjA3LjgxLS41OC43Ny0uNC0uMDMtLjU4LS40LS42OS0uNzYtLjEtLjM0LS4yMy0uNjktLjI1LTEuMDQtLjQ1LTUuNjcsMi45Mi0xMC42Nyw4LjQ1LTEyLjA1LDcuNDQtMS44NiwxMy45MSwxLjE2LDE3LjY4LDcuODgsMy41LDYuMjQsMi44OSwxMi43Mi4zMSwxOS4wNy0xLjM1LDMuMzEtMy40Myw2LjE2LTUuOTgsOC43Ny00LjYzLDQuNzUtMTAuMTMsOC4xNC0xNi4wMywxMC45MS03Ljc4LDMuNjYtMTUuNjEsNy4xNi0yMi44LDExLjk4LTYuNDksNC4zNS0xMS45NSw5LjY2LTE2LjA2LDE2LjI2LTQuMzMsNi45Ni03LjEsMTQuNC02LjMxLDIyLjg0LjY1LDYuODgsMi44MiwxMy4wOSw3LjUxLDE4LjI3Ljg0LjkyLjczLDEuNTguMSwyLjUzLTMuMyw0Ljk4LTUuNzEsMTAuMzQtNi45NSwxNi4yMi0yLjkzLDEzLjg5LDEuMTYsMjUuMzgsMTEuNzMsMzQuNy40OC40Mi45Ni44NCwxLjgzLjc3LS43MS0xLjc0LTEuMzMtMy4zNi0yLjAyLTQuOTQtMi00LjU5LTMuMzctOS40MS0zLjYyLTE0LjM3WiIvPg0KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Im0xMDAuNzUsMjU3LjQ3Yy01LjIzLTQuNDYtOS4wNS0xMC4wOS0xMS4wNS0xNi43OS0uMjEtLjY5LS41Ny0xLjA0LTEuMjktMS0xLjk4LjExLTMuODEtLjY1LTUuNjgtMS4xLTguMTUtMS45NC0xNC44OC02LjExLTE5Ljg3LTEyLjkzLS42OS0uOTQtMS4zNy0xLjg5LTIuMTEtMi45LS41Ljc3LS4zOSwxLjQ1LS40MiwyLjEtLjQyLDcuMTksMS4zMSwxMy45Miw0Ljk3LDIwLjA0LDkuMjUsMTUuNDIsMjQuMSwyMS42Nyw0MC45NCwyNC4zNiwzLjM0LjUzLDYuNzkuNTMsMTAuMTguNDcsMi44LS4wNSw1LjU5LS41Nyw4LjM5LS44OCwwLS4xMiwwLS4yNC4wMS0uMzctMi4zMy0uNjMtNC42OC0xLjIyLTYuOTktMS45LTYuMzEtMS44Ni0xMi4xMS00Ljg3LTE3LjA4LTkuMVoiLz4NCiAgPHBhdGggY2xhc3M9ImNscy0yIiBkPSJtMTY1Ljk4LDEwMS44OWMyLjg1LjMyLDUuNjEsMS4wNyw4Ljg3LDEuOTctMS4wNy0xLjQ0LTIuMDgtMi4wNy0zLjExLTIuNjUtOS40NS01LjI5LTE5LjYxLTYuOTMtMzAuMjItNS40Ni0xNi4zMywyLjI1LTMwLjAzLDkuNzctNDEuNDIsMjEuNTctNC4wMiw0LjE2LTcuNDEsOC44My0xMC4xNywxMy45NC0uMzMuNjItLjgzLDEuMjItLjUzLDIsLjM4LS41My43MS0xLjEsMS4xNy0xLjU2LDMuNTctMy41OCw3LjM4LTYuODUsMTEuODEtOS4zNCw2LjMzLTMuNTcsMTMuMDQtNS44NywyMC4zOS01LjkyLjk5LDAsMS41My0uNTMsMi4xNS0xLjE0LDExLjQ4LTExLjIzLDI1LjM0LTE1LjE4LDQxLjA3LTEzLjQyWiIvPg0KPC9zdmc+',agility:'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxzdmcgaWQ9IkNhbHF1ZV8xIiBkYXRhLW5hbWU9IkNhbHF1ZSAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjcuMzUgMzU4LjIzIj4NCiAgPGRlZnM+DQogICAgPHN0eWxlPg0KICAgICAgLmNscy0xIHsNCiAgICAgICAgZmlsbDogIzA0MTQyZDsNCiAgICAgIH0NCg0KICAgICAgLmNscy0yIHsNCiAgICAgICAgZmlsbDogIzAyMDIwMjsNCiAgICAgIH0NCg0KICAgICAgLmNscy0zIHsNCiAgICAgICAgZmlsbDogI2NjODAxMjsNCiAgICAgIH0NCg0KICAgICAgLmNscy00IHsNCiAgICAgICAgZmlsbDogI2Y4OTcwMDsNCiAgICAgIH0NCg0KICAgICAgLmNscy01IHsNCiAgICAgICAgZmlsbDogbm9uZTsNCiAgICAgIH0NCiAgICA8L3N0eWxlPg0KICA8L2RlZnM+DQogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0ibTIyNi4yOSwzNi4yN2MuMDMsMS4wMi4zNiwxLjcsMS41NywxLjMxLS4wNy0uOTgtLjY2LTEuMzQtMS41Ny0xLjMxWiIvPg0KICA8Zz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTUiIGQ9Im0xOTEuMzMsMTc5LjZjLjY4LjgyLDEuMzYsMS42NiwyLjA1LDIuNTMtLjQ0LTEtMS4yLTEuODItMi4wNS0yLjUzWiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtNSIgZD0ibTI1NC4yMywyNTIuMjFjLjExLS40My4xMS0uODUtLjA5LTEuMjcsMC00LjE4LDEuNDItNy44OSwzLjQ1LTExLjM3LTIuMDQsMy40OC0zLjQ1LDcuMTktMy40NSwxMS4zNy4yLjQyLjIuODQuMDksMS4yN1oiLz4NCiAgICA8cGF0aCBkPSJtMzA2LjkzLDIzNi45NXYtLjAzczAtLjAyLDAtLjAzYzAsMCwwLC4wMSwwLC4wMiwwLC4wMSwwLC4wMywwLC4wNFoiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Im0yNDAuMDMsMjU0LjMyYy04LjM0LTE4LjU5LTIxLjIzLTMyLjE1LTQwLjk4LTM4LjM1LDUuOTIsNy44LDEwLjgyLDE2LjA5LDE0Ljc5LDI1LjAzLDIuNyw2LjA4LDUuMDQsMTIuMjgsNy4yNSwxOC41MywyLjI4LDYuNDUsNC44LDEyLjgxLDcuNzMsMTguOTYsNC45NSwxMC4zNywxMC43NCwyMC4yOCwxNy42NywyOS40OSw4LjEsMTAuNzgsMTcuMDYsMjAuNzQsMjcuNTEsMjkuMzIsNi42OSw1LjQ5LDEzLjk4LDEwLjEsMjEuNzcsMTMuOCw3LjU4LDMuNiwxNS42LDUuOTcsMjQsNi44NSwxLjU5LjE3LDMuMi4yLDQuOS4yOS02OS45Ny0yOS4wMy04NC42NC0xMDMuOTItODQuNjQtMTAzLjkyWiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTI4OS4zNywxNzIuNzFjLTUuOTMtMTAuOC0yMy4xOS0yOC45MS0yMy4xOS0yOC45MS43Mi0uMzcsMS4zMy0uNDcsMS45LS4zNiw0LjA3Ljc4LDguMjIsMS4xMywxMi4xOCwyLjQ3LDQuOTIsMS42Nyw5Ljc3LDMuNTEsMTQuMjksNi4wOCw4LjUxLDQuODQsMTUuNzksMTEuMjgsMjMsMTcuODIsNy45Nyw3LjIzLDE2LjUyLDEzLjY5LDI1LjgsMTkuMTUuODkuNTMsMS44MywxLjI1LDMuMTYsMS4xNiwwLDAtMjcuOTktMjguNDMtMzguMjItNTUuNzYtMTAuMjMtMjcuMzItNjMuODUtNTMuNDctMTAxLjIyLTU1LjAxLDYuNDEsMy41LDEyLjEsNy4zLDE2Ljk5LDEyLjM1LDUuNTMsNS43LDkuOSwxMi4xMywxMy41NSwxOS4xMiwyLjg1LDUuNDYsNS4xNCwxMS4xOCw2Ljk1LDE3LjAzLDEuOTQsNi4yOCwzLjk1LDEyLjU2LDQuOTYsMTkuMTIuNDMsMi44MywxLjQsNS42OSwxLjY5LDguNDcuNDIsNC4xNSwxLjE5LDguMjYsMS41OSwxMi40Mi41NSw1Ljg3LjgzLDExLjczLDEuMDgsMTcuNi4zMSw3LjQyLS44LDE0Ljc4LTEuMjYsMjIuMTctLjE1LDIuNDQtLjgxLDQuODUtMS4yNiw3LjM5LDIuMjEsMTAuMzQsMTEuNDMsMjIuNDEsMTEuNDMsMjIuNDEsOS43Myw3LjU1LDIwLjM5LDEzLjM2LDMyLjQ1LDE2LjExLDQuNjUsMS4wNiw5LjE4LS41MiwxMC43Mi01LjI2LjY3LTIuMDYuOTctNC4yNi44NS02LjQ3LS4wOS0xLjY0LS4xNi0zLjI4LjE0LTQuOTEtLjAzLTEuOC44Ni0zLjA4LDEuOTMtNC4yMy4wNS0uMDYuMTEtLjExLjE2LS4xNy4wMy0uMDMuMDYtLjA2LjA5LS4wOS4xNy0uMTguMzQtLjM1LjUyLS41Mi4yLS4yLjQtLjQuNi0uNiwxLjA3LTEuMDcsMi4zMi0yLjAxLDIuNTQtMy42Ni4yNS0xLjg0LS4xNC0zLjUxLTEuNjEtNC44Ni00LjY4LS4zNS00LjI0LTEuMzUtNC4yNC0xLjM1LDYuMTItMS40OCw5LjYxLTYuMzksOS42MS02LjM5LDAsMC0zLjQ5LDQuOTEtOS42MSw2LjM5LDAsMC0uNDQsMSw0LjI0LDEuMzUuODMtLjI1LDEuNTEtLjQsMi4xNS0uNjYsMi44MS0xLjE0LDMuMzEtMS45MywzLjI2LTQuOTUtLjAyLTEuMzEtLjA0LTIuNjMtLjA0LTMuOTQsMC0yLjkyLDIuMDctNS4wNCw0Ljk5LTUuMTEsMS4zOC0uMDMsMi43Ny4wNyw0LjE1LS4wMiw0LjUzLS4zLDYuOTEtMi42NSw0LjU2LTcuMzgtMS43My0zLjQ5LTMuNjktNi44Ni01LjA5LTEwLjUyLTEuMDEtMi42My0xLjUtNS4zOC0yLjMtOC4wNi02LjEzLTEuMTYtMjcuNTQsMS4zOC0zMy40Ny05LjQzWiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtNCIgZD0ibTMwOC4yOCwxMzQuMzdjMTAuMjMsMjcuMzIsMzguMjIsNTUuNzYsMzguMjIsNTUuNzYtMS42My0yLjk2LTMuMjEtNS43NC00LjY5LTguNTYtMy4wNi01LjgxLTUuMDUtMTIuMDItNi42NC0xOC4zNy0xLjQzLTUuNzEtMi4xNi0xMS41Ni0zLjQzLTE3LjI5LTEuNy03LjY2LTMuNjItMTUuMjYtNy4wNi0yMi40Ni00LjQtOS4yMS0xMC42NS0xNi43My0xOC41OS0yMi45NS01LjY4LTQuNDQtMTEuODktNy45OC0xOC4zOS0xMS4xNi02LjA4LTIuOTgtMTIuNDUtNS4wMi0xOC45MS02Ljc1LTQuMDItMS4wOC04LjE5LTEuNzUtMTIuMzYtMi4zNS02Ljc3LS45OC0xMy41Ny0xLjQtMjAuMzYtMS45LTcuNzgtLjU4LTE1LjU2LjI1LTIzLjM0LjUtMS43My4wNS0zLjU4LjEzLTUuNjYuNTQsMzcuMzcsMS41NCw5MC45OSwyNy42OSwxMDEuMjIsNTUuMDFaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy00IiBkPSJtMjI2LjE2LDE4Ni4zM2MtLjQ3LS4zOC0uOS0xLjA2LTEuNTQtLjUyLS41My40NS0uMDQsMSwuMjEsMS40Ny44NCwxLjYzLDEuNjUsMy4yNywyLjUzLDQuODcsMi44LDUuMSw0Ljc5LDEwLjU3LDYuNDksMTYuMDgsMS40OCw0Ljc3LDIuODcsOS42LDMuNjcsMTQuNi43Myw0LjU2LDEuMjQsOS4xNCwxLjkyLDEzLjcuMzksMi42MS4wMyw1LjI0LjUxLDcuNzkuNjMsMy4zMy4xOSw2LjYuMDgsOS45OCwwLDAsMTQuNjcsNzQuODksODQuNjQsMTAzLjkybC0uMTctLjM0Yy0uMy0uNDYtLjcyLS41NS0xLjA2LS43Mi02Ljg5LTMuNTMtMTMuMjMtNy44Ni0xOS4xMS0xMi45LTEzLjY4LTExLjcxLTI0LjQ3LTI1LjczLTMzLjQ0LTQxLjI2LTUuOTctMTAuMzMtMTEuMzMtMjAuOTMtMTQuNTUtMzIuNDctMS4yNy00LjU2LTIuNTQtOS4xNi0yLjE1LTE0LS4xMi0uMDktLjEyLS4xOC0uMDItLjI4LS4wNi0uMjgtLjEtLjU1LS4xMy0uODMtLjAyLS4xNy0uMDMtLjMzLS4wNC0uNS0uMDEtLjItLjAyLS40MS0uMDItLjYxLDAtLjMyLjAyLS42NS4wNS0uOTcuMDMtLjMyLjA5LS42NS4xNi0uOTctLjAxLS40OC0uMDItLjk3LS4wMy0xLjQ1LDAtNC4xOCwxLjQyLTcuODgsMy40NS0xMS4zNy4yOS0uNS41OS0uOTkuOTEtMS40OCwxLjcyLTIuNjgsMS43NS0yLjYxLDQuMjctLjY1LDAsMC05LjIyLTEyLjA3LTExLjQzLTIyLjQxLTcuNjctMTEuMTEtMTIuNTEtMTguNDItMjUuMTgtMjguN1oiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0zMjEuNTYsMTgwLjgzYy01LjI0LS42NS0xMC4zMS0yLjA4LTE1LjM4LTMuNDctMy43MS0xLjAyLTcuNi0xLjk4LTkuODktNS41My0xLjY0LTIuNTQtMy41NS00LjgzLTUuNTItNy4xMi02LjMzLTcuMzQtMTMuNTYtMTMuNjUtMjEuNTMtMTkuMTMtLjk3LS42Ny0yLjA0LTEuMTktMy4wNy0xLjc4LDAsMCwxNy4yNiwxOC4xLDIzLjE5LDI4LjkxLDUuOTMsMTAuOCwyNy4zNCw4LjI2LDMzLjQ3LDkuNDMtLjI0LS43OS0uNTEtMS4yMS0xLjI4LTEuM1oiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0zMDYuOTQsMjM2Ljg5Yy0uMDItMS43OS44Ni0zLjA2LDEuOTMtNC4yMS0xLjA4LDEuMTYtMS45NiwyLjQzLTEuOTMsNC4yMywwLDAsMC0uMDEsMC0uMDJaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy00IiBkPSJtMzA5LjEyLDIzMi40MXMtLjA2LjA2LS4wOS4wOWMuMDMtLjAzLjA2LS4wNi4wOS0uMDlaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy00IiBkPSJtMzA5LjAzLDIzMi41Yy0uMDUuMDYtLjExLjExLS4xNi4xNy4wNS0uMDYuMTEtLjExLjE2LS4xN1oiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0zMDkuMTIsMjMyLjQxYy4xNy0uMTguMzQtLjM1LjUyLS41Mi0uMTcuMTctLjM1LjM1LS41Mi41MloiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0yNTQuMDMsMjU1LjQ0Yy4wMy4yOC4wNy41NS4xMy44M2gwYy0uMDYtLjI4LS4xLS41NS0uMTMtLjgzWiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtNCIgZD0ibTMwNi45MywyMzYuOTNzMC0uMDcsMC0uMDd2LjA2czAsMCwwLC4wMVoiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0zMDYuOTQsMjM2Ljg2czAsLjAyLDAsLjAzYzAsMCwwLC4wMiwwLC4wM3YtLjA2WiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTk5Ljk3LDE1OC41MmMtNDYuMjEsMi41NC02Ni40NC00NC45NC02Ni40NC00NC45NC0uOTguNDEtLjMyLDEuMjMtLjIyLDEuNzYuNTYsMi44LDEuNzIsNS40MSwyLjg3LDgsMy4yNyw3LjM3LDcuNTUsMTQuMTMsMTIuNzcsMjAuMjcsOS43OCwxMS41MiwyMS41OCwyMC4wMiwzNi40NSwyMy43Miw0LjY3LDEuMTYsOS4zOSwyLjEyLDE0LjI2LDIuMjcsNC45Ny4xNiw5LjktLjQzLDE0Ljg1LS40OSwyLjc4LS4wNCw1LjU1LS41OCw4LjI2LTEuMDMsNS42Ny0uOTUsMTEuMzYtMS42NSwxNy4wNy0yLjI0LDUuMDctLjUzLDEwLjE0LS41NywxNS4yNC0uMDcsNC42MS40NSw5LjE1LDEuMTcsMTMuNjUsMi4yNCw0LjQ3LDEuMDYsOC41NiwyLjk1LDEyLjY1LDUuMDEsMy42LDEuODEsNi44OSwzLjk5LDkuOTQsNi41OCwwLDAsLjAxLjAxLjAyLjAyLTI0LjcxLTI5Ljc0LTQ2LjM4LTIzLjU1LTkxLjM2LTIxLjA4WiIvPg0KICAgIDxwb2x5Z29uIGNsYXNzPSJjbHMtNCIgcG9pbnRzPSIxNTIuOTMgMTk3LjE3IDE1Mi45MyAxOTcuMTcgMTUyLjkzIDE5Ny4xNyAxNTIuOTMgMTk3LjE3Ii8+DQogICAgPHBhdGggY2xhc3M9ImNscy0zIiBkPSJtMTE4Ljg3LDE5OS44MmMtMzYuMjItNi45OS01MS44Mi0yOS4wNS01MS44Mi0yOS4wNSwzLjMzLDYuNSw3LjE2LDEyLjQyLDExLjg3LDE3LjgxLDUuNjMsNi40NCwxMi40LDExLjM4LDE5Ljg4LDE1LjI2LDUuMzMsMi43NywxMC45Niw0Ljk0LDE2Ljg2LDYuNDIsNS45NywxLjUsMTIsMi43NCwxOC4wNiwzLjU0LDUuNzguNzYsMTEuNTksMS40MSwxNy4zNCwyLjMyLDYuMjQuOTksMTIuMzcsMi42LDE4LjI2LDUuMTcsMTEuNDEsNC45OSwxOS43LDEzLjE0LDI1LjQ5LDI0LTEwLjI3LTI3LjczLTM5LjcyLTM4LjQ5LTc1LjkzLTQ1LjQ4WiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTE4NS4zNywxOTAuMTNjLTIwLjM5LTEuMS0yOS4yOCw0LjQ3LTMxLjcyLDYuNC4xNCwwLC4yNy0uMDMuMzktLjA3LDQuMjEtMS42LDguNjYtMS43NCwxMy4wNi0xLjk4LDYuMTYtLjM0LDEyLjIxLjU1LDE4LjI1LDEuODksNi40NSwxLjQzLDEyLjQ3LDMuODMsMTguMTYsNy4wNiw3LjM2LDQuMTgsMTMuOTUsOS4zOSwxOS43MiwxNS42Mi44OS45NSwxLjcyLDIuMiwzLjM2LDIuNjEsMCwwLTE2LjY2LTMwLjItNDEuMjMtMzEuNTNaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy0zIiBkPSJtMTUwLDIzNC40Yy0yNC4xNS03Ljk5LTM5Ljc1LTE5LjUtMzkuNzUtMTkuNSwyLjQ1LDQuMTcsNC45NSw3LjU1LDcuNjUsMTAuNzgsNi44Miw4LjE2LDE1LjA2LDE0LjQ5LDI0Ljk5LDE4LjMyLDcuMTIsMi43NCwxNC42LDQuNDQsMjEuODgsNi43Myw3LjksMi40OSwxNS41NCw1LjUyLDIyLjY2LDkuNjksMTQuNzUsOC42MiwyNi44NSwyMC40LDM4LjMyLDMyLjg4LjQ4LjUyLjg2LDEuMzQsMS45Ni44Ny0xMi41MS0yNC40Ni01My41Ny01MS43OS03Ny43Mi01OS43OFoiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0yMjcuMjgsMjkzLjEyYy0yLjQtNS4wMS01LjA0LTkuOTItNy4xNy0xNS4wNC0zLjE1LTcuNjEtNi41OC0xNS4wOS05LjY5LTIyLjcxLTMuMzItOC4xMy03LjE1LTE2LjAxLTExLjYxLTIzLjU3LTUuMzUtOS4wNi0xMS42OS0xNy4zMy0xOS45NC0yMy45Ny00LjY4LTMuNzctOS45LTYuNTYtMTUuNjMtOC40Ni0zLjE4LTEuMDUtNi40Ny0xLjQyLTkuNzItMi4wNC0uMjEtLjA0LS40Mi0uMDctLjU5LS4xNSwwLDAsMCwwLDAsMCwwLDAsMCwwLDAsMCwwLS4wMS4yNC0uMjUuNzMtLjY0LDIuNDQtMS45MywxMS4zMy03LjUsMzEuNzItNi40LDI0LjU3LDEuMzIsNDEuMjMsMzEuNTMsNDEuMjMsMzEuNTMtLjgtMy4zMy0xLjM4LTYuNTItMi4zNS05LjU5LTIuNzMtOC42My02LjE4LTE2Ljk1LTEwLjU4LTI0Ljg4LTQuNzQtOC41My0xMC41NS0xNi4xOC0xNy40Ny0yMy4wNS0xMC4xMy0xMC4wNi0yMi4zMS0xNi40OS0zNS43OS0yMC42OS01LjM4LTEuNjgtMTAuOS0yLjYxLTE2LjQ4LTMuNDUtNS42OC0uODYtMTEuMzgtMS4zMS0xNy4wOC0xLjU5LTEyLjU0LS42LTI1LjEuNDQtMzcuNjYtLjMxLTcuMzgtLjQ0LTE0LjYzLTEuNTMtMjEuNjktMy41NS04LjU0LTIuNDQtMTYuMzktNi4zOS0yMy40MS0xMS45NC0zLjIxLTIuNTQtNi4xOC01LjMxLTktOC4yNS0uNDEtLjQzLS44MS0xLjA4LTEuNTQtLjc3LDAsMCwyMC4yMiw0Ny40OCw2Ni40NCw0NC45NCw0NC45OC0yLjQ3LDY2LjY1LTguNjYsOTEuMzYsMjEuMDguODQuNzIsMS42MSwxLjUzLDIuMDUsMi41My0uMzcuMzctLjYyLjIxLS44NS4wNy0zLjc4LTIuMzUtNy44OC00LjA0LTEyLjA5LTUuMzUtNi4zOC0xLjk5LTEzLTIuODItMTkuNjYtMy4xMi02LjYtLjI5LTEzLjE3LjM0LTE5LjY4LDEuMjctNi45MS45OC0xMy43NywyLjM2LTIwLjYsMy44NS01Ljg4LDEuMjktMTEuODMsMS44OS0xNy44LDIuMjMtMy41My4yLTcuMDQtLjY4LTEwLjU2LTEuMS03LjcyLS45Mi0xNC43MS0zLjc4LTIxLjQ0LTcuNDYtMS4xMy0uNjItMi4xNS0xLjQ5LTMuNjgtMS43NCwwLDAsMTUuNiwyMi4wNiw1MS44MiwyOS4wNSwzNi4yMiw2Ljk5LDY1LjY3LDE3Ljc0LDc1LjkzLDQ1LjQ4LjI1LjQ2LjkxLDEuMDYuMjUsMi4wMy0yLjkyLTMuMzYtNi4wNy02LjI5LTkuNC05LjAzLTcuMzUtNi4wNS0xNS41MS0xMC41Ni0yNC42OS0xMy4yNS01LjExLTEuNDktMTAuMjYtMi40NC0xNS41OC0yLjk3LTUuMDgtLjUxLTEwLjItLjY0LTE1LjI1LTEuNTItNC4yNS0uNzQtOC41LTEuMzQtMTIuNTktMi44NS0yLjI4LS44NC00LjY1LTEuNDUtNy4yOS0yLjgsMCwwLDE1LjYsMTEuNSwzOS43NSwxOS41LDI0LjE1LDcuOTksNjUuMiwzNS4zMiw3Ny43Miw1OS43OC0uMTUtLjM2LS4yNy0uNzItLjQ0LTEuMDZaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy0zIiBkPSJtMzYuNTEsMzIuMzdjMi4yMiw2LjA4LDUuMTMsMTEuODUsOC43OCwxNy4yNCw1LjA5LDcuNTMsMTEuMjIsMTQuMDYsMTguNDgsMTkuNTMsNi41LDQuOSwxMy42LDguNjEsMjEuMzMsMTEuMiw1Ljc0LDEuOTMsMTEuNjEsMy4xLDE3LjYsMy43NywzLjg4LjQzLDcuNzguNzUsMTEuNjYsMS4xOCwzLjUxLjM5LDcuMDEsMS4wNiwxMC41MywxLjI2LDUuMjMuMywxMC4zLDEuNSwxNS40NCwyLjM2LDMuNTQuNTksNi45NCwxLjcxLDEwLjM4LDIuNjgsNS41OSwxLjU4LDExLjAzLDMuNTYsMTYuMyw2LjA4LDQuOTUsMi4zNyw5LjcxLDUuMDMsMTQuMzQsNy45OSwxMy4wNCw4LjM0LDIzLjgyLDE4LjksMzIuMDYsMzIuMDIsMy4wMyw0LjgzLDUuNjMsOS44Nyw3LjUzLDE1LjI1LTE3Ljc4LTc4LjMxLTk0LjQ0LTcxLjk0LTEzOC4yOC04OC40NkMzOC44LDQ3Ljk1LDM0LjAyLDAsMzQuMDIsMGMtLjU4LjI4LS42NS42NC0uNzQsMS4wNy0uOTksNC44Ny0xLjAyLDkuNzItLjQ0LDE0LjY3LjY2LDUuNjksMS43MSwxMS4yNywzLjY3LDE2LjYzWiIvPg0KICAgIDxwYXRoIGNsYXNzPSJjbHMtMyIgZD0ibTEwNy40NywxMjcuMjNjMi42My4zMSw1LjE5LS40NCw3LjgtLjUxLDcuMjgtLjIsMTQuNS40MSwyMS43MywxLjI3LDYuOS44MywxMy43MiwxLjg3LDIwLjQzLDMuNzMsNy4xMSwxLjk3LDE0LjAxLDQuNDcsMjAuNjksNy41Niw4LjU4LDMuOTcsMTYuNiw4Ljg5LDI0LjM0LDE0LjMzLDEzLjE5LDkuMjksMjQuNjIsMjAuNTIsMzUuODgsMzEuOTcsMi43NiwyLjgxLDQuODMsNi4yNyw4LjI5LDguNzcsMCwwLTQxLjg5LTg0Ljg2LTEzOS4xNi02Ny4xM1oiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTQiIGQ9Im0yNDYuMTIsMTgwLjM3Yy0uNzYtNi43LTEuMjktMTMuNDEtMi41NC0yMC4wNi0xLTUuMzQtMi4wMi0xMC42OC0zLjYyLTE1Ljg1LTEuOTYtNi4zNS00LjE2LTEyLjYzLTcuMDktMTguNjUtMi4xOC00LjQ5LTQuNTgtOC44NC03LjIzLTEzLjA0LTIuOTUtNC42OC02LjQzLTktMTAuMjctMTMtMTAuNTktMTEuMDMtMjMuNDktMTguNjEtMzcuMzUtMjQuNjMtNi4xMy0yLjY2LTEyLjQzLTQuOTItMTguODUtNi44NC01LjExLTEuNTMtMTAuMTYtMy4yNS0xNS4yOC00Ljc1LTQuNDItMS4yOS04LjkyLTIuMzItMTMuMzUtMy41Ni01LjA2LTEuNDItMTAuMDctMy4wNy0xNS4xNS00LjQtNi45My0xLjgzLTEzLjY3LTQuMjUtMjAuNDEtNi42My05LjQ1LTMuMzItMTguNDktNy41Ny0yNi45OC0xMi45My0xMS4wMi02Ljk2LTIwLjcxLTE1LjM0LTI4LjEyLTI2LjE5LTIuMTYtMy4xNi00LjA3LTYuNDctNS44Ni05LjgzLDAsMCw0Ljc4LDQ3Ljk1LDQ4LjYyLDY0LjQ4LDQzLjg0LDE2LjUyLDEyMC41LDEwLjE1LDEzOC4yOCw4OC40NiwwLDAtNi4wMy0xMC40Ni0xOS43OC0xOS44My0xNy42Ni0xMi4wMy00OC4wNi0yMi4yNi05NC43Ni02LjE3LjE2LjUuNzEuMjUsMS4wOC4yOSw5Ny4yNi0xNy43MywxMzkuMTYsNjcuMTMsMTM5LjE2LDY3LjEzLjExLTQuODMuMDItOS4zOS0uNS0xMy45OVoiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTMiIGQ9Im01NS41MiwxMTMuNjNjNC4wNCwyLjI5LDguMjYsNC4xMywxMi41OSw1LjYxLDQuNjgsMS42LDkuNjUsMi4xNywxNC42MywyLjQ0LDUuNjIuMywxMS4yLjAyLDE2LjY3LTEuMjUsNy4xNC0xLjY2LDE0LjI5LTMuMzQsMjEuMzItNS40MSw3Ljc2LTIuMjksMTUuNzMtMy4xOSwyMy42OS0zLjgsOS4zOC0uNzIsMTguNjcuNiwyNy44NywyLjUzLDIuMjMuNDcsNC40LDEuMzUsNi44MSwxLjUyLDAtLjgzLS40Mi0xLjAxLS43My0xLjI0LDAsMC0yMS4zOC0xNS4yMy04Ni4xOS02Ljk3QzI3LjM2LDExNS4zMSwyMS45Nyw0Ni41NCwyMS45Nyw0Ni41NGMtMS4xNC4yNy0uNzUsMS45NS0xLjExLDMtLjAyLjA2LDAsLjE0LDAsLjIxLjE1LDQuMDQtLjE4LDguMDcuMzgsMTIuMTQsMS4wNSw3Ljc0LDMuMzIsMTUuMDcsNi43OSwyMS45OCw2LjI5LDEyLjUyLDE1LjEyLDIyLjc2LDI3LjUsMjkuNzZaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy00IiBkPSJtOTIuMTgsMTA3LjA1YzY0LjgxLTguMjYsODYuMTksNi45Nyw4Ni4xOSw2Ljk3LTUuOTgtNC41LTEyLjQ4LTguMTQtMTkuMjctMTEuMjUtNi45MS0zLjE2LTE0LjEtNS41OS0yMS41MS03LjM0LTIuNzEtLjY0LTUuNDMtMS4zMS04LjE3LTEuNzgtMy44LS42NC03LjYzLTEuMTItMTEuNDUtMS42MS0zLjg2LS40OS03LjczLS45Ny0xMS42MS0xLjM0LTQuOTctLjQ3LTkuOTgtLjU2LTE0LjktMS4yOS01LjM2LS43OS0xMC43Mi0xLjYxLTE2LjA1LTIuNzItOC44Mi0xLjg0LTE3LjE2LTQuNzUtMjUuMDItOS4xMi0xMi4wNS02LjctMjAuMzMtMTYuOTEtMjYuODgtMjguNzUtLjQ2LS44My0uNjUtMi40OS0xLjU0LTIuMjgsMCwwLDUuNCw2OC43Nyw3MC4yMSw2MC41MVoiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Im0yNTQuMTQsMjUwLjk0YzAsLjQ4LjAyLjk3LjAzLDEuNDUuMDItLjA2LjA0LS4xMi4wNi0uMTguMTEtLjQzLjExLS44NS0uMDktMS4yN1oiLz4NCiAgICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Im0zMDYuOTMsMjM2Ljk1czAtLjA5LDAtLjA5YzAsMCwwLC4wNCwwLC4wNywwLDAsMCwuMDEsMCwuMDJaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJtMjU0LjIyLDI1Ni40MXMtLjAyLS4wOS0uMDYtLjE0aDBjLS4xLjEtLjA5LjIuMDIuMjguMDEtLjAyLjAyLS4wNS4wMy0uMDdzMC0uMDUsMC0uMDdaIi8+DQogICAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJtMjU0LjIyLDI1Ni40MXMtLjAyLS4wOS0uMDYtLjE0aDBzLjA2LjA5LjA2LjE0WiIvPg0KICA8L2c+DQo8L3N2Zz4='};
   function mountEntity(root,serial) {
@@ -527,13 +951,16 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   resetProfiles();
   root.querySelector('.entity-name').value=`Entité ${serial}`;
   root.setAttribute('aria-label',`Entité ${serial}`);
-  const isConcept=()=>state.mode!=='current';
+  const isConcept=()=>state.mode==='concept';
+  const isMaj=()=>state.mode==='maj';
+  const modeName=()=>({concept:'Concept',current:'Old',maj:'New'})[state.mode];
+  for(const button of root.querySelectorAll('[data-mode]'))button.setAttribute('aria-controls',domId('mode-panel'));
   const aliases={ physicalDamage:'PP', magicalDamage:'PM', piercingDamage:'puissance percante', HP:'points de vie' };
   const entry=(category,kind,group,spec,name)=>({id:`${kind}-${spec.key}`,category,kind,group,key:spec.key,name,spec});
   const catalogs=[
-    {id:'stats',name:'Stats',entries:Lab.effects.map(spec=>entry('stats','fixed','fixed',spec,`${spec.name} fixe`))},
-    {id:'plus',name:'Stats +',entries:Lab.effects.map(spec=>entry('plus','plus','plus',spec,`${spec.name} +`))},
-    {id:'x',name:'Stats X',entries:Lab.effects.map(spec=>entry('x','x',null,spec,`${spec.name} X`))},
+    {id:'stats',name:'Stats',entries:Lab.effects.filter(spec=>!spec.derivedOnly).map(spec=>entry('stats','fixed','fixed',spec,`${spec.name} fixe`))},
+    {id:'plus',name:'Stats +',entries:Lab.effects.filter(spec=>!spec.uniquePassive&&!spec.derivedOnly).map(spec=>entry('plus','plus','plus',spec,`${spec.name} +`))},
+    {id:'x',name:'Stats X',entries:Lab.effects.filter(spec=>!spec.uniquePassive&&!spec.derivedOnly).map(spec=>entry('x','x',null,spec,`${spec.name} X`))},
     {id:'umbras',name:'Umbras',entries:Lab.umbras.map(spec=>entry('umbras','umbra','umbras',spec,spec.name))},
   ];
   const entries=Object.fromEntries(catalogs.flatMap(catalog=>catalog.entries.map(item=>[item.id,item])));
@@ -577,7 +1004,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const wrapper=document.createElement('div');wrapper.className='curve-field';
     const inputId=domId(key),helpId=domId(`${key}-help`);
     wrapper.innerHTML=`<div class="curve-field-heading"><label for="${inputId}">${label}</label><span class="setting-help"><button type="button" class="info-icon" aria-label="Aide : ${label}" aria-describedby="${helpId}">i</button><span id="${helpId}" class="setting-tooltip" role="tooltip"></span></span><button type="button" data-reset-setting="${key}" aria-label="Réinitialiser ${label}">Reset</button></div><div class="curve-value-controls"><input type="range" data-entity-setting="${key}" min="${min}" step="1" aria-label="Jauge : ${label}"><input id="${inputId}" data-ui="${key}" type="number" min="${min}" step="${key==='limit'?'any':'1'}" inputmode="decimal" aria-label="${label}"></div>`;
-    wrapper.querySelector('.setting-tooltip').textContent=help;$('#entity-gauges').append(wrapper);
+    const hint=wrapper.querySelector('.setting-tooltip');hint.textContent=help;hint.dataset.entityHelp=key;hint.dataset.conceptHelp=help;$('#entity-gauges').append(wrapper);
   }
   for(const key of ['strength','intelligence','agility']) {
     const label=document.createElement('label');label.className='attribute-field';
@@ -586,7 +1013,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     label.append(img,name,inputNumber('attributes',key,state.attributes[key],names[key]));$('#attribute-inputs').append(label);
   }
   for(const spec of Lab.effects) {
-    const option=document.createElement('option'); option.value=spec.key; option.textContent=`${spec.name} · ${names[spec.source]}`; $('#curve-effect').append(option);
+    const option=document.createElement('option'); option.value=spec.key; option.textContent=`${spec.passiveName||spec.name} · ${spec.uniquePassive?'Passive exclusive · ':''}${names[spec.source]}`; $('#curve-effect').append(option);
   }
   const cell=(label,child)=>{ const td=document.createElement('td'); td.dataset.label=label; if(child)td.append(child); return td; };
   function inputNumber(group,key,value,label,{ step=1 }={}) {
@@ -637,7 +1064,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const row=document.createElement('tr'); row.dataset.entry=item.id;
     const title=document.createElement('button'); title.type='button'; title.className='effect-name'; title.dataset.detail=item.id;
     title.setAttribute('aria-controls',domId(`detail-${item.id}`)); title.textContent=item.name;
-    const name=cell('Élément',title), source=document.createElement('span'); source.className='source-name'; source.textContent=kindNames[item.kind]; name.append(source); row.append(name);
+    const name=cell('Élément',title), source=document.createElement('span'); source.className='source-name'; source.textContent=item.kind==='umbra'&&['criticalPower','resilience','equilibre','vivacite','robustness','astrality'].includes(item.key)?'Umbra · niveau 2':kindNames[item.kind]; name.append(source); row.append(name);
     const points=cell('Points');
     if(item.group)points.append(stepper(item.group,item.key,state[item.group][item.key]||0,item.name,item.spec.unit?.includes('%')?.1:1));
     else { points.textContent='Calculés'; points.className='muted'; }
@@ -656,8 +1083,10 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   function withUmbra(key,value) { return {...state,umbras:{...state.umbras,[key]:value}}; }
   function formula(row,snapshot) {
+    if(row.directPercentage)return `${names[row.source]} ${fmt(row.umbraUsed)} · ratio de ${names[row.attribute]} ${fmt(row.passiveCurve.ratio,4)} → ${fmt(row.generated,2)} %`;
     const f=value=>fmt(value,6), n=row.native;
-    if(snapshot.mode==='current') {
+    if(row.updated)return `${majPart(row.sourcePart)} + ${majPart(row.attributePart)} = ${f(row.generated)}${row.unit}`;
+    if(snapshot.mode!=='concept') {
       if(!row.active)return 'Capacité inactive.';
       if(['power','resistance','dodge'].includes(row.type)) {
         const pool=`${f(row.u)} + ${f(row.attributeGain)} → ${f(row.points)} points (arrondi au plus proche)`;
@@ -692,7 +1121,8 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     return 'Aucun montant natif supplémentaire.';
   }
   function detailHTML(row,snapshot) {
-    if(snapshot.mode==='current')return currentDetailHTML(row,snapshot);
+    if(row.updated)return `<div class="detail-title">${row.name} · New</div><p class="description">${row.description}</p>${majSummary(row,snapshot)}${progressionHTML(row)}`;
+    if(snapshot.mode!=='concept')return currentDetailHTML(row,snapshot);
     const unit=row.unit, f=value=>fmt(value,6);
     const nativeLabel=['resistance','dodge','projectile'].includes(row.type) ? 'Conversion de la capacité' : 'Montant natif';
     const lines=[['Points directeurs',`${names[row.source]} : ${f(row.u)} saisis · seuil ${f(state.limit)}${row.attribute ? ` · ${names[row.attribute]} : ${f(row.attributeValue)} retenus` : ''}`],
@@ -711,7 +1141,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     return `<div class="detail-title">${row.name}${row.state==='normal'?'':` ${row.state}`} · Concept</div><p class="description">${row.description}</p><dl class="calculation">${lines.map(([label,value])=>`<dt>${label}</dt><dd${label==='Total'?' class="result"':''}>${value}</dd>`).join('')}</dl><div class="notice">La statistique peut être arrondie. Les coefficients affichés sont abrégés ; le calcul conserve leur précision.</div>${progressionHTML(row)}`;
   }
   function currentDetailHTML(row,snapshot) {
-    const f=value=>fmt(value,6), lines=[['Points d’Umbra',`${names[row.source]} : ${f(row.u)}`],['Don fixe supplémentaire','0 · absent des JS actuels']];
+    const f=value=>fmt(value,6), lines=[['Points d’Umbra',`${names[row.source]} : ${f(row.u)}`],['Don fixe supplémentaire','0 · absent de la référence']];
     if(row.attribute) {
       lines.push(['Coefficient',`${names[row.attribute]} × ${f(row.coefficient)} · coefficient fixe`]);
       if(row.attributeValue!==row.attributeUsed)lines.push(['Attribut retenu',`${f(row.attributeValue)} → ${f(row.attributeUsed)} (barème actuel)`]);
@@ -724,11 +1154,20 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     lines.push(['Capacité calculée',`${f(row.generated)}${row.unit}`],['Somme',`${f(row.fixedApplied)} fixe + ${f(row.plusApplied)} stat+ + ${f(row.generated)} capacité${row.roundingAdjustment?` ${row.roundingAdjustment<0?'−':'+'} ${f(Math.abs(row.roundingAdjustment))} d’arrondi final`:''} = ${f(row.uncapped)}${row.unit}`]);
     if(row.capped)lines.push(['Plafond de l’effet',`${f(row.uncapped)} → ${f(row.total)}${row.unit}`]);
     lines.push(['Total',`${f(row.total)}${row.unit}`]);
-    return `<div class="detail-title">${row.name} · Version actuelle</div><p class="description">${row.description}</p><dl class="calculation">${lines.map(([label,value])=>`<dt>${label}</dt><dd${label==='Total'?' class="result"':''}>${value}</dd>`).join('')}</dl><div class="notice">Arrondis et plafonds des JS actuels du projet. Aucun paramètre du concept n’est appliqué.</div>${progressionHTML(row)}`;
+    return `<div class="detail-title">${row.name} · ${modeName()}</div><p class="description">${row.description}</p><dl class="calculation">${lines.map(([label,value])=>`<dt>${label}</dt><dd${label==='Total'?' class="result"':''}>${value}</dd>`).join('')}</dl><div class="notice">${isMaj()?'Formule de référence conservée pour cette Umbra ; les attributs utilisent la limite commune du jeu.':'Référence avant la mise à jour.'} </div>${progressionHTML(row)}`;
   }
   function progressionHTML(row) {
+    if(row.directPercentage) {
+      const stops=[0,1,5,15,25,50,100,150,globalThis.umbraProgression.getUmbraThreshold(state),row.u];
+      const rows=[...new Set(stops)].sort((a,b)=>a-b).map(points=>{
+        const target=Lab.calculate(withUmbra(row.source,points)).results[row.key];
+        return `<tr><td>${fmt(points)}</td><td>${fmt(target.umbraUsed)}</td><td>${fmt(target.passiveCurve.ratio,4)}</td><td>${fmt(target.total,2)} %</td></tr>`;
+      }).join('');
+      return `<details data-detail-panel="progression-${row.key}"><summary>Progression de ${names[row.source]}</summary><table class="milestones"><caption>${names[row.attribute]} et apports manuels constants · New</caption><thead><tr><th>${names[row.source]} saisie</th><th>${names[row.source]} retenue</th><th>Ratio de ${names[row.attribute]}</th><th>${row.name}</th></tr></thead><tbody>${rows}</tbody></table></details>`;
+    }
     const unit=row.unit, f=value=>fmt(value,6);
-    const stops=[...new Set([0,1,5,15,25,50,100,150,...(isConcept()?[state.limit,state.limit+1,state.limit+state.curve.interval]:[]),row.u])].sort((a,b)=>a-b);
+    const umbraThreshold=globalThis.umbraProgression.getUmbraThreshold(state);
+    const stops=[...new Set([0,1,5,15,25,50,100,150,...(isConcept()?[state.limit,state.limit+1,state.limit+state.curve.interval]:isMaj()?[umbraThreshold,umbraThreshold+1]:[]),row.u])].sort((a,b)=>a-b);
     const progression=stops.map(points=>{const target=Lab.calculate(withUmbra(row.source,points)).results[row.key];return `<tr data-current="${points===row.u}"><td>${f(points)}</td><td>×${f(target.multiplier)}</td><td>${target.attribute ? f(target.coefficient) : '—'}</td><td>${f(target.total)}${unit}</td></tr>`;}).join('');
     let comparison='';
     if(row.key==='physicalDamage') {
@@ -737,12 +1176,12 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       const umbra=Lab.calculate(withUmbra('vigueur',row.u+added)).results.physicalDamage;
       comparison=`<div class="compare">À partir de ${fmt(row.total,6)} PP : <strong>+10 PP+ → ${fmt(plus.total,6)} PP</strong> (+${fmt(plus.total-row.total,6)}) · <strong>+${fmt(added)} Vigueur → ${fmt(umbra.total,6)} PP</strong> (+${fmt(umbra.total-row.total,6)}).</div>`;
     }
-    return `${comparison}<details data-detail-panel="progression-${row.key}"><summary>Progression de ${names[row.source]}</summary><table class="milestones"><caption>Autres saisies constantes · ${isConcept()?'Concept':'Version actuelle'}</caption><thead><tr><th>Points</th><th>M(U)</th><th>Coefficient</th><th>Total</th></tr></thead><tbody>${progression}</tbody></table></details>`;
+    return `${comparison}<details data-detail-panel="progression-${row.key}"><summary>Progression de ${names[row.source]}</summary><table class="milestones"><caption>Autres saisies constantes · ${modeName()}</caption><thead><tr><th>Points</th><th>M(U)</th><th>Coefficient</th><th>Total</th></tr></thead><tbody>${progression}</tbody></table></details>`;
   }
   function entryDetail(item,snapshot) {
     if(item.kind==='umbra') {
       const effects=Object.values(snapshot.results).filter(row=>row.source===item.key);
-      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]} · niveau 1</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(effects[0].multiplier,6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} · contribution : ${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
+      return `<div class="detail-title">${item.name} · ${item.spec.role} de ${names[item.spec.axis]}</div><p>${fmt(snapshot.umbras[item.key])} points de ${item.name} · ${isConcept()?`multiplicateur ×${fmt(effects[0].multiplier,6)}`:'barèmes des JS actuels'}.</p>${effects.map(row=>`<details class="source-effect" data-detail-panel="source-${row.key}"><summary>${row.name} · contribution : ${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}</summary>${detailHTML(row,snapshot)}</details>`).join('')}`;
     }
     const row=snapshot.results[item.key], part=Lab.contributions(row,snapshot.mode)[item.kind];
     return `<p class="description">${item.kind==='x'?'Capacité déjà comprise dans '+names[row.source]:'Contribution de cette ligne'} : ${fmt(part,6)}${row.unit}.</p>${detailHTML(row,snapshot)}`;
@@ -756,21 +1195,24 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     return watched;
   }
   function renderBaseSettings(item,box) {
+    box.hidden=!isMaj();
+    if(!isMaj())return;
     let specs=[];
     if(item.kind==='umbra')specs=Lab.effects.filter(spec=>spec.source===item.key);
     else if(item.kind==='plus'||item.kind==='x')specs=[item.spec];
+    if(isMaj())specs=specs.filter(spec=>spec.source==='astrality'||globalThis.umbraProgression.sources[spec.source]?.target===spec.key);
     const controls=[];
     for(const spec of specs) {
       if(spec.attribute)controls.push({group:'attributeBases',spec,label:`Base ${names[spec.attribute]} → ${spec.name}`});
-      if(['umbra','x'].includes(item.kind) && Lab.defaultUmbraBase(spec)!==null) {
+      if(['umbra','x'].includes(item.kind) && spec.key!=='astralReturn' && Lab.defaultUmbraBase(spec)!==null) {
         const suffix=['hp','preparation','precision'].includes(spec.type)?' · facteur de courbe native':spec.type==='regen'?' · % HP / point':spec.type==='critical'?' · % / point':' · points / point';
         controls.push({group:'umbraBases',spec,label:`Base ${names[spec.source]} → ${spec.name}`,suffix});
       }
     }
-    const signature=controls.map(control=>`${control.group}:${control.spec.key}`).join('|');
+    const signature=(isMaj()?'maj:':'')+controls.map(control=>`${control.group}:${control.spec.key}`).join('|');
     if(box.dataset.signature!==signature) {
       box.dataset.signature=signature;box.replaceChildren();
-      if(controls.length) { const note=document.createElement('small');note.textContent='Bases initiales · Concept';box.append(note); }
+      if(controls.length) { const note=document.createElement('small');note.textContent=isMaj()?'Bases du jeu · New':'Bases initiales · Concept';box.append(note); }
       for(const {group,spec,label,suffix=''} of controls) {
         const wrapper=document.createElement('label'),text=document.createElement('span'),input=document.createElement('input');
         text.textContent=label+suffix;input.type='number';input.min='0';input.step='any';
@@ -778,21 +1220,35 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
         wrapper.append(text,input);box.append(wrapper);
       }
     }
-    for(const input of box.querySelectorAll('input'))if(document.activeElement!==input)input.value=state[input.dataset.baseGroup][input.dataset.baseEffect];
+    for(const input of box.querySelectorAll('input')) {
+      input.disabled=isMaj();
+      const spec=Lab.effects.find(spec=>spec.key===input.dataset.baseEffect),cfg=spec.source==='astrality'?globalThis.umbraProgression.astrality[spec.key]:globalThis.umbraProgression.sources[spec.source];
+      if(document.activeElement!==input)input.value=isMaj()?cfg.ratios[input.dataset.baseGroup==='attributeBases'?'attribute':'source']:state[input.dataset.baseGroup][input.dataset.baseEffect];
+    }
   }
   function renderStatTotals(snapshot) {
     const watched=selectedEffectKeys();
-    const totals=$('#stat-totals'); totals.replaceChildren();
+    const totals=$('#stat-totals');
+    for(const box of [...totals.children])if(!watched.has(box.dataset.statSummary))box.remove();
     const labels={physicalDamage:'PP totale',magicalDamage:'PM totale',piercingDamage:'Puissance perçante totale'};
     for(const spec of Lab.effects)if(watched.has(spec.key)) {
       const row=snapshot.results[spec.key], parts=Lab.contributions(row,snapshot.mode);
-      const box=document.createElement('div'); box.className='stat-total'; box.dataset.statSummary=spec.key;
-      const label=document.createElement('span'); label.textContent=labels[spec.key]||`${spec.name} · total`;
-      const output=document.createElement('output'); output.dataset.statTotal=spec.key; output.textContent=`${fmt(row.total,6)}${row.unit}`;
+      let box=totals.querySelector(`[data-stat-summary="${spec.key}"]`);
+      if(!box){
+        box=document.createElement('div');box.className='stat-total';box.dataset.statSummary=spec.key;
+        for(const tag of ['span','output','small','button'])box.append(document.createElement(tag));
+        totals.append(box);
+      }
+      const [label,output,detail,chart]=box.children;
+      label.textContent=labels[spec.key]||`${spec.name} · total`;
+      output.dataset.statTotal=spec.key; output.textContent=row.chancePercent!=null?`${fmt(row.chancePercent,2)} %`:`${fmt(row.total,6)}${row.unit}`;
+      if(row.chancePercent!=null)output.title=row.directPercentage?`${fmt(row.total,2)} % appliqués`:`${fmt(row.total,6)} points (${row.name})`;
       output.setAttribute('aria-label',label.textContent);
-      const detail=document.createElement('small'); detail.dataset.breakdown=spec.key;
+      detail.dataset.breakdown=spec.key;
       detail.textContent=`Fixe ${fmt(parts.fixed,6)} + Stat+ ${fmt(parts.plus,6)} + ${names[row.source]} ${fmt(parts.umbra,6)}${row.unit}${row.capped?' · plafond atteint':''}`;
-      box.append(label,output,detail); totals.append(box);
+      if(row.resistancePoints)detail.textContent+=` · ${fmt(row.reductionPercent,2)} % de réduction ${row.key==='magicalResistance'?'magique':'physique'}`;
+      chart.type='button';chart.dataset.showCurve=spec.key;
+      chart.textContent='Voir la courbe';chart.setAttribute('aria-label',`Voir la courbe de ${spec.name}`);
     }
   }
   function curveSample(points,snapshot) {
@@ -807,17 +1263,17 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     const dpr=window.devicePixelRatio||1, W=rect.width, H=rect.height;
     canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
     const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
-    const L=55,R=20,T=24,B=37, n=row.u, interval=state.curve.interval;
-    const X=Math.max(4*interval,Math.ceil(Math.max(state.limit,n)/interval)*interval);
+    const L=55,R=20,T=24,B=37, n=row.u, limit=isMaj()?snapshot.limit:state.limit, interval=isMaj()?Math.max(1,globalThis.umbraProgression.progression.limit):state.curve.interval;
+    const X=Math.max(4*interval,Math.ceil(Math.max(limit,n)/interval)*interval);
     const history=isConcept()?(state.limitHistory?.[row.source]||[]):[];
-    const value=x=>curveView==='ratio'?(isConcept()?Lab.multiplier(x,state.curve,state.limit,history):1):curveSample(x,snapshot).total;
+    const value=x=>curveView==='ratio'?(isConcept()?Lab.multiplier(x,state.curve,state.limit,history):isMaj()?curveSample(x,snapshot).multiplier:1):curveSample(x,snapshot).total;
     const current=curveView==='ratio'?row.multiplier:row.total;
-    const samples=[...new Set([...Array.from({length:181},(_,i)=>X*i/180),state.limit,n,...history.flatMap(segment=>[segment.start,segment.limit])])].filter(x=>x<=X).sort((a,b)=>a-b).map(x=>[x,value(x)]);
+    const samples=[...new Set([...Array.from({length:181},(_,i)=>X*i/180),limit,n,...history.flatMap(segment=>[segment.start,segment.limit])])].filter(x=>x<=X).sort((a,b)=>a-b).map(x=>[x,value(x)]);
     const Y=Math.max(1,current,...samples.map(p=>p[1]))*1.12;
     const px=x=>L+x/X*(W-L-R),py=y=>H-B-y/Y*(H-T-B);
-    canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(state.limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;canvas.dataset.profile=state.curve.type;
+    canvas.dataset.current=String(current); canvas.dataset.points=String(n); canvas.dataset.limit=String(limit); canvas.dataset.effect=curveEffect; canvas.dataset.view=curveView;canvas.dataset.profile=isMaj()?globalThis.umbraProgression.progression.curve.profile:state.curve.type;
     canvas.dataset.departure=String(row.segmentStart??0);
-    canvas.setAttribute('aria-label',`${curveView==='ratio'?'Multiplicateur des ratios':'Total '+row.name} : ${fmt(current,4)} à ${fmt(n)} points de ${names[row.source]}. Limite ${fmt(state.limit)}. ${isConcept()?'Concept':'Version actuelle'}.`);
+    canvas.setAttribute('aria-label',`${curveView==='ratio'?'Multiplicateur des ratios':'Total '+row.name} : ${fmt(current,4)} à ${fmt(n)} points de ${names[row.source]}. Limite ${fmt(limit)}. ${modeName()}.`);
     ctx.font='11px system-ui'; ctx.fillStyle='#a8b4bc'; ctx.textAlign='right';
     for(let i=0;i<=4;i++) { const y=Y*i/4; ctx.beginPath();ctx.strokeStyle='#343e46';ctx.lineWidth=1;ctx.moveTo(L,py(y));ctx.lineTo(W-R,py(y));ctx.stroke();ctx.fillText(fmt(y,curveView==='ratio'?2:0),L-7,py(y)+4); }
     ctx.textAlign='left';ctx.fillText(curveView==='ratio'?'M(U) · ×':'Total'+row.unit,L,13);
@@ -828,7 +1284,7 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       ctx.beginPath();ctx.strokeStyle='#e1a65755';ctx.setLineDash([4,5]);ctx.moveTo(px(x),T);ctx.lineTo(px(x),H-B);ctx.stroke();ctx.setLineDash([]);ctx.fillText(fmt(x,0),px(x),H-20);
     }
     ctx.fillText(`Points de ${names[row.source]}`,L+(W-L-R)/2,H-3);
-    ctx.beginPath();ctx.strokeStyle='#ed836f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.moveTo(px(state.limit),T);ctx.lineTo(px(state.limit),H-B);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.strokeStyle='#ed836f';ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.moveTo(px(limit),T);ctx.lineTo(px(limit),H-B);ctx.stroke();ctx.setLineDash([]);
     if(isConcept())for(const {start} of history)if(start>0) {
       ctx.beginPath();ctx.strokeStyle='#8db8ff';ctx.lineWidth=1.5;ctx.setLineDash([2,3]);ctx.moveTo(px(start),T);ctx.lineTo(px(start),H-B);ctx.stroke();ctx.setLineDash([]);
     }
@@ -842,11 +1298,21 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   function renderCurve(snapshot) {
     const row=snapshot.results[curveEffect], source=row.source;
+    const passive=!!row.directPercentage||!!row.uniquePassive;
+    $('#curve-view').querySelector('option[value="ratio"]').disabled=passive;
+    if(passive)curveView='total';
+    $('#curve-profile').closest('label').hidden=!isMaj();
+    $('#curve-settings').hidden=!isMaj();
+    $('#curve-common-rules').hidden=!isMaj();
+    const live=globalThis.umbraProgression.progression,gameCurve={...live.curve,...live.curves[row.directPercentage?row.attribute:source]};
+    const shownCurve=isMaj()?{type:gameCurve.profile,shape:gameCurve.intensity,res:gameCurve.residualPercent/100,mid:50}:state.curve;
     $('#curve-effect').value=curveEffect; $('#curve-view').value=curveView;
-    $('#curve-profile').value=state.curve.type;
+    $('#curve-profile').value=shownCurve.type;$('#curve-profile').disabled=isMaj();
+    $('#curve-profile-label').textContent=isMaj()?'Profil du jeu':'Profil Concept';
     $('#curve-common-rules').textContent=`Cycle normal : ${fmt(balance.referenceLimit)} points · Gain commun : +${fmt(balance.gain)} % du ratio de départ. Au-delà de la limite : rendement ${fmt(state.curve.res*100,4)} %.`;
     for(const [key,,min,,step] of curveControls) {
-      const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=state.curve[key]*(key==='res'?100:1);
+      const slider=root.querySelector(`[data-curve="${key}"]`),input=root.querySelector(`[data-curve-number="${key}"]`),value=shownCurve[key]*(key==='res'?100:1);
+      slider.disabled=isMaj();input.disabled=isMaj();
       // Keep precise typed values on the slider, while retaining its usual
       // increments when the value falls on a step of the original control.
       const ticks=(value-min)/step;
@@ -854,24 +1320,98 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       input.step=slider.step;
       if(document.activeElement!==input)input.value=value;
     }
-    root.querySelector('[data-curve="mid"]').closest('.curve-field').hidden=state.curve.type!=='sigmoid';
-    root.querySelector('[data-curve-help="shape"]').textContent=shapeHelp[state.curve.type];
-    $('#curve-softcap').textContent=isConcept()?`${names[source]} : départ de la courbe à ${fmt(row.segmentStart)} points${row.segmentIndex>0?' (repère bleu)':''} · seuil ${fmt(row.segmentLimit)}. ${fmt(row.overflow)} point${row.overflow>1?'s':''} hors seuil : ${fmt(row.residualRate*100,4)} % des gains supplémentaires conservés. La projection conserve cette limite.`:'Projection selon les JS actuels ; aucun rendement résiduel du Concept n’est appliqué.';
-    $('#curve-context').textContent=isConcept()?`${profileByType[state.curve.type].description} Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Version actuelle : la courbe et les chiffres suivent les JS du jeu. Le profil et ses réglages sont conservés et s’appliquent en Concept.';
+    root.querySelector('[data-curve="mid"]').closest('.curve-field').hidden=shownCurve.type!=='sigmoid';
+    root.querySelector('[data-curve-help="shape"]').textContent=shapeHelp[shownCurve.type];
+    root.querySelector('[data-curve-help="res"]').textContent=isMaj()?`Dans le jeu, ce réglage ralentit seulement la progression des ratios après la limite. À 1 %, un supplément de ratio de 1 devient 0,01. Les points de stat ont leur propre rendement : niveaux à ${fmt(live.levelOverflowRate*100)} %, bonus externes à ${fmt(live.otherOverflowRate*100)} % au-delà du seuil.`:curveHelp.res;
+    const limitHint=root.querySelector('[data-entity-help="limit"]');
+    limitHint.textContent=isMaj()?`Limite de l’entité : ${fmt(globalThis.umbraProgression.getUmbraThreshold(state))} points. Cycle de courbe : ${fmt(live.limit)} points. Jusqu’au seuil, les points comptent entièrement. Au-delà, les gains naturels comptent à ${fmt(live.levelOverflowRate*100)} % et les bonus externes à ${fmt(live.otherOverflowRate*100)} %. Ce réglage est partagé avec le jeu ; les stats fixes restent illimitées.`:limitHint.dataset.conceptHelp;
+    $('#curve-softcap').textContent=isConcept()?`${names[source]} : départ de la courbe à ${fmt(row.segmentStart)} points${row.segmentIndex>0?' (repère bleu)':''} · seuil ${fmt(row.segmentLimit)}. ${fmt(row.overflow)} point${row.overflow>1?'s':''} hors seuil : ${fmt(row.residualRate*100,4)} % des gains supplémentaires conservés. La projection conserve cette limite.`:'Old : projection des anciennes formules.';
+    $('#curve-context').textContent=isConcept()?`${profileByType[state.curve.type].description} Les points de ${names[source]} font évoluer ses ratios. Un réglage recalcule toutes les Umbras de cette entité.`:'Old : référence des formules avant mise à jour. ';
     const adjusted=isConcept()&&(row.overflow>0||row.segmentIndex>0);
     $('#curve-attribute').textContent=row.attribute?adjusted?`${names[row.attribute]} : ratio ×${fmt(row.coefficient,6)} · apport retenu ${fmt(row.attributeGain,6)}${row.unit}`:`${names[row.attribute]} × ${fmt(row.coefficient,6)} → ${fmt(row.attributeGain,6)}${row.unit}`:'Aucun ratio d’attribut';
     const nativeRatio=row.type==='power'||row.type==='resistance'||row.type==='dodge' ? `${names[source]} × ${fmt(isConcept()?row.umbraCoefficient:1,6)} → ${fmt(isConcept()?row.nativeGain:row.native,6)} points` : row.type==='regen'?`HP × ${fmt(row.nativeRatio*100,6)} % → ${fmt(row.native,6)} HP`:`${fmt(row.native,6)}${row.unit}`;
     $('#curve-native').textContent=adjusted?`${names[source]} : apport natif retenu ${fmt(row.nativeGain,6)}${row.unit} · don fixe ${fmt(row.gift,6)}${row.unit}`:nativeRatio;
-    $('#curve-total').textContent=`${fmt(row.total,6)}${row.unit} · ${row.name}`;
+    $('#curve-total').textContent=`${fmt(row.total,row.directPercentage?2:6)}${row.unit} · ${row.name}${row.key==='velocity'?` · Retraite agile ${fmt(globalThis.umbraProgression.retreatChance(row.total),2)} %`:''}${row.chancePercent!=null&&!row.directPercentage?` · ${fmt(row.chancePercent,2)} %`:''}`;
+    if(row.resistancePoints)$('#curve-total').textContent+=` · ${fmt(row.reductionPercent,2)} % de réduction`;
     const next=curveSample(row.u+1,snapshot);
     $('#curve-next').textContent=`+1 ${names[source]}${isConcept()&&row.u>=row.segmentLimit?' au rendement résiduel':''} : ${fmt(next.total,6)}${row.unit} au total (+${fmt(next.total-row.total,6)}). Don fixe actuel : ${fmt(row.gift,6)}${row.unit}.`;
+    if(isMaj()) {
+      const live=globalThis.umbraProgression.progression,c={...live.curve,...live.curves[source]};
+      $('#curve-common-rules').textContent=`New · cycle ${fmt(live.limit)} points · gain +${fmt(c.gainPercent)} % · courbure ${fmt(c.intensity)} · progression des ratios hors limite ${fmt(c.residualPercent,4)} %. Réglages du jeu en lecture seule.`;
+      $('#curve-softcap').textContent=`Limite de l’entité : ${fmt(globalThis.umbraProgression.getUmbraThreshold(state))}. Points naturels hors limite retenus à ${fmt(live.levelOverflowRate*100)} %. Bonus externes : ${fmt(live.otherOverflowRate*100)} % (non simulés ici).`;
+      $('#curve-context').textContent=row.updated?`New · ${names[source]} fait évoluer son propre ratio ; ${names[row.attribute]} fait évoluer le sien. Réglages et calculs partagés avec le jeu.`:'Cette Umbra garde sa formule de référence. Ses attributs suivent la limite commune du jeu.';
+      if(row.updated) {
+        $('#curve-attribute').textContent=`${names[row.attribute]} : ${fmt(row.attributeUsed)} × base ${fmt(row.attributeBase)} × courbe ${fmt(row.attributeMultiplier,6)} → ${fmt(row.attributeGain,6)}`;
+        $('#curve-native').textContent=`${names[source]} : ${fmt(row.umbraUsed)} × base ${fmt(row.umbraBase)} × courbe ${fmt(row.multiplier,6)} → ${fmt(row.nativeGain,6)} · don fixe ${fmt(row.gift,6)}`;
+      }
+      if(row.critical||row.ratioPercent) {
+        $('#curve-context').textContent='New · calcul partagé avec le jeu. Les gains sont directement exprimés en %.';
+        $('#curve-attribute').textContent=row.uniquePassive?'Aucun ratio d’attribut':`${names[row.attribute]} : ${fmt(row.attributeUsed)} → ${fmt(row.attributeGain,4)} %`;
+        $('#curve-native').textContent=`${names[row.source]} : ${fmt(row.umbraUsed)} → ${fmt(row.nativeGain,4)} % accordés${row.common?` ; base native ${fmt(row.common)} %`:''}`;
+      }
+      if(row.returnDetails) { $('#curve-context').textContent='Retour astral : Force pour le budget de soin ; Agilité pour le cooldown astral. Intelligence et quantité d’Astralité ne changent ni le soin ni le délai.'; $('#curve-native').textContent=`${fmt(row.returnDetails.percent,2)} % des HP maximum sur ${fmt(row.returnDetails.seconds,2)} s ; Survie fatale indisponible pendant cette durée.`; }
+      if(row.directPercentage) {
+        const c=row.passiveCurve;
+        $('#curve-context').textContent=`New · ${names[row.source]} génère directement ${row.name} en %. Le ratio évolutif de ${names[row.attribute]} accélère sa progression.`;
+        $('#curve-common-rules').textContent=`Limite ${fmt(c.max)} % · étalement ${fmt(c.constant)} · influence de ${names[row.attribute]} ${fmt(c.influence)}. Réglages du jeu en lecture seule.`;
+        $('#curve-attribute').textContent=`${names[row.attribute]} retenue : ${fmt(row.attributeUsed)} · ratio ×${fmt(c.ratio,4)}`;
+        if(['resilienceTotal','equilibreBalancedAttackChance','controlledSpeed'].includes(row.key)) {
+          const base=globalThis.umbraProgression[row.source][row.key].sourceRatio;
+          $('#curve-attribute').textContent=`${names[row.attribute]} retenue : ${fmt(row.attributeUsed)} · progression ×${fmt(c.curveRatio,4)} · coefficient avant conversion ${fmt(base*c.curveRatio,4)}`;
+        }
+        $('#curve-native').textContent=`${names[row.source]} retenue : ${fmt(row.umbraUsed)} → ${fmt(row.generated,2)} % accordés`;
+        $('#curve-next').textContent=`+1 ${names[row.source]} : ${fmt(next.total,2)} % au total (+${fmt(next.total-row.total,4)} %).`;
+      }
+    }
     drawCurve();
   }
+  function majPart(part) {
+    const f=value=>String(value);
+    return `${f(part.points)} × ${f(part.coefficient)} = ${f(part.raw)} avant arrondi ; retenu : ${f(part.value)}`
+      + (part.points>part.normalPoints?` (${f(part.normalRaw)} au seuil, arrondi au plus proche : ${f(part.normalValue)} + ${f(part.extra)} hors seuil)`:' (arrondi au plus proche)');
+  }
+  function majSummary(row,snapshot) {
+    const f=value=>fmt(value,6),p=row.pointLimit,a=row.attributePointLimit,parts=Lab.contributions(row,snapshot.mode);
+    if(row.returnDetails) {
+      const r=row.returnDetails;
+      if(!r.points)return '<div class="ratio-breakdown" data-umbra-breakdown="astralReturn"><b>Retour astral · New</b><br>Capacité inactive : nécessite Astralité.</div>';
+      return `<div class="ratio-breakdown umbra-breakdown" data-umbra-breakdown="astralReturn"><b>Retour astral · New</b><br>Score : ${f(r.strength)} Force × ${f(r.attributeRatio)} = ${f(r.weight)}<br>Soin : ${f(r.basePercent)} + (${f(r.maxPercent)} − ${f(r.basePercent)}) × ${f(r.weight)} / (${f(r.constant)} + ${f(r.weight)}) = ${f(r.percent)} %<br>${f(r.maxHP)} HP max × ${f(r.percent)} / 100 = ${f(r.amount)} HP, par versements de ${r.tickAmount} HP.<br>Durée du soin = cooldown astral : ${f(r.seconds)} s, réduit uniquement par l’Agilité. Aucun délai supplémentaire.<br>Plafond du soin : ${f(r.maxPercent)} % à l’infini.</div>`;
+    }
+    if(row.critical||row.ratioPercent) {
+      const calculation=row.criticalParts.map(part=>part.compact?`${f(part.compact.source.value)} ${names[part.stat]} × ${f(part.compact.multiplier.value)}`:`${f(part.points)} Puissance critique × ${f(part.coefficient)}`).join(' + ');
+      return `<div class="ratio-breakdown umbra-breakdown" data-umbra-breakdown="${row.key}"><b>${row.name}${row.uniquePassive?' · Passive exclusive':''} · New</b><br>${calculation} = ${f(row.generated)} %<br>Contribution de ${names[row.source]} : ${f(parts.umbra)} %<br>Total de l’entité : ${f(row.total)} %${row.common?` (dont ${f(row.common)} % de base)`:` · limite ${f(row.cap)} % à l’infini`}${row.cooldownDetails?`<br><b>Cooldown astral : ${f(row.cooldownDetails.seconds)} s</b><br>${row.umbraUsed>0?`Score d’Agilité : ${f(row.cooldownDetails.agility)} × ${f(row.cooldownDetails.attributeRatio)} = ${f(row.cooldownDetails.weight)}<br>${f(row.cooldownDetails.baseSeconds)} − (${f(row.cooldownDetails.baseSeconds)} − ${f(row.cooldownDetails.minSeconds)}) × score / (${f(row.cooldownDetails.constant)} + score).`:'Délai de base fixe sans Umbra ; aucune réduction par l’Agilité.'}`:''}${row.bodyDetails?`<br>Contrôle toutes les ${f(row.bodyDetails.checkSeconds)} s d’inactivité. Durée : ${f(globalThis.umbraProgression.astrality.astralBody.baseDurationSeconds)} × ${f(row.bodyDetails.ratio)} = ${f(row.bodyDetails.seconds)} s.<br>Aucun jet pendant l’effet ; nouvelle attente après sa fin.`:''}${row.key==='velocity'?`<br>Durée d’un tour de référence de 10 s : ${fmt(globalThis.umbraProgression.velocityTiming(row.total,10000).seconds,3)} s.<br>Retraite agile : ${fmt(globalThis.umbraProgression.vivacite.retreat.basePercent)} % + ${fmt(row.total,2)} %, limité à 99 % = ${fmt(globalThis.umbraProgression.retreatChance(row.total),2)} % par tentative.`:''}</div>`;
+    }
+    if(row.directPercentage) {
+      const c=row.passiveCurve;
+      const lines=[`<b>${row.name} · Passive exclusive · New</b>`,
+        `${names[row.source]} : ${f(p.natural)} saisis → ${f(p.value)} retenus ; ${names[row.attribute]} : ${f(a.natural)} → ${f(a.value)}. Seuil d’Umbra ${f(p.limit)}.`,
+        `Ratio de ${names[row.attribute]} r = ${f(c.ratio)}.`,
+        c.origin?`${f(c.points)} ${names[row.source]} × ${f(c.ratio)} = ${f(c.percent)} %`:c.points<=1?`${f(c.points)} Vision × ${f(c.first)} % = ${f(c.percent)} %`
+          : `${f(c.first)} + ${f(c.max-c.first)} / (1 + ${f(c.constant)} / ((${f(c.points)} − 1) × r)) = ${f(c.percent)} %`,
+        `<strong>Contribution de ${names[row.source]} : ${f(parts.umbra)} %</strong>`,
+        `Total : ${f(parts.umbra)} % de ${names[row.source]} + ${f(parts.fixed+parts.plus)} % manuels = <strong>${fmt(row.total,2)} %</strong>`];
+      return `<div class="ratio-breakdown umbra-breakdown" data-umbra-breakdown="${row.key}">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
+    }
+    const lines=[`<b>${row.name} · New</b>`,
+      `${names[row.source]} : ${f(p.natural)} saisis → ${f(p.value)} retenus${row.attribute?` ; ${names[row.attribute]} : ${f(a.natural)} → ${f(a.value)}`:''}. Limite ${f(p.limit)}.`,
+      ...(row.attribute?[`${names[row.attribute]} : ${majPart(row.attributePart)}`]:[]),
+      `${names[row.source]} : ${majPart(row.sourcePart)}`,
+      `Don fixe de l’Umbra : ${f(row.umbraUsed)} × ${f(row.giftRate)} = ${f(row.gift)}`,
+      `<strong>Contribution de l’Umbra : ${f(row.nativeGain)} + ${row.u>0?f(row.attributeGain):'0'} + ${f(row.gift)} = ${f(parts.umbra)}</strong>`,
+      `Total : ${f(parts.fixed)} fixe + ${f(parts.plus)} stat+ + ${f(parts.umbra)} Umbra = <strong>${f(row.total)}</strong>`];
+    if(row.resistancePoints)lines.push(`Réduction ${row.key==='magicalResistance'?'magique':'physique'} : ${f(row.total)} / (${f(row.total)} + ${f(row.resistanceConstant)}) × 100 = <strong>${fmt(row.reductionPercent,2)} %</strong>`);
+    if(row.precisionPoints)lines.push(`Réduction de l’esquive adverse : <strong>${fmt(row.chancePercent,2)} %</strong> pour ${f(row.total)} points de Précision.`);
+    if(row.dodgePoints)lines.push(`Chance d’esquive : 99 × ${f(row.total)} / (${f(row.total)} + 98) = <strong>${String(row.chancePercent)} %</strong>`);
+    return `<div class="ratio-breakdown umbra-breakdown" data-umbra-breakdown="${row.key}">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
+  }
   function powerPlusSummary(row,snapshot) {
-    const f=value=>fmt(value,6),unit={physicalDamage:'PP',magicalDamage:'PM',piercingDamage:'puissance perçante'}[row.key];
+    if(row.critical||row.ratioPercent)return `<div class="ratio-breakdown">Apport direct : ${fmt(row.plusApplied,2)} %. ${row.umbraUsed>0?`Ratio de ${names[row.attribute]} compris dans ${names[row.source]}.`:`Ratio fixe de ${names[row.attribute]}, pondéré vers la limite : ${fmt(row.generated,4)} %.`}<br>Contribution : ${fmt(Lab.contributions(row,snapshot.mode).plus,4)} %.</div>`;
+    if(row.directPercentage)return `<div class="ratio-breakdown">Apport manuel : ${fmt(row.plusApplied,2)} %. Appliqué après la passive : ${fmt(Lab.contributions(row,snapshot.mode).plus,2)} %.</div>`;
+    const f=value=>row.updated?String(value):fmt(value,6),unit={physicalDamage:'PP',magicalDamage:'PM',piercingDamage:'puissance perçante',physicalResistance:'RP',magicalResistance:'RM',dodge:'points d’esquive',precision:'points de Précision',bullsEye:'points de Bull’s Eye'}[row.key]||row.unit;
     const direct=row.plusApplied??row.plus,contribution=Lab.contributions(row,snapshot.mode).plus;
     const attribute=names[row.attribute],used=row.attributeUsed??row.attributeValue;
     const lines=[`Apport direct : ${f(direct)} ${unit}`];
+    if(!row.attribute)return `<div class="ratio-breakdown">${lines[0]}<br>Contribution de la ligne : ${f(contribution)} ${unit}</div>`;
     if(row.u>0 && row.active) {
       lines.push(`Bonus de ${attribute} : compté dans ${names[row.source]} (ratio ×${f(row.coefficient)}).`,
         `<strong>Contribution de la ligne : ${f(contribution)} ${unit}</strong>`);
@@ -880,12 +1420,13 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       // Without an Umbra, this power's generated amount is the attribute bonus,
       // including the current-mode rounding of the combined native amount.
       const bonus=row.generated,rounded=Math.abs(row.attributeRaw-bonus)>1e-8;
-      lines.push(`${attribute} : ${f(used)} × ${f(row.coefficient)} = ${f(row.attributeRaw)}${rounded?` → ${f(bonus)}`:''} ${unit}${rounded?` (${snapshot.mode==='concept'?'arrondi supérieur':'arrondi au plus proche'})`:''}`,
+      lines.push(`${attribute} : ${row.updated?majPart(row.attributePart):`${f(used)} × ${f(row.coefficient)} = ${f(row.attributeRaw)}${rounded?` → ${f(bonus)}`:''}${rounded?` (${snapshot.mode==='concept'?'arrondi supérieur':'arrondi au plus proche'})`:''}`} ${unit}`,
         `<strong>Contribution : ${f(direct)} + ${f(bonus)} = ${f(contribution)} ${unit}</strong>`);
     } else lines.push(`Bonus de ${attribute} inactif : aucun point de stat +.`,`<strong>Contribution : 0 ${unit}</strong>`);
     return `<div class="ratio-breakdown">${lines.map(line=>`<div>${line}</div>`).join('')}</div>`;
   }
   function umbraSummary(row,snapshot) {
+    if(row.updated)return majSummary(row,snapshot);
     const f=value=>fmt(value,6),concept=snapshot.mode==='concept',parts=Lab.contributions(row,snapshot.mode);
     const unit=' '+({physicalDamage:'PP',magicalDamage:'PM',piercingDamage:'puissance perçante',HP:'HP'}[row.key]||row.unit.trim()||'points');
     const adjusted=concept&&(row.overflow>0||row.segmentIndex>0),lines=[`<b>${row.name}</b>`];
@@ -920,13 +1461,20 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
   }
   function render() {
     const snapshot=Lab.calculate(state);
-    $('#mode-name').textContent=isConcept()?'Concept':'Version actuelle';
-    $('#mode-toggle').setAttribute('aria-pressed',String(!isConcept()));
-    $('#mode-toggle').setAttribute('aria-label',isConcept()?'Passer à la version actuelle':'Passer au concept');
-    $('#limit').title='Limite appliquée au calcul Concept ; les points saisis sont conservés dans les deux modes.';
-    for(const [id,value] of [['level',state.level],['limit',state.limit]]) {
+    for(const button of root.querySelectorAll('[data-mode]')) {
+      const active=button.dataset.mode===state.mode;button.setAttribute('aria-selected',String(active));button.tabIndex=active?0:-1;
+      if(active)$('#mode-panel').setAttribute('aria-labelledby',button.id);
+    }
+    $('#maj-context').hidden=!isMaj();
+    if(isMaj())$('#maj-context').textContent=`New · calculs du jeu : seuil de ${fmt(snapshot.limit)} points appliqué indépendamment à chaque Umbra de cette entité. Les saisies représentent des points naturels.`;
+    $('#current-rules').hidden=isMaj();
+    $('#limit').title='New utilise le seuil d’Umbra de cette entité. Les saisies sont conservées entre New et Old.';
+    for(const [id,value] of [['level',state.level],['limit',isMaj()?snapshot.limit:state.limit]]) {
+      $(`#${id}`).disabled=isMaj()&&id==='limit';
+      root.querySelector(`[data-reset-setting="${id}"]`).disabled=isMaj()&&id==='limit';
       if(document.activeElement!==$(`#${id}`))$(`#${id}`).value=value;
       const slider=root.querySelector(`[data-entity-setting="${id}"]`);
+      slider.disabled=isMaj()&&id==='limit';
       slider.max=Math.max(id==='limit'?balance.referenceLimit*4:100,value,Number(slider.max),1);
       slider.step=Number.isInteger(value)?'1':'any';slider.value=value;
     }
@@ -947,14 +1495,15 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       const ratio=tr.querySelector('.ratio-summary'), total=tr.querySelector('.total');
       if(item.kind==='umbra') {
         const effects=Object.values(snapshot.results).filter(row=>row.source===item.key),sourceRow=effects[0];
-        ratio.innerHTML=isConcept()?`M(U) = ×${fmt(sourceRow.multiplier,6)}<small>Départ ${fmt(sourceRow.segmentStart)} · seuil ${fmt(sourceRow.segmentLimit)} · ${fmt(sourceRow.overflow)} hors limite à ${fmt(sourceRow.residualRate*100,4)} %</small>`:'Ratios des JS actuels<small>Sans multiplicateur global</small>';
+        ratio.innerHTML=isConcept()?`M(U) = ×${fmt(sourceRow.multiplier,6)}<small>Départ ${fmt(sourceRow.segmentStart)} · seuil ${fmt(sourceRow.segmentLimit)} · ${fmt(sourceRow.overflow)} hors limite à ${fmt(sourceRow.residualRate*100,4)} %</small>`:sourceRow.updated?`Courbes indépendantes · New<small>Base attribut ${fmt(sourceRow.attributeBase)} · base Umbra ${fmt(sourceRow.umbraBase)}</small>`:'Formule de référence<small>Ratio fixe</small>';
         ratio.innerHTML+=effects.map(row=>umbraSummary(row,snapshot)).join('');
+        if(item.key==='robustness')ratio.innerHTML+='<div class="ratio-breakdown" data-passive="solarArmor"><b>Armure solaire · Passive exclusive</b><br>Au début de chaque journée, restaure entièrement l’armure accordée par Robustesse si l’entité est vivante. Les équipements, sorts et bonus autonomes ne sont pas rechargés.</div>';
         total.innerHTML=effects.map(row=>`<span data-contribution-stat="${row.key}">${fmt(Lab.contributions(row,snapshot.mode).umbra,6)}${row.unit}<small>${row.name}</small></span>`).join('');
       } else {
         const row=snapshot.results[item.key];
         const coefficient=row.attribute ? `${names[row.attribute]} × ${fmt(row.coefficient,4)}` : row.type==='regen' ? `HP × ${fmt(row.nativeRatio*100,4)} %` : 'Montant calculé';
         if(item.kind==='fixed')ratio.textContent=`+${fmt(row.fixed)}${row.unit} directs`;
-        if(item.kind==='plus')ratio.innerHTML=row.type==='power'?powerPlusSummary(row,snapshot):`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
+        if(item.kind==='plus')ratio.innerHTML=row.type==='power'||row.resistancePoints||row.chancePercent!=null?powerPlusSummary(row,snapshot):`+${fmt(row.plus)}${row.unit} directs<small>${row.active?`${coefficient}${row.u>0?` · imposé par ${names[row.source]}`:''}`:'Capacité inactive'}</small>`;
         if(item.kind==='x')ratio.innerHTML=row.u>0 && row.active?`Capacité : ${fmt(row.generated,6)}${row.unit}<small>${coefficient} · ${names[row.source]}</small>`:!isConcept() && row.type==='critical'?'Inactive · nécessite Dégâts critiques +':`Inactive · nécessite ${names[row.source]}`;
         if(!isConcept() && !row.supportsDirect && item.kind!=='x')ratio.textContent='Aucun apport direct équivalent dans les JS actuels';
         const parts=Lab.contributions(row,snapshot.mode);
@@ -1027,9 +1576,14 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
       root.querySelector(`[data-entity-setting="${key}"]`).max=key==='limit'?Math.max(1,balance.referenceLimit*4):100;
       render();$('#status').textContent=key==='limit'?`Limite réinitialisée à ${fmt(state.limit)} points.`:'Niveau réinitialisé à 1.';
     }
-    if(button.dataset.ui==='mode-toggle') {
-      state.mode=isConcept()?'current':'concept'; render();
-      $('#status').textContent=`Calculs : ${isConcept()?'Concept':'Version actuelle'} · saisies conservées.`;
+    if(button.dataset.mode) {
+      state.mode=button.dataset.mode; render();
+      $('#status').textContent=`Calculs : ${modeName()} · saisies conservées.`;
+    }
+    if(button.dataset.showCurve) {
+      curveEffect=button.dataset.showCurve;curveView='total';render();
+      const panel=$('#curve-chart').closest('details');panel.open=true;panel.scrollIntoView({block:'start'});
+      $('#curve-effect').focus({preventScroll:true});
     }
     if(button.dataset.add) {
       const item=entries[button.dataset.add], added=addEntry(item);
@@ -1054,6 +1608,11 @@ Changer cette valeur recalcule toutes les courbes du Concept. Tes points et les 
     }
   });
   root.addEventListener('keydown',event=>{
+    if(event.target.matches('[data-mode]') && ['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) {
+      const buttons=[...root.querySelectorAll('[data-mode]')],index=buttons.indexOf(event.target);
+      const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowRight'?1:buttons.length-1))%buttons.length;
+      buttons[next].click();buttons[next].focus();event.preventDefault();return;
+    }
     const picker=event.target.closest('.picker');
     if(event.key==='Escape' && picker){picker.open=false;picker.querySelector('summary').focus();event.preventDefault();}
   });

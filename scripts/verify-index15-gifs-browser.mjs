@@ -7,10 +7,10 @@ import { extname, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 const output = resolve('outputs/index-15-gifs');
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ executablePath: process.env.VISUAL_LAB_BROWSER || 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true });
+const browser = await chromium.launch({ ...(process.env.VISUAL_LAB_BROWSER ? { executablePath: process.env.VISUAL_LAB_BROWSER } : {}), headless: true });
 const page = await browser.newPage({ viewport: { width: 1536, height: 1000 } });
 const checks = [], errors = [], frames = {};
 const check = (ok, label) => { assert.ok(ok, label); checks.push(label); };

@@ -13,3 +13,9 @@ Desktop.ini
 # Local tooling
 node_modules/
 .cache/
+
+# Generated diagnostics and local attachments
+outputs/
+.codex-remote-attachments/
+__pycache__/
+*.pyc

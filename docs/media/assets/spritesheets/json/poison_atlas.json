@@ -1,0 +1,162 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 2,
+        "y": 64,
+        "w": 27,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 27,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 2,
+        "y": 122,
+        "w": 26,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 1,
+        "w": 26,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 27,
+        "h": 25
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 2,
+        "w": 27,
+        "h": 25
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 2,
+        "y": 93,
+        "w": 27,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 4,
+        "w": 27,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 2,
+        "y": 151,
+        "w": 26,
+        "h": 23
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 4,
+        "w": 26,
+        "h": 23
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0005": {
+      "frame": {
+        "x": 2,
+        "y": 33,
+        "w": 27,
+        "h": 25
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 2,
+        "w": 27,
+        "h": 25
+      },
+      "sourceSize": {
+        "w": 28,
+        "h": 27
+      },
+      "duration": 10,
+      "empty": false
+    }
+  },
+  "animations": {
+    "poison": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004",
+      "frame_0005"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/poison_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 31,
+      "h": 176
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "poison",
+      "frameCount": 6,
+      "durationMs": 60,
+      "sourceGifLoopValue": 0
+    }
+  }
+}

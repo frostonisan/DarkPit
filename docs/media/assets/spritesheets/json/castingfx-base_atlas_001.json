@@ -1,0 +1,185 @@
+{
+  "frames": {
+    "frame_0002": {
+      "frame": {
+        "x": 676,
+        "y": 2,
+        "w": 681,
+        "h": 703
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 202,
+        "y": 125,
+        "w": 681,
+        "h": 703
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 2,
+        "y": 766,
+        "w": 718,
+        "h": 751
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 209,
+        "y": 138,
+        "w": 718,
+        "h": 751
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0008": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 668,
+        "h": 758
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 234,
+        "y": 156,
+        "w": 668,
+        "h": 758
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0011": {
+      "frame": {
+        "x": 1363,
+        "y": 2,
+        "w": 587,
+        "h": 666
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 296,
+        "y": 199,
+        "w": 587,
+        "h": 666
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0012": {
+      "frame": {
+        "x": 1363,
+        "y": 674,
+        "w": 568,
+        "h": 654
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 296,
+        "y": 211,
+        "w": 568,
+        "h": 654
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0014": {
+      "frame": {
+        "x": 726,
+        "y": 1334,
+        "w": 306,
+        "h": 598
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 552,
+        "y": 242,
+        "w": 306,
+        "h": 598
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0015": {
+      "frame": {
+        "x": 726,
+        "y": 711,
+        "w": 268,
+        "h": 574
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 590,
+        "y": 254,
+        "w": 268,
+        "h": 574
+      },
+      "sourceSize": {
+        "w": 1024,
+        "h": 1024
+      },
+      "duration": 10,
+      "empty": false
+    }
+  },
+  "animations": {
+    "castingfx-base": [
+      "frame_0002",
+      "frame_0003",
+      "frame_0008",
+      "frame_0011",
+      "frame_0012",
+      "frame_0014",
+      "frame_0015"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/castingfx-base_atlas_001.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1952,
+      "h": 1934
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "castingfx-base",
+      "frameCount": 17,
+      "durationMs": 170,
+      "sourceGifLoopValue": 0
+    }
+  }
+}

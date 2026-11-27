@@ -4,31 +4,39 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
+import { stats as STATS_DATA } from '../docs/js/data/statsData.js';
 
 const path = resolve('docs/index-14.html');
 const output = resolve('outputs/umbra-lab');
 const html = await readFile(path, 'utf8');
+const sharedSource = await readFile(resolve('docs/js/data/umbraProgression.js'), 'utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
 let checks = 0;
 const check = (condition, label) => { assert.ok(condition, label); checks++; };
 const equal = (actual, expected, label) => { assert.equal(actual, expected, label); checks++; };
-const near = (actual, expected, label) => check(Math.abs(actual - expected) < 1e-8, label);
+const near = (actual, expected, label) => check(Number.isFinite(actual) && Math.abs(actual - expected) < 1e-8, `${label}: ${actual} / ${expected}`);
 equal(scripts.length, 2, 'Model and UI are inline');
-check(!/<script[^>]+src=|<link[^>]+stylesheet|<iframe|\bimport\s*\(/.test(html), 'No runtime dependencies');
+equal([...html.matchAll(/<script src="([^"]+)"/g)].map(match=>match[1]).join(), 'js/data/umbraProgression.js', 'Only the game shared numerical rules are loaded');
+check(!/<link[^>]+stylesheet|<iframe|\bimport\s*\(/.test(html), 'No game bootstrap or module dependency');
 check(!/\blocalStorage\b|\bsessionStorage\b|\bfetch\s*\(/.test(html), 'No game save or network access');
 for (const script of scripts) new vm.Script(script);
 const sandbox = vm.createContext({ window: {} });
+vm.runInContext(sharedSource, sandbox);
 vm.runInContext(scripts[0], sandbox);
 const { calculate, initialState, changeLimit, effects, umbras, attributes, multiplier, curveGain, curveProfiles, referenceLimit, defaultUmbraBase, ceiling, contributions } = sandbox.window.umbraLab;
 const clone = state => JSON.parse(JSON.stringify(state));
-const displayedNumber=text=>Number(text.replace(/\s/g,'').replace(',','.'));
+const displayedNumber=text=>Number(text.replace(/[\s%]/g,'').replace(',','.'));
 const row = (state, key = 'physicalDamage') => calculate(state).results[key];
-equal(umbras.length, 9, 'Exactly nine level-one Umbras');
+assert.deepEqual(Array.from(umbras, spec => spec.key).sort(),
+  ['vigueur', 'astrality', 'robustness', 'constitution', 'vitality', 'equilibre', 'resilience',
+    'esprit', 'integrite', 'haste', 'finesse', 'criticalPower', 'adresse', 'vivacite', 'vision'].sort(),
+  'Workshop exposes the fifteen supported Umbras, including Astrality');
+checks++;
 equal(attributes.length, 4, 'Four directing attributes');
 equal(initialState().limit,referenceLimit,'Initial entity cap uses the shared reference limit');
 check(curveProfiles.every(profile=>profile.defaults.interval===referenceLimit),'All profiles derive their cycle length from the reference limit');
-check(!umbras.some(spec => ['brutality', 'inflexion', 'vivacite'].includes(spec.key)), 'Higher rank Umbras excluded');
-check(effects.every(spec => umbras.some(source => source.key === spec.source)), 'Every effect belongs to level one');
+check(!umbras.some(spec => ['brutality', 'inflexion'].includes(spec.key)), 'Higher rank Umbras excluded');
+check(effects.every(spec => umbras.some(source => source.key === spec.source)), 'Every effect belongs to a listed Umbra');
 check(Object.values(calculate(initialState()).results).every(effect => effect.total === 0), 'Empty inputs yield zero');
 
 const example = initialState(true);
@@ -290,8 +298,8 @@ for (const limit of [0, 1, 30, 150, 300]) {
 // Import side effects are excluded; formula bodies and the source-pooling
 // engine are read verbatim from the files, rather than recreated as expectations.
 const [balanceSource, entitySource, damageSource, ruleSource, systemSource] = await Promise.all([
-  'docs/js/data/balanceData.js', 'docs/js/entites.js', 'docs/js/damagesCalcul.js',
-  'docs/js/entite/entityRules.js', 'docs/js/entite/statSystem.js',
+  'docs/js/data/balanceData.js', 'docs/js/entities/runtime.js', 'docs/js/combat/statistics.js',
+  'docs/js/entities/rules.js', 'docs/js/entities/statSystem.js',
 ].map(file => readFile(resolve(file), 'utf8')));
 const unexport = source => source.replace(/^export default[^\n]+/gm, '').replace(/\bexport (?=(?:const|let|var|function)\b)/g, '');
 const functionBody = (source, name) => {
@@ -303,12 +311,13 @@ const entityFunctions = ['calculateVitalityBonus', 'calculateDodgePercent', 'cal
 const damageFunctions = ['calculateStrength', 'calculateAgility', 'calculateIntelligence', 'getHastePoints', 'calculateHasteIntelRatio',
   'calculateHasteCDReduc', 'calculateHasteRecupReduc', 'calculateHastePrepReduc', 'calculateHasteExecReduc', 'calculateHasteProjectilSpeed',
   'calculateVitalityRegenPercent', 'calculateVitalityRegenAmount', 'toNumber', 'calculateCritRatioBonus'];
-const reference = vm.createContext({});
-vm.runInContext(unexport(balanceSource), reference);
+const reference = vm.createContext({ STATS_DATA: STATS_DATA.map(({ key, nature }) => ({ key, nature })) });
+vm.runInContext(sharedSource, reference);
+vm.runInContext(unexport(balanceSource.replace(/^import .*;\r?\n/gm, '')), reference);
 vm.runInContext(`
   const getSafe = (entity, key, fallback=0) => entity.stats[key] ?? fallback;
   ${damageSource.match(/^const clamp = .*;$/m)[0]}
-  ${damageSource.match(/^const round1 = .*;$/m)[0]}
+  ${unexport(damageSource.match(/^(?:export )?const round1 = .*;$/m)[0])}
   ${damageSource.match(/^const scalePercentRounded = [^]*?^};/m)[0]}
   ${ruleSource.match(/^const toPositiveNumber = .*;$/m)[0]}
   ${['getResistanceConstant', 'calculateResistanceReductionRatio', 'calculateResistanceReductionPercent'].map(name => functionBody(ruleSource, name)).join('\n')}
@@ -322,6 +331,12 @@ vm.runInContext(`
     return calculateStatSources;
   })();
 `, reference);
+// Actuel is intentionally the pre-update baseline; Maj uses the live rules.
+for(const cfg of Object.values(reference.umbraProgression.sources))cfg.progressive=false;
+const liveDodgeConversion=reference.nativeE.calculateDodgePercent;
+reference.nativeE.calculateDodgePercent=points=>points<=0?0:points===1?5:Math.min(72,Number((5+67*(1-Math.exp(-.02*(points-1)))).toFixed(1)));
+const liveResistanceConstant=reference.umbraProgression.resistanceCurve.constant;
+reference.umbraProgression.resistanceCurve.constant=70;
 for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15,25,3,7],
   [1,3,0,.25],[.4,12.49,.25,.35],[150,150,0,0],[250,250,1000,7],[15,26.125,.23,.71]]) {
   const state=initialState(); state.mode='current'; state.limit=7; state.curve={type:'sigmoid',cap:150,shape:15,mid:70,res:.01,interval:50};
@@ -330,8 +345,26 @@ for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15
   for (const spec of effects) { state.fixed[spec.key]=fixed; state.plus[spec.key]=plus; state.gifts[spec.key]=99; }
   const inputs={...state.attributes,...state.umbras,...state.fixed,...Object.fromEntries(effects.map(spec=>[`${spec.key}Plus`,plus]))};
   const snapshot=calculate(state);
-  for (const spec of effects) {
-    const expected=spec.type==='precision'?reference.nativeE.calculatePrecisionPercent(u):reference.nativeCalculate(inputs,spec.key).value;
+  for (const spec of effects.filter(spec=>!['criticalPower','resilience'].includes(spec.source))) {
+    let expected=spec.key==='bullsEye'?fixed+plus+Math.round(u):reference.nativeCalculate(inputs,spec.key,{effective:true}).value;
+    // These families intentionally retain their pre-update behavior in Actuel.
+    if(spec.source==='robustness')expected=fixed+plus+Math.ceil(u)+(u>0||plus>0?Math.ceil(10+989*(1-Math.exp(-((attribute+30)**3-30**3)/100**3))):0);
+    if(spec.source==='vivacite') {
+      const points=Math.max(0,Math.min(150,Math.round(u+(u>0||plus>0?attribute*.5:0))));
+      const legacy=points<=30?points:30+35*(1-Math.exp(-.015*(points-30)))/(1-Math.exp(-.015*120));
+      expected=spec.key==='controlledSpeed'?0:Math.round(Math.min(65,fixed+plus+legacy)*1e6)/1e6;
+    }
+    if(spec.source==='equilibre') {
+      const bonus=spec.key==='equilibreAggroReduction'?20:spec.key==='equilibreInvisibleDetection'?25:7;
+      const generated=u>0?(spec.uniquePassive?50:5)+Math.round(bonus*(1-(1-Math.min(attribute/150,1))**2)*100)/100:0;
+      expected=fixed+plus+generated;
+    }
+    if(spec.source==='astrality') {
+      // “Actuel” is the preserved historical model; “Maj” checks live Astrality below.
+      const native=u<=0?0:u<=1?2:Math.min(40,Math.round((2+38*Math.sqrt((u-1)/100))*10)/10);
+      const intel=u>0?Math.round(60*(1-(1-Math.min(attribute,150)/150)**2)*10)/10:0;
+      expected=spec.key==='fatalSurvival'?native+intel:0;
+    }
     near(snapshot.results[spec.key].total, expected, `Current JS parity: ${spec.key}, U=${u}, A=${attribute}, fixe=${fixed}, +=${plus}`);
     equal(snapshot.results[spec.key].gift, 0, `Current ${spec.key} has no concept grant`);
     for(const mode of ['current','concept']) {
@@ -342,6 +375,46 @@ for (const [u, attribute, fixed, plus] of [[0,25,0,0],[0,25,3,1],[15,60,0,0],[15
     }
   }
 }
+for(const cfg of Object.values(reference.umbraProgression.sources))cfg.progressive=true;
+reference.nativeE.calculateDodgePercent=liveDodgeConversion;
+reference.umbraProgression.resistanceCurve.constant=liveResistanceConstant;
+for(const seuilUmbra of [150,300])for(const points of [0,1,10,149,150,151,200,1000])for(const attribute of [0,25,150,200]) {
+  const state=initialState();state.mode='maj';state.limit=7;state.curve.shape=99;
+  state.seuilUmbra=seuilUmbra;
+  for(const spec of attributes)state.attributes[spec.key]=attribute;
+  for(const spec of umbras)state.umbras[spec.key]=points;
+  for(const spec of effects){state.fixed[spec.key]=3;state.plus[spec.key]=7;}
+  const inputs={...state.attributes,...state.umbras,...state.fixed,...Object.fromEntries(effects.map(spec=>[`${spec.key}Plus`,7]))};
+  const snapshot=calculate(state);
+  equal(snapshot.limit,seuilUmbra,'Maj uses the entity Umbra threshold, not the Concept limit');
+  for(const spec of effects) {
+    // Astral return is a combat projection, not a stored stat. Use the same
+    // shared calculation as combat, with the entity's retained stat values.
+    const stat=key=>reference.nativeCalculate(inputs,key,{seuilUmbra}).value;
+    const expected=spec.key==='astralReturn'
+      ?reference.umbraProgression.astralReturnDetails(stat('astrality'),stat('strength'),stat('HP'),stat('agility')).percent
+      :stat(spec.key);
+    near(snapshot.results[spec.key].total,expected,`Maj parity with game: ${spec.key}, U=${points}, A=${attribute}`);
+    if(spec.key==='precision')near(snapshot.results[spec.key].chancePercent,reference.nativeE.calculatePrecisionPercent(expected),'Maj Precision percentage matches the pooled score');
+    if(spec.key==='bullsEye')near(snapshot.results[spec.key].chancePercent,expected,'Maj Bull’s Eye directly applies the stored percentage');
+    const parts=contributions(snapshot.results[spec.key],'maj');
+    near(parts.fixed+parts.plus+parts.umbra,expected,`Maj source reconciliation: ${spec.key}`);
+  }
+}
+const liveSettings=sandbox.umbraProgression;
+const liveExample={...initialState(true),mode:'maj'};
+const beforeLive=row(liveExample).total;
+liveSettings.progression.curves.strength.intensity=5;
+check(row(liveExample).total!==beforeLive,'A shared attribute-curve edit is applied without copying settings');
+delete liveSettings.progression.curves.strength.intensity;
+liveSettings.sources.vigueur.ratios.source=2;
+check(row(liveExample).total>beforeLive,'A shared Umbra base edit changes Maj directly');
+liveSettings.sources.vigueur.ratios.source=1;
+liveExample.seuilUmbra=300;
+equal(calculate(liveExample).limit,300,'Maj reads the entity Umbra threshold');
+equal(calculate({...liveExample,seuilUmbra:150}).limit,150,'Other entities retain their own Umbra threshold');
+delete liveExample.seuilUmbra;
+equal(row(liveExample).total,beforeLive,'Restoring the shared settings restores the total');
 const currentExample={...initialState(true),mode:'current'};
 equal(row(currentExample).total,45,'Current PP example remains Force × 0.5 + Vigueur');
 equal(row({...currentExample,plus:{physicalDamage:10}}).total,55,'Current +10 PP+ gain is ten');
@@ -349,10 +422,61 @@ equal(row({...currentExample,umbras:{...currentExample.umbras,vigueur:25}}).tota
 const savedInputs=JSON.stringify(currentExample);
 calculate({...currentExample,mode:'concept'});
 equal(JSON.stringify(currentExample),savedInputs,'Changing calculator does not mutate owned values');
+// Bidirectional conversion works on the score after all acquisition/ratio calculations.
+const conversion=sandbox.window.umbraLab;
+const gameConversions=JSON.stringify([sandbox.umbraProgression.bullsEyeCurve,sandbox.umbraProgression.dodgeCurve,
+  sandbox.umbraProgression.resistanceCurve,sandbox.umbraProgression.precisionCurve]);
+for(const spec of conversion.statConversions) {
+  const native=conversion.conversionSettings(spec.key);
+  for(const points of [0,1,10,98,150,300,1000]) {
+    const percent=conversion.conversionPercent(points,native);
+    const expected=spec.key==='bullsEye'?sandbox.umbraProgression.bullsEyePercent(points)
+      :spec.key==='fatalSurvival'?sandbox.umbraProgression.astralityChanceDetails(points).value
+      :spec.key==='astralReturn'?sandbox.umbraProgression.astralReturnDetails(1,points).percent
+      :spec.key==='astralBody'?sandbox.umbraProgression.astralBodyDetails(points).value
+      :spec.key==='criticalChance'?sandbox.umbraProgression.criticalChanceDetails(points).value
+      :['criticalResistance','alterationResistance','hindranceResistance'].includes(spec.key)?sandbox.umbraProgression.resilienceDetails(spec.key,points).value
+      :spec.key==='resilienceTotal'?sandbox.umbraProgression.resilienceCancelDetails(points).percent
+      :spec.key==='velocity'?sandbox.umbraProgression.vivaciteDetails(spec.key,points).value
+      :spec.key==='controlledSpeed'?sandbox.umbraProgression.controlledSpeedDetails(points).percent
+      :spec.key==='equilibreBalancedAttackChance'?sandbox.umbraProgression.balancedAttackDetails(points).percent
+      :spec.key.startsWith('equilibre')?sandbox.umbraProgression.equilibreDetails(spec.key,points).value
+      :spec.key==='dodge'?sandbox.umbraProgression.dodgeChancePercent(points)
+      :spec.key==='precision'?sandbox.umbraProgression.precisionPercent(points)
+      :sandbox.umbraProgression.resistanceReductionRatio(points,sandbox.umbraProgression.getResistanceConstant(spec.key))*100;
+    check(Math.abs(percent-expected)<(spec.key==='precision'?.05000001:1e-8),`${spec.key}: conversion starts from current game settings, before display rounding`);
+  }
+  const experiment={...native,limit:99};
+  for(const percent of [0,5,10,49.5,80,98.99]) {
+    const points=conversion.conversionPoints(percent,experiment);
+    if(spec.key==='astralReturn'&&percent<native.start) {
+      check(Number.isNaN(points),'Astral return rejects healing below its guaranteed base');
+      continue;
+    }
+    check(Number.isFinite(points)&&points>=0,`${spec.key}: requested effect gives finite nonnegative points`);
+    near(conversion.conversionPercent(points,experiment),percent,`${spec.key}: inverse conversion returns the requested percentage`);
+  }
+  equal(conversion.conversionPoints(99,experiment),Infinity,`${spec.key}: reaching the exact limit requires infinite points`);
+  equal(conversion.conversionPercent(Infinity,experiment),99,`${spec.key}: infinite points tend to the limit`);
+  const highPercent=conversion.conversionPercent(1e100,experiment);
+  // The healing curve can round to its asymptote at floating-point precision.
+  check(spec.key==='astralReturn'?highPercent<=99:highPercent<99,`${spec.key}: finite points never exceed the limit`);
+  check(Number.isNaN(conversion.conversionPoints(100,experiment)),`${spec.key}: no inverse above the limit`);
+}
+const bullExperiment={...conversion.conversionSettings('bullsEye'),limit:99,shape:98};
+near(conversion.conversionPercent(1,bullExperiment),1,'Bull’s Eye: 1 point can be set to 1%');
+near(conversion.conversionPoints(50,bullExperiment),99,'Without Agility, 99 Vision grants 50%');
+for(const agility of [0,10,150])for(const influence of [0,.5,1,2])for(const percent of [0,.4,1,25,50,98.99]) {
+  const settings={...bullExperiment,agility,influence};
+  near(conversion.conversionPercent(conversion.conversionPoints(percent,settings),settings),percent,'Passive Vision/percent inverse retains Agility and its influence');
+}
+check(Number.isNaN(conversion.conversionPoints(1,conversion.conversionSettings('precision'))),'Current Precision jump reports unreachable percentages');
+equal(JSON.stringify([sandbox.umbraProgression.bullsEyeCurve,sandbox.umbraProgression.dodgeCurve,
+  sandbox.umbraProgression.resistanceCurve,sandbox.umbraProgression.precisionCurve]),gameConversions,'Conversion experiments do not write game settings');
 console.log(`Model and current JS parity: ${checks} checks passed.`);
 if (!process.argv.includes('--model-only')) {
   const require = createRequire(import.meta.url);
-  const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+  const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
   await mkdir(output, { recursive: true });
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
@@ -362,660 +486,163 @@ if (!process.argv.includes('--model-only')) {
     page.on('request', request => { if (/^https?:/.test(request.url())) network.push(request.url()); });
     await page.route('**/*', route => /^https?:/.test(route.request().url()) ? route.abort() : route.continue());
     await page.goto(pathToFileURL(path).href);
-    const total = id => page.locator(`[data-stat-total="${id.slice(id.indexOf('-')+1)}"]`).innerText();
-    const field = (group, key) => page.locator(`input[data-group="${group}"][data-key="${key}"]`);
-    const fill = (group, key, value) => field(group, key).fill(String(value));
-    const setCurve = (scope,key,value) => scope.locator(`[data-curve="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
-    const setGauge = (scope,key,value) => scope.locator(`[data-entity-setting="${key}"]`).evaluate((node,value)=>{node.value=String(value);node.dispatchEvent(new Event('input',{bubbles:true}));},value);
-    const setCommonValue = async (id,value) => {
-      const panel=page.locator('#common-balancing'),wasOpen=await panel.evaluate(node=>node.open);
-      if(!wasOpen)await panel.locator('summary').click();
-      await page.locator(`#${id}`).fill(String(value));
-      if(!wasOpen)await panel.locator('summary').click();
-    };
-    const setCommonGain = value => setCommonValue('common-cycle-gain',value);
-    const setCommonReference = value => setCommonValue('common-reference-limit',value);
-    const baseField=(scope,id,group,key='physicalDamage')=>scope.locator(`[data-entry="${id}"] input[data-base-group="${group}"][data-base-effect="${key}"]`);
-    const add = async (catalog, id, query = '') => {
-      const picker = page.locator(`[data-catalog="${catalog}"]`);
-      if (!await picker.evaluate(node => node.open)) await picker.locator('summary').click();
+    const conversionPanel=page.locator('#stat-conversion');
+    const conversionField=key=>page.locator(`#conversion-${key}`);
+    equal(await conversionField('stat').inputValue(),'velocity','Conversion editor starts on Vivacité');
+    equal(await conversionField('limit').inputValue(),'65','Velocity reads the shared ceiling');
+    await conversionField('stat').selectOption('bullsEye');
+    equal(await conversionField('limit').inputValue(),'99','Initial limit reads the game settings');
+    await conversionField('limit').fill('99');
+    await conversionField('shape').fill('98');
+    await conversionField('points').fill('300');
+    near(Number(await conversionField('percent').inputValue()),1+98*299/397,'Vision updates the percentage immediately');
+    equal(await page.locator('#conversion-points-label').innerText(),'Vision (points retenus)','Passive editor requests Vision rather than a Bull’s Eye score');
+    await conversionField('agility').fill('150');
+    check(Number(await conversionField('percent').inputValue())>1+98*299/397,'Agility immediately improves the direct percentage');
+    await conversionField('percent').fill('50');
+    near(Number(await conversionField('points').inputValue()),1+98/1.85,'Inverse calculation retains the selected Agility ratio');
+    await conversionField('influence').fill('0');
+    near(Number(await conversionField('percent').inputValue()),conversion.conversionPercent(1+98/1.85,{...bullExperiment,agility:150,influence:0}),'Influence zero disables Agility acceleration');
+    await conversionField('points').fill('1');
+    await conversionField('influence').fill('2');
+    near(Number(await conversionField('percent').inputValue()),1,'First Vision point stays at 1% regardless of Agility influence');
+    await conversionField('agility').fill('0');await conversionField('influence').fill('1');
+    await conversionField('percent').fill('50');
+    near(Number(await conversionField('points').inputValue()),99,'Editing percentage solves Vision without changing the curve');
+    equal(await conversionField('shape').inputValue(),'98','Inverse conversion retains curvature');
+    await conversionField('percent').fill('99');
+    check(await page.locator('#conversion-infinite').isVisible(),'The exact asymptote shows infinite points');
+    equal(await conversionField('points').getAttribute('placeholder'),'∞','Infinite points are explicit in the score field');
+    await conversionField('percent').fill('100');
+    check((await page.locator('#conversion-status').innerText()).includes('dépasse'),'Percent above the limit is rejected with an explanation');
+    await conversionField('points').fill('98');
+    near(Number(await conversionField('percent').inputValue()),1+98*97/195,'Finite input restores a valid bidirectional calculation');
+    equal(await conversionField('percent').getAttribute('aria-invalid'),null,'A valid score clears the percent error');
+    await conversionField('limit').fill('50');
+    equal(await conversionField('points').inputValue(),'98','Changing the limit preserves owned test points');
+    near(Number(await conversionField('percent').inputValue()),1+49*97/195,'Changing the limit immediately rescales the effect');
+    await conversionField('limit').fill('99');
+    await conversionField('shape').fill('196');
+    near(Number(await conversionField('percent').inputValue()),1+98*97/293,'The curve parameter immediately changes progression');
+    await conversionField('shape').fill('98');
+    for(const key of ['physicalResistance','magicalResistance','dodge','precision']) {
+      await conversionField('stat').selectOption(key);
+      check(!await conversionField('agility').isVisible(),'Other statistics keep their existing conversion controls');
+      await conversionField('limit').fill('99');
+      await conversionField('percent').fill('50');
+      const settings=await page.evaluate(key=>window.umbraLab.conversionSettings(key),key);
+      const points=Number(await conversionField('points').inputValue());
+      near(conversion.conversionPercent(points,{...settings,limit:99}),50,`${key}: UI inverse matches the selected statistic`);
+    }
+    await conversionField('percent').fill('1');
+    check((await page.locator('#conversion-status').innerText()).includes('Aucun score'),'Unreachable Precision input is explained');
+    await conversionField('percent').fill('50');
+    await conversionField('stat').selectOption('bullsEye');
+    equal(await conversionField('points').inputValue(),'98','Each statistic retains its own score');
+    equal(await conversionField('shape').inputValue(),'98','Each statistic retains its own curve');
+    await conversionField('limit').fill('0');
+    check((await page.locator('#conversion-status').innerText()).includes('dépasser'),'Zero limit is rejected');
+    await conversionField('limit').fill('99');
+    await conversionField('shape').fill('0');
+    check((await page.locator('#conversion-status').innerText()).includes('strictement'),'Zero shape is rejected');
+    await conversionField('shape').fill('98');
+    await conversionField('points').fill('300');
+    await page.waitForFunction(()=>document.querySelector('#conversion-chart').dataset.points==='300');
+    await conversionPanel.screenshot({path:resolve(output,'stat-conversion-desktop.png')});
+    for(const width of [390,320]) {
+      await page.setViewportSize({width,height:900});
+      check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`Conversion editor fits ${width}px`);
+      check(await conversionPanel.evaluate(node=>node.scrollWidth<=node.clientWidth),`Conversion panel has no horizontal overflow at ${width}px`);
+      await conversionPanel.screenshot({path:resolve(output,`stat-conversion-${width}.png`)});
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    const nativeBeforeReset=await page.evaluate(()=>({...globalThis.umbraProgression.bullsEyeCurve}));
+    equal(nativeBeforeReset.maxPercent,99,'Experimental limit leaves game settings untouched');
+    equal(nativeBeforeReset.constant,98,'Experimental curvature leaves game settings untouched');
+    await page.evaluate(()=>{globalThis.umbraProgression.bullsEyeCurve.maxPercent=97;globalThis.umbraProgression.bullsEyeCurve.constant=88;});
+    await conversionField('reset').click();
+    equal(await conversionField('limit').inputValue(),'97','Reset reads the currently loaded game limit');
+    equal(await conversionField('shape').inputValue(),'88','Reset reads the currently loaded game curve');
+    equal(await conversionField('points').inputValue(),'300','Reset keeps the test score');
+    await page.evaluate(()=>{globalThis.umbraProgression.bullsEyeCurve.maxPercent=99;globalThis.umbraProgression.bullsEyeCurve.constant=98;});
+    await conversionField('reset').click();
+    await conversionPanel.locator('summary').click();
+    // The former Concept UI has been replaced by New / Old. The historical
+    // Concept model is still covered above; here we exercise the real controls.
+    const entity = page.locator('[data-entity-id="entity-1"]');
+    equal(await entity.getByRole('tab').allTextContents().then(v=>v.join(',')),'New,Old','Current mode tabs');
+    const add=async (scope,catalog,id,query='')=>{
+      const picker=scope.locator('[data-catalog="'+catalog+'"]');
+      if(!await picker.evaluate(n=>n.open))await picker.locator('summary').click();
       await picker.locator('input').fill(query);
-      await picker.locator(`[data-add="${id}"]`).click();
+      await picker.locator('[data-add="'+id+'"]').click();
     };
-    const remove = id => page.locator(`[data-remove="${id}"]`).click();
-    const sharedEditor = () => page.locator('.entity').evaluate(entity => ({
-      rows: [...entity.querySelectorAll('[data-entry]')].map(node => node.dataset.entry),
-      inputs: [...entity.querySelectorAll('input')].map(node => ({
-        id: node.id, group: node.dataset.group, key: node.dataset.key, value: node.value,
-        disabled: node.disabled, min: node.min, max: node.max, step: node.step,
-        visible: node.checkVisibility(),
-      })),
-      selects: [...entity.querySelectorAll('select')].map(node=>[node.dataset.ui,node.value,node.disabled,node.checkVisibility()]),
-      buttons: [...entity.querySelectorAll('button:not([data-ui="mode-toggle"])')].map(node => [node.textContent, node.disabled]),
-      settings: [...entity.querySelectorAll('[data-ui="concept-settings"], [data-ui="current-rules"]')].map(node => [node.dataset.ui, node.checkVisibility()]),
-    }));
-    equal(await page.locator('.picker').count(), 4, 'Four searchable dropdowns for stats and Umbras');
-    equal(await page.locator('[data-catalog="attributes"]').count(),0,'Attribute dropdown is removed');
-    equal(await page.locator('.attribute-inputs input').count(),3,'Three attribute inputs are always available');
-    equal(await page.locator('.attribute-inputs input').evaluateAll(nodes=>nodes.map(node=>node.dataset.key).join(',')),'strength,intelligence,agility','Only Force, Intelligence and Agility are exposed');
-    check(await page.locator('.attribute-inputs img').evaluateAll(nodes=>nodes.length===3&&nodes.every(node=>node.complete&&node.naturalWidth>0&&node.src.startsWith('data:'))),'Three embedded game pictograms load without external dependencies');
-    check(await page.locator('.table-wrap').evaluate(node=>node.previousElementSibling.classList.contains('attribute-inputs')),'Attribute fields sit immediately above the table');
-    equal(await page.locator('#curve-points, #curve-position, [data-curve-add], #curve-fill, #curve-unlock, #curve-reset').count(),0,'Old curve point controls and action buttons are removed');
-    equal(await page.locator('[data-entity-setting]').count(),2,'Limit and level each have a gauge');
-    equal(await page.locator('[data-entry]').count(), 0, 'No initial rows or default acquisitions');
-    check(await page.locator('section[aria-label="Calcul des statistiques"] > #pickers').isVisible(), 'Stat choices are directly available in the table area');
-    equal(await page.locator('.picker[open]').count(), 0, 'Dropdowns begin closed');
-    await page.screenshot({ path: resolve(output, 'empty.png'), fullPage: true });
-    const statsPicker = page.locator('[data-catalog="stats"]');
-    await statsPicker.locator('summary').click();
-    await statsPicker.locator('input').fill('RESISTANCE MAGIQUE');
-    equal(await statsPicker.locator('li:visible').count(), 1, 'Search ignores case and accents');
-    check(await statsPicker.locator('[data-add="fixed-magicalResistance"]').isVisible(), 'Stat search identifies the matching entry');
-    await statsPicker.locator('input').fill('zzzz-no-match');
-    check(await statsPicker.locator('.no-match').isVisible(), 'Empty search has feedback');
-    await statsPicker.locator('input').press('Escape');
-    equal(await page.locator('.picker[open]').count(), 0, 'Escape closes the search');
-    check(await statsPicker.locator('summary').evaluate(node => document.activeElement === node), 'Escape restores keyboard focus');
-
-    await add('stats', 'fixed-physicalDamage', 'PP fixe');
-    equal(await page.locator('[data-entry]').count(), 1, 'Click adds only the selected row');
-    equal(await total('fixed-physicalDamage'), '1', 'Fixed PP starts at one point');
-    await add('plus', 'plus-physicalDamage', 'pp');
-    equal(await total('plus-physicalDamage'), '2', 'PP+ adds without a hidden attribute');
-    await fill('attributes', 'strength', 25);
-    equal(await total('plus-physicalDamage'), '15', 'Selected Force drives ceil(12.5), plus and fixed');
-    await add('x', 'x-physicalDamage', 'pp');
-    equal(await total('x-physicalDamage'), '15', 'Selecting an X view creates no acquisition');
-    check((await page.locator('[data-ratio="x-physicalDamage"]').innerText()).includes('Inactive'), 'X reports missing Umbra');
-    equal(await page.locator('[data-entry="umbra-vigueur"]').count(), 0, 'Selecting X never silently adds an Umbra');
-    await add('umbras', 'umbra-vigueur', 'vig');
-    await fill('umbras', 'vigueur', 15);
-    equal(await total('x-physicalDamage'), '58', 'Selected Umbra activates shared X calculation');
-    await add('umbras', 'umbra-vigueur', 'vig');
-    equal(await page.locator('[data-entry]').count(), 4, 'Repeated selection never duplicates a row');
-    equal(await field('umbras', 'vigueur').inputValue(), '15', 'Repeated selection preserves quantity');
-    equal(await page.locator('.detail-row:visible').count(), 0, 'Calculations remain collapsed by default');
-    equal(await page.locator('.picker[open]').count(), 0, 'Selection closes its dropdown');
-
-    // The Umbra row explains the reported nine PP without opening a helper.
-    await page.locator('#example').click();await fill('attributes','strength',10);await fill('umbras','vigueur',1);await setCurve(page,'shape',6);
-    const inlinePP=page.locator('[data-ratio="umbra-vigueur"] [data-umbra-breakdown="physicalDamage"]');
-    equal(await total('x-physicalDamage'),'9','One Vigueur with Force ten has nine PP after the separate upward roundings');
-    const inlineText=await inlinePP.innerText();
-    check(inlineText.includes('Force : 10 × 0,5 ×'),'Inline Umbra calculation shows the attribute value, base and multiplier');
-    check(inlineText.includes('→ 6 (arrondi supérieur) PP'),'Force contribution explains its upward rounding');
-    check(inlineText.includes('→ 2 (arrondi supérieur) PP'),'Vigueur contribution explains its upward rounding');
-    check(inlineText.includes('Don fixe de l’Umbra : 1 × 1 = 1 PP'),'Umbra fixed grant is explicit');
-    check(inlineText.includes('Contribution de la ligne : 6 + 2 + 1 = 9 PP'),'The three parts reconcile to the displayed nine PP');
-    await page.locator('[data-entry="umbra-vigueur"]').screenshot({path:resolve(output,'umbra-inline-nine-pp.png')});
-    await fill('fixed','physicalDamage',3);await fill('plus','physicalDamage',5);
-    check((await inlinePP.innerText()).includes('Total de l’entité : 3 fixe + 5 stat+ + 9 Vigueur = 17 PP'),'Inline total includes separate fixed and plus inputs exactly once');
-    await page.locator('#mode-toggle').click();
-    check((await inlinePP.innerText()).includes('Contribution de la ligne : 6 = 6 PP'),'Current mode explains its own native contribution');
-    check(!(await inlinePP.innerText()).includes('arrondi supérieur'),'Current mode does not inherit Concept rounding explanations');
-    await page.locator('#mode-toggle').click();
-    await fill('umbras','vigueur',201);
-    check((await inlinePP.innerText()).includes('% résiduels'),'Inline breakdown explains the residual gains after the threshold');
-    check(!/undefined|NaN|Infinity/.test(await inlinePP.innerText()),'Overflow breakdown contains valid numeric details');
-    await page.locator('#limit').fill('400');await fill('umbras','vigueur',202);
-    check((await inlinePP.innerText()).includes('au départ'),'A restarted curve explains the carried amounts in the row');
-
-    await page.locator('#example').click();
-    equal(await page.locator('[data-entry]').count(), 4, 'Example adds four stat and Umbra rows');
-    equal(await total('x-physicalDamage'), '81', 'Example uses both progressive ratios');
-    await setGauge(page,'level',20);
-    equal(await page.locator('#level').inputValue(),'20','Level gauge updates its numeric field');
-    equal(await total('x-physicalDamage'),'81','Level stays a manual reference without automatic bonuses');
-    await page.locator('#level').fill('135');
-    equal(await page.locator('[data-entity-setting="level"]').inputValue(),'135','Typed levels can extend the gauge range');
-    await setGauge(page,'level',120);
-    equal(await page.locator('[data-entity-setting="level"]').getAttribute('max'),'135','Dragging an extended level gauge keeps its scale stable');
-    await page.locator('[data-reset-setting="level"]').click();
-    equal(await page.locator('#level').inputValue(),'1','Level reset returns to one');
-    equal(await page.locator('[data-entity-setting="level"]').inputValue(),'1','Level reset synchronizes the gauge');
-    await page.locator('#level').fill('51');
-    await setGauge(page,'limit',10);
-    equal(await page.locator('#limit').inputValue(),'10','Limit gauge updates its numeric field');
-    equal(Number(await total('x-physicalDamage')),row(changeLimit(initialState(true),10)).total,'Limit gauge starts a new curve and applies the current attribute cap');
-    equal(await field('attributes','strength').inputValue(),'60','Lowering the limit preserves entered attribute points');
-    equal(await field('umbras','vigueur').inputValue(),'15','Lowering the limit preserves entered Umbra points');
-    await page.locator('#limit').fill('1500.5');
-    equal(await page.locator('[data-entity-setting="limit"]').inputValue(),'1500.5','Typed limits extend the gauge and preserve precision');
-    await setGauge(page,'limit',1400);
-    equal(await page.locator('[data-entity-setting="limit"]').getAttribute('max'),'1500.5','Dragging an extended limit gauge keeps its scale stable');
-    await page.locator('[data-reset-setting="limit"]').click();
-    equal(await page.locator('#limit').inputValue(),'200','Limit reset uses the shared reference');
-    equal(await total('x-physicalDamage'),'81','Resetting the limit restores the existing build calculation');
-    await page.locator('#example').click(); // Fresh departures for the next independent scenario.
-    equal(await page.locator('[data-curve]').count(),3,'Only curve shape, residual gain and center remain per entity');
-    equal(await page.locator('[data-curve="cap"], [data-curve="interval"]').count(),0,'Gain and interval sliders are removed');
-    equal(await page.locator('#common-cycle-gain').count(),1,'Cycle gain has one common editor');
-    equal(await page.locator('#common-reference-limit').inputValue(),String(referenceLimit),'Common reference limit starts at the model default');
-    equal(await field('umbras','vigueur').inputValue(),'15','Umbra points remain editable in the table');
-    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(15),'Chart marker displays the actual multiplier');
-    check((await page.locator('#curve-attribute').innerText()).includes('44'),'Chart reports the actual rounded attribute gain');
-    check((await page.locator('#curve-native').innerText()).includes('22'),'Chart reports the scaled Umbra gain');
-    await page.locator('#curve-view').selectOption('total');
-    equal(await page.locator('#curve-chart').getAttribute('data-current'),'81','Total chart marker equals the entity total');
-    const curveBuild=initialState(true);
-    for(const [key,value] of [['cap',50],['shape',6],['res',.01]]) {
-      curveBuild.curve[key]=value;if(key==='cap')await setCommonGain(value);else await setCurve(page,key,key==='res'?value*100:value);
-      equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(curveBuild).total,`${key}: chart follows the live entity calculation`);
-      equal(Number(await total('x-physicalDamage')),row(curveBuild).total,`${key}: table follows the same calculation`);
-      equal(await field('umbras','vigueur').inputValue(),'15',`${key}: previously acquired points are conserved`);
+    const input=(scope,group,key)=>scope.locator('input[data-group="'+group+'"][data-key="'+key+'"]');
+    const total=(scope,key)=>scope.locator('[data-stat-total="'+key+'"]').innerText().then(displayedNumber);
+    const owned=scope=>scope.locator('input[data-group],input.entity-name').evaluateAll(nodes=>nodes.map(n=>[n.dataset.group,n.dataset.key,n.value]));
+    await entity.locator('.entity-name').fill('Attaquant');
+    for(const [catalog,id] of [['umbras','umbra-vigueur'],['stats','fixed-physicalDamage'],['plus','plus-physicalDamage'],['x','x-physicalDamage']])await add(entity,catalog,id);
+    await input(entity,'attributes','strength').fill('10');
+    await input(entity,'umbras','vigueur').fill('10');
+    await input(entity,'fixed','physicalDamage').fill('10');
+    await input(entity,'plus','physicalDamage').fill('5');
+    equal(await total(entity,'physicalDamage'),42,'New: 15 direct + 10 gift + 11 Vigueur + 6 Force');
+    const saved=await owned(entity);
+    for(let i=0;i<2;i++) {
+      await entity.getByRole('tab',{name:'Old',exact:true}).click();
+      equal(await total(entity,'physicalDamage'),30,'Old: same build with historical ratios');
+      equal(JSON.stringify(await owned(entity)),JSON.stringify(saved),'Old retains every acquisition');
+      await entity.getByRole('tab',{name:'New',exact:true}).click();
+      equal(await total(entity,'physicalDamage'),42,'Switching back restores live calculations');
+      equal(JSON.stringify(await owned(entity)),JSON.stringify(saved),'New retains every acquisition');
     }
-    await fill('umbras','vigueur',25);
-    equal(await page.locator('#curve-chart').getAttribute('data-points'),'25','Editing the Umbra table row updates curve progression');
-    await setCurve(page,'shape',10);await setCurve(page,'res',.05);
-    equal(await field('umbras','vigueur').inputValue(),'25','Curve settings preserve acquisitions');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Local curve settings preserve the common gain');
-    const resetBuild=initialState(true);resetBuild.umbras.vigueur=25;resetBuild.curve.cap=50;
-    equal(Number(await total('x-physicalDamage')),row(resetBuild).total,'Restored curve settings use the current common gain');
-    await setCommonGain(85);
-    equal(await total('x-physicalDamage'),'115','Reset recomputes both ratios with the source defaults');
-    await fill('umbras','vigueur',200);
-    const atLimit=await total('x-physicalDamage');
-    await setGauge(page,'limit',400);
-    equal(await page.locator('#limit').inputValue(),'400','Limit gauge opens the next cycle');
-    equal(await total('x-physicalDamage'),atLimit,'Raising the limit alone does not change existing ratios or totals');
-    await fill('umbras','vigueur',210);
-    equal(await field('umbras','vigueur').inputValue(),'210','Progression resumes on the next cumulative cycle');
-    await fill('attributes','intelligence',300);
-    await add('umbras','umbra-esprit');await fill('umbras','esprit',300);
-    equal(await field('attributes','intelligence').inputValue(),'300','Direct Intelligence input supports the increased limit');
-    check((await page.locator('[data-ratio="umbra-esprit"]').innerText()).includes('seuil 400'),'Common unlock opens another Umbra');
-    await add('umbras','umbra-vitality');
-    await page.locator('#curve-effect').selectOption('dayHpRegen');
-    await fill('umbras','vitality',15);
-    equal(await page.locator('#curve-effect').inputValue(),'dayHpRegen','Editing an Umbra keeps the selected secondary effect');
-    equal(await page.locator('#curve-chart').getAttribute('data-current'),'3','Secondary curve uses dependent HP totals');
-    await page.locator('#example').click();
-    equal(await page.locator('#curve-profile option').count(),3,'All three profiles can be selected');
-    check(!await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid center is hidden for the exponential');
-    await fill('umbras','vigueur',80);
-    await baseField(page,'plus-physicalDamage','attributeBases').fill('0.75');
-    await baseField(page,'umbra-vigueur','umbraBases').fill('1.25');
-    await page.locator('#limit').fill('350');
-    const profileBuild=initialState(true);profileBuild.umbras.vigueur=80;profileBuild.limit=350;
-    profileBuild.attributeBases.physicalDamage=.75;profileBuild.umbraBases.physicalDamage=1.25;
-    const acquisitions=()=>page.locator('input[data-group], input[data-base-group], #level, #limit').evaluateAll(nodes=>nodes.map(node=>[node.dataset.group||node.dataset.baseGroup||node.id,node.dataset.key||node.dataset.baseEffect,node.value]));
-    const profileInputs=JSON.stringify(await acquisitions());
-    await page.locator('#curve-view').selectOption('total');
-    await setCommonGain(60);await setCurve(page,'shape',7);
-    profileBuild.curve={...profileBuild.curve,cap:60,shape:7};
-    const tunedExponential={...profileBuild.curve};
-    for(const type of ['j','sigmoid']) {
-      await page.locator('#curve-profile').selectOption(type);
-      profileBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults,cap:60};
-      equal(Number(await total('x-physicalDamage')),row(profileBuild).total,`${type}: selecting a profile recalculates the existing entity`);
-      equal(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(profileBuild).total,`${type}: graph and table use the same profile`);
-      equal(await page.locator('#curve-chart').getAttribute('data-profile'),type,'Graph tracks the active profile');
-      equal(JSON.stringify(await acquisitions()),profileInputs,`${type}: profile selection preserves all points, bases and common limit`);
-      await page.locator('.curve-panel').screenshot({path:resolve(output,`profile-${type}.png`)});
+    await entity.locator('[data-ui="curve-effect"]').selectOption('physicalDamage');
+    await entity.locator('[data-ui="curve-view"]').selectOption('total');
+    equal(Number(await entity.locator('[data-ui="curve-chart"]').getAttribute('data-current')),42,'Live chart matches displayed total');
+    const base=entity.locator('[data-entry="umbra-vigueur"] input[data-base-group="umbraBases"][data-base-effect="physicalDamage"]');
+    check(await base.isDisabled(),'New displays the shared game base as a read-only reference');
+    await page.evaluate(()=>{globalThis.umbraProgression.sources.vigueur.ratios.source=2;});
+    await entity.getByRole('tab',{name:'New',exact:true}).click();
+    equal(await total(entity,'physicalDamage'),54,'Changing the Umbra base recalculates actual points');
+    await page.evaluate(()=>{globalThis.umbraProgression.sources.vigueur.ratios.source=1;});
+    await entity.getByRole('tab',{name:'New',exact:true}).click();
+    equal(await total(entity,'physicalDamage'),42,'Restoring the base restores the result');
+    for(const key of ['magicalDamage','piercingDamage','physicalResistance','magicalResistance','dodge','precision']) {
+      const spec=effects.find(effect=>effect.key===key);
+      await add(entity,'umbras','umbra-'+spec.source);
+      await input(entity,'umbras',spec.source).fill('10');
+      await input(entity,'attributes',spec.attribute).fill('10');
+      const expected = key === 'dodge' ? Number((99 * 27 / (27 + 98)).toFixed(2))
+        : key === 'precision' ? sandbox.umbraProgression.precisionPercent(27) : 27;
+      equal(await total(entity,key),expected,key+': 27 points converted to the displayed unit');
     }
-    check(await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid exposes its center control');
-    await setCurve(page,'mid',70);profileBuild.curve.mid=70;
-    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'Moving the sigmoid center recalculates actual entity values');
-    await page.locator('#curve-view').selectOption('ratio');
-    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),multiplier(80,profileBuild.curve),'Sigmoid graph uses the edited center');
-    await page.locator('#curve-profile').selectOption('j');
-    await setCommonGain(40);await setCurve(page,'shape',3);
-    const tunedJ={...curveProfiles.find(profile=>profile.type==='j').defaults,cap:40,shape:3};
-    profileBuild.curve={...tunedJ};
-    equal(Number(await total('x-physicalDamage')),row(profileBuild).total,'J uses its own intensity and the common gain');
-    await page.locator('#curve-profile').selectOption('exp');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Switching profiles preserves the common gain');
-    equal(await page.locator('[data-curve="shape"]').inputValue(),'7','Exponential intensity survives profile round trips');
-    equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:{...tunedExponential,cap:40}}).total,'Previously inactive exponential uses the updated common gain and its own intensity');
-    await page.locator('#mode-toggle').click();
-    await page.locator('#curve-profile').selectOption('sigmoid');
-    equal(await total('x-physicalDamage'),'110','Profile selection in current mode leaves the actual game calculation unchanged');
-    equal(await page.locator('[data-curve="mid"]').inputValue(),'70','Edited sigmoid center is restored even in current mode');
-    const profileCurrentEditor=await sharedEditor();
-    await page.locator('#mode-toggle').click();
-    equal(JSON.stringify(await sharedEditor()),JSON.stringify(profileCurrentEditor),'Mode switch preserves the selected profile and all its controls');
-    await setCurve(page,'mid',50);
-    equal(await page.locator('#curve-profile').inputValue(),'sigmoid','Editing the center preserves the selected profile');
-    equal(JSON.stringify(await acquisitions()),profileInputs,'Editing a profile preserves the build and common limit');
-    await page.locator('#curve-profile').selectOption('j');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Editing sigmoid preserves common balance settings');
-    check((await page.locator('#curve-common-rules').innerText()).includes('200 points'),'Cycle length stays at the reference despite an entity limit of 350');
-    equal(Number(await total('x-physicalDamage')),row({...profileBuild,curve:tunedJ}).total,'Restored J settings recover its real calculation');
-    await page.locator('#example').click();
-    equal(await page.locator('#common-cycle-gain').inputValue(),'40','Example preserves the common gain');
-    const sharedExample=initialState(true);sharedExample.curve.cap=40;
-    equal(Number(await total('x-physicalDamage')),row(sharedExample).total,'Example recalculates with the shared balance settings');
-    await setCommonGain(85);
-    await page.locator('#curve-view').selectOption('ratio');
-    equal(await page.locator('[data-entry^="attribute-"]').count(),0,'Attributes no longer create table rows');
-    equal(await baseField(page,'plus-physicalDamage','attributeBases').inputValue(),'0.5','Selected statistic row exposes its initial attribute base');
-    equal(await baseField(page,'umbra-vigueur','umbraBases').inputValue(),'1','Selected Umbra row exposes its own initial base');
-    equal(await page.locator('[data-entry="fixed-physicalDamage"] .base-settings input').count(),0,'Fixed points do not invent a ratio');
-    await page.locator('#curve-view').selectOption('total');
-    await baseField(page,'plus-physicalDamage','attributeBases').fill('1');
-    equal(await total('x-physicalDamage'),'124','Force base changes immediately recalculate the entity');
-    equal(await page.locator('#curve-chart').getAttribute('data-current'),'124','Stat total curve uses the custom base');
-    for(const id of ['plus-physicalDamage','x-physicalDamage','umbra-vigueur'])equal(await baseField(page,id,'attributeBases').inputValue(),'1',`${id} synchronizes the same statistic base`);
-    await baseField(page,'umbra-vigueur','umbraBases').fill('');
-    await baseField(page,'umbra-vigueur','umbraBases').pressSequentially('0.25');
-    equal(await total('x-physicalDamage'),'108','Decimal Umbra base can be typed without losing focus');
-    equal(await baseField(page,'x-physicalDamage','umbraBases').inputValue(),'0.25','X reflects the same Umbra base');
-    check((await page.locator('#curve-native').innerText()).includes('0,3621'),'Curve metrics show base times multiplier, not the multiplier alone');
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('base 0,25'),'Helper details explain the customized base');
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'),'45','Custom bases do not overwrite the actual game formula');
-    await baseField(page,'plus-physicalDamage','attributeBases').fill('0.75');
-    equal(await total('x-physicalDamage'),'45','Editing a concept base in current mode preserves the current total');
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'),'87','Returning to concept uses the edited base on the same acquisitions');
-    equal(await baseField(page,'plus-physicalDamage','attributeBases').inputValue(),'0.75','Mode switching preserves the configured base');
-    await baseField(page,'umbra-vigueur','umbraBases').fill('0');
-    equal(await total('x-physicalDamage'),'81','Zero Umbra base keeps the fixed gift and attribute gain');
-    await remove('umbra-vigueur');
-    await add('umbras','umbra-vigueur');await fill('umbras','vigueur',15);
-    equal(await baseField(page,'umbra-vigueur','umbraBases').inputValue(),'0','Re-selecting a source preserves its configured base');
-    await add('x','x-attackExecutionReduc');
-    equal(await baseField(page,'x-attackExecutionReduc','attributeBases','attackExecutionReduc').inputValue(),String(25/150),'Another selected stat exposes its own Force base in its statistic row');
-    await baseField(page,'x-attackExecutionReduc','attributeBases','attackExecutionReduc').fill('0.9');
-    equal(await baseField(page,'plus-physicalDamage','attributeBases').inputValue(),'0.75','Per-statistic bases remain independent even with the same attribute');
-    equal(await total('x-physicalDamage'),'81','Editing execution base does not affect PP');
-    await page.locator('#example').click();
-    await page.locator('#curve-view').selectOption('ratio');
-    await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('115 PP'), 'Comparison remains available on demand');
-    const ownedBefore = await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]));
-    const conceptEditor = await sharedEditor();
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '45', 'Switch selects the current JS calculation');
-    equal(await page.locator('#mode-name').innerText(), 'Version actuelle', 'Active calculation mode is explicit');
-    check(await page.locator('#limit').isEnabled(), 'Same limit setting remains editable in current mode');
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(conceptEditor), 'Mode changes calculations only, preserving the entire editor');
-    equal(await page.locator('#curve-chart').getAttribute('data-current'),'1','Current JS mode has no global ratio multiplier');
-    await page.locator('#curve-view').selectOption('total');
-    equal(await page.locator('#curve-chart').getAttribute('data-current'),'45','Current-mode chart shows the actual JS total');
-    await fill('umbras','vigueur',15.3);
-    check((await page.locator('#curve-native').innerText()).includes('15,3 points'),'Current curve metrics preserve native values before final rounding');
-    await fill('umbras','vigueur',15);
-    await page.locator('#curve-view').selectOption('ratio');
-    check((await page.locator('#detail-x-physicalDamage').innerText()).includes('55 PP'), 'Comparison follows the current formula');
-    check(!(await page.locator('#detail-x-physicalDamage').innerText()).includes('arrondi supérieur'), 'Current helper does not claim the concept rounding rule');
-    equal(JSON.stringify(await page.locator('input[data-group]').evaluateAll(nodes => nodes.map(node => [node.dataset.group,node.dataset.key,node.value]))), JSON.stringify(ownedBefore), 'Switch preserves every input');
-    await page.screenshot({ path: resolve(output, 'current-mode.png'), fullPage: true });
-    await fill('attributes', 'strength', 250);
-    await fill('umbras', 'vigueur', 250);
-    equal(await total('x-physicalDamage'), '375', 'Current mode uses its own acquisition rules');
-    await page.locator('#mode-toggle').click();
-    const overflowBuild=initialState(true);overflowBuild.attributes.strength=250;overflowBuild.umbras.vigueur=250;
-    near(displayedNumber(await total('x-physicalDamage')),row(overflowBuild).total,'Concept applies residual efficiency to the same stored inputs');
-    equal(await field('attributes', 'strength').inputValue(), '250', 'Switching back does not overwrite out-of-limit acquisition');
-    equal(await field('umbras', 'vigueur').inputValue(), '250', 'Switching preserves raw Umbra acquisition');
-    const aboveLimitEditor = await sharedEditor();
-    await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).click();
-    equal(await field('umbras', 'vigueur').inputValue(), '251', 'Concept stepper retains shared acquisitions above its calculation limit');
-    overflowBuild.umbras.vigueur=251;
-    near(displayedNumber(await total('x-physicalDamage')),row(overflowBuild).total,'Every extra point produces only residual benefits beyond the limit');
-    await page.getByRole('button', { name: 'Diminuer Vigueur', exact: true }).click();
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '375', 'Round-trip switch restores the same current result');
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(aboveLimitEditor), 'Above-limit inputs have the same values and controls in both modes');
-    await page.locator('#example').click();
-    equal(await total('x-physicalDamage'), '45', 'Example retains the chosen mode');
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '81', 'Returning to concept restores its example');
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    await page.locator('#detail-x-physicalDamage details > summary').click();
-    await fill('plus', 'physicalDamage', 10);
-    equal(await total('x-physicalDamage'), '91', 'Live PP+ retains correct shared ratio');
-    check(await page.locator('#detail-x-physicalDamage details').evaluate(node => node.open), 'Open progression survives recalculation');
-    await fill('umbras', 'vigueur', 25);
-    equal(await total('x-physicalDamage'), '125', 'Live Umbra coefficient is not counted twice');
-    await page.locator('#limit').fill('200');
-    equal(await total('x-physicalDamage'), '125', 'Changing limit alone preserves total');
-    await fill('fixed', 'physicalDamage', 1000);
-    await page.locator('#limit').fill('10');
-    equal(await field('attributes', 'strength').inputValue(), '60', 'Lower concept limit preserves shared attribute acquisition');
-    equal(await field('umbras', 'vigueur').inputValue(), '25', 'Lower concept limit preserves shared Umbra acquisition');
-    const lowered=initialState(true);lowered.umbras.vigueur=25;lowered.plus.physicalDamage=10;lowered.fixed.physicalDamage=1000;
-    const lowerTotal=row(changeLimit(lowered,10)).total;
-    equal(displayedNumber(await total('x-physicalDamage')),lowerTotal,'Fixed acquisition survives limit reduction and the curve restarts at 25');
-    check(await page.getByRole('button', { name: 'Augmenter Vigueur', exact: true }).isEnabled(), 'Same Umbra editing remains available beyond the calculation limit');
-    await page.getByRole('button', { name: 'Augmenter Puissance physique fixe', exact: true }).click();
-    await page.getByRole('button', { name: 'Augmenter Puissance physique +', exact: true }).click();
-    equal(displayedNumber(await total('x-physicalDamage')),lowerTotal+2,'Fixed and plus steppers remain unlimited');
-    await remove('x-physicalDamage');
-    equal(displayedNumber(await total('plus-physicalDamage')),lowerTotal+2,'Removing X closes its view without changing the build');
-    await add('x', 'x-physicalDamage');
-    await remove('umbra-vigueur');
-    equal((await total('plus-physicalDamage')).replace(/\s/g, ''), '1017', 'Removing Umbra removes its gift and native gain and restores the plus coefficient');
-    check((await page.locator('[data-ratio="x-physicalDamage"]').innerText()).includes('Inactive'), 'X becomes inactive when its Umbra is removed');
-    await remove('plus-physicalDamage');
-    equal((await total('fixed-physicalDamage')).replace(/\s/g, ''), '1001', 'Removing plus disables its independent attribute ratio');
-    await remove('fixed-physicalDamage');
-    equal(await total('x-physicalDamage'), '0', 'No orphan fixed contribution remains after removal');
-    await page.locator('#clear').click();
-    check(await page.locator('#pickers').isVisible() && await page.locator('#effects-table').isHidden(), 'Clear keeps stat choices available above the empty table');
-    equal(await page.locator('[data-entry]').count(), 0, 'Clear removes every selected row');
-
-    await add('umbras', 'umbra-vitality', 'vitalite');
-    await fill('umbras', 'vitality', 15);
-    await add('x', 'x-dayHpRegen', 'regeneration');
-    equal(await total('x-dayHpRegen'), '3 HP', 'Vitality computes its dependent effect');
-    await add('stats', 'fixed-HP', 'hp');
-    await fill('fixed', 'HP', 1000);
-    equal(await total('x-dayHpRegen'), '10 HP', 'Selected fixed HP recomputes regeneration');
-    await remove('fixed-HP');
-    equal(await total('x-dayHpRegen'), '3 HP', 'Removing fixed HP recomputes regeneration');
-    await remove('umbra-vitality');
-    equal(await total('x-dayHpRegen'), '0 HP', 'An X view alone does not activate regeneration');
-    await page.locator('#level').fill('90');
-    equal(await total('x-dayHpRegen'), '0 HP', 'Level remains manual');
-
-    // Dynamic departures apply through the live controls, on the very next point.
-    await page.locator('#example').click();await fill('umbras','vigueur',120);
-    let dynamicBuild=initialState(true);dynamicBuild.umbras.vigueur=120;
-    const departureTotal=await total('x-physicalDamage');
-    await page.locator('#limit').fill('400');dynamicBuild=changeLimit(dynamicBuild,400);
-    equal(await total('x-physicalDamage'),departureTotal,'Changing the limit at 120 preserves acquired PP');
-    equal(await page.locator('#curve-chart').getAttribute('data-departure'),'120','Graph marks the exact new departure');
-    await page.getByRole('button',{name:'Augmenter Vigueur',exact:true}).click();dynamicBuild.umbras.vigueur++;
-    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Next acquired point uses the restarted curve in the table');
-    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(dynamicBuild).multiplier,'Graph uses the same restarted ratio');
-    check((await page.locator('#curve-softcap').innerText()).includes('départ de la courbe à 120'),'Live explanation identifies the new departure');
-    await page.locator('.curve-panel').screenshot({path:resolve(output,'dynamic-departure.png')});
-    await setGauge(page,'limit',450);dynamicBuild=changeLimit(dynamicBuild,450);
-    await fill('umbras','vigueur',122);dynamicBuild.umbras.vigueur=122;
-    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Second limit edit restarts at 121 rather than a fixed interval boundary');
-    await page.locator('#mode-toggle').click();await page.locator('#mode-toggle').click();
-    near(displayedNumber(await total('x-physicalDamage')),row(dynamicBuild).total,'Departures survive a mode round trip');
-    // Residual controls are percentages, act only beyond the threshold, and
-    // update the real numbers and graph without rounding tiny gains to +1.
-    await page.locator('#example').click();await fill('umbras','vigueur',199);
-    const below=await total('x-physicalDamage');
-    await page.locator('[data-curve-number="res"]').fill('1');
-    equal(await total('x-physicalDamage'),below,'Residual knob has no effect before the threshold');
-    await fill('umbras','vigueur',201);
-    let residualBuild=initialState(true);residualBuild.umbras.vigueur=201;residualBuild.curve.res=.01;
-    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total,'Typed 1% applies to all overflow benefits');
-    await page.locator('[data-curve-number="res"]').fill('0');residualBuild.curve.res=0;
-    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total,'Zero residual yield stops gains above the threshold');
-    await page.locator('[data-curve-number="res"]').fill('0.05');residualBuild.curve.res=.0005;
-    await page.locator('#curve-view').selectOption('total');
-    near(Number(await page.locator('#curve-chart').getAttribute('data-current')),row(residualBuild).total,'Graph and entity keep the same tiny fractional gains');
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    check(!/undefined|NaN|Infinity/.test(await page.locator('#detail-x-physicalDamage').innerText()),'Residual calculation details contain only valid values');
-    await page.locator('.curve-panel').screenshot({path:resolve(output,'residual-threshold.png')});
-    await fill('fixed','physicalDamage',10000);await fill('plus','physicalDamage',20000);
-    near(displayedNumber(await total('x-physicalDamage')),row(residualBuild).total+30000,'Fixed and plus inputs remain unlimited in the live table');
-    await page.locator('#example').click();await fill('umbras','vigueur',240);
-    const beforeUnlock=displayedNumber(await total('x-physicalDamage'));
-    await page.locator('#limit').fill('400');
-    near(displayedNumber(await total('x-physicalDamage')),beforeUnlock,'Raising a limit after overflow preserves the residual gains already reached');
-    await fill('umbras','vigueur',241);
-    let afterOverflow=initialState(true);afterOverflow.umbras.vigueur=240;afterOverflow=changeLimit(afterOverflow,400);afterOverflow.umbras.vigueur=241;
-    near(displayedNumber(await total('x-physicalDamage')),row(afterOverflow).total,'The next point resumes normal progression from the residual departure');
-
-    // Exercise every catalog entry and detail renderer, after the actual user flows above.
-    await page.locator('#clear').click();
-    await page.evaluate(() => { for (const button of document.querySelectorAll('[data-add]')) button.click(); });
-    equal(await page.locator('[data-entry]').count(), 54, 'All supported entries can coexist without duplicate sources');
-    await page.evaluate(() => { for (const button of document.querySelectorAll('[data-detail]')) button.click(); });
-    const allDetails = await page.locator('#effects').textContent();
-    check(!/undefined|NaN|Infinity/.test(allDetails), 'Every selected entry renders valid labels and calculations');
-    equal(await page.locator('.detail-row:visible').count(), 54, 'Every entry exposes a detail');
-    const allEntriesEditor = await sharedEditor();
-    await page.locator('#mode-toggle').click();
-    check(!/undefined|NaN|Infinity/.test(await page.locator('#effects').textContent()), 'Every current-mode detail renders correctly');
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(allEntriesEditor), 'All 54 entries keep identical editable controls in current mode');
-    await fill('umbras','precision',.01);await fill('plus','criticalDamage',.01);
-    const tinyCritical=await page.locator('[data-ratio="umbra-precision"] [data-umbra-breakdown="criticalDamage"]').innerText();
-    check(!/NaN|undefined/.test(tinyCritical)&&tinyCritical.includes('max(0 ;'),'Current fractional rounding explains the zero floor without inventing an effect cap');
-    await fill('umbras','precision',0);await fill('plus','criticalDamage',0);
-    check(await field('fixed', 'precisionReduction').isEnabled(), 'Direct precision input stays editable even without a current formula');
-    const currentPrecision = await total('fixed-precisionReduction');
-    await fill('fixed', 'precisionReduction', 7);
-    await fill('plus', 'precisionReduction', 9);
-    equal(await total('fixed-precisionReduction'), currentPrecision, 'Current formula ignores unsupported direct bonuses without removing the inputs');
-    await page.locator('#mode-toggle').click();
-    equal(await field('fixed', 'precisionReduction').inputValue(), '7', 'Concept receives the fixed precision edited in current mode');
-    equal(await field('plus', 'precisionReduction').inputValue(), '9', 'Concept receives the plus precision edited in current mode');
-
-    await page.locator('#example').click();
-    await page.locator('details.rules > summary').click();
-    await setCommonGain(50);
-    equal(await total('x-physicalDamage'), '72', 'Curve control recalculates existing points in the table');
-    await setCommonGain(85);
-    await page.locator('#concept-settings > details > summary').click();
-    await fill('gifts', 'physicalDamage', 2);
-    equal(await total('x-physicalDamage'), '96', 'Fixed grants remain adjustable inside settings');
-    const openSettingsEditor = await sharedEditor();
-    await page.locator('#mode-toggle').click();
-    equal(await total('x-physicalDamage'), '45', 'Current mode ignores the concept grant setting');
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(openSettingsEditor), 'Open parameters keep the same visibility and editing in current mode');
-    check(await page.locator('#concept-settings').isVisible(), 'Concept settings remain displayed in current mode');
-    check(await page.locator('#current-rules').isVisible(), 'Calculation rules for both modes remain accessible');
-    await page.locator('#limit').fill('10');
-    await setCurve(page,'shape',6);
-    await setCommonGain(50);
-    await fill('gifts', 'physicalDamage', 3);
-    equal(await total('x-physicalDamage'), '45', 'Editing concept parameters in current mode leaves its JS calculation unchanged');
-    const currentSettingsEditor = await sharedEditor();
-    await page.locator('#mode-toggle').click();
-    equal(JSON.stringify(await sharedEditor()), JSON.stringify(currentSettingsEditor), 'Current-mode edits are used directly by concept without an alternate build');
-    const edited=changeLimit(initialState(true),10);edited.curve.shape=6;edited.curve.cap=50;edited.gifts.physicalDamage=3;
-    equal(displayedNumber(await total('x-physicalDamage')),row(edited).total,'Concept uses the newly edited limit, curve and grant on the same points');
-    await page.locator('#limit').fill('150');
-    await setCurve(page,'shape',10);
-    await setCommonGain(85);
-    await fill('gifts', 'physicalDamage', 2);
-    equal(await total('x-physicalDamage'), '96', 'Restoring concept parameters recovers the unchanged acquisitions');
-    await fill('gifts', 'physicalDamage', 1);
-    await page.locator('details.rules > summary').click();
-    for (const width of [1440, 768, 390, 320]) {
-      await page.setViewportSize({ width, height: 900 });
-      check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `No page overflow at ${width}px`);
-      for (const catalog of ['stats', 'plus', 'x', 'umbras']) {
-        const picker = page.locator(`[data-catalog="${catalog}"]`);
-        await picker.locator('summary').click();
-        check(await picker.locator('.picker-panel').evaluate(node => { const box = node.getBoundingClientRect(); return box.left >= 0 && box.right <= innerWidth; }), `${catalog} dropdown fits at ${width}px`);
-        await picker.locator('input').press('Escape');
-      }
-    }
-    await page.locator('#curve-profile').selectOption('sigmoid');
-    check(await page.locator('[data-curve="mid"]').isVisible(),'Sigmoid settings remain accessible on mobile');
-    check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Sigmoid profile controls fit at 320px');
-    await page.locator('#curve-profile').selectOption('exp');
-    await page.setViewportSize({ width: 390, height: 844 });
-    check(await page.locator('[data-total="x-physicalDamage"]').evaluate(node => node.getBoundingClientRect().right <= innerWidth), 'Mobile total fits the viewport');
-    await page.screenshot({ path: resolve(output, 'mobile.png'), fullPage: true });
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    check(await page.locator('#detail-x-physicalDamage').evaluate(node => node.scrollWidth <= innerWidth), 'Mobile calculation fits the viewport');
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.locator('[data-detail="x-physicalDamage"]').click();
-    await statsPicker.locator('summary').click();
-    await statsPicker.locator('input').fill('pp');
-    await page.screenshot({ path: resolve(output, 'dropdown.png'), fullPage: true });
-    await statsPicker.locator('input').press('Escape');
-
-    const first=page.locator('[data-entity-id="entity-1"]');
-    const entityTotal=entity=>entity.locator('[data-stat-total="physicalDamage"]').innerText();
-    const entityFill=(entity,group,key,value)=>entity.locator(`input[data-group="${group}"][data-key="${key}"]`).fill(String(value));
-    const settings=entity=>entity.locator('input:not([type="search"])').evaluateAll(nodes=>nodes.map(node=>[node.dataset.ui||node.dataset.group||'name',node.dataset.key||'',node.value]));
-    const rowNumber=(entity,id)=>entity.locator(`[data-total="${id}"]`).evaluate(node=>node.firstChild.textContent.trim());
-    await first.locator('.entity-name').fill('Porc Vigueur');
-    await first.locator('[data-ui="example"]').click();
-    for(const [group,key] of [['attributes','strength'],['umbras','vigueur'],['fixed','physicalDamage'],['plus','physicalDamage']])await entityFill(first,group,key,10);
-    equal(await entityTotal(first),'51','User build has a separate 51 PP total with both cycle ratios');
-    equal(await rowNumber(first,'fixed-physicalDamage'),'10','Fixed row no longer repeats the global total');
-    equal(await rowNumber(first,'plus-physicalDamage'),'10','Plus row shows its exclusive contribution');
-    equal(await first.locator('[data-total="umbra-vigueur"] [data-contribution-stat="physicalDamage"]').evaluate(node=>node.firstChild.textContent),'31','Umbra row shows 31 PP');
-    equal(await rowNumber(first,'x-physicalDamage'),'21','X displays its included capacity');
-    equal(await first.locator('[data-stat-total="physicalDamage"]').count(),1,'Exactly one PP total despite four related rows');
-    check((await first.locator('[data-breakdown="physicalDamage"]').innerText()).includes('Fixe 10 + Stat+ 10 + Vigueur 31'),'Total explains the non-duplicated sum');
-
-    const firstBefore=await settings(first);
     await page.locator('#add-entity').click();
     const second=page.locator('[data-entity-id="entity-2"]');
-    equal(await page.locator('.entity').count(),2,'Two entities are displayed simultaneously');
-    equal(await second.locator('[data-entry]').count(),0,'New entity starts independently');
-    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Creating an entity preserves the first build');
-    await second.locator('.entity-name').fill('Porc PP+');
-    await second.locator('[data-ui="example"]').click();
-    await entityFill(second,'attributes','strength',10);
-    await entityFill(second,'umbras','vigueur',0);
-    await entityFill(second,'fixed','physicalDamage',10);
-    await entityFill(second,'plus','physicalDamage',20);
-    equal(await entityTotal(second),'35','Second entity computes its own build');
-    equal(await rowNumber(second,'plus-physicalDamage'),'25','Without Umbra, the plus row includes its attribute ratio');
-    equal(await entityTotal(first),'51','Second entity edits do not affect the first');
-    await second.locator('[data-ui="level"]').fill('12');
-    await second.locator('[data-ui="limit"]').fill('80');
-    await second.locator('details.rules > summary').click();
-    await setCurve(second,'shape',6);
-    const beforeSharedGain=[await settings(first),await settings(second)];
-    await setCommonGain(50);
-    equal(await entityTotal(first),'48','Common gain immediately recalculates the first entity');
-    equal(JSON.stringify([await settings(first),await settings(second)]),JSON.stringify(beforeSharedGain),'Shared balance changes preserve all entity acquisitions and local controls');
-    await second.locator('[data-ui="concept-settings"] > details > summary').click();
-    await entityFill(second,'gifts','physicalDamage',2);
-    await entityFill(second,'umbras','vigueur',10);
-    equal(await entityTotal(second),'68','Each entity keeps its own curve shape and grants with the common gain');
-    await baseField(second,'umbra-vigueur','umbraBases').fill('2');
-    equal(await baseField(first,'umbra-vigueur','umbraBases').inputValue(),'1','Each entity owns its Umbra base');
-    equal(await entityTotal(first),'48','Another entity’s base cannot change this entity');
-    equal(await entityTotal(second),'79','Custom base applies only to its own entity');
-    await baseField(second,'umbra-vigueur','umbraBases').fill('1');
-    await second.locator('[data-ui="curve-profile"]').selectOption('j');
-    await setCurve(second,'shape',4);
-    equal(await first.locator('[data-ui="curve-profile"]').inputValue(),'exp','Another entity can select its own independent profile');
-    equal(await entityTotal(first),'48','Changing another entity’s profile leaves this entity’s calculations intact');
-    await second.locator('[data-ui="curve-profile"]').selectOption('exp');
-    equal(await second.locator('[data-curve="shape"]').inputValue(),'6','Switching profiles restores the second entity’s tuned exponential');
-    equal(await entityTotal(second),'68','Restoring a profile preserves its per-entity bases and grants');
-    await second.locator('[data-reset-setting="level"]').click();
-    await second.locator('[data-reset-setting="limit"]').click();
-    equal(await second.locator('[data-ui="level"]').inputValue(),'1','Reset targets the second entity’s level');
-    equal(await second.locator('[data-ui="limit"]').inputValue(),'200','Reset targets the second entity’s limit');
-    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Another entity’s gauge resets preserve the first entity');
-    equal(await entityTotal(second),'68','Gauge resets preserve attributes, Umbra points, bases and curve settings');
-    await second.locator('[data-ui="level"]').fill('12');
-    await second.locator('[data-ui="limit"]').fill('80');
-    const secondBefore=await settings(second);
-    await second.locator('[data-ui="mode-toggle"]').click();
-    equal(await entityTotal(second),'45','Second entity can use current JS while the first remains conceptual');
-    await setCommonGain(85);
-    equal(await entityTotal(first),'51','Shared gain updates an entity still using Concept');
-    equal(await entityTotal(second),'45','Shared gain leaves the current-game calculation unchanged');
-    await setCommonGain(50);
-    equal(await first.locator('[data-ui="mode-name"]').innerText(),'Concept','Calculation mode is isolated per entity');
-    equal(JSON.stringify(await settings(second)),JSON.stringify(secondBefore),'Mode switch preserves name, levels, limit, curve, grants and every input');
-    equal(JSON.stringify(await settings(first)),JSON.stringify(firstBefore),'Switching another entity preserves all first-entity settings');
-    await second.locator('[data-ui="mode-toggle"]').click();
-    equal(await entityTotal(second),'68','Returning to concept restores the same second result');
-    equal(JSON.stringify(await settings(second)),JSON.stringify(secondBefore),'Round trip preserves all second-entity settings');
-    await first.locator('[data-ui="mode-toggle"]').click();
-    equal(await entityTotal(first),'35','First entity switches independently');
-    equal(await entityTotal(second),'68','Second entity remains unchanged');
-    await first.locator('[data-ui="mode-toggle"]').click();
-    await entityFill(first,'fixed','physicalDamage',11);
-    equal(await entityTotal(first),'49','First entity still updates independently');
-    equal(await entityTotal(second),'68','No input selector leaks to the other entity');
-    await entityFill(first,'fixed','physicalDamage',10);
-    check(await page.evaluate(()=>{const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);return new Set(ids).size===ids.length;}),'Multiple entities have unique DOM and detail identifiers');
-    await second.locator('details.rules > summary').click();
-    const firstBox=await first.boundingBox(), secondBox=await second.boundingBox();
-    check(secondBox.x>firstBox.x && Math.abs(secondBox.y-firstBox.y)<2,'Entity tables are side by side on desktop');
-    await page.screenshot({path:resolve(output,'multiple-entities.png'),fullPage:true});
-    for(const entity of [first,second])for(const catalog of ['stats','plus','x','umbras']) {
-      const picker=entity.locator(`[data-catalog="${catalog}"]`);
-      await picker.locator('summary').click();
-      check(await picker.locator('.picker-panel').evaluate(node=>{const panel=node.getBoundingClientRect(),card=node.closest('.entity').getBoundingClientRect();return panel.left>=card.left&&panel.right<=card.right;}),'Dropdown remains inside its owning entity');
-      await picker.locator('input').press('Escape');
-    }
-    await page.setViewportSize({width:390,height:844});
-    check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Multiple entities do not overflow on mobile');
-    await page.screenshot({path:resolve(output,'multiple-entities-mobile.png'),fullPage:true});
-    await first.locator('[data-ui="clear"]').click();
-    check(await first.locator('[data-ui="pickers"]').isVisible() && await first.locator('[data-ui="effects-table"]').isHidden(),'Clear only empties its own entity and preserves its stat choices');
-    equal(await first.locator('.entity-name').inputValue(),'Porc Vigueur','Clear preserves the entity name');
-    equal(await entityTotal(second),'68','Clearing another entity leaves the second build untouched');
-    await first.locator('[data-remove-entity]').click();
-    equal(await page.locator('.entity').count(),1,'Minus Entity removes only the intended entity');
-    equal(await entityTotal(second),'68','Remaining entity retains results and settings');
+    await second.locator('.entity-name').fill('Réserve');
+    await add(second,'stats','fixed-physicalDamage','physique');
+    await input(second,'fixed','physicalDamage').fill('10000');
+    equal(await total(second,'physicalDamage'),10000,'Fixed stats remain unlimited');
+    equal(await total(entity,'physicalDamage'),42,'Second entity leaves the first build unchanged');
+    await second.getByRole('tab',{name:'Old',exact:true}).click();
+    equal(await entity.getByRole('tab',{selected:true}).innerText(),'New','Modes are independent per entity');
     await page.locator('#add-entity').click();
     const third=page.locator('[data-entity-id="entity-3"]');
-    equal(await third.locator('[data-entry]').count(),0,'Entity created after removal is fresh');
-    equal(await third.locator('[data-curve="shape"]').inputValue(),'10','A fresh entity preserves the original exponential intensity independently');
-    equal(await page.locator('#common-cycle-gain').inputValue(),'50','A fresh entity preserves the common per-cycle gain');
-    check((await third.locator('[data-ui="curve-common-rules"]').innerText()).includes('+50 %'),'A fresh entity inherits the current common gain');
-    await third.locator('[data-ui="example"]').click();
-    equal(await entityTotal(third),'72','A new entity calculates with the common gain');
-    await third.locator('[data-ui="clear"]').click();
-    equal(await page.locator('#common-cycle-gain').inputValue(),'50','Clearing an entity preserves the shared gain');
-    await third.locator('[data-remove-entity]').click();
+    await third.locator('.entity-name').fill('Troisième');
+    equal(await page.locator('.entity').count(),3,'Three simultaneous entities');
     await second.locator('[data-remove-entity]').click();
-    check(await page.locator('#no-entities').isVisible(),'Removing the final entity leaves the add action available');
-    await page.locator('#add-entity').click();
-    equal(await page.locator('.entity').count(),1,'An entity can be created again after removing all');
-    const fourth=page.locator('[data-entity-id="entity-4"]');
-    await fourth.locator('[data-ui="example"]').click();
-    const fourthInputs=await settings(fourth);
-    await page.locator('#common-balancing > summary').click();
-    const referenceInput=page.locator('#common-reference-limit');
-    await referenceInput.fill('300');
-    check(await referenceInput.evaluate(node=>node===document.activeElement),'Reference recalculates while the input retains focus');
-    const referenceBuild=initialState(true);referenceBuild.curve.cap=50;referenceBuild.curve.interval=300;
-    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Reference change recalculates the existing entity immediately');
-    near(Number(await fourth.locator('[data-ui="curve-chart"]').getAttribute('data-current')),multiplier(15,referenceBuild.curve),'Curve uses the new reference cycle length');
-    equal(JSON.stringify(await settings(fourth)),JSON.stringify(fourthInputs),'Reference change preserves existing limits, points and local settings');
-    equal(await fourth.locator('[data-entity-setting="limit"]').getAttribute('max'),'1200','Limit gauge range follows the common reference');
-    await referenceInput.fill('');await referenceInput.blur();
-    equal(await referenceInput.inputValue(),'300','An empty reference restores the last valid value');
-    await page.locator('#common-balancing > summary').click();
-    for(const type of ['j','sigmoid','exp']) {
-      await fourth.locator('[data-ui="curve-profile"]').selectOption(type);
-      referenceBuild.curve={...curveProfiles.find(profile=>profile.type===type).defaults,cap:50,interval:300};
-      equal(Number(await entityTotal(fourth)),row(referenceBuild).total,`${type}: inactive profiles also receive the new cycle length`);
+    equal(await page.locator('.entity').count(),2,'Removing one entity preserves the others');
+    equal(await total(entity,'physicalDamage'),42,'Removal preserves first entity values');
+    await entity.locator('[data-ui="curve-effect"]').selectOption('physicalDamage');
+    await entity.locator('[data-ui="curve-view"]').selectOption('total');
+    for(const width of [1440,390]) {
+      await page.setViewportSize({width,height:1000});
+      await entity.screenshot({path:resolve(output,'new-'+width+'.png')});
+      equal(Number(await entity.locator('[data-ui="curve-chart"]').getAttribute('data-current')),42,'Responsive redraw preserves values');
     }
-    await fourth.locator('[data-reset-setting="limit"]').click();
-    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'300','Limit reset uses the updated common reference');
-    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Limit reset preserves existing points and curve settings');
-    await fourth.locator('[data-ui="example"]').click();
-    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'300','Fresh example uses the current reference limit');
-    await entityFill(fourth,'umbras','vigueur',300);
-    const beforeReferenceUnlock=await entityTotal(fourth);
-    await setGauge(fourth,'limit',600);
-    equal(await fourth.locator('[data-ui="limit"]').inputValue(),'600','Limit gauge opens the configured second cycle');
-    equal(await entityTotal(fourth),beforeReferenceUnlock,'Raising the limit does not stretch the completed 300-point cycle');
-    await page.locator('#add-entity').click();
-    const fifth=page.locator('[data-entity-id="entity-5"]');
-    equal(await fifth.locator('[data-ui="limit"]').inputValue(),'300','New entities inherit the configured reference');
-    await fifth.locator('[data-ui="example"]').click();
-    const beforeReferenceChange=[await settings(fourth),await settings(fifth)];
-    await setCommonReference(150);
-    referenceBuild.curve.interval=150;
-    equal(Number(await entityTotal(fifth)),row(referenceBuild).total,'Shared reference recalculates the second entity');
-    referenceBuild.limit=600;referenceBuild.umbras.vigueur=300;
-    equal(Number(await entityTotal(fourth)),row(referenceBuild).total,'Shared reference recalculates all completed cycles on the first entity');
-    equal(JSON.stringify([await settings(fourth),await settings(fifth)]),JSON.stringify(beforeReferenceChange),'Both entities preserve their own limits when the shared reference changes');
-    await fifth.locator('[data-ui="mode-toggle"]').click();
-    await setCommonReference(75);
-    equal(await entityTotal(fifth),'45','Reference changes leave current-game calculations unchanged');
-    await fifth.locator('[data-ui="mode-toggle"]').click();
-    referenceBuild.umbras.vigueur=15;referenceBuild.curve.interval=75;
-    equal(Number(await entityTotal(fifth)),row(referenceBuild).total,'Returning to Concept uses the updated reference');
-    await setCommonReference(0);
-    equal(await referenceInput.inputValue(),'1','Zero reference is clamped to one point instead of dividing by zero');
-    check(!/NaN|Infinity/.test(await fifth.locator('[data-ui="curve-total"]').innerText()),'Minimum reference keeps finite calculations');
-    await setCommonReference(300);
-    await fifth.locator('[data-ui="clear"]').click();
-    equal(await fifth.locator('[data-ui="limit"]').inputValue(),'300','Cleared entities restart at the current reference');
-    equal(await referenceInput.inputValue(),'300','Clearing one entity preserves the common reference');
-    equal(errors.length, 0, `No browser errors: ${errors.join('; ')}`);
-    equal(network.length, 0, 'Standalone page makes no external requests');
-    await writeFile(resolve(output, 'verification.json'), JSON.stringify({ checks, errors, network }, null, 2));
-    console.log(`Browser and model: ${checks} checks passed. Screenshots: ${output}`);
+    check(errors.length===0,'No browser errors: '+errors.join('; '));
+    check(network.length===0,'Standalone workshop makes no network requests');
+    await writeFile(resolve(output,'report.json'),JSON.stringify({checks,errors,network},null,2));
+    console.log('Browser and model: '+checks+' checks passed.');
   } finally {
     await browser.close();
   }

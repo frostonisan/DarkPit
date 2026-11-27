@@ -6,13 +6,14 @@
   <title>Index 15 · Gabarit des entités</title>
   <link rel="icon" href="media/assets/ui/favicon.png">
   <!-- Feuilles de production, intactes et dans l'ordre du jeu. Aucun script du jeu. -->
-  <link rel="stylesheet" href="css/board.css">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/animation.css">
-  <link rel="stylesheet" href="css/monstre.css">
-  <link rel="stylesheet" href="css/battle-infos.css">
-  <link rel="stylesheet" href="css/spell.css">
-  <link rel="stylesheet" href="css/monstre-hitbox.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/interface.css">
+    <link rel="stylesheet" href="css/stats.css">
+    <link rel="stylesheet" href="css/combat.css">
+    <link rel="stylesheet" href="css/animation.css">
+    <link rel="stylesheet" href="css/monstre.css">
+    <link rel="stylesheet" href="css/effects.css">
+    <link rel="stylesheet" href="css/monstre-hitbox.css">
   <style>
     /* 1. Présentation du banc d'essai. Ces règles ne sont pas destinées au jeu. */
     :root { color-scheme: dark; --lab-scale: 1; --lab-gold: #e5c18a; --lab-mint: #8cdaca; }
@@ -143,7 +144,7 @@
        Le scale(.85) existant est conservé sur le parent entitesContainer commun.
        Les contrôles ne changent ensuite que le transform du parent lab-scale. */
     .lab-unified { position: relative; transform-origin: center bottom; }
-    .lab-frame { --shown-auras: var(--aura-count, 1); --head-gap: min(calc(var(--sprite-h) * .025), 5px); --halo-height: calc(var(--halo-size) * .38); --status-size: min(calc(var(--sprite-w) * .48), calc(var(--sprite-h) * .65), 64px); --status-space: 0px; position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
+    .lab-frame { --shown-auras: var(--aura-count, 1); --head-gap: min(calc(var(--sprite-h) * .025), 5px); --halo-height: calc(var(--halo-size) * .38); --halo-ratio: 1; --halo-step: calc(var(--halo-size) * .06); --aura-stack-height: calc(min(1, var(--shown-auras)) * (var(--halo-height) + var(--head-gap)) + max(0, var(--shown-auras) - 1) * var(--halo-step)); --status-size: min(calc(var(--sprite-w) * .48), calc(var(--sprite-h) * .65), 64px); --status-space: 0px; position: relative; width: var(--sprite-w, max-content); height: var(--sprite-h, auto); line-height: 0; }
     .lab[data-auras=false] .lab-frame { --shown-auras: 0; }
     .lab-sprite-facing { line-height: 0; }
     .lab-frame .sprite { position: relative; display: inline-block; top: 0; line-height: 0; vertical-align: bottom; }
@@ -156,19 +157,21 @@
     .lab-frame > .aura-container { z-index: 90; }
     .lab-frame .life-sup { position: absolute; inset: 0; }
     .lab-frame .life-aura-anim { width: 100%; height: 100%; }
-    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap) + var(--aura-row, 0) * (var(--halo-height) + var(--head-gap))); left: 50%; width: var(--halo-size); height: var(--halo-height); transform: translateX(-50%); }
+    .lab-frame .life-aura-wrap { top: auto; bottom: calc(100% + var(--head-gap) + var(--aura-row, 0) * var(--halo-step)); left: 50%; width: calc(var(--halo-size) * var(--halo-ratio)); height: calc(var(--halo-height) * var(--halo-ratio)); transform: translateX(-50%); }
+    .lab-frame [data-aura=extraLife] { --halo-ratio: .818182; }
+    .lab-frame [data-aura=fadedLife] { --halo-ratio: .636364; }
     /* Les SVG d'auréole ont de grandes marges verticales transparentes.
        Cover dans une fenêtre basse rapproche le dessin, sans déformer l'anneau. */
     .lab-frame .life-aura-img { width: 100%; height: 100%; object-fit: cover; --amp: min(calc(var(--sprite-h) * .025), 3px); }
     /* Chaque famille a une règle commune, indépendante du modèle de l'entité. */
     .lab-frame .effect-vfx { margin: 0; object-fit: contain; }
-    .lab-frame .effect-vfx.stun { width: var(--status-size); height: auto; left: 50%; top: auto; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap)); transform: translateX(-50%); }
+    .lab-frame .effect-vfx.stun { width: var(--status-size); height: auto; left: 50%; top: auto; bottom: calc(100% + var(--aura-stack-height) + var(--head-gap)); transform: translateX(-50%); }
     /* Plafonds locaux par famille, avant le scale global. Aucun cas par monstre. */
     .lab-frame .effect-vfx.mysticism { width: min(80%, calc(var(--sprite-h) * .55), 140px); height: min(90%, 200px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .effect-vfx.heal { width: min(70%, calc(var(--sprite-h) * .6), 110px); height: min(90%, 160px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .effect-vfx.burn { width: min(75%, calc(var(--sprite-h) * .7), 110px); height: min(70%, 140px); left: 50%; top: auto; bottom: 0; object-position: center bottom; transform: translateX(-50%); }
     .lab-frame .cast { --ground-size: min(calc(var(--sprite-w) * 1.2), calc(var(--sprite-h) * 1.5), 190px); position: absolute; width: var(--ground-size); height: calc(var(--ground-size) * .32); object-fit: fill; left: 50%; top: 100%; transform: translate(-50%, -50%); animation: none; }
-    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 8px); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
+    .lab-frame .pop-up-txt, .lab-frame .pop-down-txt { position: absolute; top: auto; bottom: calc(100% + var(--aura-stack-height) + var(--head-gap) + var(--status-space) + 8px); left: 50%; width: max(100%, 130px); height: auto; transform: translateX(-50%); pointer-events: none; z-index: 120; line-height: 1.3; }
     .lab-frame .pop-up-txt { margin-bottom: 32px; }
     .lab-frame .BattleText { width: 100%; left: 0; white-space: nowrap; }
     .lab-frame .damage-popup { position: relative; width: 100%; left: 0; }
@@ -179,13 +182,13 @@
     /* 4. DEUX BLOCS. L'historique compact (z 1) reste derrière le dernier
        événement (z 2). Tout le groupe passe au-dessus des auras.
        Le départ des dégâts et les ancres latérales restent fixes, indépendants du contenu. */
-    .lab-message-feed { --proc-size: clamp(36px, calc(var(--sprite-h) * .4), 52px); display: none; position: absolute; left: 50%; bottom: calc(100% + (var(--halo-height) + var(--head-gap)) * var(--shown-auras) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; isolation: isolate; pointer-events: none; line-height: 1.2; }
+    .lab-message-feed { --proc-size: clamp(36px, calc(var(--sprite-h) * .4), 52px); display: none; position: absolute; left: 50%; bottom: calc(100% + var(--aura-stack-height) + var(--head-gap) + var(--status-space) + 12px); width: 0; height: 0; z-index: 220; isolation: isolate; pointer-events: none; line-height: 1.2; }
     .lab[data-mode=messages] .lab-message-feed { display: block; }
     .lab-feedback-archive { position: absolute; left: 0; bottom: 34px; width: 0; height: 0; z-index: 1; }
     /* Aucun gabarit ne dépend de la largeur du texte, du GIF ou du critique.
        Le scale du parent reste le seul changement d'échelle des ancres. */
     .lab-message-front { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
-    /* Chaque IMG garde son placement de spell.css dans le gabarit du sprite.
+    /* Chaque IMG garde son placement de effects.css dans le gabarit du sprite.
        Le calque et la durée de vie n'imposent plus une ancre centrale commune. */
     .lab-proc-field { --body-proc-size: clamp(32px, min(calc(var(--sprite-w) * .9), calc(var(--sprite-h) * .75)), 110px); position: absolute; inset: 0; z-index: 160; pointer-events: none; }
     .lab:not([data-mode=messages]) .lab-proc-field { display: none; }
@@ -318,7 +321,7 @@
   </section>
   <details class="lab-doc" open>
     <summary>Ce qui est testé, et où lire le code</summary>
-    <p>Les sept feuilles CSS du jeu sont chargées sans modification. Les sprites sont dessinés dans des canvas 500 × 500 comme dans <code>createEntity.js</code> ; leur taille affichée est imposée par <a href="css/monstre.css">monstre.css</a>, notamment <code>height: 120px</code> pour la mouche et <code>width: 220px; height: 140px</code> pour l’escargot. Aucun contour n’est calculé.</p>
+    <p>Les huit feuilles CSS du jeu sont chargées sans modification. Les sprites sont dessinés dans des canvas 500 × 500 comme dans <code>createEntity.js</code> ; leur taille affichée est imposée par <a href="css/monstre.css">monstre.css</a>, notamment <code>height: 120px</code> pour la mouche et <code>width: 220px; height: 140px</code> pour l’escargot. Aucun contour n’est calculé.</p>
     <p>Le bloc CSS « 3. PROPOSITION », le template <code>unified-entity</code> et <code>calibrateUnified()</code>, dans cette page, contiennent l’essai. Une lecture du style du sprite au montage suffit. Les calques sont ses voisins : ils restent hors de son clip-path. La tremblote reste sur le sprite uniquement ; les effets conservent leurs animations propres. Seule l’échelle globale est commune.</p>
     <pre>parent d’échelle             ← transform: scale(...) uniquement
 └─ entitesContainer          ← facteur existant × 0,85
@@ -334,7 +337,7 @@
     <p>Les tailles et espacements proposés sont des réglages à juger ici. En vue d’ensemble, l’ancienne animation des dégâts, qui anime aussi la taille de police, est conservée des deux côtés afin d’isoler l’essai de placement. Le recalibrage n’a lieu qu’à la création ou au remplacement d’une entité.</p>
     <p>En mode « Messages / dégâts », les chiffres partent tous du même point absolu. Le dernier apparaît en gros au premier plan ; les précédents continuent leur trajectoire sans être remplacés ni copiés dans une archive. Les arrivées alternent centre, gauche, droite tant qu’un chiffre est visible. Les jets montent puis retombent en courbe et rapetissent jusqu’à disparition. Après une pause sans chiffre visible, le premier jet repart au centre. Huit chiffres au maximum par entité, sans file d’attente.</p>
     <p>Les critiques gardent leur picto et leur pop plus gros ; les exécutions critiques sont les plus importantes. Le montant conserve la couleur de sa nature et les « !!! » leur couleur critique. Durées : 1,35 seconde pour un dégât normal, 1,55 seconde pour un critique, 1,75 seconde pour une exécution critique. Les GIF de capacités restent à gauche, les noms d’effets à droite, avec leurs piles et l’archive compacte des effets. Les durées disponibles sont affichées en secondes, avec au plus une décimale.</p>
-    <p>La jauge VFX tire au hasard parmi les capacités cochées, indépendamment du flux de messages. Chaque VFX reprend son placement de spell.css sur le gabarit du sprite, ainsi que le centrage de l’ambidextrie défini dans le code du jeu et la classe recoveryGif de la récupération. Les dimensions natives sont plafonnées selon la largeur et la hauteur du sprite, à 110 px au maximum avant le scale du parent. Trois VFX au maximum par entité ; un nouveau proc du même type relance son affichage.</p>
+    <p>La jauge VFX tire au hasard parmi les capacités cochées, indépendamment du flux de messages. Chaque VFX reprend son placement de effects.css sur le gabarit du sprite, ainsi que le centrage de l’ambidextrie défini dans le code du jeu et la classe recoveryGif de la récupération. Les dimensions natives sont plafonnées selon la largeur et la hauteur du sprite, à 110 px au maximum avant le scale du parent. Trois VFX au maximum par entité ; un nouveau proc du même type relance son affichage.</p>
     <p>Le nouveau flux anime uniquement transform et opacity. Deux timers indépendants génèrent les messages et les procs VFX ; les fins d’animations retirent les messages. Quitter le mode, remplacer une entité, vider ou masquer l’onglet nettoie/suspend le travail concerné. Le témoin conserve ses animations actuelles et se limite à 48 messages par entité pour protéger l’onglet. Ce laboratoire ne modifie ni les sauvegardes ni le combat.</p>
   </details>
   </div>
@@ -727,7 +730,7 @@
 
   function placeNativeProc(image, fxClass) {
     image.className = fxClass === 'recovery' ? 'recoveryGif' : `effect-vfx ${fxClass}`;
-    // AmbidextryVFX (damagesCalcul.js) surcharge ce placement de spell.css.
+    // AmbidextryVFX (damagesCalcul.js) surcharge ce placement de effects.css.
     if (fxClass === 'ambidextry') Object.assign(image.style, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' });
   }
 

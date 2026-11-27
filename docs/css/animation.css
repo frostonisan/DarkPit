@@ -1,3 +1,908 @@
+/* Animations communes : affectations, keyframes et mouvement reduit.
+ * Ordre des declarations conserve dans chaque theme. Voir le README pour le chargement.
+ */
+
+.board, .foreground, .hud-ingame, .drag-box, #hexGrid{
+  transition: transform 1.3s ease;}
+
+@keyframes brouillard {
+             0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: -100% -100%;
+    }
+        }
+
+/* =========================================================
+   ANIMATION COMMUNE DES AURAS
+   Adaptation plein écran de textGlowPulseFast
+   ========================================================= */
+
+@keyframes cinematicAuraPulseFast {
+
+  0%,
+  100% {
+    opacity: .55;
+
+    box-shadow:
+      inset 0 0 3px
+      rgb(var(--cinematic-screen-fx-rgb) / .45),
+
+      inset 0 0 8px
+      rgb(var(--cinematic-screen-fx-rgb) / .25);
+  }
+
+
+  50% {
+    opacity: .78;
+
+    box-shadow:
+      inset 0 0 5px
+      rgb(var(--cinematic-screen-fx-rgb) / .75),
+
+      inset 0 0 14px
+      rgb(var(--cinematic-screen-fx-rgb) / .45);
+  }
+}
+
+/* =========================================================
+   ENTRÉE FAIL ROUGE INTENSE
+   ========================================================= */
+
+#game-windows
+> .event-cinematic
+> .cinematic-screen-fx.fail.is-entering {
+  animation:
+    cinematic-fail-entry
+    650ms
+    ease-out
+    both;
+}
+
+@keyframes cinematic-fail-entry {
+
+  0% {
+    opacity: 0;
+
+    filter:
+      saturate(1)
+      brightness(1);
+  }
+
+
+  20% {
+    opacity: 1;
+
+    filter:
+      saturate(1.7)
+      brightness(1.4);
+  }
+
+
+  45% {
+    opacity: .85;
+
+    filter:
+      saturate(1.35)
+      brightness(1.15);
+  }
+
+
+  100% {
+    opacity: .55;
+
+    filter:
+      saturate(1.1)
+      brightness(1);
+  }
+}
+
+@keyframes cinematic-screen-fail-shake {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  12% {
+    transform: translate3d(-6px, 1px, 0) rotate(-.34deg);
+  }
+  25% {
+    transform: translate3d(6px, -3px, 0) rotate(.4deg);
+  }
+  39% {
+    transform: translate3d(-5px, 3px, 0) rotate(-.32deg);
+  }
+  54% {
+    transform: translate3d(4px, -2px, 0) rotate(.24deg);
+  }
+  69% {
+    transform: translate3d(-3px, 1px, 0) rotate(-.16deg);
+  }
+  84% {
+    transform: translate3d(2px, 0, 0) rotate(.09deg);
+  }
+}
+
+.event-animate-bounce {
+  animation-name: event-element-bounce;
+}
+
+.event-animate-shake {
+  animation-name: event-element-shake;
+}
+
+.event-animate-pulse {
+  animation-name: event-element-pulse;
+}
+
+.event-animate-zoom {
+  animation-name: event-element-zoom;
+}
+
+.event-animate-zoomout {
+  animation-name: event-element-zoomout;
+}
+
+.event-animate-fade {
+  animation-name: event-element-fade;
+}
+
+@keyframes event-element-bounce {
+  0%, 100% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, 0, 0) scale(1); }
+  18% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, -18px, 0) scale(1.04, .96); }
+  34% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, 4px, 0) scale(.98, 1.03); }
+  52% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, -9px, 0) scale(1.02, .98); }
+  72% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, 2px, 0) scale(.99, 1.01); }
+}
+
+@keyframes event-element-shake {
+  0%, 100% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(0, 0, 0) rotate(0deg); }
+  12% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(-6px, 1px, 0) rotate(-2deg); }
+  25% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(7px, -2px, 0) rotate(2.3deg); }
+  40% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(-5px, 2px, 0) rotate(-1.6deg); }
+  56% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(4px, -1px, 0) rotate(1.1deg); }
+  74% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) translate3d(-2px, 1px, 0) rotate(-.6deg); }
+}
+
+@keyframes event-element-pulse {
+  0%, 100% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1); filter: brightness(1); }
+  45% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1.11); filter: brightness(1.28) drop-shadow(0 0 14px rgb(255 227 130 / .55)); }
+}
+
+@keyframes event-element-zoom {
+  0% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1); filter: brightness(1); }
+  35% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1.18); filter: brightness(1.22); }
+  100% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1); filter: brightness(1); }
+}
+
+@keyframes event-element-zoomout {
+  0% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1); filter: brightness(1); }
+  38% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(.84); filter: brightness(.88); }
+  100% { transform: var(--event-element-base-transform, translate3d(0, 0, 0)) scale(1); filter: brightness(1); }
+}
+
+@keyframes event-element-fade {
+  0%, 100% { opacity: 1; }
+  45% { opacity: .32; }
+}
+
+#game-windows > .cinematic-damage-flash.is-active {
+  animation: cinematic-damage-flash-impact 380ms ease-out both;
+}
+
+@keyframes cinematic-damage-flash-impact {
+  0% {
+    opacity: 0;
+    filter: brightness(1);
+  }
+  12% {
+    opacity: .9;
+    filter: brightness(1.35) saturate(1.5);
+  }
+  36% {
+    opacity: .45;
+    filter: brightness(1.1) saturate(1.2);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+#game-windows > .cinematic-validation-flash.is-active {
+  animation: cinematic-validation-white-flash 180ms ease-out both;
+}
+
+@keyframes cinematic-validation-white-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: .85;
+  }
+  35% {
+    opacity: .55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+#game-windows > .event-cinematic,
+  #game-windows > .event-cinematic .cinematic-corp,
+  #game-windows > .event-cinematic .border-top,
+  #game-windows > .event-cinematic .border-bottom {
+    transition-duration: 1ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+#game-windows > .cinematic-damage-flash.is-active {
+    animation-duration: 220ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+#game-windows > .cinematic-validation-flash.is-active {
+    animation-duration: 100ms;
+  }
+}
+
+@keyframes umbraCrystalPartFloat {
+  0%, 100% { transform: translateY(2px); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes umbraCrystalFloat {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  25% { transform: translate3d(.45%, -.96%, 0) rotate(-.8deg) scale(1.005); }
+  50% { transform: translate3d(0, -1.73%, 0) rotate(0deg) scale(1.01); }
+  75% { transform: translate3d(-.45%, -.96%, 0) rotate(.8deg) scale(1.005); }
+}
+
+@keyframes umbraCrystalPicto {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  20% { transform: translate3d(1.61%, -1.07%, 0) rotate(1.4deg) scale(1.015); }
+  45% { transform: translate3d(-1.07%, -2.68%, 0) rotate(-1.2deg) scale(.99); }
+  70% { transform: translate3d(-2.15%, .54%, 0) rotate(1.1deg) scale(1.01); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+.umbra-crystal-core,
+  .umbra-crystal-part,
+  .umbra-crystal .umbra-crystal-picto.picto-stat { animation: none; }
+}
+
+@keyframes groundItemLootFloat {
+  0% { transform: translate3d(0, 20px, 0) rotate(0deg) scale(.65); opacity: 0; }
+  25%, 70% { opacity: 1; }
+  100% { transform: translate3d(var(--move-x), calc(var(--move-y) * -1), 0) rotate(var(--rotation)) scale(1.2); opacity: 0; }
+}
+
+.hex .drag-box, .foreground, .ground, .background, .socle {
+transition: all 0.5s ease-in-out;
+}
+
+/* .hex .hud-ingame,  */
+/* .hex .drag-box{ */
+/* transition: all 1.5s ease-in-out; */
+/* } */
+/* Exclure les éléments .hud-ingame et .drag-box qui sont des enfants de .hex.focused */
+.hex.focused .hud-ingame, 
+.hex.focused .drag-box, .hex.targeted .hud-ingame, .hex.targeted .drag-box{
+ transition: all 0.5s ease-in-out;
+}
+
+.sound-volume{transition: opacity 0.3s ease-in-out;}
+
+.health-bar,
+.armor-bar {
+  transition: width 0.5s ease, flex-basis 0.5s ease, background-color 0.5s ease;
+}
+
+.health-fill,
+.armor-fill {
+  transition: width 0.5s ease, background-color 0.5s ease;
+}
+
+.attack-browser-thumb .attack-img-complete,
+.attack-details .attack-img-complete { transition: opacity 220ms ease, filter 220ms ease; }
+
+.umbra-detail-triangle { transition: transform .15s; }
+
+/* Affectations et keyframes centralisees depuis style.css. */
+.dialogue-continue .label:hover,.dialogue-continue-icon:hover {
+  animation: glowPulseFast 2s infinite;
+}
+.dialogue-choice .label:hover {
+  animation:textGlowPulseFast 2.4s ease-in-out infinite;
+}
+.dialogue-lore-image:hover {
+  animation: straighten 15s ease-in-out forwards;
+}
+.experience-01 {
+  animation: Consommablepulse 1s infinite ease-in-out, spin 10s linear infinite;
+}
+.experience-02 {
+  animation: Consommablepulse 10s infinite ease-in-out, spin 3s linear infinite;
+}
+.animation-sprite.dodge {
+  animation: dodgeEffectA 0.6s ease-out;
+}
+.dead.hbox {
+  animation: deathblink 2s forwards;
+}
+.atb-fill.cooldown-wait-pulse,
+.headsup-atb-fill.cooldown-wait-pulse,
+.atb-scan-fill.cooldown-wait-pulse {
+  animation: cooldownWaitAtbPulse 440ms ease-out;
+}
+
+@keyframes cooldownWaitAtbPulse {
+  0%, 100% { background-color: #FFD700; }
+  42%, 68% { background-color: #999; }
+}
+.atb-fill.target-search-pulse,
+.headsup-atb-fill.target-search-pulse,
+.atb-scan-fill.target-search-pulse {
+  animation:targetSearchAtbPulse 440ms ease-out;
+}
+
+@keyframes targetSearchAtbPulse {
+  0%, 100% { background-color:#FFD700; }
+  42% { background-color:#18a8ff; }
+  68% { background-color:#55c7ff; }
+}
+.target-search-indicator--searching {
+  animation:targetSearchMagnifier 1.2s ease-in-out infinite;
+}
+.target-search-indicator--failed {
+  animation:targetSearchFailed 620ms ease-out both;
+}
+
+@keyframes targetSearchMagnifier {
+  0%, 100% { transform:translateX(-50%) translate(-2px, 1px) rotate(-8deg); }
+  50% { transform:translateX(-50%) translate(3px, -2px) rotate(10deg); }
+}
+
+@keyframes targetSearchFailed {
+  0% { opacity:0; transform:translateX(-50%) translateY(-5px) scale(0.65); }
+  65% { opacity:1; transform:translateX(-50%) translateY(1px) scale(1.08); }
+  100% { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+}
+.armor-fill::after {
+  animation: metallicPulse 3s ease-in-out infinite;
+}
+.attack-bar-fill.execution {
+  animation-name: blink;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+.attack-image.attack-executed {
+  animation: attackBoom 1s ease-out;
+}
+.role-img {
+  animation: GrowHexIcon 0.7s forwards;
+}
+.role-img.lord.last-target {
+  animation: blink 1s infinite;
+}
+.lord-focuslisting-target {
+  animation: Consommablepulse 1s infinite ease-in-out, grow 0.4s ease-in-out;
+}
+.TargetInfos.focused {
+  animation: floatingBuff 4s ease-in-out infinite;
+}
+/* Pour 2 détails */
+.detail-total-2.detail-1 {
+  animation-name: floatUpLeft;
+}
+.detail-total-2.detail-2 {
+  animation-name: floatUpRight;
+}
+/* Pour 3 détails */
+.detail-total-3.detail-1 {
+  animation-name: floatUpLeft;
+}
+.detail-total-3.detail-2 {
+  animation-name: floatUpRight
+}
+.detail-total-3.detail-3 {
+  animation-name: moveUp;
+}
+/* Pour 4 détails */
+.detail-total-4.detail-1 {
+  animation-name: floatUpRight
+}
+.detail-total-4.detail-2 {
+  animation-name: floatUpRight
+}
+.detail-total-4.detail-3 {
+  animation-name: moveRight;
+}
+.detail-total-4.detail-4 {
+  animation-name: moveLeft;
+}
+.focus-listing.Support .entite-role-detail-listing .entity-role-listing.target-zone::before {
+  animation: SoftPulsation 2.5s infinite ease-in-out;
+}
+.focus-listing.Attaquant .entite-role-detail-listing .entity-role-listing.target-zone::before {
+  animation: SoftPulsation 2.5s infinite ease-in-out;
+}
+.img-container.lord {
+  animation: dropShadowAnimation 3s infinite alternate;
+}
+.sprite-container.focused {
+  animation: focusedEntity 2s infinite alternate;
+}
+.sprite-container.B.focused {
+  animation: targetableEntitySideB 2s infinite alternate;
+}
+.sprite-container.targetable {
+  animation: targetableEntity 2s infinite alternate;
+}
+.sprite-container.supportable {
+  animation: supportableEntity 2s infinite alternate;
+}
+.hex.summonable .socle {
+  animation: summonableHex 2s infinite alternate;
+}
+.loading-h2.loaded {
+  animation: blink 2s infinite;
+}
+/* Déverrouillage du coffre : styles/animations uniquement. */
+
+.chest-unlock-shake {
+  animation: rotationchesthover 0.2s infinite ease-in-out;
+}
+.chest-sprite:has(.chest-unlocking-animation) {
+  animation: glowPulseUnlocking 2s infinite;
+}
+.chest-animation:has(.chest-unlocking-animation) {
+  animation: hardBounceRotate 0.35s ease-in-out;
+}
+/* .entite-loot-img{ */
+  /* width: 320px; */
+  /* height: 320px; */
+  /* text-align: center; */
+  /* color: #fff; */
+  /* background-size: cover; */
+  /* background-position: center;} */
+
+.entityLoot-img-container {
+  animation: dropShadowAnimation 3s infinite alternate;
+}
+.axis-line.can-invest {
+  animation: levelUpAttributeReadyPulse 4.8s ease-in-out infinite;
+}
+.umbra-ornement--blink {
+  animation: umbraSoftBlink var(--umbra-blink-duration) ease-in-out infinite;
+  animation-delay: var(--umbra-blink-delay);
+}
+.umbra-ornement.lvl-3.umbra-visible {
+  animation:
+    umbraFadeIn 2s ease-out forwards,
+    umbraLvl3Blink var(--umbra-lvl3-blink-duration, 4200ms) ease-in-out infinite;
+
+  animation-delay:
+    0s,
+    2s;
+}
+.chest-animation:has(.chest-loot.lootable.never-opened) {
+  animation: glowPulseLoot 2s infinite;
+}
+.chest-animation:has(.chest-loot.lootable.critical.cracked:hover) {
+  animation: glowPulseLootCritical 2s infinite;
+}
+.chest-animation:has(.chest-loot.lootable:hover) {
+  animation: glowPulseLoot 2s infinite;
+}
+.chest-animation:hover:has(.chest-loot.locked) {
+  animation: glowPulseLootLock 2s infinite;
+}
+.chest-loot.locked {
+  animation: chestAutoPulse 5s infinite ease-in-out;
+}
+.chest-animation:has(.chest-loot.spawn) {
+  animation: rotationchest 2s infinite ease-in-out, vibratechest 0.5s infinite linear;
+}
+.chest-animation:has(.chest-loot.is-prepared) {
+  animation: chest-angry-opening 0.5s linear infinite;
+}
+.chest-animation:has(.chest-loot.is-opened) {
+  animation: bounceRotate 0.4s ease-in forwards;
+}
+.chest-animation:has(.chest-loot.is-looted) {
+  animation:
+    chest-angry-opening 0.5s linear infinite,
+    chest-grow-opening 1.5s ease-in forwards;
+}
+.chest-container.spawn > .chest-animation {
+  animation: jumpchest 2s infinite ease-in-out, rotationchest 0.5s infinite ease-in-out;
+}
+.GameOverMessage .IngameAlert.victory-msg {
+  animation: gameOutcomeZoof 2s ease-in-out forwards;
+}
+/* Hover actif uniquement hors apparition et hors ouverture */
+.chest-container:not(.entrance)
+.chest-sprite:hover:not(:has(> .chest-loot.opening)):not(:has(> .chest-loot.destroyed)) {
+  animation: rotationchesthover 0.2s infinite ease-in-out;
+}
+.chest-container:not(.entrance)
+:not(:has(.chest-loot.opening))
+.chest-animation:has(.chest-sprite:hover) {
+  animation: chestpulse 3s infinite ease-in-out;
+}
+/* Animation d'apparition */
+.chest-container.entrance .chest-animation {
+  animation: bounce-in-top 2s ease-in-out !important;
+}
+/* Animation d'ouverture */
+.chest-animation:has(.chest-loot.opening) {
+  animation: chest-opening-animation 0.5s forwards;
+}
+.level-purify-button {
+  animation: glowBackDivine 5s infinite;
+}
+.xp-arrow.right-arrow {
+  animation: Consommablepulse 2s infinite ease-in-out, pulse 1.5s infinite;
+}
+
+@keyframes levelUpAttributeReadyPulse {
+  0%, 100% {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 214, 112, 0.025), transparent),
+      rgba(0, 0, 0, 0.18);
+    box-shadow: inset 0 0 0 rgba(255, 194, 47, 0);
+  }
+  50% {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 224, 140, 0.075), transparent),
+      rgba(31, 24, 5, 0.18);
+    box-shadow:
+      inset 0 0 18px rgba(255, 214, 112, 0.045),
+      0 0 18px rgba(255, 214, 112, 0.035);
+  }
+}
+.attack-essence-popup-equipped.universal .attack-essence-equipped-orb .essence-item-sprite-img.essence-agility-02,
+.attack-essence-popup-equipped.universal .attack-essence-equipped-orb .essence-item-sprite-img.essence-strength-02 {
+  animation: essenceSpriteFrontPulse 5s ease-in-out infinite, essenceSpriteFrontSpin 25s linear infinite;
+}
+.attack-essence-popup-equipped.universal .attack-essence-equipped-orb .essence-item-sprite-img.essence-agility-03,
+.attack-essence-popup-equipped.universal .attack-essence-equipped-orb .essence-item-sprite-img.essence-strength-03 {
+  animation: essenceSpriteBackPulse 6s ease-in-out infinite, essenceSpriteBackSpin 34s linear infinite;
+}
+.essence-item-sprite-img.essence-agility-02,
+.essence-item-sprite-img.essence-strength-02 {
+  animation: essenceSpriteFrontPulse 15s ease-in-out infinite, essenceSpriteFrontSpin 35s linear infinite;
+}
+.essence-item-sprite-img.essence-agility-03,
+.essence-item-sprite-img.essence-strength-03 {
+  animation: essenceSpriteBackPulse 15s ease-in-out infinite, essenceSpriteBackSpin 50s linear infinite;
+}
+.essence-item-sprite-nature.empty {
+  animation: essenceEmptySlowSpin 95s linear infinite;
+}
+
+
+@keyframes essenceEmptySlowSpin {
+  0% { transform: rotate(0deg) scale(0.92); }
+  50% { transform: rotate(180deg) scale(1.04); }
+  100% { transform: rotate(360deg) scale(0.92); }
+}
+
+
+@keyframes essenceSpriteBackSpin {
+  0% { transform: translate(-50%, -50%) rotate(0deg) scale(0.9); }
+  50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.08); }
+  100% { transform: translate(-50%, -50%) rotate(360deg) scale(0.9); }
+}
+
+
+@keyframes essenceSpriteFrontSpin {
+  0% { transform: translate(-50%, -50%) rotate(360deg) scale(0.82); }
+  50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.02); }
+  100% { transform: translate(-50%, -50%) rotate(0deg) scale(0.82); }
+}
+
+
+@keyframes essenceSpriteBackPulse {
+  0%, 100% { opacity: 0.96; }
+  50% { opacity: 1; }
+}
+
+
+@keyframes essenceSpriteFrontPulse {
+  0%, 100% { opacity:0.98; }
+  50% { opacity: 1; }
+}
+.sprite.runaway {
+  animation: runawayBounce 0.6s ease-in-out infinite;
+}
+.order-exclamation {
+  animation: dropIn 0.4s ease-out forwards, shake 0.2s infinite ease-in-out;
+}
+.hudbattletexte.runaway {
+  animation: dropIn 0.4s ease-out forwards, shake 0.2s infinite ease-in-out;
+}
+.order {
+  animation: jumpOnPlace 0.4s ease-in-out infinite;
+}
+.runaway-animate {
+  animation: runaway-shift 1s forwards;
+}
+.runaway-info {
+  /* filter: drop-shadow(0px 0px 2px rgb(255, 255, 255)); */
+  animation: popFade 0.3s ease-out, runawayBlink 0.5s ease-in-out infinite;
+}
+.game-over-decor-container {
+  animation: softblink 4s ease-in-out infinite;
+}
+.item-wrapper.selected {
+  animation: bounceOnce 0.5s ease;
+}
+.seller-button.buy {
+  animation: glowPulseFast 2s infinite;
+}
+.seller-button.buy:hover {
+  animation: glowFast 1.5s infinite;
+}
+.stuff-slot:not(.equiped) {
+  animation: glowSlow 2.5s infinite;
+}
+.game-popup-backdrop {
+  animation: inventoryTransferMessageFadeIn var(--popup-enter-duration, 250ms) ease-out forwards;
+}
+.game-popup-layer.is-leaving .game-popup-backdrop {
+  animation: inventoryTransferMessageFadeOut var(--popup-exit-duration, 1500ms) ease forwards;
+}
+.inventory-transfer-message {
+  animation: inventoryTransferMessageFadeIn var(--popup-enter-duration, 250ms) ease-out forwards;
+}
+.inventory-transfer-message.is-leaving {
+  animation: inventoryTransferMessageFadeOut var(--popup-exit-duration, 1500ms) ease forwards;
+}
+
+
+@keyframes inventoryTransferMessageFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+@keyframes inventoryTransferMessageFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.inventory-item-icon:hover {
+  animation: glowPulseFast 1.5s infinite;
+}
+.quality-1 .inventory-item-icon, .quality-1 .item-icon,.quality-1.equipped-item-icon {
+  animation: glowFastCommon 2.5s infinite;
+}
+.quality-2 .inventory-item-icon, .quality-2 .item-icon,.quality-2.equipped-item-icon {
+  animation: glowFastUncommon 2.5s infinite;
+}
+.quality-3 .inventory-item-icon, .quality-3 .item-icon,.quality-3.equipped-item-icon {
+  animation: glowFastRare 2.5s infinite;
+}
+.quality-4 .inventory-item-icon, .quality-4 .item-icon,.quality-4.equipped-item-icon {
+  animation: glowFastEpic 2.5s infinite;
+}
+.quality-5 .inventory-item-icon, .quality-5 .item-icon,.quality-5.equipped-item-icon {
+  animation: glowFastLegendary 2.5s infinite;
+}
+.quality-6 .inventory-item-icon, .quality-6 .item-icon,.quality-6.equipped-item-icon {
+  animation: glowFastMythic 2.5s infinite;
+}
+.quality-7 .inventory-item-icon, .quality-7 .item-icon, .quality-7.equipped-item-icon {
+  animation: glowFastCommon 2.5s infinite;
+}
+.draggeditem {
+  animation: glowPulseFast 1.5s infinite;
+}
+.codex-entity-list.drag-over .codex-entity-sprite {
+  animation: glowPulseFast 1.5s infinite;
+}
+.TonkotsuRamen {
+  animation: glowFast 2.5s infinite;
+}
+.stuff-slot.drag-over {
+  animation: glowPulseFast 2s infinite;
+}
+.stuff-slot.drag-over.drop-no-equip {
+  animation: none;
+}
+.glitter {
+  animation: glitter-fade var(--speed, 2000ms) ease-in-out forwards;
+}
+.glitter-loot-container > .glitter-loot {
+  animation: glitterLootFloat var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+}
+.battle-ground-item {
+  animation: battleGroundItemFloat 3.8s ease-in-out infinite;
+}
+.battle-item-drop-recipient {
+  animation: battleItemRecipientGlow .8s ease-in-out infinite alternate;
+}
+.glitter-loot-container.is-dispersing > .glitter-loot.is-dispersing {
+  animation: glitterLootDisperse var(--burst-duration) cubic-bezier(.22, .61, .36, 1) forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+.glitter-loot {
+  animation: none;
+}
+}
+.btn.levelup-btn {
+  animation: glowFast 2s infinite;
+}
+.btn.levelup-btn:hover {
+  animation: glowFast 1.5s infinite;
+}
+.levelup-icon {
+  animation: glowFast 2s infinite;
+}
+.attribut-eclipse {
+  animation: glowFast 2s infinite;
+}
+.attribut-entitySoul.one {
+  animation: spin 17s linear infinite;
+}
+.attribut-entitySoul.two {
+  animation: spin 50s linear infinite;
+}
+.stray .attribut-circleSoul {
+  animation: spin 30s linear infinite;
+}
+.attribut-circleSoul {
+  animation: none;
+}
+.eternalLife.animate {
+  animation: heartsoul 1.25s ease-in-out infinite, eternalLifePulse 1.25s ease-in-out infinite;
+}
+.picto-stat.eternalLife.inactive {
+  animation: vibrasoul 4s ease-in-out infinite;
+}
+.ex-picto--ready {
+  animation: extra-life 3.2s ease-in-out infinite alternate;
+}
+.anim-extraLife {
+  --life-aura-motion: extra-life 3.2s ease-in-out infinite alternate,softblink 4s ease-in-out infinite;
+  animation: var(--life-aura-motion);
+}
+.anim-eternalLife {
+  --life-aura-motion: heartsoul 1.75s ease-in-out infinite, eternalLifePulse 1.75s ease-in-out infinite,softblink 6s ease-in-out infinite;
+  animation: var(--life-aura-motion);
+}
+.faded-life {
+  animation: faded-life 0.2s ease-in-out infinite;
+}
+.anim-fadedLife {
+  --life-aura-motion: faded-life 0.2s ease-in-out infinite,softblink 3s ease-in-out infinite;
+  animation: var(--life-aura-motion);
+}
+/* The calibrated motion box has the same bounds/origin as its image. Append
+   the float transform after the pulse transform, preserving their matrix order
+   while avoiding a second independently animated child for every halo. */
+@supports (animation-composition: add) {
+  .life-aura-anim.life-aura-composed {
+    --amp: min(calc(var(--sprite-h) * .025), 3px);
+    animation: var(--life-aura-motion), lifeAuraFloat var(--life-aura-float-duration) ease-in-out infinite;
+    animation-composition: replace, replace, add;
+  }
+  .life-aura-composed.anim-eternalLife { animation-composition: replace, replace, replace, add; }
+  .life-aura-composed > .life-aura-img { animation-name: none; will-change: auto; }
+}
+.archetype-title.changed {
+  animation: fallFromSky 0.8s ease-out forwards;
+}
+.milestone.attaque.lvl-3 {
+  animation: glowFastMythic 1.5s infinite;
+}
+.milestone.defense.lvl-3 {
+  animation: glowFastRare 1.5s infinite;
+}
+.milestone.utilitaire.lvl-3 {
+  animation: glowFastEpic 1.5s infinite;
+}
+.milestone.mutation.lvl-3 {
+  animation: glowFastUncommon 1.5s infinite;
+}
+.milestone.broken.lvl-3 {
+  animation: glowFastLegendary 1.5s infinite;
+}
+.milestone.lvl-3.has-essence-reward {
+  animation: none;
+}
+.milestone-essence.essence-item-card {
+  animation: milestoneEssenceFloat var(--essence-float-duration, 6s) ease-in-out infinite;
+  animation-delay: var(--essence-float-delay, 0s);
+}
+.milestone-essence .essence-item-sprite-img.essence-agility-02,
+.milestone-essence .essence-item-sprite-img.essence-strength-02 {
+  animation-duration: var(--essence-front-pulse-duration, 15s), var(--essence-front-spin-duration, 35s);
+  animation-delay: var(--essence-front-pulse-delay, 0s), var(--essence-front-spin-delay, 0s);
+}
+.milestone-essence .essence-item-sprite-img.essence-agility-03,
+.milestone-essence .essence-item-sprite-img.essence-strength-03 {
+  animation-duration: var(--essence-back-pulse-duration, 15s), var(--essence-back-spin-duration, 50s);
+  animation-delay: var(--essence-back-pulse-delay, 0s), var(--essence-back-spin-delay, 0s);
+}
+
+
+@keyframes milestoneEssenceFloat {
+  0%, 100% { transform: translate(-50%, calc(-50% + 2px)); }
+  50% { transform: translate(-50%, calc(-50% - 3px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+.milestone-essence.essence-item-card,
+  .milestone-essence .essence-item-sprite-img {
+  animation: none;
+}
+}
+.codex-entity-sprite-container .levelup-icon {
+  animation: blink 2.5s infinite;
+}
+.codex-inner-menu .levelup-icon {
+  animation: blink 2.5s infinite;
+}
+.archetype-icon.preview {
+  animation: mediumPulse 1.5s ease-in-out infinite;
+}
+/* Halo */
+.archetype-icon.leveled::after {
+  /* pour passer derrière */
+    animation: clonePulse 1s ease-out;
+}
+.day-log {
+  animation: fadeIn 0.6s ease forwards;
+}
+.attack-bar-fill.preparation.mysticism-accelerated {
+  animation-name: mysticismBarBlink !important;
+  animation-duration: 0.45s !important;
+  animation-timing-function: linear !important;
+  animation-iteration-count: infinite !important;
+}
+.Attaquant .attack-bar-fill.preparation.occultism-slowed,
+.Defenseur .attack-bar-fill.preparation.occultism-slowed,
+.hud-ingame .attack-bar-fill.preparation.occultism-slowed,
+.attack-bar-fill.preparation.occultism-slowed {
+  animation-name: occultismBarSlowBlink !important;
+  animation-duration: 1.6s !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: infinite !important;
+}
+.movement-refill-pop {
+  animation: movementRefillPop 180ms ease-out;
+}
+.battle-regen-hp-vfx {
+  animation: battleRegenHpRise 1.2s ease-out forwards;
+}
+.essenceur-purchase-orb .essence-item-sprite-img.essence-agility-02,
+.essenceur-purchase-orb .essence-item-sprite-img.essence-strength-02,
+.inventory-essence-universal-orb .essence-item-sprite-img.essence-agility-02,
+.inventory-essence-universal-orb .essence-item-sprite-img.essence-strength-02 {
+  animation: essenceSpriteFrontPulse 5s ease-in-out infinite, essenceSpriteFrontSpin 25s linear infinite;
+}
+.attack-mastery-levelup {
+  animation: attackMasteryLevelUp 2s ease-out forwards;
+}
+
+@keyframes attackMasteryLevelUp {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(.95); }
+  15%, 70% { opacity: 1; transform: translate(-50%, -10px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -25px); }
+}
+@media (prefers-reduced-motion: reduce) {
+.attack-mastery-levelup {
+  animation-name: attackMasteryLevelUpReduced;
+}
+}
+
+@keyframes attackMasteryLevelUpReduced { 0%, 85% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%); } }
+
 
 /* Définition des keyframes */
 @keyframes jumpchest {
@@ -270,23 +1175,27 @@
 
 @keyframes critPopFloat {
   0% {
-    transform: translateY(0) scale(1);
-    }
-    10% {
-    transform: translateY(0) scale(2.2);
-    }
-
-    20% {
-    transform: translateY(0) scale(1);
-    }
-
-  65% {
-    transform: translateY(-10) ;
+    transform: translateY(0) scale(0.7);
+    opacity: 0;
+  }
+  8%, 12% {
+    transform: translateY(-4px) scale(var(--crit-pop-peak, 2.2));
     opacity: 1;
   }
-
+  22% {
+    transform: translateY(-6px) scale(1.1);
+    opacity: 1;
+  }
+  32% {
+    transform: translateY(-8px) scale(var(--crit-pop-rebound, 1.2));
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(-16px) scale(var(--crit-pop-hold, 1));
+    opacity: 1;
+  }
   100% {
-    transform: translateY(-20px) scale(0.8);
+    transform: translateY(-38px) scale(0.9);
     opacity: 0;
   }
 }
@@ -445,6 +1354,16 @@
       scale(1.2);
     opacity: 0;
   }
+}
+
+@keyframes battleGroundItemFloat {
+  0%, 100% { transform: translate3d(0, 1px, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
+}
+
+@keyframes battleItemRecipientGlow {
+  from { filter: drop-shadow(0 0 4px rgba(255, 228, 92, .55)); }
+  to { filter: drop-shadow(0 0 13px rgba(255, 238, 130, 1)); }
 }
 
 @keyframes glitterLootDisperse {
@@ -833,14 +1752,14 @@
 }
 @keyframes glowSlow {
   0% {
-        filter: drop-shadow(0 0 4px #ffd8007d);
+        filter: drop-shadow(0 0 4px var(--glow-slow-color, #ffd8007d));
   }
   30% {
-       filter: drop-shadow(0 0 10px #ffd8007d);
+       filter: drop-shadow(0 0 10px var(--glow-slow-color, #ffd8007d));
   }
 
   100% {
-      filter: drop-shadow(0 0 4px #ffd8007d);
+      filter: drop-shadow(0 0 4px var(--glow-slow-color, #ffd8007d));
   }
 }
 @keyframes glowAura {
@@ -927,6 +1846,18 @@
 
   100% {
       filter: drop-shadow(0 0 6px #e60000e8);
+  }
+}
+@keyframes glowBackDivine {
+ 0% {
+        background: rgba(104, 255, 229, 0.1);
+  }
+  30% {
+       background: rgba(104, 255, 229, 0.3);
+  }
+
+  100% {
+      background: rgba(104, 255, 229, 0.1);
   }
 }
 @keyframes bounceOnce {
@@ -1459,3 +2390,43 @@ opacity:1;
                 transform: translate3d(calc(-100vw - 100%), -50%, 0) scaleX(0.15);
             }
         }
+.melee-clone-death {
+    filter: drop-shadow(0 0 6px #a00000) !important;
+    pointer-events: none;
+}
+
+.melee-clone-death-blood {
+    position: fixed;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 10000;
+}
+
+.attack-active-spark {
+  animation: attackActiveSparkOrbit 3.6s linear infinite reverse;
+  animation-delay: var(--attack-spark-phase, -500ms);
+}
+
+.attack-active-trail-point {
+  animation: attackActiveSparkOrbit 3.6s linear infinite reverse;
+  animation-delay: calc(var(--attack-spark-phase, -500ms) + (var(--attack-trail-index) * 36ms));
+}
+
+.attack-details.Attaquant { --glow-slow-color: #ff3b477d; }
+.attack-details.Support { --glow-slow-color: #3f8cff7d; }
+
+.attack-image-frame--active > .attack-image {
+  animation: glowSlow 2.5s ease-in-out infinite;
+}
+
+@keyframes attackActiveSparkOrbit {
+  from { offset-distance: 0%; }
+  to { offset-distance: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attack-active-spark { animation: none; offset-distance: 0%; }
+  .attack-active-trail-point { display: none; }
+  .attack-image-frame--active > .attack-image { animation: none; filter: drop-shadow(0 0 4px var(--glow-slow-color, #ffd8007d)); }
+}
+

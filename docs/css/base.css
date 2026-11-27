@@ -1,0 +1,177 @@
+/* Fondations : police, page, dimensions et utilitaires communs.
+ * Ordre des declarations conserve dans chaque theme. Voir le README pour le chargement.
+ */
+
+:root {
+  /* Unique repère logique du jeu ; application.js calcule son échelle visible. */
+  --game-width: 1536px;
+  --game-height: 676px;
+  --game-scale: 1;
+  --game-left: 0px;
+  --game-top: 0px;
+  --game-safe-left: env(safe-area-inset-left, 0px);
+  --game-safe-right: env(safe-area-inset-right, 0px);
+  --game-safe-top: env(safe-area-inset-top, 0px);
+  --game-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Variables existantes pour dimensions */
+  --screen-h: 1080px;
+  --screen-w: 1920px;
+  --r: 2; /* Ration x Hexagones */
+  --ow: 65px; /* Width de base */
+  --oh: 75px; /* Height de base */
+  --w: calc(var(--ow) * var(--r)); /* Width final */
+  --h: calc(var(--oh) * var(--r)); /* Height final */
+  --s: 15; /* Espace entre hexa */
+  /* Nouvelles variables pour le style du SVG */
+  --stroke-color: white; /* Couleur du contour */
+  --stroke-width: 2px; /* Épaisseur du contour */
+  --fill-color: none; /* Remplissage */
+}
+
+:root {
+  --cinematic-bar-height: max(
+    10dvh,
+    calc((100dvh - (100vw * 9 / 16)) / 2)
+  );
+
+  --cinematic-duration: 700ms;
+  --cinematic-easing: cubic-bezier(.22, 1, .36, 1);
+
+  --cinematic-overlay-color: rgb(0 0 0 / .42);
+  --cinematic-choice-overlay-color: rgba(99, 46, 0, .42);
+  --cinematic-bar-color: #000;
+
+  --cinematic-z-index: 10;
+
+  --cinematic-screen-fx-z-index: 1;
+  --cinematic-screen-fx-duration: 520ms;
+
+  --cinematic-damage-flash-z-index: 20;
+}
+
+/* Version and controls share the same logical frame as the game. */
+#game-version {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: 2147483647;
+  color: #fff;
+  font: 12px/1.4 Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+}
+
+body, html {
+  /* cursor: url('../media/assets/ui/cursor.png') 0 0, auto !important; */
+  user-select: none;
+  margin: 0;
+  font-family: 'EB Garamond', sans-serif;
+  color: white;
+  background-color: black;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  }
+
+body { height: 100dvh; }
+
+body.game-viewport {
+  overflow: clip;
+  touch-action: manipulation;
+}
+
+@font-face {
+  font-family: 'EB Garamond';
+  src: url('../media/typo/EBGaramond-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* The only responsive transform. Children use logical dimensions only. */
+#game-shell {
+  width: var(--game-width);
+  height: var(--game-height);
+  position: fixed;
+  left: var(--game-left);
+  top: var(--game-top);
+  transform: rotate(var(--game-rotation, 0deg)) scale(var(--game-scale));
+  transform-origin: 0 0;
+  isolation: isolate;
+  container: game / inline-size;
+  --cinematic-bar-height: max(calc(var(--game-height) * .1), calc((var(--game-height) - var(--game-width) * 9 / 16) / 2));
+}
+
+#game-windows {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  container: game / inline-size;
+}
+
+#game-shell > .master-menu {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10000000;
+}
+#game-shell > .master-menu > * { pointer-events: auto; }
+
+/* Effects and board share one logical size and one responsive transform. */
+#game-screen-effects {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+#game-screen-effects * { pointer-events: none; }
+
+h3{font-weight: 100;
+  font-size: 15px;
+  margin: 2px;color: #FFBC55;}
+
+h4, .resu-block-marker{font-weight: 100;
+  font-size: 14px;
+  margin-top: 15px;margin-bottom: 15px;}
+
+.is-hidden{opacity:0;}
+
+.is-hidden { visibility:hidden; }
+
+#game-container{
+position: relative;
+height: 100%;
+width: 100%;}
+
+.lord{z-index: 1;position:relative;}
+
+.auto-resize-text {
+  font-weight: bold;
+  text-align: center;
+  color: #e3e3e3;
+  border: 3px double #343844;
+  font-size: 12px;
+  background-color: #131313d1;
+  height: 20px;
+  line-height: 20px;
+  padding: 2px 10px 2px 22px;
+  max-width: 150px;
+  position: relative;
+  left: -12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sbire{padding: 0px;
+  margin: 0px;position:relative;
+}

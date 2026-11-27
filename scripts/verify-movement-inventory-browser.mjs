@@ -1,0 +1,311 @@
+import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { resolve, relative, extname, sep } from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
+const root = resolve('docs');
+const output = resolve('outputs/movement-inventory');
+await mkdir(output, { recursive: true });
+const mime = { '.js': 'text/javascript', '.html': 'text/html', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg' };
+const server = createServer(async (req, res) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  const path = resolve(root, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
+  const rel = relative(root, path);
+  if (rel === '..' || rel.startsWith('..' + sep)) return res.writeHead(403).end();
+  try { res.setHeader('Content-Type', mime[extname(path)] || 'application/octet-stream'); res.end(await readFile(path)); }
+  catch { res.writeHead(404).end(); }
+});
+await new Promise(done => server.listen(0, '127.0.0.1', done));
+const browser = await chromium.launch({ channel: 'msedge', headless: true });
+let page;
+try {
+  page = await browser.newPage({ viewport: { width: 1600, height: 950 } });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  const report = await page.evaluate(async () => {
+    const E = await import("/js/entities/runtime.js");
+    const U = await import("/js/ui/application.js"), _U = await import("/js/ui/inventory.js"), _U2 = await import("/js/ui/codex/index.js");
+    const S = await import("/js/storage/gameStorage.js");
+    const State = await import("/js/app/state.js");
+    const M = await import('/js/items/itemManager.js');
+    const Gear = await import('/js/items/equipement.js');
+    const D = await import("/js/board/deployment.js"), _D = await import("/js/rendering/hud.js");
+    const G = await import("/js/app/stages.js");
+    const { saveEntityMovementState } = await import("/js/storage/entityStorage.js");
+    const { createMovementCounter } = await import("/js/rendering/entities.js");
+    const { ItemDetails } = await import('/js/data/itemList.js');
+    const checks = [];
+    const check = (condition, label) => { if (!condition) throw new Error(label); checks.push(label); };
+    const equal = (actual, expected, label) => check(actual === expected, `${label}: ${actual} = ${expected}`);
+    window.levelRunning = 'worldmap';
+    State.refreshStageAccess();
+    S.setAdminMode(true);
+    U.createGameContainer();
+    U.GameUi();
+    document.querySelector('.starter-select-button')?.click();
+    const actor = structuredClone(E.entitesNestUp[0]);
+    actor.id = 295527;
+    actor.side = 'A';
+    actor.name = 'Test déplacements';
+    actor.level = { current: 1, max: 250 };
+    actor.baseStats = { HP: 100, shift: 10, agility: 17, charge: 5, extraLife: { current: 5, max: 5 } };
+    actor.stats = {};
+    actor.modifierStats = {};
+    actor.stuff = {};
+    E.recomputeEntityStats(actor, { equippedItems: [], skipReverseArchetype: true });
+    E.entites.splice(0, E.entites.length, actor);
+    window.selectedArmyA = [actor];
+    S.saveToLocalStorage('selectedArmyA', [actor]);
+    S.saveToLocalStorage('PlayerSave', { Playerinventory: [], equippedItems: [] });
+    S.saveToLocalStorage('equippedItems', []);
+    document.querySelector('.army-codex-icon').click();
+    const entry = document.getElementById(`CodexEntityList_${actor.id}`);
+    check(Boolean(entry), 'The real army list is open');
+    const slot = document.createElement('div');
+    slot.className = 'stuff-slot';
+    slot.id = `slot1-${actor.id}`;
+    document.body.appendChild(slot);
+    const magicGear = M.acquireItem(ItemDetails.find(item => item.serial === 'i48'), 'inventory-audit');
+    Gear.equip({ item: magicGear, targetEntity: actor, slotId: slot.id, slotElement: slot });
+    check(Boolean(actor.stuff.slot1?.length), 'Magic penetration equipment is equipped through the real path');
+    check(M.validateBattleInventoryState().ok, 'Equipped item does not invalidate consumables');
+    Gear.unequip({ slotId: slot.id, targetEntity: actor, slotElement: slot });
+    const returned = M.validateBattleInventoryState();
+    check(returned.ok, `Unequipped equipment remains registered: ${returned.message || 'valid'}`);
+    equal(S.loadFromLocalStorage('IngameItems', []).filter(item => item.itemId === magicGear.itemId).length, 1, 'Unequip registers one canonical item');
+    check(!M.getIngameItemById(magicGear.itemId).equippedId, 'Returned item has no equipped identity');
+
+    for (let index = 0; index < 2; index++) {
+      Gear.equip({ item: M.getIngameItemById(magicGear.itemId), targetEntity: actor, slotId: slot.id, slotElement: slot });
+      Gear.unequip({ slotId: slot.id, targetEntity: actor, slotElement: slot });
+    }
+    equal(S.loadFromLocalStorage('IngameItems', []).filter(item => item.itemId === magicGear.itemId).length, 1, 'Repeated unequip never duplicates registry records');
+    check(M.validateBattleInventoryState().ok, 'Repeated equip and unequip preserves inventory validity');
+
+    const listCounter = entry.querySelector('.life-bar-counter > .movement-counter');
+    check(Boolean(listCounter?.querySelector('.picto-stat.shift')), 'Army life-bar counter includes the HUD movement pictogram');
+    equal(entry.querySelectorAll('.movement-counter').length, 1, 'Army entry has one movement counter');
+    const hud = document.createElement('div');
+    hud.className = 'hud-ingame';
+    hud.hidden = true;
+    hud.appendChild(createMovementCounter(actor));
+    document.body.appendChild(hud);
+    const counterValue = (node, part) => Number(node.querySelector(`.current-shift.${part}`).textContent);
+    equal(counterValue(listCounter, 'current'), 5, 'Army counter starts with the real current reserve');
+    equal(counterValue(listCounter, 'max'), 10, 'Army counter starts with the real maximum');
+    const movementItem = M.acquireItem(ItemDetails.find(item => item.functionName === 'MovementChargeSeven'), 'inventory-audit');
+    _U.createInventory();
+    const released = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => { window.removeEventListener('consumableTargetReleased', done); reject(new Error('Drop consumption did not complete')); }, 5000);
+      function done(event) {
+        if (event.detail.entityId !== String(actor.id)) return;
+        clearTimeout(timeout);
+        window.removeEventListener('consumableTargetReleased', done);
+        resolve();
+      }
+      window.addEventListener('consumableTargetReleased', done);
+    });
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', movementItem.itemId);
+    entry.dispatchEvent(new DragEvent('drop', { bubbles: true, dataTransfer }));
+    await released;
+    equal(actor.stats.shift.current, 12, 'Dropping movement consumable after unequip grants all seven charges');
+    equal(counterValue(listCounter, 'current'), 12, 'Army counter updates immediately above maximum');
+    equal(counterValue(hud, 'current'), 12, 'Army and battle HUD counters stay synchronized');
+    check(!M.getBattleInventoryState().Playerinventory.some(item => item.itemId === movementItem.itemId), 'The dropped consumable is removed exactly once');
+    check(!S.loadFromLocalStorage('IngameItems', []).some(item => item.itemId === movementItem.itemId), 'The consumed object is removed from the registry');
+    check(M.validateBattleInventoryState().ok, 'Inventory stays valid after consumption');
+    check(!(await M.useConsumableItem(movementItem.itemId, actor, { silent: true })).ok, 'Consumed movement object cannot be reused');
+
+    const mixed = M.acquireItem(ItemDetails.find(item => item.functionName === 'DevMovementMixed'), 'inventory-audit');
+    Gear.equip({ item: mixed, targetEntity: actor, slotId: slot.id, slotElement: slot });
+    equal(counterValue(listCounter, 'max'), 12, 'Equipping max movement updates the army counter');
+    check(D.consumeEntityMovement(actor, 8).consumed, 'Paid movement consumes seven consumable charges then the equipment charge');
+    saveEntityMovementState(actor);
+    Gear.unequip({ slotId: slot.id, targetEntity: actor, slotElement: slot });
+    const restored = S.loadFromLocalStorage('IngameItems', []).find(item => item.itemId === mixed.itemId);
+    equal(restored.resourceStocks.shift.current, 0, 'Unequip registry preserves exhausted equipment stock');
+    equal(counterValue(listCounter, 'max'), 10, 'Unequipping updates the displayed maximum');
+    check(M.validateBattleInventoryState().ok, 'Exhausted equipment remains a valid inventory item');
+    S.saveItemsData();
+    S.loadItemsData({ importSnapshot: true });
+    check(M.validateBattleInventoryState().ok, 'Snapshot export and restore retain the returned items');
+    G.nextDay(1, { animate: false });
+    equal(counterValue(listCounter, 'current'), 5, 'Day change updates the army reserve');
+    equal(counterValue(hud, 'current'), 5, 'Day change also updates the battle HUD');
+    actor.stats.shift.current = -2;
+    _D.updateMovementDisplay(actor);
+    equal(counterValue(listCounter, 'current'), -2, 'Army counter preserves negative movement debt');
+    check(listCounter.querySelector('.current-shift.current').classList.contains('negative-shift'), 'Debt uses the existing HUD class');
+    actor.stats.shift.current = 12;
+    _D.updateMovementDisplay(actor);
+
+    const originalRegistry = S.loadFromLocalStorage('IngameItems', []);
+    S.saveToLocalStorage('IngameItems', originalRegistry.filter(item => item.itemId !== magicGear.itemId));
+    check(!M.validateBattleInventoryState().ok, 'Genuinely missing registry entries are still rejected');
+    Gear.equip({ item: M.getIngameItemById(magicGear.itemId), targetEntity: actor, slotId: slot.id, slotElement: slot });
+    Gear.unequip({ slotId: slot.id, targetEntity: actor, slotElement: slot });
+    check(M.validateBattleInventoryState().ok, 'Re-equipping and unequipping repairs an already affected owned item');
+    equal(S.loadFromLocalStorage('IngameItems', []).filter(item => item.itemId === magicGear.itemId).length, 1, 'Repair preserves one instance with the original ID');
+    S.saveToLocalStorage('IngameItems', [...originalRegistry, originalRegistry.find(item => item.itemId === magicGear.itemId)]);
+    check(!M.validateBattleInventoryState().ok, 'Ambiguous registry IDs are still rejected');
+    S.saveToLocalStorage('IngameItems', originalRegistry);
+    {
+      const waitFor = async test => {
+        for (let n = 0; n < 150; n++) {
+          if (test()) return;
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        throw new Error('Sprite drop timed out');
+      };
+      const drop = (node, id) => {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.setData('text/plain', id);
+        node.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer }));
+      };
+      const makeActor = id => {
+        const entity = structuredClone(E.entitesNestUp[0]); entity.id=id; entity.side='A';
+        entity.baseStats={HP:100, shift:10, agility:17, charge:1}; entity.stats={}; entity.modifierStats={}; entity.stuff={};
+        E.recomputeEntityStats(entity,{equippedItems:[],skipReverseArchetype:true}); return entity;
+      };
+      const a=makeActor(810001), b=makeActor(810002);
+      E.entites.push(a,b); S.saveToLocalStorage('selectedArmyA',[actor,a,b]);
+      const surface = entity => { const img=document.createElement('img'); img.dataset.dropable='true'; img.dataset.entityId=entity.id; document.body.appendChild(img); return img; };
+      const sa=surface(a), sb=surface(b);
+      const capacity=M.acquireItem(ItemDetails.find(i=>i.functionName==='DevMovementMaxThree'),'sprite-test');
+      drop(sa,capacity.itemId); await waitFor(()=>a.stuff.slot1?.[0]=== 'e'+capacity.itemId);
+      equal(a.stats.shift.max,13,'New marked sprite equips without binding any local listener');
+      const current=M.acquireItem(ItemDetails.find(i=>i.functionName==='DevMovementCurrentFive'),'sprite-test');
+      drop(sa,current.itemId); await waitFor(()=>document.querySelector('select[aria-label="Équipement à remplacer"]'));
+      document.querySelector('.inventory-transfer-confirm-actions button:not(.primary)').click();
+      await new Promise(r=>setTimeout(r,20));
+      equal(a.stuff.slot1[0],'e'+capacity.itemId,'Cancelled replacement preserves original gear');
+      check(M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===current.itemId),'Cancelled replacement keeps new item in inventory');
+      drop(sa,current.itemId); await waitFor(()=>document.querySelector('select[aria-label="Équipement à remplacer"]'));
+      document.querySelector('.inventory-transfer-confirm-actions .primary').click();
+      await waitFor(()=>a.stuff.slot1[0]==='e'+current.itemId);
+      equal(a.stats.shift.max,10,'Inventory replacement removes old maximum bonus');
+      equal(a.stats.shift.current,10,'Inventory replacement grants current stock once');
+      check(M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===capacity.itemId),'Replaced inventory gear returns to inventory');
+      check(M.validateBattleInventoryState().ok,'Replacement retains a valid item registry');
+      check(D.consumeEntityMovement(a,2).consumed,'Spend two charges before the exchange'); saveEntityMovementState(a);
+      const mixed=M.acquireItem(ItemDetails.find(i=>i.functionName==='DevMovementMixed'),'sprite-test');
+      drop(sb,mixed.itemId); await waitFor(()=>b.stuff.slot1?.[0]==='e'+mixed.itemId);
+      localStorage.setItem('inventoryEquippedStuffTransferConfirmHidden','true');
+      drop(sb,'e'+current.itemId); await waitFor(()=>document.querySelector('select[aria-label="Équipement à remplacer"]'));
+      document.querySelector('.inventory-transfer-confirm-actions .primary').click();
+      await waitFor(()=>b.stuff.slot1[0]==='e'+current.itemId);
+      equal(a.stuff.slot1[0],'e'+mixed.itemId,'Cross-entity swap sends old target gear to source slot');
+      equal(b.stats.shift.current,8,'Swapped equipment retains exactly three remaining charges');
+      equal(a.stats.shift.current,6,'Reverse swap grants remaining single charge');
+      equal(S.getEquippedItemById('e'+current.itemId).resourceStocks.shift.current,3,'Stored charges are not replenished by swap');
+      check(M.validateBattleInventoryState().ok,'Two-way exchange preserves item registry');
+      const one=M.acquireItem(ItemDetails.find(i=>i.functionName==='MovementCharge'),'sprite-test');
+      sa.dataset.dropable='false'; drop(sa,one.itemId); await new Promise(r=>setTimeout(r,20));
+      check(M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===one.itemId),'Explicit false rejects consumable drop');
+      sa.dataset.dropable='true'; const count=a.stats.shift.current; drop(sa,one.itemId); drop(sa,one.itemId);
+      await waitFor(()=>!M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===one.itemId));
+      equal(a.stats.shift.current,count+1,'Duplicate sprite drop grants one consumable only');
+      const unmarked=surface(b); delete unmarked.dataset.dropable;
+      const unmarkedItem=M.acquireItem(ItemDetails.find(i=>i.functionName==='MovementCharge'),'sprite-test');
+      drop(unmarked,unmarkedItem.itemId); await new Promise(r=>setTimeout(r,20));
+      check(M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===unmarkedItem.itemId),'Unmarked image is not a drop target');
+      const zero=makeActor(810003); zero.stuff={}; zero.baseStats.charge=0; E.entites.push(zero);
+      S.saveToLocalStorage('selectedArmyA',[actor,a,b,zero]); const sz=surface(zero);
+      drop(sz,capacity.itemId); await new Promise(r=>setTimeout(r,30));
+      check(M.getBattleInventoryState().Playerinventory.some(i=>i.itemId===capacity.itemId),'Entity with no slots does not consume equipment');
+      const critical=document.createElement('span'); critical.className='criticalChance'; document.body.appendChild(critical);
+      equal(getComputedStyle(critical).color,'rgb(255, 108, 0)','Critical stat uses requested leading color'); critical.remove();
+      check(entry.querySelector('.codex-entity-sprite-container').dataset.dropable==='true','Real army sprite exposes marker');
+
+      a.baseStats.charge=2; E.recomputeEntityStats(a); S.saveUpgradedEntity(a);
+      drop(sa,capacity.itemId); await waitFor(()=>a.stuff.slot2?.[0]==='e'+capacity.itemId);
+      const sameSlot=document.createElement('div'); sameSlot.className='stuff-slot'; sameSlot.id='slot1-'+a.id; document.body.appendChild(sameSlot);
+      const reserveBefore=a.stats.shift.current;
+      drop(sameSlot,'e'+capacity.itemId); await waitFor(()=>a.stuff.slot1[0]==='e'+capacity.itemId);
+      equal(a.stuff.slot2[0],'e'+mixed.itemId,'Occupied slot swaps within the same entity');
+      equal(a.stats.shift.current,reserveBefore,'Same-entity swap does not replenish or remove charges');
+      check(M.validateBattleInventoryState().ok,'Same-entity swap keeps unique item ownership');
+      const beforeReplay=JSON.stringify(a.stuff); drop(sameSlot,'e'+capacity.itemId); await new Promise(r=>setTimeout(r,20));
+      equal(JSON.stringify(a.stuff),beforeReplay,'Dropping gear onto its own slot is a no-op');
+      const pendingItem = M.acquireItem(ItemDetails.find(i => i.functionName === 'DevMovementCurrentFive'), 'sprite-test');
+      drop(sa, pendingItem.itemId);
+      await waitFor(() => document.querySelector('select[aria-label="Équipement à remplacer"]'));
+      const replacementItem = M.acquireItem(ItemDetails.find(i => i.functionName === 'DevMovementMaxThree'), 'sprite-test');
+      Gear.equip({ item: replacementItem, targetEntity: a, slotId: sameSlot.id, slotElement: sameSlot });
+      document.querySelector('.inventory-transfer-confirm-actions .primary').click();
+      await new Promise(resolve => setTimeout(resolve, 20));
+      equal(a.stuff.slot1[0], 'e' + replacementItem.itemId, 'A changed target slot invalidates a pending swap');
+      check(M.getBattleInventoryState().Playerinventory.some(item => item.itemId === pendingItem.itemId), 'Stale swap keeps its incoming item');
+      const hpA=makeActor(810004), hpB=makeActor(810005); E.entites.push(hpA,hpB); S.saveToLocalStorage('selectedArmyA',[actor,a,b,zero,hpA,hpB]);
+      const healthGear=()=>M.acquireItem({...ItemDetails.find(i=>i.functionName==='DevMovementMaxThree'),Stuffeffets:[{type:'stat-buff',stat:'HP',value:50}]},'sprite-test');
+      const h1=healthGear(), h2=healthGear(); const sh1=surface(hpA), sh2=surface(hpB);
+      drop(sh1,h1.itemId); drop(sh2,h2.itemId); await waitFor(()=>hpA.stuff.slot1?.length && hpB.stuff.slot1?.length);
+      hpA.stats.HP.current=hpA.stats.HP.max; hpB.stats.HP.current=hpB.stats.HP.max; S.saveUpgradedEntity(hpA); S.saveUpgradedEntity(hpB);
+      const lifeBefore=hpA.stats.HP.current;
+      drop(sh2,'e'+h1.itemId); await waitFor(()=>document.querySelector('select[aria-label="Équipement à remplacer"]'));
+      document.querySelector('.inventory-transfer-confirm-actions .primary').click(); await waitFor(()=>hpB.stuff.slot1[0]==='e'+h1.itemId);
+      equal(hpA.stats.HP.current,lifeBefore,'Swap never clamps HP through an intermediate unequipped state');
+      equal(hpB.stats.HP.current,lifeBefore,'Other owner also retains HP during swap');
+      check(M.validateBattleInventoryState().ok,'HP swap keeps registry consistent');
+      const { createEntiteInDOM } = await import("/js/rendering/entities.js");
+      const battleView = createEntiteInDOM(a);
+      const battleSprite = battleView.element.querySelector('[data-dropable="true"]');
+      check(battleSprite?.dataset.entityId === String(a.id), 'Real battle sprite exposes its entity ID');
+      const spriteReady = await battleView.spriteReady;
+      check(spriteReady.loaded, 'Real battle sprite asset renders');
+      const actualSpriteItem = M.acquireItem(ItemDetails.find(i => i.functionName === 'MovementCharge'), 'sprite-test');
+      const currentBefore = a.stats.shift.current;
+      drop(battleSprite.querySelector('canvas'), actualSpriteItem.itemId);
+      await waitFor(() => !M.getBattleInventoryState().Playerinventory.some(i => i.itemId === actualSpriteItem.itemId));
+      equal(a.stats.shift.current, currentBefore + 1, 'Actual battle canvas uses the common consumable drop');
+      battleView.element.remove();
+      _U2.EntityCodexDetails(a.id);
+      const profileSprite = document.querySelector(`.codex-scan-image[data-entity-id="${a.id}"]`);
+      check(profileSprite?.dataset.dropable === 'true', 'Real profile sprite exposes the drop marker');
+      const previewItem = M.acquireItem(ItemDetails.find(i => i.functionName === 'DevMovementCurrentFive'), 'sprite-test');
+      window.__showSpriteSwap = () => drop(profileSprite, previewItem.itemId);
+      sa.remove(); sb.remove(); sz.remove(); unmarked.remove(); sameSlot.remove(); sh1.remove(); sh2.remove();
+    }
+    slot.remove();
+    hud.remove();
+    return { count: checks.length, checks, id: actor.id };
+  });
+  for (const viewport of [{ width: 1600, height: 950 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    const counter = page.locator(`#CodexEntityList_${report.id} .life-bar-counter .movement-counter`);
+    await counter.waitFor({ state: 'visible' });
+    const layout = await counter.evaluate(node => {
+      const box = node.getBoundingClientRect();
+      const row = node.parentElement.getBoundingClientRect();
+      const previous = node.previousElementSibling?.getBoundingClientRect();
+      return { x: box.x, right: box.right, bottom: box.bottom, rowRight: row.right, previousRight: previous?.right || 0 };
+    });
+    assert.ok(layout.x >= layout.previousRight - 1 && layout.right <= layout.rowRight + 1 && layout.right <= viewport.width + 1);
+    await page.screenshot({ path: resolve(output, `counter-${viewport.width}.png`) });
+    await page.evaluate(() => window.__showSpriteSwap());
+    const choice = page.locator('.equipment-swap-choice select');
+    await choice.waitFor({ state: 'visible' });
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('.equipment-swap-choice')?.closest('[role="dialog"]');
+      return panel && Number(getComputedStyle(panel).opacity) === 1;
+    });
+    const box = await choice.boundingBox();
+    assert.ok(box.x >= 0 && box.x + box.width <= viewport.width + 1);
+    await page.screenshot({ path: resolve(output, `sprite-swap-${viewport.width}.png`) });
+    await page.locator('.inventory-transfer-confirm-actions button:not(.primary)').click();
+  }
+  assert.deepEqual(errors, []);
+  await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));
+  console.log(JSON.stringify(report, null, 2));
+} catch (error) {
+  await page?.screenshot({ path: resolve(output, 'failure.png') });
+  throw error;
+} finally {
+  await browser.close();
+  await new Promise(done => server.close(done));
+}

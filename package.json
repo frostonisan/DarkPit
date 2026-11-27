@@ -1,0 +1,26 @@
+{
+  "name": "darkpit",
+  "version": "0.92.7-dev",
+  "gameVersion": "0.92.7-dev",
+  "private": true,
+  "description": "Local checks and browser tests for the static DarkPit game",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node scripts/serve-docs.mjs",
+    "verify": "node scripts/verify-project.mjs",
+    "test": "node scripts/verify-suite.mjs --node",
+    "test:browser": "node scripts/verify-suite.mjs --browser",
+    "test:smoke": "node scripts/verify-suite.mjs --browser verify-startup-browser.mjs verify-ui-modules-browser.mjs verify-combat-start-browser.mjs",
+    "test:all": "node scripts/verify-suite.mjs",
+    "test:performance": "node scripts/verify-suite.mjs --performance"
+  },
+  "devDependencies": {
+    "@babel/parser": "7.29.15",
+    "@babel/traverse": "7.29.15",
+    "playwright": "1.62.1",
+    "sax": "1.6.1"
+  },
+  "type": "module"
+}

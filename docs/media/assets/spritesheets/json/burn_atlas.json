@@ -1,0 +1,139 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 2,
+        "y": 181,
+        "w": 27,
+        "h": 29
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 8,
+        "w": 27,
+        "h": 29
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 44
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 2,
+        "y": 52,
+        "w": 36,
+        "h": 40
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 2,
+        "w": 36,
+        "h": 40
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 44
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 36,
+        "h": 44
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 36,
+        "h": 44
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 44
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 2,
+        "y": 98,
+        "w": 36,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 5,
+        "w": 36,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 44
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 2,
+        "y": 140,
+        "w": 36,
+        "h": 35
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 4,
+        "w": 36,
+        "h": 35
+      },
+      "sourceSize": {
+        "w": 36,
+        "h": 44
+      },
+      "duration": 10,
+      "empty": false
+    }
+  },
+  "animations": {
+    "burn": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/burn_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 40,
+      "h": 212
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "burn",
+      "frameCount": 5,
+      "durationMs": 50,
+      "sourceGifLoopValue": 0
+    }
+  }
+}

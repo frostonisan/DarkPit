@@ -259,7 +259,7 @@
             <summary>Niveaux, essences &amp; signatures</summary>
             <ul class="rules">
               <li>Pureté = nombre d'essences actives d'une couleur unique. Niveau mixte = nombre de combinaisons complètes : minimum des quantités de chaque couleur présente. Plafonds : pureté 10, duo 5, prismatique 3.</li>
-              <li>Fracassante et Psionique : +15 × (pureté − 1) / 9 points de base, de 0 à +15. Les ratios d'attributs ne changent pas.</li>
+              <li>Fracassante et Psionique : +15 × (pureté − 1) / 9 points de base, arrondis à l’entier supérieur à chaque niveau, de 0 à +15. Les ratios d'attributs ne changent pas.</li>
               <li>Perforation : réservée au jaune pur. 10 % des dégâts bruts contournent l'armure par niveau, jusqu'à 100 %. Le reste peut être absorbé. Elle est distincte du bonus de dégâts Transperçant.</li>
               <li>Transperçant : convertit 5 % de l'Agilité en dégâts perçants supplémentaires au niveau 1 de pureté jaune, jusqu'à 30 % au niveau 10. Progression linéaire : 5 + (niveau − 1) × 25 / 9. Bonus arrondi à l'inférieur et ajouté après le ratio d'attaque, avant armure et résistances. Exemple au niveau 10 : 200 dégâts bruts + 30 % de 100 Agilité = 230 dégâts bruts perçants.</li>
               <li>Récupération perçante : niveau = nombre d'essences jaunes actives, même en composition mixte. Base de 5 %, renforcée de 5 × (jaunes − 1) / 9 points ; le jaune pur conserve 5 points supplémentaires, soit une base de 10 à 15 %. La contribution d'Agilité ne change pas.</li>
@@ -321,7 +321,7 @@
       { id: 'inflexion', name: 'Inflexion', color: 'blue', tier: 2, icon: 'magicalPen', direct: 'Pénétration magique', description: 'Contribution à la pénétration magique.' },
       { id: 'hypercognition', name: 'Hypercognition', color: 'blue', tier: 3, icon: 'hypercognition', direct: 'Bonus magique', description: 'Contribution magique sans créer une essence bleue ni débloquer sa branche.' },
       { id: 'finesse', name: 'Finesse', color: 'yellow', tier: 1, icon: 'finesse', direct: 'Puissance perçante', description: 'Contribution à la puissance perçante.' },
-      { id: 'critical', name: 'Coup critique', color: 'yellow', tier: 2, icon: 'crit-power', direct: 'Chance critique', description: 'Une chance critique effective positive autorise le critique, sans interdiction liée à la nature magique.' },
+      { id: 'critical', name: 'Puissance critique', color: 'yellow', tier: 2, icon: 'crit-power', direct: 'Chance critique', description: 'Une chance critique effective positive autorise le critique, sans interdiction liée à la nature magique.' },
       { id: 'ambidextry', name: 'Ambidextrie', color: 'yellow', tier: 3, icon: 'ambidextry', direct: 'Chance ambidextrie', description: 'Second impact si une contribution effective existe. L’agilité seule ne débloque pas cet effet.' }
     ];
     const DEFAULTS = {
@@ -359,7 +359,7 @@
         if (profile.pure === 'yellow') {
           profile.armorBypass = profile.level * 10;
           profile.transpiercingDamagePercent = 5 + (profile.level - 1) * 25 / 9;
-        } else profile.bonus = (profile.level - 1) * 15 / 9;
+        } else profile.bonus = Math.ceil((profile.level - 1) * 15 / 9);
         if (profile.pure === 'blue') profile.surchargeReductionPercent = (profile.level - 1) * 50 / 9;
       }
       if (profile.yellow) profile.recoveryBase = (profile.pure === 'yellow' ? 10 : 5) + (profile.yellow - 1) * 5 / 9;
@@ -370,7 +370,7 @@
       if (p.pure) return { red: 'Pure physique', blue: 'Pure magique', yellow: 'Transperçante' }[p.pure];
       if (p.red && p.blue && p.yellow) return 'Attaque prismatique';
       if (p.red && p.blue) return 'Hybride physique-magique';
-      return p.red ? 'Physique perçante' : 'Magique perçante';
+      return p.red ? 'Cinétique' : 'Spectrale';
     }
     function intakeMode(profile) {
       if (!profile.total) return { key: 'none', name: 'Aucun encaissement', rule: '' };

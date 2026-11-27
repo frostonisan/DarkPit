@@ -169,16 +169,17 @@ height: 115px;
  
 .profanateur-engoulmort:not(.codex-scan-image, .item-icon){height: 290px;
   top: -170px;
-  filter: drop-shadow(0px 0 15px #300000C7);} 
+  filter: drop-shadow(0px 0 15px #3000003B);} 
 .iddle.profanateur-engoulmort {animation: bougeote 0.8s linear infinite;} 
   
 .amas-profane:not(.codex-scan-image, .item-icon){  height: 160px;
   top: -50px;}
 .iddle.amas-profane {animation: bougeote 5.7s linear infinite;} 
   
-.aberration-profanee:not(.codex-scan-image, .item-icon) {
-  height: 180px;
-top:-70px;filter: drop-shadow(0px 0 15px #300000C7);}
+.aberration-profanee:not(.codex-scan-image, .item-icon){ height: 180px;
+  top: -70px;
+  filter: drop-shadow(0px 0 15px #3000004A);
+}
 .iddle.aberration-profanee {animation: bougeote 2s linear infinite;} 
 
 .foudre-fange:not(.codex-scan-image, .item-icon) {

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "animation": {
+    "name": "castingfx-base",
+    "frameCount": 17,
+    "durationMs": 170,
+    "sourceGifLoopValue": 0
+  },
+  "pages": [
+    {
+      "image": "../spritesheet/castingfx-base_atlas_000.png",
+      "json": "castingfx-base_atlas_000.json"
+    },
+    {
+      "image": "../spritesheet/castingfx-base_atlas_001.png",
+      "json": "castingfx-base_atlas_001.json"
+    }
+  ],
+  "frames": [
+    {
+      "frame": "frame_0000",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0001",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0002",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0003",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0004",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0005",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0006",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0007",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0008",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0009",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0010",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0011",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0012",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0013",
+      "page": 0,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0014",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0015",
+      "page": 1,
+      "duration": 10
+    },
+    {
+      "frame": "frame_0016",
+      "page": 0,
+      "duration": 10
+    }
+  ]
+}

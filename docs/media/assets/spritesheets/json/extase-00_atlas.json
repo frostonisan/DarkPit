@@ -1,0 +1,346 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 278,
+        "y": 248,
+        "w": 4,
+        "h": 4
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 271,
+        "y": 129,
+        "w": 7,
+        "h": 7
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 4,
+        "y": 5,
+        "w": 7,
+        "h": 7
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 271,
+        "y": 118,
+        "w": 11,
+        "h": 5
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 6,
+        "y": 7,
+        "w": 11,
+        "h": 5
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 259,
+        "y": 233,
+        "w": 21,
+        "h": 9
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 7,
+        "y": 8,
+        "w": 21,
+        "h": 9
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 210,
+        "y": 341,
+        "w": 51,
+        "h": 19
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 7,
+        "y": 8,
+        "w": 51,
+        "h": 19
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0005": {
+      "frame": {
+        "x": 141,
+        "y": 585,
+        "w": 122,
+        "h": 49
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 7,
+        "y": 8,
+        "w": 122,
+        "h": 49
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0006": {
+      "frame": {
+        "x": 2,
+        "y": 341,
+        "w": 202,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 14,
+        "y": 9,
+        "w": 202,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0007": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 282,
+        "h": 110
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 14,
+        "y": 11,
+        "w": 282,
+        "h": 110
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0008": {
+      "frame": {
+        "x": 2,
+        "y": 118,
+        "w": 263,
+        "h": 109
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 52,
+        "y": 9,
+        "w": 263,
+        "h": 109
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0009": {
+      "frame": {
+        "x": 2,
+        "y": 233,
+        "w": 251,
+        "h": 102
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 65,
+        "y": 13,
+        "w": 251,
+        "h": 102
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0010": {
+      "frame": {
+        "x": 2,
+        "y": 429,
+        "w": 190,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 125,
+        "y": 32,
+        "w": 190,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0011": {
+      "frame": {
+        "x": 2,
+        "y": 517,
+        "w": 133,
+        "h": 63
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 182,
+        "y": 48,
+        "w": 133,
+        "h": 63
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0012": {
+      "frame": {
+        "x": 141,
+        "y": 517,
+        "w": 131,
+        "h": 62
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 185,
+        "y": 50,
+        "w": 131,
+        "h": 62
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": false
+    },
+    "frame_0013": {
+      "frame": {
+        "x": 267,
+        "y": 248,
+        "w": 1,
+        "h": 1
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "sourceSize": {
+        "w": 319,
+        "h": 121
+      },
+      "duration": 40,
+      "empty": true
+    }
+  },
+  "animations": {
+    "extase-00": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004",
+      "frame_0005",
+      "frame_0006",
+      "frame_0007",
+      "frame_0008",
+      "frame_0009",
+      "frame_0010",
+      "frame_0011",
+      "frame_0012",
+      "frame_0013"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/extase-00_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 286,
+      "h": 636
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "extase-00",
+      "frameCount": 14,
+      "durationMs": 560,
+      "sourceGifLoopValue": null
+    }
+  }
+}

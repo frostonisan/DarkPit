@@ -91,13 +91,14 @@
       window.addEventListener('resize', render);
     }());
   </script>
-  <link rel="stylesheet" href="css/board.css">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/animation.css">
-  <link rel="stylesheet" href="css/monstre.css">
-  <link rel="stylesheet" href="css/battle-infos.css">
-  <link rel="stylesheet" href="css/spell.css">
-  <link rel="stylesheet" href="css/monstre-hitbox.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/interface.css">
+    <link rel="stylesheet" href="css/stats.css">
+    <link rel="stylesheet" href="css/combat.css">
+    <link rel="stylesheet" href="css/animation.css">
+    <link rel="stylesheet" href="css/monstre.css">
+    <link rel="stylesheet" href="css/effects.css">
+    <link rel="stylesheet" href="css/monstre-hitbox.css">
   <style>
     #startup-diagnostic {
       position: fixed; left: 0; top: 0; z-index: 2147483647; box-sizing: border-box;
@@ -109,9 +110,9 @@
     #startup-diagnostic-copy { padding: 6px 12px; background: #303a43; color: #fff; border: 1px solid #92a4b2; cursor: pointer; }
     #startup-diagnostic[data-error-count]:not([data-error-count="0"]) { border-color: #ff7575; }
   </style>
-  <script type="module" src="./js/GameInit.js"></script>
-  <script type="module" src="./js/admin.js"></script>
-  <script type="module" src="./js/newgame.js"></script>
+  <script type="module" src="./js/app/startup.js"></script>
+  <script type="module" src="./js/debug/admin.js"></script>
+  <script type="module" src="./js/app/worldMap.js"></script>
 </head>
 <body>
   <section id="startup-diagnostic" aria-label="Diagnostic du demarrage">

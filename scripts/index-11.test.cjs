@@ -96,7 +96,7 @@ test('no essence has no offensive bonus even with external sources', () => {
 test('physical and magical purity strengthen progressively to 15 points at level ten', () => {
   for (const color of ['red', 'blue']) for (let count = 1; count <= 10; count++) {
     const model = api.resolveAttack(input(Array(count).fill(color)));
-    close(model.profile.bonus, (count - 1) * 15 / 9);
+    assert.equal(model.profile.bonus, Math.ceil((count - 1) * 15 / 9));
     if (count < 10) assert.ok(model.profile.bonus < 15);
   }
   assert.equal(api.resolveAttack(input(['red', 'red', 'blue'])).profile.bonus, 0);

@@ -1,0 +1,208 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 2,
+        "y": 177,
+        "w": 41,
+        "h": 45
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 39,
+        "w": 41,
+        "h": 45
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 46,
+        "h": 53
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 24,
+        "y": 37,
+        "w": 46,
+        "h": 53
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 2,
+        "y": 61,
+        "w": 45,
+        "h": 52
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 24,
+        "y": 38,
+        "w": 45,
+        "h": 52
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 2,
+        "y": 119,
+        "w": 45,
+        "h": 52
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 24,
+        "y": 38,
+        "w": 45,
+        "h": 52
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 2,
+        "y": 228,
+        "w": 32,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 39,
+        "w": 32,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0005": {
+      "frame": {
+        "x": 2,
+        "y": 270,
+        "w": 32,
+        "h": 36
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 39,
+        "w": 32,
+        "h": 36
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": false
+    },
+    "frame_0006": {
+      "frame": {
+        "x": 40,
+        "y": 228,
+        "w": 1,
+        "h": 1
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": true
+    },
+    "frame_0007": {
+      "frame": {
+        "x": 47,
+        "y": 228,
+        "w": 1,
+        "h": 1
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 0,
+      "empty": true
+    }
+  },
+  "animations": {
+    "blood-impact-1": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004",
+      "frame_0005",
+      "frame_0006",
+      "frame_0007"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/blood-impact-1_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 50,
+      "h": 308
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "blood-impact-1",
+      "frameCount": 8,
+      "durationMs": 0,
+      "sourceGifLoopValue": null
+    }
+  }
+}

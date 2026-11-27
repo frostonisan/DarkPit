@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
 const path = resolve('docs/index-13.html');
 const output = resolve('outputs/stat-lab');
 await mkdir(output, { recursive: true });
@@ -33,6 +33,8 @@ const umbra = (key, value) => source('umbra', key, value);
 const row = (entries, key) => calculate(entries).rows.find(row => row.id === key);
 const signature = entries => JSON.stringify(calculate(entries).rows.map(row => [row.id, row.value, row.state]).sort());
 const attributes = [normal('strength', 20), normal('intelligence', 20), normal('agility', 20)];
+const sharedFlatKeys = new Set(['physicalDamage', 'magicalDamage', 'piercingDamage', 'physicalPen', 'magicalPen',
+  'physicalResistance', 'magicalResistance', 'dodge', 'velocity']);
 check(catalogs.normal.length === 46 && catalogs.improved.length === 34 && catalogs.umbra.length === 27, 'complete catalogs');
 check(calculate([]).rows.length === 0, 'no default results');
 check(calculate([normal('physicalPen', 1)]).rows.length === 1, 'only selected result');
@@ -40,20 +42,23 @@ check(row([normal('physicalPen', 5), ...attributes], 'physicalPen').value === 5,
 for (const [key, umbraValue] of Object.entries({ physicalPen: 12, magicalPen: 12, physicalResistance: 27, magicalResistance: 27, dodge: 30.5, velocity: 25 })) {
   const spec = catalogs.improved.find(spec => spec.key === key);
   check(spec.unit === '%' && spec.step === .01, `+ percentage input ${key}`);
-  check(row([normal(key, 1), plus(key, 1), plus(key, 6)], key).value === 8, `1% normal + 1% improved + 6% improved: ${key}`);
-  check(row([plus(key, 6.5)], key).value === 6.5, `decimal improved percentage preserved: ${key}`);
-  check(row([...attributes, umbra(spec.origin, 15)], key).value === umbraValue, `existing Umbra curve preserved: ${key}`);
-  check(row([...attributes, umbra(spec.origin, 15), plus(key, 1), plus(key, 6), normal(key, 1)], key).value === umbraValue + 8, `attribute improvement once, autonomous percentages preserved: ${key}`);
+  check(row([normal(key, 1), plus(key, 1), plus(key, 6)], key).value === 8, `plus preserves direct percentage points: ${key}`);
+  check(row([plus(key, 6.5)], key).value === 6.5, `plus alone retains its flat without an attribute or Umbra: ${key}`);
+  check(row([...attributes, umbra(spec.origin, 15)], key).value === umbraValue, `Umbra curve without a second flat target gain: ${key}`);
+  check(row([...attributes, umbra(spec.origin, 15), plus(key, 1), plus(key, 6), normal(key, 1)], key).value === umbraValue + 8, `attribute improvement once, all flat percentages preserved: ${key}`);
 }
-check(row([plus('physicalDamage', 5), ...attributes], 'physicalDamage').value === 15, 'independent + has strength ratio');
+check(row([plus('physicalDamage', 5), ...attributes], 'physicalDamage').value === 15, 'independent + has flat and strength ratio');
 check(row([plus('physicalDamage', 5)], 'physicalDamage').state === '+', '+ state');
 check(row([normal('physicalDamage', 2), normal('physicalDamage', 4)], 'physicalDamage').value === 6, 'normal sum');
 check(row([normal('physicalDamage', 2)], 'physicalDamage').state === 'normal', 'normal state');
 const mixed = [...attributes, normal('physicalDamage', 2), normal('physicalDamage', 4), plus('physicalDamage', 4), plus('physicalDamage', 3)];
-check(row(mixed, 'physicalDamage').value === 23, 'normal 6 + improved 7 + strength 10 once');
-check(row(mixed, 'physicalDamage').state === 'X', 'X state');
+check(row(mixed, 'physicalDamage').value === 23, 'normal 6 + plus 7 + strength 10 once');
+check(row(mixed, 'physicalDamage').state === '+', 'mixed flat without Umbra is plus');
 check(signature(mixed) === signature([...mixed].reverse()), 'order independent');
-check(row([...mixed, umbra('vigueur', 15)], 'physicalDamage').value === 38, 'Umbra does not repeat attribute bonus');
+check(row([...mixed, umbra('vigueur', 15)], 'physicalDamage').value === 38, 'Vigueur adds only its ratio without repeating Force');
+check(row([...mixed, umbra('vigueur', 15)], 'physicalDamage').state === 'X', 'Three sources give X without a fourth bonus');
+check(row([normal('physicalDamage', 6), umbra('vigueur', 15)], 'physicalDamage').state === 'X', 'Normal and Umbra give X');
+check(row([plus('physicalDamage', 7), umbra('vigueur', 15)], 'physicalDamage').state === 'X', 'Plus and Umbra give X');
 check(row([plus('armor', 2), plus('armor', 3)], 'armor').value === 15, 'common armor base once');
 check(row([normal('armor', 5)], 'armor').value === 5, 'normal armor has no extra base');
 check(row([plus('physicalDamage', 0), ...attributes], 'physicalDamage').value === 0, 'zero + does not grant a free bonus');
@@ -73,7 +78,7 @@ for (const spec of catalogs.improved) {
   const split = [...attributes, plus(spec.key, 4), plus(spec.key, 3)];
   check(signature(split) === signature([...attributes, plus(spec.key, 7)]), `+ pooling ${spec.key}`);
   const entries = [...split, normal(spec.key, 2)];
-  check(row(entries, spec.key).state === 'X', `X ${spec.key}`);
+  check(row(entries, spec.key).state === (sharedFlatKeys.has(spec.key) ? '+' : 'X'), `pooled composition ${spec.key}`);
   check(signature(entries) === signature([...entries].reverse()), `order ${spec.key}`);
   check(signature([...split, umbra(spec.origin, 15)]) === signature([...attributes, plus(spec.key, 7), umbra(spec.origin, 15)]), `Umbra pooling ${spec.key}`);
 }
@@ -94,7 +99,7 @@ for (const target of [...catalogs.normal.map(spec => spec.key), ...catalogs.umbr
 }
 check(helper([umbra('vigueur', 15), ...attributes], 'vigueur').html.includes('La Vigueur permet'), 'original Vigueur text');
 check(helper([umbra('haste', 15), ...attributes], 'haste').html.includes('durée de préparation'), 'original Haste text');
-check(/0\.5/.test(helper(mixed, 'physicalDamage', { calculation: 'physicalDamage/improved', index: 2 }).html), 'true strength ratio, not inferred from result');
+check(/0\.5/.test(helper(mixed, 'physicalDamage', { calculation: 'physicalDamage/improved', index: 2 }).html), 'true strength ratio after the two flat plus sources, not inferred from result');
 check(helper([umbra('hypercognition', 20)], 'hypercognition', { calculation: 'cognitiveGenerator/improved', index: 0 }).html.includes('Palier 2'), 'current cognitive milestone');
 check(!helper([umbra('hypercognition', 20)], 'hypercognition').html.includes('Prochain palier'), 'no future milestone');
 check(helper([umbra('hypercognition', 20)], 'hypercognition').html.includes('data-umbra-calculation="hypercognitionEssences"'), 'generator has complete source model');
@@ -131,14 +136,14 @@ try {
   await add('normal', 'magicalPen', 1);
   await add('improved', 'magicalPen', 1);
   await add('improved', 'magicalPen', 6);
-  check(await getValue('magicalPen') === 8, 'reported penetration example totals 8%');
+  check(await getValue('magicalPen') === 8, 'penetration retains normal and plus flats without an attribute or Umbra');
   check(await page.locator('#improved-list [data-key=magicalPen] .lab-unit').innerText() === '%', 'improved penetration visibly uses percent');
   await page.locator('[data-result=magicalPen] .lab-name').click();
   await page.waitForSelector('#lab-helper:not([hidden])');
   check(await page.locator('#lab-helper .lab-helper-source').count() === 3, 'X helper lists all three sources separately');
   check(await page.locator('#lab-helper [data-source-kind=normal]').count() === 1 && await page.locator('#lab-helper [data-source-kind=improved]').count() === 2, 'X helper distinguishes normal and improved');
   check(/6\s*%/.test(await page.locator('#lab-helper .lab-helper-source').last().innerText()), '6% source visible in X helper');
-  check(/7\s*%/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'pooled improved subtotal visible');
+  check(/7\s*%/.test(await page.locator('#lab-helper .lab-helper-calculation').innerText()), 'plus flat subtotal visible');
   await page.screenshot({ path: resolve(output, 'system2-penetration-x-helper.png') });
   await page.locator('#lab-helper [data-umbra-calculation="magicalPen/improved"]').last().hover();
   await page.waitForSelector('#lab-helper .lab-detail [data-umbra-calculation="magicalPen/points"]');
@@ -161,7 +166,7 @@ try {
   await page.locator('#lab-sources .lab-remove').last().click();
   await settle(2);
   await page.locator('#totals-tab').click();
-  check(await getValue('magicalPen') === 2, 'removed source no longer counted');
+  check(await getValue('magicalPen') === 2, 'remaining plus source retains its own amount');
   await page.locator('[data-result=magicalPen] .lab-name').click();
   await page.waitForSelector('#lab-helper:not([hidden])');
   check(await page.locator('#lab-helper .lab-helper-source').count() === 2, 'removed source absent from X helper');
@@ -170,14 +175,15 @@ try {
   await settle(0);
   await add('normal', 'strength', 20);
   await add('improved', 'physicalDamage', 4);
-  check(await getValue('physicalDamage') === 14, '+ without Umbra');
+  check(await getValue('physicalDamage') === 14, '+ flat and ratio without Umbra');
   await add('improved', 'physicalDamage', 3);
-  check(await getValue('physicalDamage') === 17, 'second + only adds its base');
+  check(await getValue('physicalDamage') === 17, 'second + adds direct power without another ratio');
   await add('normal', 'physicalDamage', 6);
-  check(await getValue('physicalDamage') === 23, 'normal joins after ratio');
-  check((await page.locator('[data-result=physicalDamage] .lab-name').innerText()).endsWith(' X'), 'visible X label');
+  check(await getValue('physicalDamage') === 23, 'normal joins the shared flat');
+  check((await page.locator('[data-result=physicalDamage] .lab-name').innerText()).endsWith(' +'), 'visible plus label without Umbra');
   await add('umbra', 'vigueur', 15);
-  check(await getValue('physicalDamage') === 38, 'Umbra joins once');
+  check(await getValue('physicalDamage') === 38, 'Vigueur ratio once, no flat');
+  check((await page.locator('[data-result=physicalDamage] .lab-name').innerText()).endsWith(' X'), 'visible X label with Umbra');
   await page.locator('[data-result=physicalDamage] .lab-name').click();
   await page.waitForSelector('#lab-helper:not([hidden])');
   check((await page.locator('#lab-helper').innerText()).includes('38'), 'helper total');
@@ -264,7 +270,7 @@ try {
     const paint = canvas.getContext('2d');
     paint.fillStyle = style.color;
     paint.fillRect(0, 0, 1, 1);
-    return { color: [...paint.getImageData(0, 0, 1, 1).data], background: style.backgroundImage,
+    return { color: [...paint.getImageData(0, 0, 1, 1).data], cssColor: style.color, background: style.backgroundImage,
       fill: style.webkitTextFillColor, filter: style.filter };
   });
   const normalName = page.locator(`#normal-list [data-key=${execution}] [data-stat-state]`);
@@ -282,9 +288,18 @@ try {
   check(JSON.stringify((await styles(resultLabel)).color) === JSON.stringify(normalColor.color), 'normal result uses the normal text colour');
   await add('improved', execution, 4);
   const mixedColor = await styles(resultLabel);
-  check(mixedColor.background.includes('linear-gradient') && mixedColor.background.includes('220, 225, 230'), 'X result gradients from stat light colour to neutral');
+  const expectedGradient = await page.evaluate(({ start, end }) => {
+    const probe = document.createElement('span');
+    probe.style.backgroundImage = `linear-gradient(to right, ${start}, ${end})`;
+    document.body.append(probe);
+    const gradient = getComputedStyle(probe).backgroundImage;
+    probe.remove();
+    return gradient;
+  }, { start: plusColor.cssColor, end: umbraColor.cssColor });
+  check(mixedColor.background === expectedGradient, 'X result gradients from stat light colour to its Umbra colour');
   check(mixedColor.fill === 'rgba(0, 0, 0, 0)', 'X gradient is clipped to the glyphs');
   await add('umbra', 'bloodFury', 20);
+  check(await resultLabel.getAttribute('data-stat-state') === 'Ω', 'Adding Umbra to X gives omega');
   await page.locator('.lab-active-umbras summary').click();
   check((await styles(page.locator('[data-result="umbra:bloodFury"] [data-stat-state]'))).filter.includes('drop-shadow'), 'active Umbra uses the same aura');
   await normalName.scrollIntoViewIfNeeded();
@@ -297,7 +312,7 @@ try {
   await page.locator('#lab-sources .lab-remove').first().click();
   await settle(2);
   await page.locator('#totals-tab').click();
-  check((await styles(resultLabel)).background === 'none' && await resultLabel.getAttribute('data-stat-state') === '+', 'removing normal source restores solid plus colour');
+  check((await styles(resultLabel)).background === expectedGradient && await resultLabel.getAttribute('data-stat-state') === '◆', 'removing normal source leaves the plus and Umbra mixture');
   await page.setViewportSize({ width: 390, height: 844 });
   await add('normal', execution, 2);
   await resultLabel.scrollIntoViewIfNeeded();

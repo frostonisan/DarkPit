@@ -1,22 +1,63 @@
-name: Deploy version-2 to GitHub Pages
+name: Verify and deploy DarkPit
 
 on:
   push:
-    branches:
-      - version-2
+    branches: [version-2]
+  pull_request:
+    branches: [version-2]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked development dependencies
+        run: npm ci
+      - name: Check syntax, assets and test imports
+        run: npm run verify
+      - name: Run Node regression tests
+        run: npm test
+        env:
+          VERIFY_OUTPUT: outputs/ci-node
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser regression tests
+        run: npm run test:browser
+        env:
+          VERIFY_BROWSER: chromium
+          VERIFY_WORKERS: '2'
+          VERIFY_OUTPUT: outputs/ci-browser
+      - name: Keep regression reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: regression-reports
+          path: outputs/ci-*/
+          if-no-files-found: ignore
+          retention-days: 14
+
   deploy:
+    needs: verify
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/version-2'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -25,17 +66,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Pages
-  uses: actions/configure-pages@v5
-  with:
-    enablement: true
+        uses: actions/configure-pages@v5
 
       - name: Upload site
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: ./dossier
+          path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment

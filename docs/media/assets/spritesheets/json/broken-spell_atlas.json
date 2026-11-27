@@ -1,0 +1,346 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 1336,
+        "y": 616,
+        "w": 540,
+        "h": 18
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 103,
+        "y": 351,
+        "w": 540,
+        "h": 18
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 684,
+        "y": 504,
+        "w": 652,
+        "h": 17
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 48,
+        "y": 353,
+        "w": 652,
+        "h": 17
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 2,
+        "y": 802,
+        "w": 627,
+        "h": 236
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 54,
+        "y": 242,
+        "w": 627,
+        "h": 236
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 2,
+        "y": 1701,
+        "w": 248,
+        "h": 116
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 240,
+        "y": 302,
+        "w": 248,
+        "h": 116
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 2,
+        "y": 1823,
+        "w": 152,
+        "h": 152
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 295,
+        "y": 284,
+        "w": 152,
+        "h": 152
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0005": {
+      "frame": {
+        "x": 1336,
+        "y": 640,
+        "w": 476,
+        "h": 476
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 133,
+        "y": 122,
+        "w": 476,
+        "h": 476
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0006": {
+      "frame": {
+        "x": 2,
+        "y": 1044,
+        "w": 626,
+        "h": 536
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 43,
+        "y": 82,
+        "w": 626,
+        "h": 536
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0007": {
+      "frame": {
+        "x": 1346,
+        "y": 2,
+        "w": 516,
+        "h": 608
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 103,
+        "y": 0,
+        "w": 516,
+        "h": 608
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0008": {
+      "frame": {
+        "x": 684,
+        "y": 2,
+        "w": 656,
+        "h": 496
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 33,
+        "y": 112,
+        "w": 656,
+        "h": 496
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0009": {
+      "frame": {
+        "x": 634,
+        "y": 1097,
+        "w": 616,
+        "h": 598
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 23,
+        "y": 0,
+        "w": 616,
+        "h": 598
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0010": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 676,
+        "h": 574
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 13,
+        "y": 2,
+        "w": 676,
+        "h": 574
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0011": {
+      "frame": {
+        "x": 684,
+        "y": 527,
+        "w": 646,
+        "h": 564
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 13,
+        "y": 2,
+        "w": 646,
+        "h": 564
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0012": {
+      "frame": {
+        "x": 2,
+        "y": 582,
+        "w": 646,
+        "h": 214
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 13,
+        "y": 244,
+        "w": 646,
+        "h": 214
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": false
+    },
+    "frame_0013": {
+      "frame": {
+        "x": 1336,
+        "y": 527,
+        "w": 1,
+        "h": 1
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "sourceSize": {
+        "w": 700,
+        "h": 656
+      },
+      "duration": 10,
+      "empty": true
+    }
+  },
+  "animations": {
+    "broken-spell": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004",
+      "frame_0005",
+      "frame_0006",
+      "frame_0007",
+      "frame_0008",
+      "frame_0009",
+      "frame_0010",
+      "frame_0011",
+      "frame_0012",
+      "frame_0013"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/broken-spell_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 1878,
+      "h": 1977
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "broken-spell",
+      "frameCount": 14,
+      "durationMs": 140,
+      "sourceGifLoopValue": null
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
-const { chromium } = require('C:/Users/Utilisateur/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const { chromium } = require('playwright');
 const output = resolve('outputs/vfx-calibrator'); await mkdir(output, { recursive: true });
 const root = resolve('docs');
 const server = createServer(async (request, response) => {
@@ -81,10 +81,10 @@ try {
   combat.on('pageerror',error=>errors.push(error.message));
   await combat.goto(`http://127.0.0.1:${server.address().port}/index.html`);
   await combat.evaluate(async()=>{
-    const Init=await import('/js/GameInit.js');Init.createGameContainer();Init.GameUi();
-    const E=await import('/js/entites.js'),C=await import('/js/createEntity.js');
-    window.vfxBoard=await import('/js/board.js');
-    const template=(await import('/js/entite/entitesNest.js')).entitesNest.find(e=>e.class==='mouche-asticoteuse');
+    const Init = await import("/js/ui/application.js");Init.createGameContainer();Init.GameUi();
+    const E = await import("/js/entities/runtime.js"),C = await import("/js/rendering/entities.js");
+    window.vfxBoard=await Promise.all([import("/js/board/controller.js"), import("/js/rendering/boardElements.js")]).then(parts => Object.defineProperties({}, Object.fromEntries(parts.flatMap(part => Object.keys(part).map(key => [key, { enumerable: true, get: () => part[key] }])))));
+    const template=(await import("/js/data/entityTemplates.js")).entitesNest.find(e=>e.class==='mouche-asticoteuse');
     window.vfxBuildEntities=async(side='A')=>{
     document.querySelectorAll('[data-vfx-parity]').forEach(node=>node.remove());
     E.entites.length=0;window.vfxEntities=[];

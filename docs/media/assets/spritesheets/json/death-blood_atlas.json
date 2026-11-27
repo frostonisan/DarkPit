@@ -1,0 +1,369 @@
+{
+  "frames": {
+    "frame_0000": {
+      "frame": {
+        "x": 208,
+        "y": 2,
+        "w": 34,
+        "h": 35
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 38,
+        "w": 34,
+        "h": 35
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0001": {
+      "frame": {
+        "x": 81,
+        "y": 347,
+        "w": 56,
+        "h": 52
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 18,
+        "y": 23,
+        "w": 56,
+        "h": 52
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0002": {
+      "frame": {
+        "x": 165,
+        "y": 333,
+        "w": 60,
+        "h": 67
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 19,
+        "y": 17,
+        "w": 60,
+        "h": 67
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0003": {
+      "frame": {
+        "x": 178,
+        "y": 180,
+        "w": 69,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 18,
+        "y": 16,
+        "w": 69,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0004": {
+      "frame": {
+        "x": 2,
+        "y": 322,
+        "w": 73,
+        "h": 73
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 16,
+        "w": 73,
+        "h": 73
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0005": {
+      "frame": {
+        "x": 2,
+        "y": 238,
+        "w": 73,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 17,
+        "y": 13,
+        "w": 73,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0006": {
+      "frame": {
+        "x": 93,
+        "y": 180,
+        "w": 79,
+        "h": 84
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 15,
+        "y": 8,
+        "w": 79,
+        "h": 84
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0007": {
+      "frame": {
+        "x": 2,
+        "y": 154,
+        "w": 85,
+        "h": 78
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 13,
+        "y": 6,
+        "w": 85,
+        "h": 78
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0008": {
+      "frame": {
+        "x": 104,
+        "y": 92,
+        "w": 89,
+        "h": 82
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 11,
+        "y": 2,
+        "w": 89,
+        "h": 82
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0009": {
+      "frame": {
+        "x": 106,
+        "y": 2,
+        "w": 96,
+        "h": 84
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 5,
+        "y": 0,
+        "w": 96,
+        "h": 84
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0010": {
+      "frame": {
+        "x": 2,
+        "y": 79,
+        "w": 96,
+        "h": 69
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 3,
+        "y": 15,
+        "w": 96,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0011": {
+      "frame": {
+        "x": 2,
+        "y": 2,
+        "w": 98,
+        "h": 71
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 13,
+        "w": 98,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0012": {
+      "frame": {
+        "x": 81,
+        "y": 270,
+        "w": 78,
+        "h": 71
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 23,
+        "y": 11,
+        "w": 78,
+        "h": 71
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0013": {
+      "frame": {
+        "x": 178,
+        "y": 258,
+        "w": 62,
+        "h": 69
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 26,
+        "y": 12,
+        "w": 62,
+        "h": 69
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": false
+    },
+    "frame_0014": {
+      "frame": {
+        "x": 248,
+        "y": 2,
+        "w": 1,
+        "h": 1
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1
+      },
+      "sourceSize": {
+        "w": 110,
+        "h": 93
+      },
+      "duration": 60,
+      "empty": true
+    }
+  },
+  "animations": {
+    "death-blood": [
+      "frame_0000",
+      "frame_0001",
+      "frame_0002",
+      "frame_0003",
+      "frame_0004",
+      "frame_0005",
+      "frame_0006",
+      "frame_0007",
+      "frame_0008",
+      "frame_0009",
+      "frame_0010",
+      "frame_0011",
+      "frame_0012",
+      "frame_0013",
+      "frame_0014"
+    ]
+  },
+  "meta": {
+    "image": "../spritesheet/death-blood_atlas.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 251,
+      "h": 402
+    },
+    "scale": "1",
+    "schemaVersion": 1,
+    "animation": {
+      "name": "death-blood",
+      "frameCount": 15,
+      "durationMs": 900,
+      "sourceGifLoopValue": null
+    }
+  }
+}

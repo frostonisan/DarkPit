@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Index 16 · Cases groupées</title>
   <link rel="icon" href="media/assets/ui/favicon.png">
-  <link rel="stylesheet" href="css/board.css">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/animation.css">
-  <link rel="stylesheet" href="css/monstre.css">
-  <link rel="stylesheet" href="css/battle-infos.css">
-  <link rel="stylesheet" href="css/spell.css">
-  <link rel="stylesheet" href="css/monstre-hitbox.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/interface.css">
+    <link rel="stylesheet" href="css/stats.css">
+    <link rel="stylesheet" href="css/combat.css">
+    <link rel="stylesheet" href="css/animation.css">
+    <link rel="stylesheet" href="css/monstre.css">
+    <link rel="stylesheet" href="css/effects.css">
+    <link rel="stylesheet" href="css/monstre-hitbox.css">
   <link rel="stylesheet" href="css/vfx-calibrator.css">
   <link rel="preload" as="image" href="media/assets/effects/dodge-smoke.gif">
   <style>
@@ -127,7 +128,7 @@
     <div class="vfx-code-heading"><label for="vfx-css">Règle CSS appliquée</label><button id="vfx-copy" type="button" disabled>Copier</button></div>
     <textarea id="vfx-css" readonly spellcheck="false" aria-label="Règle CSS du VFX">Chargement…</textarea>
     <div class="vfx-actions"><button id="vfx-copy-all" type="button" disabled>Copier tous les réglages</button><span id="vfx-feedback" role="status" aria-live="polite"></span></div>
-    <p class="vfx-explanation">À coller en fin de <code>battle-infos.css</code>. Chaque effet garde ses réglages pendant cette session.</p>
+    <p class="vfx-explanation">À coller en fin de <code>effects.css</code>. Chaque effet garde ses réglages pendant cette session.</p>
   </aside>
   </div>
   <div class="legend"><span><i class="dot" style="background:#94ddbd"></i>Placement libre</span><span><i class="dot" style="background:#f6bd7d"></i>Voisin à déplacer</span><span><i class="dot" style="background:#ff9393"></i>Placement impossible</span></div>
@@ -188,7 +189,7 @@
   const sizeFor = id => sizes[sizeById.get(id)];
   const caseLabel = count => `${count} case${count>1?'s':''}`;
   const axialKey = (q,r) => `${q},${r}`;
-  // Same odd-row offset / axial convention as board.js and forcedMovement.hexDistance.
+  // Same odd-row offset / axial convention as board.js and board.hexDistance.
   const point = (q,r) => ({ x: PAD_X + W * (q + r / 2), y: PAD_Y + R * 1.5 * r });
   const svg = (name, attrs = {}) => { const n = document.createElementNS(NS,name); for (const [k,v] of Object.entries(attrs)) n.setAttribute(k,v); return n; };
   const corners = p => Array.from({length:6}, (_,i) => { const a = (i * 60 - 90) * Math.PI / 180; return {x:p.x+R*Math.cos(a), y:p.y+R*Math.sin(a)}; });
@@ -510,6 +511,6 @@
   window.hexGroupLab={ready,snapshot:()=>({entities:[...logicalHexes.values()].map(h=>({id:h.occupant,anchor:h.anchor,sizeIndex:h.sizeIndex,scale:h.scale,role:h.role,members:h.members.map(c=>c.id),center:{...h.center},neighbors:neighbors(h).map(n=>n.id)})),occupied:Object.fromEntries(occupied),metrics:{...metrics},scale:boardScale}),logicalAt:id=>{const h=logicalAt(id);return h&&{id:h.id,occupant:h.occupant,role:h.role,members:h.members.map(c=>c.id)};}};
 })();
 </script>
-<script src="js/vfxCalibrator.js"></script>
+<script src="js/debug/vfxCalibrator.js"></script>
 </body>
 </html>

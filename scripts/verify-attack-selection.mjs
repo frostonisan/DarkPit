@@ -1,0 +1,66 @@
+import assert from 'node:assert/strict';
+import { installEntityTestEnvironment } from './entity-test-environment.mjs';
+
+await installEntityTestEnvironment();
+const api = await import("../docs/js/combat/attackResolution.js");
+const attacks = ['a', 'b', 'c'].map((functionName, index) => ({ functionName, cooldown: (3 - index) * 1000 }));
+const entity = { id: 1 };
+const choices = (now = 10000) => api.describeAttackChoices(entity, attacks, a => a.cooldown, now);
+choices();
+assert.equal(entity.attackSelection.priorityMode, 'auto');
+assert.deepEqual(entity.attackSelection.priorities, { a: 1, b: 2, c: 3 });
+const counts = { a: 0, b: 0, c: 0 };
+for (let i = 0; i < 600; i++) {
+  const pool = choices();
+  const winner = pool.slice().sort((a, b) => api.compareAttackChoices(entity, a, b))[0];
+  api.commitAttackChoice(entity, pool, winner.key);
+  counts[winner.key]++;
+}
+assert.deepEqual(counts, { a: 300, b: 200, c: 100 });
+api.setAttackPriority(entity, attacks, 'c', 1);
+assert.deepEqual(entity.attackSelection.priorities, { c: 1, b: 2, a: 3 });
+assert.equal(entity.attackSelection.priorityMode, 'manual');
+api.setAttackPrioritiesAutomatic(entity, attacks, attack => attack.cooldown);
+assert.equal(entity.attackSelection.priorityMode, 'auto');
+assert.deepEqual(entity.attackSelection.priorities, { a: 1, b: 2, c: 3 });
+const remembered = { c: 1, b: 2, a: 3 };
+assert.deepEqual(entity.attackSelection.manualPriorities, remembered);
+api.setAttackPrioritiesAutomatic(entity, attacks);
+api.restoreManualAttackPriorities(entity, attacks);
+assert.deepEqual(entity.attackSelection.priorities, remembered, 'Repeated auto selection preserves the last manual ranking');
+const reloaded = JSON.parse(JSON.stringify(entity));
+api.setAttackPrioritiesAutomatic(reloaded, attacks);
+api.restoreManualAttackPriorities(reloaded, [attacks[0], attacks[2], { functionName: 'new' }]);
+assert.deepEqual(reloaded.attackSelection.priorities, { c: 1, a: 2, new: 3 }, 'Manual ranks survive save/load and roster changes');
+api.setAttackPrioritiesAutomatic(entity, attacks);
+api.setAllAttacksEnabled(entity, attacks, false);
+assert.deepEqual(entity.attackSelection.disabled, { a: true, b: true, c: true });
+api.setAllAttacksEnabled(entity, attacks, true);
+assert.deepEqual(entity.attackSelection.disabled, {});
+assert.deepEqual(entity.attackSelection.manualPriorities, remembered, 'Mass toggles do not overwrite priorities');
+api.startAttackCooldown(entity, attacks[0], 5000, 10000);
+const frozenCredit = api.getAttackRuntime(entity, attacks[0]).credit;
+for (let i = 0; i < 20; i++) {
+  const pool = choices().filter(c => !c.remaining && c.key !== 'c');
+  api.commitAttackChoice(entity, pool, pool[0].key);
+}
+assert.equal(api.getAttackRuntime(entity, attacks[0]).credit, frozenCredit, 'Unavailable attacks gain no credit');
+api.startAttackCooldown(entity, attacks[1], 2000, 10000);
+api.startAttackCooldown(entity, attacks[2], 2000, 10000);
+assert.equal(api.predictNextAttack(entity, choices()).key, 'b');
+api.setAttackPriority(entity, attacks, 'c', 1);
+assert.equal(api.predictNextAttack(entity, choices()).key, 'c', 'Priority breaks equal readiness');
+api.syncAttackSelection(entity, [attacks[0], attacks[2]]);
+assert.deepEqual(entity.attackSelection.priorities, { c: 1, a: 2 });
+assert.equal(api.getAttackRuntime(entity, attacks[0]).readyAt, 15000, 'Roster changes retain surviving cooldowns');
+const added = { functionName: 'temporary', cooldown: 200 };
+const withNew = api.describeAttackChoices(entity, [attacks[0], attacks[2], added], a => a.cooldown, 10000);
+assert.equal(withNew.find(a => a.key === 'temporary').remaining, 0);
+assert.equal(api.getAttackRuntime(entity, attacks[1]).readyAt, 0, 'Removed attacks leave no runtime entry');
+assert.equal(JSON.stringify(entity).includes('readyAt'), false);
+assert.equal(JSON.stringify(entity).includes('credit'), false);
+const saved = JSON.parse(JSON.stringify(entity));
+api.resetAttackSelectionRuntime();
+assert.deepEqual(entity, saved, 'Battle reset preserves player preferences');
+assert.equal(api.getAttackRuntime(entity, attacks[0]).readyAt, 0);
+console.log('Always-weighted priorities, automatic cooldown ordering, manual swaps, cooldown isolation, temporary roster and battle reset verified.');
