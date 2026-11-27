@@ -1607,3 +1607,13 @@ position: absolute;
 
 .sprite-container.astral-body-active { opacity: var(--astral-opacity, 0.5) !important;
   filter: drop-shadow(0 0 6px #C0D4FF) drop-shadow(0 0 16px #C0D4FF); }
+.corruption-capacity {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: #08050b;
+  box-shadow: inset 1px 0 0 #785493;
+  pointer-events: none;
+  z-index: 3;
+}

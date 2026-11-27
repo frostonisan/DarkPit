@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.92.7-dev — 27 novembre 2026
+## Version actuelle : 0.93.0-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,33 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Perçant, critiques par nature et Silence — 0.93.0-dev — 27 novembre 2026
+
+Le perçant exploite la différence entre les résistances physique et magique après
+pénétration : multiplicateur `1 + a × Δ / (100 + |Δ|)`, avec `a = 1,2` si Δ est
+positif et `a = 0,9` sinon. L’armure et la protection ésotérique gardent leurs rôles.
+
+Le bonus critique est réduit par la résistance critique avant de déterminer les
+dégâts et propriétés. Les dégâts immédiats passent par l’armure. Le physique pur
+gagne précision et vol de vie ; la magie pure convertit son supplément en brûlure
+et le partage aussi en explosion entre les alliés adjacents de la cible, sur tout
+le contour des grandes entités. Chaque explosion peut critiquer sur son propre
+montant. Les ticks ne critiquent jamais. Une nouvelle brûlure critique redistribue
+le reliquat et le nouvel apport sur sa durée, en conservant les sources.
+
+L’hybride partage son supplément à 50/50 ; cinétique et spectral suivent les parts
+d’essences. Le vol de vie suit la part physique, la brûlure la part magique.
+Rupture/Dissolution atteignent dix charges : la résilience réduit le malus par
+charge. Exaust retire un mouvement actuel ; Déphasage recule les timings actifs,
+à l’impact spectral et sur ses ticks, hors projectiles, mouvements et cooldowns.
+Corruption prismatique transforme le supplément en perte de PV maximum cumulable
+pendant vingt secondes renouvelables. Elle ne peut pas tuer ; l’expiration restaure
+la capacité sans soin. La portion tronquée apparaît en noir dans les barres.
+Les critiques de soutien conservent leur comportement antérieur.
+
+Silence interrompt la préparation et redémarre le cooldown complet du seul sort
+interrompu. Les autres délais continuent et les attaques déjà parties se résolvent.
 
 ### Ésotérisme : courbes, protection perçante et cooldown — 0.92.7-dev — 27 novembre 2026
 

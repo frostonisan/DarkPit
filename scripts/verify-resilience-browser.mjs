@@ -219,13 +219,13 @@ try{
         ok(row.querySelector('.stat-name').textContent.endsWith(state),'Live state normal/+/X is correct');
       }
     }
-    window.resilienceAudit={e,UI,E};return checks;
+    window.resilienceAudit={e,UI,E,G};return checks;
   });
   const layouts=[];
   for(const [width,height] of [[1280,800],[1280,676],[1280,520],[390,800],[320,520]]){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>{
-      const {e,UI}=resilienceAudit;UI.closeOpenHelpers();
+      const {e,UI,G}=resilienceAudit;G.setAdminMode(true);UI.closeOpenHelpers();
       document.body.innerHTML='<style>#game-windows { transform:none!important; }</style><div class="Game-helper"></div><main id="game-windows" style="position:fixed;inset:10px;width:auto;height:auto;margin:0;padding:0;background:#190707"><div id="audit" class="codex-entity-scan" style="padding:30px"></div></main>';
       UI.createUmbraBlock(document.getElementById('audit'),'Résilience',()=>e.stats.resilience,e,'resilience');
       const row=document.querySelector('#audit .stat-container');UI.bindHelperEntity(row,e);row.click();
@@ -233,7 +233,8 @@ try{
     const card=page.locator('[data-umbra-pinned="true"]');await card.waitFor({state:'visible'});
     assert.equal(await card.locator('.umbra-header-name').innerText(),'Résilience');
     assert.match(await card.locator('.umbra-description').innerText(),/utilitaire de Force niveau 2/);
-    assert.equal(await card.locator('.umbra-card-total').count(),3);
+    assert.deepEqual(await card.locator('[data-umbra-capacity]').evaluateAll(rows=>rows.map(row=>row.dataset.umbraCapacity)),
+      ['criticalResistanceUmbraGrant','alterationResistanceUmbraGrant','hindranceResistanceUmbraGrant','resilienceTotalUmbraGrant']);
     const passive=card.locator('[data-umbra-passive="resilienceTotal"]');assert.equal(await passive.count(),1);
     assert.doesNotMatch(await card.innerText(),/NaN|undefined|seuil|maximum|plafond|Résilience totale [X+]/i);
     const toggle=card.locator('[data-umbra-detail-toggle]').first();if(await toggle.getAttribute('aria-expanded')!=='true')await toggle.click();
@@ -242,7 +243,7 @@ try{
     const layout=await card.evaluate(helper=>{
       const rect=el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,right:r.right};};
       const body=helper.querySelector('.stat-hover-body');
-      const tiles=[...helper.querySelectorAll('.umbra-stat-tile')].map(rect);
+      const tiles=[...helper.querySelectorAll('[data-umbra-capacity]')].map(rect);
       return {frame:rect(helper),body:rect(body),tiles,
         bodyOverflow:getComputedStyle(body).overflowY,outerOverflow:getComputedStyle(helper).overflowY,
         scrollHeight:body.scrollHeight,clientHeight:body.clientHeight,scrollWidth:body.scrollWidth,clientWidth:body.clientWidth};
@@ -253,11 +254,11 @@ try{
     assert.ok(layout.clientHeight>0,'The compact card keeps a usable scrollable body');
     assert.ok(layout.body.bottom<=layout.frame.bottom+1,`Scrollable body remains inside frame: ${JSON.stringify({width,height,...layout})}`);
     await card.screenshot({path:resolve(output,`helper-${width}x${height}.png`)});
-    assert.ok(layout.scrollWidth<=layout.clientWidth+1,`Two columns never cause horizontal overflow: ${JSON.stringify({width,height,...layout})}`);
-    const [force,intel,agi,exclusive]=layout.tiles;
-    assert.ok(Math.abs(intel.y-agi.y)<1&&intel.right<=agi.x+1,'Intelligence and Agility share a row');
-    assert.ok(force.width>intel.width*1.8&&exclusive.width>intel.width*1.8,'Force and exclusive passive span both columns');
-    assert.ok(exclusive.y>=Math.max(intel.bottom,agi.bottom),'Exclusive passive stays after the secondary effects');
+    assert.ok(layout.scrollWidth<=layout.clientWidth+1,`Capacity rows never cause horizontal overflow: ${JSON.stringify({width,height,...layout})}`);
+    for(const [index,tile] of layout.tiles.entries()) {
+      assert.ok(tile.width>0&&tile.x>=layout.body.x-1&&tile.right<=layout.body.right+1,'Each capacity remains inside the scrollable body');
+      if(index) assert.ok(tile.y>=layout.tiles[index-1].bottom-1,'Capacities and exclusive passive retain their reading order');
+    }
     await card.screenshot({path:resolve(output,`helper-${width}x${height}.png`)});
     await card.locator('.stat-hover-body').evaluate(body=>{body.scrollTop=body.scrollHeight;});
     assert.ok(Math.abs(await card.locator('.stat-hover-body').evaluate(body=>body.scrollTop) - Math.max(0,layout.scrollHeight-layout.clientHeight))<=1,'All vertical content remains reachable');
@@ -266,7 +267,7 @@ try{
     await card.screenshot({path:resolve(output,`helper-${width}x${height}-bottom.png`)});
     const passiveBounds=await passive.boundingBox();assert.ok(passiveBounds.y>=layout.body.y-1&&passiveBounds.y+passiveBounds.height<=layout.body.bottom+1,'Entire passive visible at end of internal scroll');
     layouts.push({width,height,...layout,scrollState});
-    await passive.locator('.helper-calculation-result').focus();
+    await passive.locator('[data-helper-value="resilienceTotalUmbraGrant"]').first().focus();
     const detail=page.locator('[data-umbra-detail]');await detail.waitFor({state:'visible'});
     assert.equal(await detail.evaluate(el=>el.classList.contains('umbra-helper-card')),false,'Nested helper keeps its plain style');
     assert.match(await detail.innerText(),/Total de l’entité/);assert.doesNotMatch(await detail.innerText(),/malus à distance|Vision/);

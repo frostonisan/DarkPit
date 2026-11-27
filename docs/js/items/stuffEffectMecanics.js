@@ -183,7 +183,7 @@ export function itemRez(target, effect, item, onComplete) {
     }
 
     // 6. Mise à jour visuelle de la barre de vie
-updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
     // 7. Affichage du VFX de résurrection
      playItemEffectVFX(target, effect);
     console.log(`✅ Résurrection terminée pour ${target.name} (ID: ${target.id})`);

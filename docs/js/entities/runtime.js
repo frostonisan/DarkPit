@@ -1,4 +1,5 @@
 import { releaseEntityFootprint } from "../board/controller.js";
+import { corruptHealthCapacity } from './healthCapacity.js';
 import { removeCombatVisualAfter } from "../combat/clock.js";
 import { setTimeout } from "../combat/clock.js";
 import { gameStorage as localStorage } from "../storage/sessionStorage.js";
@@ -2137,6 +2138,8 @@ else delete basePlusMods.hpBattleRegen;
     }
   }
   computed.HP.current = rescaleHPCurrent(hpBeforeRecompute, computed.HP.max);
+  if (hpBeforeRecompute?.corruptionLoss > 0) computed.HP = corruptHealthCapacity(
+    { ...computed.HP, current: hpBeforeRecompute.current }, hpBeforeRecompute.corruptionLoss, computed.HP.max);
   entite.stats = computed;
   syncEntityResourceStocks(entite, equippedItems, resourceStatsBeforeRecompute, getGameDaySafe());
   syncEntityArmorLayers(entite, {

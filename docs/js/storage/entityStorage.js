@@ -731,7 +731,7 @@ export function applyItemHPChange(target, variation) {
 
     itemSaveEntityHPToStorage(target);
 
-   updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+   updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
 
 }
 
@@ -789,7 +789,7 @@ export function saveEntityHPToStorage(entite) {
     const entityInArmyB = armyB.find(e => e.id === entite.id);
 
     if (entityInArmyB) {
-        entityInArmyB.stats.HP = { current: entite.stats.HP.current, max: entite.stats.HP.max };
+        entityInArmyB.stats.HP = { ...entite.stats.HP };
         allArmyB.armies[armyBId].entities = armyB;
         saveCombatArmyUpdate('ArmyB', allArmyB, [entityInArmyB], ['stats']);
         console.log(`🩸 HP mis à jour pour ${entite.name} (Side B) : ${entite.stats.HP.current}/${entite.stats.HP.max}`);
@@ -801,7 +801,7 @@ export function saveEntityHPToStorage(entite) {
     const entityInSelectedArmy = selectedArmy.find(e => e.id === entite.id);
 
     if (entityInSelectedArmy) {
-        entityInSelectedArmy.stats.HP = { current: entite.stats.HP.current, max: entite.stats.HP.max };
+        entityInSelectedArmy.stats.HP = { ...entite.stats.HP };
         saveCombatArmyUpdate('selectedArmyA', selectedArmy, [entityInSelectedArmy], ['stats']);
         console.log(`🩸 HP mis à jour pour ${entite.name} (Side A) : ${entite.stats.HP.current}/${entite.stats.HP.max}`);
         return;

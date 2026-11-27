@@ -2540,7 +2540,7 @@ if (stat === 'HP' && typeof value === 'object') {
     ? (baseStats.armor.max ?? 0)
     : (baseStats.armor ?? 0);
 
-  updateHealthBar(value.current, value.max, armorCur, armorMax, entityId);
+  updateHealthBar(value.current, value.max, armorCur, armorMax, entityId, value.uncorruptedMax || 0);
   updateHPCounters(entityId, value.current, value.max);
   continue;
 }
@@ -2774,7 +2774,7 @@ function syncEntityResourceCounters(entityId, stats, entityContext = null) {
   const entity = { id: entityId, stats };
 
   if (hp && typeof hp === "object") {
-    updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entityId);
+    updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entityId, hp.uncorruptedMax || 0);
     updateHPCounters(entityId, currentHP, maxHP);
   }
 

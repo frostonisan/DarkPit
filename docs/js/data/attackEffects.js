@@ -142,7 +142,7 @@ export const attackEffects = [
   },{
     effectId: 'ae15', effectName: 'silence', effectDisplay: 'Silence',
     type: ['alteration'], effectDuration: 3, effectDot: 0, effectProjectile: 'none',
-    effectDescription: 'Interrompt la préparation et empêche toute attaque ou capacité pendant {effectDuration} secondes. Le tour et les cooldowns continuent. À la fin, une capacité disponible est choisie selon les priorités et se prépare depuis zéro.',
+    effectDescription: 'Interrompt la préparation et remet le sort interrompu en cooldown complet. Empêche tout nouveau lancement pendant {effectDuration} secondes. Le tour et les cooldowns continuent. À la fin, une capacité disponible est choisie selon les priorités et se prépare depuis zéro. Les attaques déjà parties poursuivent leur résolution.',
     tacticalConsequence: ['temporaire', 'blocage_total'],
   }
 ];
@@ -158,6 +158,9 @@ export const EFFECT_PARAMETER_SCHEMAS = {
     choices: { 2: '2 cases', 3: '3 cases', 6: '6 cases' } } },
   immobilisation: { effectDuration: duration(5) }, stun: { effectDuration: duration(5) },
   silence: { effectDuration: duration(3) }, interruption: {},
+  exaust: {},
+  dephasage: { effectAmount: percent('Recul des timings', 10) },
+  corruptionPrismatique: { effectAmount: { label: 'PV maximum retirés', unit: '', default: 10, min: 0 } },
   bafouillage: { effectDuration: duration(5), effectSlowPercent: percent('Réduction de vitesse de préparation', 25) },
   lenteur: { effectDuration: duration(5), effectSlowPercent: percent('Réduction de vitesse de tour', 25) },
   folie: { effectDuration: duration(8) },
@@ -189,6 +192,9 @@ for (const name of ['poison', 'brulure']) {
   };
 }
 const additions = [
+  ['exaust', 'Exaust', ['entrave'], 'Retire un mouvement actuel, sans descendre sous zéro. Soumis aux protections contre les entraves.'],
+  ['dephasage', 'Déphasage', ['alteration'], 'Fait reculer les timings actifs de {effectAmount} points de pourcentage : tour, préparation, exécution hors projectile et récupération. La résilience réduit le recul.'],
+  ['corruptionPrismatique', 'Corruption prismatique', ['alteration'], 'Retire {effectAmount} PV maximum pendant 20 secondes. Les malus s’additionnent et renouvellent la durée. Ne peut pas tuer. À expiration, les PV maximum reviennent sans soin. La résilience réduit le montant retiré.'],
   ['gigantisme', 'Gigantisme', ['entrave'], 'Agrandit la cible jusqu’à {effectSize} cases pendant {effectDuration} secondes. Ne modifie aucune statistique.'],
   ['interruption', 'Interruption', ['alteration'], 'Interrompt la préparation en cours. La prochaine préparation recommence à zéro.'],
   ['bafouillage', 'Bafouillage', ['alteration'], 'Réduit la vitesse de préparation de {effectSlowPercent} % pendant {effectDuration} secondes.'],

@@ -12,7 +12,7 @@ import { setTimeout } from "../combat/clock.js";
 
 export function presentEntityVitals(entity) {
   updateHealthBar(entity.stats.HP.current, entity.stats.HP.max,
-    entity.stats.armor?.current || 0, entity.stats.armor?.max || 0, entity.id);
+    entity.stats.armor?.current || 0, entity.stats.armor?.max || 0, entity.id, entity.stats.HP.uncorruptedMax || 0);
 }
 
 export function presentSupportHealing(attacker, target, healedHP) {
@@ -277,8 +277,24 @@ function ensureArmorBarDom(entityId, initialArmor = 0) {
   return armorBar;
 }
 
-export function updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entityId) {
+export function updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entityId, uncorruptedMax) {
   ensureHPDom(entityId);
+  const healthBars = [...document.querySelectorAll(`.health-bar[data-stat="hp-bar"][data-entity-id="${entityId}"]`)];
+  const originalMax = Math.max(maxHP, Number(uncorruptedMax ?? healthBars[0]?.dataset.uncorruptedMax) || 0);
+  const lostCapacity = Math.max(0, originalMax - maxHP);
+  for (const bar of healthBars) {
+    if (uncorruptedMax !== undefined) bar.dataset.uncorruptedMax = String(uncorruptedMax || 0);
+    let segment = bar.parentElement.querySelector(':scope > .corruption-capacity');
+    if (!segment && lostCapacity > 0) {
+      segment = document.createElement('div'); segment.className = 'corruption-capacity';
+      segment.setAttribute('aria-label', 'PV maximum retirés par Corruption prismatique');
+      bar.parentElement.append(segment);
+    }
+    if (segment) {
+      setDisplayStyle(segment, 'display', lostCapacity > 0 ? '' : 'none');
+      setDisplayStyle(segment, 'width', `${lostCapacity / originalMax * 100}%`);
+    }
+  }
 
   // --- 2) Clamp ---
   const validHP = Math.max(0, Math.min(currentHP, maxHP));
@@ -312,6 +328,8 @@ export function updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entity
   }
 
   const hpColorPercent = (validHP / maxHP) * 100;
+  const availableRatio = maxHP / originalMax;
+  hpPercent *= availableRatio; armorPercent *= availableRatio;
 
   // --- 4) ARMURE ---
   document.querySelectorAll(
@@ -348,9 +366,7 @@ export function updateHealthBar(currentHP, maxHP, currentArmor, maxArmor, entity
   });
 
   // --- 5) HP ---
-  document.querySelectorAll(
-    `.health-bar[data-stat="hp-bar"][data-entity-id="${entityId}"]`
-  ).forEach(healthBar => {
+  healthBars.forEach(healthBar => {
     const healthFill = healthBar.querySelector(".health-fill");
     if (healthFill) setDisplayStyle(healthFill, 'transition', "width 0.5s ease, background-color 0.5s ease");
     setDisplayStyle(healthBar, 'width', `${hpPercent}%`, 'important');

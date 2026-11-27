@@ -337,7 +337,7 @@ export function itemHeal(target, effect, item, onComplete, { step, feedback } = 
     recordEntityHealingReceived(target, restoredHP);
     itemSaveEntityHPToStorage(target);
     itemFeedback(() => {
-        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
         showHealingFeedback(target, Math.max(0, target.stats.HP.current - hpBeforeHeal));
     }, feedback);
 
@@ -367,7 +367,7 @@ export function itemDamage(target, effect, item, onComplete, { step, feedback } 
     console.log(`💢 ${target.name} subit ${totalAfter} dégâts via objet.`);
 
     itemFeedback(() => {
-        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
         playItemEffectVFX(target, effect);
     }, feedback);
     if (onComplete) onComplete();
@@ -407,7 +407,7 @@ export function itemRez(target, effect, item, onComplete, { step, feedback } = {
 
     // 6. Mise à jour visuelle de la barre de vie
     itemFeedback(() => {
-        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+        updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
         playItemEffectVFX(target, effect);
     }, feedback);
 

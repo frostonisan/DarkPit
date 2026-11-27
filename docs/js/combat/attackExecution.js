@@ -28,7 +28,7 @@ import {
   startAttackCooldown
 } from "./attackResolution.js";
 import {
-  createAttackStatView, attemptAttackerDamages, attemptDodge, attemptInvisibleTargetAccuracy,
+  createAttackStatView, attemptAttackerDamages, attemptDodge, attemptInvisibleTargetAccuracy, rollAttackCritical,
   calculateAmbidextryTotalChance, calculateAmbidextryDamageBonus, getFinalAttackCooldownReduc, getFinalAttackPreparationReduc,
   getFinalAttackExecutionReduc, getFinalAttackRecoveryReduc, getFinalAttackProjectileSpeed, clampPercent,
   getHastePoints, applyReducToMs, attemptRangeBrokenSpell, attemptMeleeBrokenSpell,
@@ -368,7 +368,7 @@ const pause = combatDelay;
 
 function refreshTarget(target) {
   if (!target?.stats?.HP) return;
-  updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id);
+  updateHealthBar(target.stats.HP.current, target.stats.HP.max, target.stats.armor?.current || 0, target.stats.armor?.max || 0, target.id, target.stats.HP.uncorruptedMax || 0);
   updateBonusLifeCounters(target);
 }
 
@@ -472,15 +472,16 @@ function prepareAttackImpact(flight, { secondHit = false, ambidextry = false, br
   }
   // Support spells never roll accuracy, dodge or resistances.
   if (offensive && !broken) {
+    attack.criticalRoll = rollAttackCritical(flight.source, target, attack);
     if (!(flags.hasMagical && !flags.hasPhysicalBehavior)
       && shouldApplyForcedInvisibleTargetAccuracy({ flags: { forcedInvisibleTargetAccuracy: flight.invisibleTargetAccuracy } }, target)
-      && !attemptInvisibleTargetAccuracy(flight.source, target)) {
+      && !attemptInvisibleTargetAccuracy(flight.source, target, attack.criticalRoll.precision)) {
       EffectMessage(target, 'Raté !');
       return 'miss';
     }
     const dodge = splitDodgeDamageSources(sources);
     const partial = sumSources(dodge.remaining) > 0;
-    if (flags.canBeDodged && sumSources(dodge.avoided) > 0 && attemptDodge(flight.source, target, { partial })) {
+    if (flags.canBeDodged && sumSources(dodge.avoided) > 0 && attemptDodge(flight.source, target, { partial, precisionBonus: attack.criticalRoll.precision })) {
       recordEntityCombatProc(target, 'dodge');
       const avoidedHp = Math.max(0, estimateCancelledAttackHp(flight.source, target, attack, sources)
         - (partial ? estimateCancelledAttackHp(flight.source, target, attack, dodge.remaining) : 0));

@@ -268,7 +268,7 @@ export function createLifeBars(entite, { context = null } = {}) {
   }
 
   queueMicrotask(() => {
-    updateHealthBar(HPcurrent, HPmax, ArmorCurrent, ArmorMax, entite.id, 0);
+    updateHealthBar(HPcurrent, HPmax, ArmorCurrent, ArmorMax, entite.id, entite.stats.HP.uncorruptedMax || 0);
   });
 
   return container;

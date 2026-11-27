@@ -188,7 +188,11 @@ try {
   const leech = await fixture();
   const healedBoth = await leech.evaluate(async()=>{
     const [a,b]=E.entites; const at=Timeline.combatNow()+50;
-    for(const e of [a,b]) { e.stats.HP.current=100;e.stats.HP.max=100;e.stats.bloodThirsty=100; }
+    for(const e of [a,b]) {
+      Object.assign(e.baseStats,{HP:100,bloodThirsty:100});
+      E.recomputeEntityStats(e,{equippedItems:[],persistEquipment:false,skipReverseArchetype:true});
+      e.stats.HP.current=e.stats.HP.max;
+    }
     await Promise.all([[a,b],[b,a]].map(([source,target])=>Attacks.resolveAttackImpact(
       Attacks.createAttackFlight(source,target,source.attackDetails[0],{physical:10}),{at})));
     await Timeline.settleCombatTimeline();

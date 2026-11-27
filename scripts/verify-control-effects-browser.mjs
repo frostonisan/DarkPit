@@ -165,13 +165,13 @@ try{
         await advance(5000);
         ok(e._combatAction?.stage==='preparation','Actual turn is preparing before interruption');
         ok(e.preparationTime>900&&e.preparationTime<1100,'Actual preparation reached 4 / 5 seconds');
-        const oldReady=R.getAttackRuntime(e,list[0]).readyAt;
+        const resetReady=C.clockNow()+e._combatAction.timings.cooldown;
         apply(e,'silence',source,3);
         await advance(60);
         ok(!e._combatAction&&e.currentPhase==='silence-wait','Silence abandons the pending preparation');
         eq(e.preparationTime,0,'Interrupted preparation is cleared');
         eq(completed.length,0,'Interruption does not complete a turn');
-        eq(R.getAttackRuntime(e,list[0]).readyAt,oldReady,'Interrupted attack keeps its original cooldown');
+        eq(R.getAttackRuntime(e,list[0]).readyAt,resetReady,'Silence restarts the interrupted attack full cooldown');
         if(switchSpell)R.setAttackPriority(e,list,R.attackSelectionKey(list[1]),1);
         await advance(2000);
         ok(!e._combatAction&&!e._targetSearch,'No cast or forced search during Silence');

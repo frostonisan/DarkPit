@@ -2061,19 +2061,29 @@ export function buildAttackAttributeHelpers(attack, nature, { roleLabel, targetL
   const natureRules = {
     red: 'L’attaque est encaissée par la résistance physique de la cible.',
     blue: 'L’attaque est encaissée par la résistance magique de la cible.',
-    yellow: 'L’attaque retourne la force de l’adversaire contre lui. Elle exploite sa résistance physique.',
+    yellow: 'L’attaque retourne la force de l’adversaire contre lui. Elle exploite sa résistance physique. Après pénétration, une résistance physique supérieure à la résistance magique amplifie les dégâts perçants ; l’inverse les réduit. À égalité, ils sont inchangés.',
     hybrid: 'Les dégâts sont encaissés comme <span class="physicalDamage">50 %</span> physiques et <span class="magicalDamage">50 %</span> magiques.',
     'physical-piercing': `Les dégâts sont répartis entre physique et perçant selon les essences actives : ${share('red')} physique / ${share('yellow')} perçant.`,
     'magical-piercing': `Les dégâts sont répartis entre magique et perçant selon les essences actives : ${share('blue')} magique / ${share('yellow')} perçant.`,
     prism: `Les trois natures participent aux dégâts selon les essences actives : ${share('red')} physique / ${share('blue')} magique / ${share('yellow')} perçant. Ignore le malus de dégâts à distance, quelle que soit la durée d’exécution du projectile.`,
     none: `Les attaques Inertes sont dépouillées de toute forme d’essence. Leurs ratios sont réduits de <span class="inerte">${balanceData.attackNature.inertRatioReductionPercent} %</span>. Cette attaque est ensuite réduite par toutes les résistances du jeu : physique puis magique sur la totalité des dégâts restants. Aucune Umbra offensive ni propriété de nature ne s’applique. À distance, le malus lié à la durée d’exécution s’applique et Bull’s Eye le réduit.`,
   };
+  const criticalRules = {
+    red: 'Supplément physique immédiat. Bonus critique effectif ÷ 10 : autant de points de précision et de % de vol de vie sur les PV réellement retirés.',
+    blue: 'Supplément magique en brûlure sur bonus critique effectif ÷ 10 secondes. Le même supplément est partagé entre tous les alliés adjacents de la cible, arrondi à l’inférieur par entité. Ces explosions magiques peuvent critiquer à leur tour sur leur propre montant.',
+    yellow: 'Supplément perçant immédiat, soumis au même écart entre les résistances physique et magique.',
+    hybrid: 'Supplément partagé à 50/50 : physique immédiat et magique en brûlure. Bonus critique effectif ÷ 20 : durée de brûlure en secondes et vol de vie en %, à l’impact et sur les ticks.',
+    'physical-piercing': 'Supplément physique et perçant selon les parts d’essences. Vol de vie : bonus critique effectif ÷ 10 × part physique, en %. Rupture : bonus ÷ 10 charges arrondies, plafond 10. Exaust retire un mouvement actuel, minimum zéro.',
+    'magical-piercing': 'Supplément magique en brûlure et perçant immédiat selon les parts d’essences. Durée de brûlure : bonus critique effectif ÷ 10 × part magique. Dissolution : bonus ÷ 10 charges arrondies, plafond 10. Chaque impact et tick fait reculer les timings du pourcentage de PV maximum perdu, après protections, sans toucher aux projectiles, mouvements ou cooldowns.',
+    prism: 'Le supplément devient autant de PV maximum retirés par Corruption prismatique. Cumul additif, durée de 20 secondes renouvelée, résilience sur le montant. Minimum 1 PV, perdu à la mort ; les PV maximum reviennent sans soin.',
+    none: 'Supplément immédiat soumis aux défenses habituelles des dégâts inertes.',
+  };
   return {
     role,
     target,
     range,
     nature: `<span class="${nature.stat}">${nature.label}</span><br>${natureRules[nature.key]}${signature}`
-      + (roleLabel === 'Support' ? '' : `<br><br>${attack.isUndodgeable === true || nature.key === 'blue' ? 'Cette attaque est inesquivable.'
+      + (roleLabel === 'Support' ? '' : `<br><br>Critique : ${criticalRules[nature.key]} La résistance critique réduit d’abord le bonus utilisé. Les ticks de brûlure ne critiquent jamais.<br><br>${attack.isUndodgeable === true || nature.key === 'blue' ? 'Cette attaque est inesquivable.'
         : ['hybrid', 'magical-piercing', 'prism'].includes(nature.key) ? 'L’esquive évite les parties physiques et perçantes. La partie magique reste inesquivable.' : 'Cette attaque est esquivable.'}`),
   };
 }
@@ -2093,7 +2103,7 @@ let descriptionText;
     helper = `Bonus : ${bonus}.<br><br>Référence : ${reference}.<br><br>Proximité des deux puissances : ${helperFigure('hybridalDamage', (resonance.proximity * 100).toFixed(2), ' %')} ; rapport entre la plus petite et la plus grande.<br>Seuil : ${helperFigure('hybridalDamage', cfg.threshold * 100, ' %')}. Progression de ${helperFigure('hybridalDamage', cfg.startPercent, ' %')} à ${helperFigure('hybridalDamage', cap, ' %')}. Une égalité parfaite ajoute ${helperFigure('hybridalDamage', cfg.perfectJump)} points de pourcentage.<br>Le bonus est réparti entre les deux puissances selon les essences, puis utilise les ratios habituels de l'attaque.`;
   } else if (signature.resistance) {
     descriptionText = `${signature.sign > 0 ? '+' : '−'}${signature.amount} résistance ${signature.resistance === 'physicalResistance' ? 'physique' : 'magique'} par cumul, ${signature.cap} maximum, ${signature.durationMs / 1000} s.`;
-    helper = `Chaque impact réussi ajoute un cumul. La durée est rafraîchie à chaque application ; tous les cumuls expirent ensemble.<br>L'effet appartient à la cible et bénéficie à toutes les sources. À différents niveaux, chaque cumul conserve sa valeur ; au plafond, un cumul plus fort remplace le plus faible.`;
+    helper = `Un impact ordinaire ajoute un cumul. Un critique offensif ajoute le bonus critique effectif divisé par 10, arrondi au plus proche. La résilience réduit le malus de résistance, sans retirer de charges. La durée est rafraîchie à chaque application ; tous les cumuls expirent ensemble.<br>L'effet appartient à la cible et bénéficie à toutes les sources. À différents niveaux, chaque cumul conserve sa valeur ; au plafond, un cumul plus fort remplace le plus faible.`;
   } else {
     descriptionText = `${signature.key === 'effusion' ? 'Soigne' : 'Inflige'} ${signature.percent} % des PV maximum de la cible.`;
     helper = signature.key === 'effusion' ? 'Soin supplémentaire à chaque soutien réussi, y compris si la cible est déjà à pleine vie.'

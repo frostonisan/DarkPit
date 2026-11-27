@@ -4,7 +4,7 @@ import {
 import { consumeEntityMovement, positionnerEntites } from "./deployment.js";
 import { ENTITY_SIZE_OPTIONS, entitySizeInCells, createBoardState, footprintCells, chooseFootprintRole,
   putBoardOccupant, removeBoardOccupant, boardOccupantsAt, applyBoardPlacements,
-  snapshotBoardState, offsetToAxial, axialDistance } from "./model.js";
+  snapshotBoardState, offsetToAxial, axialDistance, adjacentBoardOccupants } from "./model.js";
 import { planBoardPlacements } from "./placementRules.js";
 import { getBoardGeometry as geometry, gridForHex as gridFor, invalidateBoardGeometry,
   getFootprintElements, getFootprintCenter, getOccupantView, getPlacementViews,
@@ -751,6 +751,11 @@ function boardOccupancy(grid) {
   if(!grid) return null;
   const registry=occupancyRegistries.get(grid);
   return registry?.geometry===geometry(grid)?registry:rebuildBoardOccupancy(grid);
+}
+export function getAdjacentEntities(entity) {
+  const registry = boardOccupancy(gridFor(boxFor(entity)?.closest('.hex')));
+  const ids = new Set(adjacentBoardOccupants(registry?.model, entity.id));
+  return entites.filter(other => ids.has(String(other.id)));
 }
 // Called by object/consumable creation, relocation and removal. Only this cell's
 // direct objects are read; sprite animation and popup mutations are irrelevant.

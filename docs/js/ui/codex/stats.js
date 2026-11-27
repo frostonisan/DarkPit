@@ -3477,7 +3477,7 @@ function confirmLevelUp() {
     entite.stats.HP.max,
     entite.stats.armor?.current ?? 0,
     entite.stats.armor?.max ?? 0,
-    entite.id
+    entite.id, entite.stats.HP.uncorruptedMax || 0
   );
   updateArmorCounter(entite);
 

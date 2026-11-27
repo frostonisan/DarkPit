@@ -191,7 +191,10 @@ for (const [values, points] of [
     const retained = points * (1 - Math.min(99, penetration) / 100);
     const hit = R.calculateResistances(entity, { [source]: 100, piercingDamage: 100 }, attacker);
     eq(hit[source === 'physical' ? 'reducedPhysicalDamage' : 'reducedMagicalDamage'], Math.floor(100 * (1 - .99 * retained / (retained + 70))), `${source} hit and penetration use pooled points with the existing damage floor`);
-    eq(hit.reducedpiercingDamage, 100, 'Resistance does not reduce piercing damage');
+    const piercingDelta = source === 'physical' ? retained : -retained;
+    const piercingCoefficient = source === 'physical' ? 1.2 : .9;
+    eq(hit.reducedpiercingDamage, 100 * (1 + piercingCoefficient * piercingDelta / (100 + Math.abs(piercingDelta))),
+      'Piercing uses the physical/magical resistance differential after penetration');
   }
 }
 }

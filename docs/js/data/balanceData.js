@@ -16,8 +16,8 @@ export const balanceData = {
     recoveryExtraMax: 5,
     overloadReductionMax: 50,
     resonance: { threshold: 0.3, startPercent: 5, normalCap: 30, capPerLevel: 2.5, perfectJump: 10 },
-    rupture: { amount: 5, perLevel: 1, cap: 5, durationMs: 8000 },
-    dissolution: { amount: 5, perLevel: 1, cap: 5, durationMs: 8000 },
+    rupture: { amount: 5, perLevel: 1, cap: 10, supportCap: 5, durationMs: 8000 },
+    dissolution: { amount: 5, perLevel: 1, cap: 10, supportCap: 5, durationMs: 8000 },
     convergence: { percent: 1.5, perLevel: 0.5 },
   },
   level: {
@@ -192,6 +192,7 @@ export const balanceData = {
   },
 
   resistance: {
+    piercing: { constant: 100, increase: 1.2, decrease: 0.9 },
     // Pilote calculateResistanceReductionPercent/calculateResistances :
     // formule de réduction type r / (r + constante), puis split hybride.
     reductionCurve: globalThis.umbraProgression.resistanceCurve,

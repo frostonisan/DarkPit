@@ -402,7 +402,8 @@ export function getAttackResolutionFlags(attack = {}) {
     // =========================
     // APPLY DAMAGE
     // =========================
-    canCrit: !attack.natureEffectSecondary,
+    canCrit: (!attack.natureEffectSecondary || attack.criticalExplosion === true)
+      && !normArr(attack.type).includes('alteration'),
 
     canBloodFuryExec:
       isMelee && !attack.natureEffectSecondary,
@@ -411,7 +412,7 @@ export function getAttackResolutionFlags(attack = {}) {
       !attack.natureEffectSecondary,
 
 	canBloodThirsty:
-	  !attack.natureEffectSecondary,
+	  !attack.natureEffectSecondary || attack.criticalBurn === true || attack.criticalExplosion === true,
   
     canBypassArmorGate: isPurePiercing,
     armorBypassPercent: nature.armorBypassPercent,
@@ -643,7 +644,8 @@ export function getAttackNatureRules(attack = {}) {
       const base = profile.red ? 'rupture' : 'dissolution';
       const id = support ? profile.red ? 'consolidation' : 'cohesion' : base;
       signature = { ...cfg[base], key: id, label: { rupture: 'Rupture', dissolution: 'Dissolution', consolidation: 'Consolidation', cohesion: 'Cohésion' }[id],
-        stat, level: combinationLevel, amount: cfg[base].amount + (combinationLevel - 1) * cfg[base].perLevel,
+        stat, level: combinationLevel, cap: support ? cfg[base].supportCap : cfg[base].cap,
+        amount: cfg[base].amount + (combinationLevel - 1) * cfg[base].perLevel,
         resistance: profile.red ? 'physicalResistance' : 'magicalResistance', sign: support ? 1 : -1 };
     }
   }

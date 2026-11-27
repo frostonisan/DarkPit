@@ -141,7 +141,7 @@ export function getExecutionProgress(entity, from, to, duration) {
   return progress + getActionElapsed(entity, cursor, to);
 }
 
-export function applyControlRecoil(entity, percent) {
+export function applyControlRecoil(entity, percent, { allTimings = false } = {}) {
   const action = entity._combatAction;
   if (action?.stage === 'preparation') {
     (action.preparationRecoils ||= []).push({ at: combatNow(), percent });
@@ -149,6 +149,11 @@ export function applyControlRecoil(entity, percent) {
   }
   if (action?.stage === 'transport' && !(action.attack.attackRange || []).some(range => ['range','ranged','distance'].includes(range))) {
     (entity.executionRecoils ||= []).push({ at: combatNow(), percent });
+    return true;
+  }
+  const phase = entity._phaseTimer || entity._resumePhaseTimer;
+  if (allTimings && !entity.orderPhase && ['speedTimer', 'recoveryTime'].includes(phase?.phase)) {
+    (phase.recoils ||= []).push({ at: combatNow(), percent });
     return true;
   }
   return false;

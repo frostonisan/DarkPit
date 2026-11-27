@@ -9,6 +9,7 @@ import { buildCombatProfileHelper } from '../data/helpers.js';
 import { getStatSystemResult, getDirectingStatResult, getEntityVelocityTiming } from './statSystem.js';
 import { syncEntityEssenceRewards } from "../items/essenceInventory.js";
 import { balanceData } from "../data/balanceData.js";
+import { piercingResistanceMultiplier } from '../combat/damageRules.js';
 import { cyclesData } from "../data/cycleData.js";
 import { stats as STATS_DATA, STAT_KEY_ALIASES, STAT_KEY_DISPLAY, BOOSTABLE_POOL_STAT_KEYS } from "../data/statsData.js";
 import { isUmbraRestricted } from '../procedural/proc-bareme.js';
@@ -474,7 +475,7 @@ function reduceDamage(damage, resistance) {
   return Math.floor(amount * (1 - calculateResistanceReductionRatio(resistance)));
 }
 
-export function calculateResistances(target, totalDamageSources = {}, attacker = null, { inert = false } = {}) {
+export function calculateResistances(target, totalDamageSources = {}, attacker = null, { inert = false, precise = false } = {}) {
   const physicalResistanceBase = toPositiveNumber(getSafe(target, "physicalResistance", 0));
   const magicalResistanceBase = toPositiveNumber(getSafe(target, "magicalResistance", 0));
 
@@ -494,8 +495,9 @@ export function calculateResistances(target, totalDamageSources = {}, attacker =
   };
   const physicalRatio = reduction('physicalResistance', physicalPenPercent, physicalResistance);
   const magicalRatio = reduction('magicalResistance', magicalPenPercent, magicalResistance);
-  const physicalDamageAfter = damage => Math.floor(toPositiveNumber(damage) * (1 - physicalRatio));
-  const magicalDamageAfter = damage => Math.floor(toPositiveNumber(damage) * (1 - magicalRatio));
+  const round = precise ? value => value : Math.floor;
+  const physicalDamageAfter = damage => round(toPositiveNumber(damage) * (1 - physicalRatio));
+  const magicalDamageAfter = damage => round(toPositiveNumber(damage) * (1 - magicalRatio));
 
   const piercingDamage = toPositiveNumber(totalDamageSources.piercingDamage);
   const physical = toPositiveNumber(totalDamageSources.physical);
@@ -517,7 +519,7 @@ export function calculateResistances(target, totalDamageSources = {}, attacker =
   const afterPhysical = physicalDamageAfter(physical);
   const afterMagical = inert ? magicalDamageAfter(afterPhysical) : afterPhysical;
   return {
-    reducedpiercingDamage: piercingDamage,
+    reducedpiercingDamage: piercingDamage * piercingResistanceMultiplier(physicalResistance, magicalResistance),
     reducedPhysicalDamage: afterMagical,
     reducedMagicalDamage: magicalDamageAfter(magical),
     reducedHybridalDamage: reducedHybrid,
@@ -529,6 +531,7 @@ export function calculateResistances(target, totalDamageSources = {}, attacker =
       magicalPenPercent,
       physicalResistance,
       magicalResistance,
+      piercingMultiplier: piercingResistanceMultiplier(physicalResistance, magicalResistance),
       physicalReductionPercent: Number((physicalRatio * 100).toFixed(2)),
       magicalReductionPercent: Math.ceil(magicalRatio * 100),
     },

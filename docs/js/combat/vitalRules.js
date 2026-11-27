@@ -44,6 +44,24 @@ const sum = sources => (sources.piercingDamage || 0) + (sources.physical || 0)
   + (sources.magical || 0) + (sources.hybridalDamage || 0);
 const emptySources = () => ({ piercingDamage: 0, physical: 0, magical: 0, hybridalDamage: 0 });
 
+export function calculateImpactDefenseInput(input, flags, armor, execution = 0, range = 0) {
+  const bypass = calculateArmorBypass(input, flags), total = sum(input);
+  const absorbed = Math.min(Math.max(0, armor), Math.max(0, total - bypass));
+  const withExecution = { ...input, physical: (input.physical || 0) + execution };
+  const gated = calculateArmorGate(withExecution, total + execution, total - bypass - absorbed + execution, bypass);
+  const sources = gated.sources, factor = 1 - range / 100;
+  if (range > 0 && flags.applyRangeRatio) {
+    if (flags.applyRangeRatioToPhysical) sources.physical = Math.round(sources.physical * factor);
+    if (flags.applyRangeRatioToPiercing) sources.piercingDamage = Math.round(sources.piercingDamage * factor);
+    if (flags.applyRangeRatioToHybridPhysicalHalf && sources.hybridalDamage > 0) {
+      sources.physical += Math.round(sources.hybridalDamage / 2 * factor);
+      sources.magical += sources.hybridalDamage / 2;
+      sources.hybridalDamage = 0;
+    }
+  }
+  return { sources, absorbed };
+}
+
 export function calculateArmorGate(input, rawTotal, remainingDamage, bypass = 0) {
   let sources = { ...input };
   let beforeBypassExtraction;
@@ -70,11 +88,12 @@ export function calculateArmorGate(input, rawTotal, remainingDamage, bypass = 0)
   return { sources, rawTotal, attempted, ratio, before, after, beforeBypassExtraction };
 }
 
-export function calculateResilienceSources(input, percent, carry) {
+export function calculateResilienceSources(input, percent, carry, { precise = false } = {}) {
   const factor = Math.max(0, 1 - percent / 100);
   const nextCarry = carry ? { ...carry } : undefined;
   const sources = Object.fromEntries(Object.entries(input).map(([key, value]) => {
     if (!value) return [key, 0];
+    if (precise) return [key, value * factor];
     const exact = Math.round(value) * factor + (carry?.[key] || 0);
     const rounded = Math.round(exact);
     if (nextCarry) nextCarry[key] = exact - rounded;

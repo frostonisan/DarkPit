@@ -1,9 +1,11 @@
 import { resetInterruptedPreparationBar } from "../rendering/timers.js";
 import { updateScore } from "./score.js";
 import { advanceCombatTimerState } from "./timerState.js";
-import { updateHealthBar } from "../rendering/vitalFeedback.js";
+import { updateHealthBar, presentEntityVitals } from "../rendering/vitalFeedback.js";
+import { corruptHealthCapacity } from '../entities/healthCapacity.js';
+import { spendMovementCharges } from '../items/resourceStocks.js';
 import {
-  syncEntityFootprints, pullEntityToward, moveEntityRandomly, entitySizeInCells, setEntitySizeInCells,
+  syncEntityFootprints, pullEntityToward, moveEntityRandomly, entitySizeInCells, setEntitySizeInCells, getAdjacentEntities,
 } from "../board/controller.js";
 import {
   registerCombatState, combatData, setTimeout, clearTimeout, setInterval, clearInterval,
@@ -24,6 +26,7 @@ import {
   updateTotalDamageCounter,
   updateTotalHealCounter,
   updateScoreDisplay,
+  updateMovementDisplay,
 } from "../rendering/hud.js";
 import {
   attackEffects, describeAttackEffect,
@@ -50,6 +53,7 @@ import { defaultEffect } from './effectParameters.js';
 
 import {
   saveEntityHPToStorage,
+  saveEntityMovementState,
   recordEntityCombatStat, recordEntityCombatProc,
   recordEntityLifeSteal,
   recordEntityHealingReceived,
@@ -61,7 +65,7 @@ import { gameStarted, isBattleFinished } from "../app/state.js";
 import { getSafe, entityBattleBooste } from "../entities/rules.js";
 import {
   getAttackNatureRules, notifyAttackSelection, readAttackDefinitionsForEntity, attackSelectionKey,
-  normalizeAttackSelection,
+  normalizeAttackSelection, startAttackCooldown,
 } from "./attackResolution.js";
 import { EffectMessage, showHealingFeedback } from "../ui/display.js";
 export { EffectMessage, showHealingFeedback } from "../ui/display.js";
@@ -77,6 +81,15 @@ function effectSource(effect, attackerId) {
 }
 
 function createDotHelper(key, target, state) {
+  if (state.criticalBurn) {
+    setEntityEffectView(target, key, {
+      kind: 'brulure', label: 'Brûlure critique', type: 'dot', endAt: () => state.expiresAt,
+      read: () => ({ ...effectSource(state.effect, state.attacker),
+        dps: calculateResilienceEffectIntensity(target, Object.values(state.sources).reduce((sum, source) => sum + source.remaining, 0)
+          / Math.max(.001, (state.expiresAt - state.accruedAt) / 1000)), interval: state.effect.effectTickInterval, lastTick: state.lastTick }),
+    });
+    return;
+  }
   setEntityEffectView(target, key, {
     kind: state.kind, label: state.effect.effectDisplay, type: 'dot',
     endAt: () => state.kind === 'brulure' ? burnExpiresAt(state) : state.expiresAt,
@@ -111,7 +124,7 @@ function applyDotTick(target, state, damage, attacker, attack) {
 
 function syncStatEffect(target) {
   recomputeEntityStats(target, { persistEquipment: false, skipReverseArchetype: true });
-  updateHealthBar(target);
+  presentEntityVitals(target);
   window.dispatchEvent(new CustomEvent('entityStatsChanged', { detail: { entity: target } }));
 }
 
@@ -220,6 +233,8 @@ function applyTimedControl(target, effect, attacker, onEnd, saved = null) {
     if (effect.effectName === 'silence' && !saved && state.expiresAt > now
       && target._combatAction?.stage === 'preparation') {
       // Remember interruption even if a very short Silence expires before the next timer tick.
+      const action = target._combatAction;
+      if (!action.interruptedBySilence) startAttackCooldown(target, action.attack, action.timings.cooldown, now);
       target._combatAction.interruptedBySilence = true;
       notifyPreparationInterrupted(target);
       target.preparationTime = 0;
@@ -462,7 +477,7 @@ export function clearAttackNatureEffects(target = null) {
     for (const [entity, effects] of natureEffects) {
         if (target && entity !== target) continue;
         for (const effect of effects.values()) {
-            effect.boost.remove();
+            removeNatureCapacity(entity, effect);
             removeEntityEffectView(`${entity.id}-nature-${effect.signature.key}`);
         }
         natureEffects.delete(entity);
@@ -482,21 +497,29 @@ function tickNatureEffects() {
         }
         for (const [key, effect] of effects) {
             if (effect.expiresAt <= now) {
-                effect.boost.remove();
+                removeNatureCapacity(entity, effect);
                 removeEntityEffectView(`${entity.id}-nature-${effect.signature.key}`);
                 effects.delete(key);
             }
         }
         if (!effects.size) natureEffects.delete(entity);
     }
-    if (!natureEffects.size) clearAttackNatureEffects();
+    scheduleNatureExpiration();
+}
+
+function scheduleNatureExpiration() {
+  clearTimeout(natureEffectsTimer); natureEffectsTimer = null;
+  let next = Infinity;
+  for (const effects of natureEffects.values()) for (const effect of effects.values()) next = Math.min(next, effect.expiresAt);
+  if (Number.isFinite(next)) natureEffectsTimer = setTimeout(tickNatureEffects, Math.max(0, next - clockNow()));
 }
 
 for (const event of ['battleResolved', 'battleStopped', 'stageInterfaceClosing']) {
     window.addEventListener(event, () => clearAttackNatureEffects());
 }
 
-function applyNatureResistance(target, signature) {
+function applyNatureResistance(target, signature, count = 1) {
+    if (count <= 0) return null;
     const confirmedGainValue = () => getSafe({ ...target, modifierStats: null }, signature.resistance, 0);
     const valueBefore = confirmedGainValue();
     let effects = natureEffects.get(target);
@@ -509,10 +532,12 @@ function applyNatureResistance(target, signature) {
         effects.set(signature.key, effect);
     }
     // Mixed ranks keep their own strength; at the cap only a stronger stack replaces the weakest.
-    if (effect.amounts.length < signature.cap) effect.amounts.push(signature.amount);
-    else {
+    for (let i = 0; i < Math.min(signature.cap, count); i++) {
+      if (effect.amounts.length < signature.cap) effect.amounts.push(signature.amount);
+      else {
         const weakest = Math.min(...effect.amounts);
         if (signature.amount > weakest) effect.amounts[effect.amounts.indexOf(weakest)] = signature.amount;
+      }
     }
     const value = signature.sign * effect.amounts.reduce((sum, amount) => sum + amount, 0);
     const entry = target.battleBoosts[signature.resistance].find(boost => boost.id === effect.boost.id);
@@ -525,7 +550,7 @@ function applyNatureResistance(target, signature) {
     entry.expiresAt = clockNow() + signature.durationMs;
     bindNatureEffectHelper(target, effect);
     tickNatureEffects();
-    if (natureEffectsTimer === null && natureEffects.size) natureEffectsTimer = setInterval(tickNatureEffects, 250);
+
     return { applied: true, key: signature.key, stacks: effect.amounts.length, value };
 }
 
@@ -548,8 +573,8 @@ export function applyAttackNatureEffect(target, attacker, attack) {
       if (signature.sign < 0) {
         const effect = { effectName: signature.key, type: ['alteration'], effectDuration: signature.durationMs / 1000 };
         if (attemptAlterationResistance(attacker, target, effect).canceled) return { applied: false, canceled: true };
-        const mitigated = prepareResilienceEffect(target, effect);
-        return applyNatureResistance(target, { ...signature, durationMs: mitigated.effectDuration * 1000 });
+        return applyNatureResistance(target, { ...signature,
+          amount: calculateResilienceEffectIntensity(target, signature.amount) }, attack.criticalProperties?.stacks ?? 1);
       }
       return applyNatureResistance(target, signature);
     }
@@ -569,6 +594,117 @@ export function applyAttackNatureEffect(target, attacker, attack) {
     }, sources);
 }
 
+
+function removeNatureCapacity(target, effect) {
+  if (!effect.signature.corruption) { effect.boost.remove(); return; }
+  target.stats.HP = corruptHealthCapacity(target.stats.HP, 0);
+  toggleEffectClass(target, 'corruptionPrismatique', 'remove');
+  saveEntityHPToStorage(target);
+  presentEntityVitals(target);
+}
+
+function bindCorruptionHelper(target, effect) {
+  setEntityEffectView(target, `${target.id}-nature-corruptionPrismatique`, {
+    kind: 'corruptionPrismatique', label: 'Corruption prismatique', type: 'nature', stat: 'HP',
+    endAt: () => effect.expiresAt,
+    read: () => ({ html: `PV maximum retirés : ${effect.amount}. Durée : 20 secondes, renouvelée à chaque cumul. Ne peut pas tuer. Le retour des PV maximum ne soigne pas.` }),
+  });
+}
+
+export function corruptionPrismatique(target, effect, attacker) {
+  if (!target?.stats?.HP || target.isDEAD || target.stats.HP.current <= 0) return false;
+  const amount = calculateResilienceEffectIntensity(target, effect.effectAmount);
+  if (!(amount > 0)) return false;
+  let effects = natureEffects.get(target);
+  if (!effects) natureEffects.set(target, effects = new Map());
+  let state = effects.get('corruptionPrismatique');
+  if (!state) {
+    state = { signature: { key: 'corruptionPrismatique', corruption: true }, amount: 0 };
+    effects.set('corruptionPrismatique', state);
+  }
+  state.amount += amount;
+  state.expiresAt = clockNow() + 20000;
+  target.stats.HP = corruptHealthCapacity(target.stats.HP, state.amount);
+  saveEntityHPToStorage(target); presentEntityVitals(target); bindCorruptionHelper(target, state);
+  scheduleNatureExpiration();
+  return true;
+}
+
+export function exaust(target, effect, attacker, onEnd) {
+  onEnd?.();
+  if (!target?.stats?.shift || target.isDEAD) return false;
+  const available = Math.max(0, Number(target.stats.shift.current) || 0);
+  if (available >= 1) spendMovementCharges(target, 1);
+  // Existing movement orders may carry debt. An ignored withdrawal must not repay it.
+  saveEntityMovementState(target); updateMovementDisplay(target);
+  if (available >= 1) EffectMessage(target, 'Exaust !', 'normal', { effectKey: 'exaust' });
+  return available >= 1;
+}
+exaust.tacticalConsequence = ['direct']; exaust.tacticalScope = 'attack';
+
+export function dephasage(target, effect, attacker, onEnd) {
+  onEnd?.();
+  return applyControlRecoil(target, calculateResilienceEffectIntensity(target, effect.effectAmount), { allTimings: true });
+}
+dephasage.tacticalConsequence = ['direct']; dephasage.tacticalScope = 'attack';
+corruptionPrismatique.tacticalConsequence = ['temporaire']; corruptionPrismatique.tacticalScope = 'attack';
+
+export function applySpectralRecoil(target, attacker, hpDamage, hpMax) {
+  if (!(hpDamage > 0 && hpMax > 0) || target.isDEAD) return false;
+  const effect = { effectName: 'dephasage', type: ['alteration'], effectAmount: hpDamage / hpMax * 100 };
+  if (attemptAlterationResistance(attacker, target, effect).canceled) return false;
+  return dephasage(target, effect);
+}
+
+export function prepareCriticalImpact(target, attacker, attack, plan) {
+  return { ...plan, neighbours: plan.explosion > 0 ? getAdjacentEntities(target)
+    .filter(other => !other.isDEAD && other.stats?.HP?.current > 0 && getCombatSide(other) === getCombatSide(target)) : [] };
+}
+
+// A synchronous FIFO avoids JS recursion even when an explosion critically explodes again.
+// It only exists during an impact and is emptied in finally, with no idle timer.
+const criticalExplosions = [];
+let drainingCriticalExplosions = false;
+export function applyCriticalNatureEffects(target, attacker, attack, plan, hpDamage, hpMax) {
+  const nature = getAttackNatureRules(attack);
+  if (!target.isDEAD && target.stats.HP.current > 0) {
+    if (plan.burn > 0 && plan.burnSeconds > 0) {
+      const effect = { effectName: 'brulure', effectDisplay: 'Brûlure', type: ['alteration'],
+        effectDot: plan.burn, effectDuration: plan.burnSeconds, effectTickInterval: 1,
+        criticalBurn: true, criticalLifesteal: plan.lifesteal, spectralBurn: nature.key === 'magical-piercing',
+        provenance: effectProvenance(attacker, attack, { effectName: 'brulure' }) };
+      if (!attemptAlterationResistance(attacker, target, effect).canceled) brulure(target, effect, attacker);
+    }
+    if (nature.key === 'physical-piercing') {
+      const effect = { effectName: 'exaust', type: ['entrave'] };
+      if (!attemptAlterationResistance(attacker, target, effect).canceled) exaust(target);
+    }
+    if (nature.key === 'magical-piercing') applySpectralRecoil(target, attacker, hpDamage, hpMax);
+    if (plan.corruption > 0) {
+      const effect = { effectName: 'corruptionPrismatique', type: ['alteration'], effectAmount: plan.corruption };
+      if (!attemptAlterationResistance(attacker, target, effect).canceled) corruptionPrismatique(target, effect, attacker);
+    }
+  }
+  const share = Math.floor(plan.explosion / (plan.neighbours.length || 1));
+  if (share <= 0) return;
+  for (const neighbour of plan.neighbours) criticalExplosions.push({ target: neighbour, attacker, attack, share });
+  if (drainingCriticalExplosions) return;
+  drainingCriticalExplosions = true;
+  try {
+    for (let i = 0; i < criticalExplosions.length; i++) {
+      const hit = criticalExplosions[i];
+      if (hit.target.isDEAD || hit.target.stats.HP.current <= 0) continue;
+      const sources = { magical: hit.share };
+      applyDamage(hit.target, hit.share, hit.attacker, {
+        functionName: 'criticalExplosion', displayName: 'Explosion critique', launchContextId: 'critical-explosion',
+        criticalExplosion: true, natureEffectSecondary: true, combatFunction: 'Attaquant',
+        essenceSlots: [{ color: 'blue', active: true }], attacknature: ['magicalDamage'],
+        attackRange: hit.attack.attackRange, attackTarget: ['enemy'], effets: [], selfEffects: [], forceDamageSources: sources,
+      }, sources);
+      criticalExplosions[i] = null;
+    }
+  } finally { criticalExplosions.length = 0; drainingCriticalExplosions = false; }
+}
 
 export function toggleEffectClass(target, effectName, action = 'add') {
     // Vérifie si effectName est défini et n'est pas une chaîne vide ou "none"
@@ -640,7 +776,10 @@ function runDot(key, target, state, attacker, onEnd) {
   const existing = dotRuntimes.get(key);
   cancelCombatTask(existing?.timer);
   const runtime = { target, onEnd, sources: existing?.sources || new Map(), timer: null };
-  runtime.sources.set(String(attacker.id), attacker);
+  // Critical properties are stored on each contribution; ordinary offensive stats
+  // follow the live source on ticks, identically before and after a pause/reload.
+  runtime.sources.set(String(attacker.id), state.criticalBurn
+    ? [...entites, ...removedEntities].find(entity => String(entity.id) === String(attacker.id)) || attacker : attacker);
   dotRuntimes.set(key, runtime); activeAlterations.set(key, state);
   toggleEffectClass(target, state.kind, 'add');
   state.runtimeKey = key;
@@ -651,12 +790,13 @@ function runDot(key, target, state, attacker, onEnd) {
     vfx.alt = ''; vfx.src = cachedResourceUrl(`./media/assets/effects/${state.kind === 'brulure' ? 'burn' : 'poison'}.gif`);
     container.append(vfx);
   }
-  const damage = (raw, sourceId, rounding) => {
+  const damage = (raw, sourceId, rounding, properties = {}) => {
     const source = runtime.sources.get(String(sourceId)) || [...entites, ...removedEntities].find(entity => String(entity.id) === String(sourceId)) || attacker;
     applyDotTick(target, state, Math.max(0, raw), source, {
       dotname: state.effect.effectDisplay, combatFunction: 'Attaquant', attackTarget: ['enemy'],
       effets: [], popup: `${state.kind}-dot`, attacknature: ['magicalDamage'], type: ['alteration'],
       alterationRounding: rounding, forceDamageSources: { magical: raw },
+      ...properties,
     });
   };
   const schedule = () => {
@@ -672,7 +812,24 @@ function runDot(key, target, state, attacker, onEnd) {
     if (activeAlterations.get(key) !== state) return;
     if (target.isDEAD) { removeDotEffect(key); return; }
     const now = clockNow();
-    if (state.kind === 'brulure') {
+    if (state.criticalBurn) {
+      const until = Math.min(now, state.expiresAt);
+      const fraction = Math.min(1, Math.max(0, until - state.accruedAt) / Math.max(1, state.expiresAt - state.accruedAt));
+      state.accruedAt = until;
+      for (const source of Object.values(state.sources)) {
+        const deal = source.remaining * fraction;
+        source.remaining -= deal;
+        damage(deal, source.attacker, source.rounding ||= {}, {
+          criticalBurn: true, spectralBurn: source.spectralBurn, criticalLifesteal: source.lifesteal,
+          criticalRounding: source.criticalRounding ||= {},
+          natureEffectSecondary: true,
+          essenceSlots: [{ color: 'blue', active: true }],
+        });
+        if (activeAlterations.get(key) !== state) return;
+      }
+      if (now >= state.expiresAt) { removeDotEffect(key); return; }
+      state.nextTickAt += state.effect.effectTickInterval * 1000;
+    } else if (state.kind === 'brulure') {
       if (state.nextTickAt <= now) {
         const hp = Number(target.combatDetails?.hpDamageReceived) || 0, armor = Number(target.combatDetails?.armorDamageReceived) || 0;
         for (const source of Object.values(state.sources)) {
@@ -734,6 +891,23 @@ export function brulure(target, effect, attacker, onEnd, saved = null) {
   if (!target?.stats?.HP || target.isDEAD || target.stats.HP.current <= 0) return false;
   effect = { ...defaultEffect('brulure', attacker), ...effect };
   effect = { ...effect, provenance: effect.provenance || effectProvenance(attacker, null, effect) };
+  if (effect.criticalBurn || saved?.criticalBurn) {
+    const key = `${target.id}:critical-brulure`, now = clockNow();
+    const state = saved || activeAlterations.get(key) || { kind: 'brulure', criticalBurn: true,
+      target: target.id, attacker: attacker.id, sources: {}, nextTickAt: now + 1000 };
+    if (!saved) {
+      if (!(effect.effectDuration > 0 && effect.effectDot > 0)) return false;
+      const sourceKey = `${effect.provenance}:${effect.spectralBurn === true}`;
+      const source = state.sources[sourceKey] ||= { attacker: attacker.id, remaining: 0, lifesteal: 0, spectralBurn: effect.spectralBurn };
+      const added = effect.effectDot;
+      source.lifesteal = (source.remaining * source.lifesteal + added * (effect.criticalLifesteal || 0)) / (source.remaining + added);
+      source.remaining += added;
+      state.effect = combatData(effect); state.accruedAt = now;
+      state.expiresAt = now + effect.effectDuration * 1000;
+    }
+    runDot(key, target, state, attacker, onEnd);
+    return true;
+  }
   const key = `${target.id}:brulure`, now = clockNow();
   let state = saved || activeAlterations.get(key);
   if (!state) {
@@ -854,7 +1028,7 @@ export function lifesteal(attacker, totalReducedDamage, attackEffects, range = '
   attacker.totalHeal = (Number(attacker.totalHeal) || 0) + restoredHP;
   updateTotalHealCounter(attacker.id, attacker.totalHeal);
   recordEntityLifeSteal(attacker, restoredHP, range);
-  updateHealthBar(attacker.stats.HP.current, attacker.stats.HP.max, attacker.stats.armor?.current || 0, attacker.stats.armor?.max || 0, attacker.id);
+  updateHealthBar(attacker.stats.HP.current, attacker.stats.HP.max, attacker.stats.armor?.current || 0, attacker.stats.armor?.max || 0, attacker.id, attacker.stats.HP.uncorruptedMax || 0);
   updateScoreDisplay(updateScore(attacker, restoredHP));
 }
 
@@ -915,7 +1089,7 @@ registerCombatState('alterations', () => combatData([...activeAlterations.values
 });
 registerCombatState('nature-effects', () => [...natureEffects].map(([entity, effects]) => ({
   entity: entity.id, effects: [...effects].map(([key, effect]) => ({ key, amounts: effect.amounts,
-    signature: effect.signature, expiresAt: effect.expiresAt, boostId: effect.boost.id }))
+    amount: effect.amount, signature: effect.signature, expiresAt: effect.expiresAt, boostId: effect.boost?.id }))
 })), saved => {
   for (const [entity, effects] of natureEffects) for (const key of effects.keys()) removeEntityEffectView(`${entity.id}-nature-${key}`);
   clearInterval(natureEffectsTimer); natureEffectsTimer = null;
@@ -925,6 +1099,9 @@ registerCombatState('nature-effects', () => [...natureEffects].map(([entity, eff
     if (!entity) continue;
     const effects = new Map(); natureEffects.set(entity, effects);
     for (const data of entry.effects) {
+      if (data.signature.corruption) {
+        effects.set(data.key, data); bindCorruptionHelper(entity, data); continue;
+      }
       const boost = Object.values(entity.battleBoosts || {}).flat().find(b => b.id === data.boostId);
       if (!boost) throw new Error('Bonus de nature absent de la sauvegarde.');
       const effect = { ...data, boost };
@@ -932,7 +1109,7 @@ registerCombatState('nature-effects', () => [...natureEffects].map(([entity, eff
       effects.set(data.key, effect);
     }
   }
-  if (natureEffects.size) natureEffectsTimer = setInterval(tickNatureEffects, 250);
+  scheduleNatureExpiration();
 });
 for (const event of ['battleEnding', 'battleStopped', 'battleResolved', 'stageInterfaceClosing']) window.addEventListener(event, () => clearCombatEffects());
 
@@ -1053,7 +1230,7 @@ function tickAstrality(entity) {
       entity.totalHeal = (Number(entity.totalHeal) || 0) + actual;
       recordEntityHealingReceived(entity, actual);
       saveEntityHPToStorage(entity); updateTotalHealCounter(entity.id, entity.totalHeal);
-      updateHealthBar(entity.stats.HP.current, entity.stats.HP.max, entity.stats.armor?.current || 0, entity.stats.armor?.max || 0, entity.id);
+      updateHealthBar(entity.stats.HP.current, entity.stats.HP.max, entity.stats.armor?.current || 0, entity.stats.armor?.max || 0, entity.id, entity.stats.HP.uncorruptedMax || 0);
       showHealingFeedback(entity, actual);
     }
     if (now >= returning.expiresAt) delete state.return;

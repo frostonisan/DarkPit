@@ -1,5 +1,5 @@
 // Artwork filenames are independent of the effect keys used by the combat engine.
-const artworkNames = { bafouillage: 'baffouillage', effroi: 'effroie' };
+const artworkNames = { bafouillage: 'baffouillage', effroi: 'effroie', exaust: 'immobilisation', dephasage: 'baffouillage', corruptionPrismatique: 'dissolution' };
 export const EFFECT_VISUALS = Object.fromEntries([
   ['poison', 'Poison', '#9be83c'], ['brulure', 'Brûlure', '#ffa735'],
   ['immobilisation', 'Immobilisation', '#86b9fa'], ['stun', 'Stun', '#ffdc63'],
@@ -11,6 +11,8 @@ export const EFFECT_VISUALS = Object.fromEntries([
   ['effroi', 'Effroi', '#c0efb1'], ['sommeil', 'Sommeil', '#91b7ff'],
   ['grab', 'Grab', '#eeb474'], ['rupture', 'Rupture', '#ff9863'],
   ['dissolution', 'Dissolution', '#b4ee43'],
+  ['exaust', 'Exaust', '#efb45b'], ['dephasage', 'Déphasage', '#9595ff'],
+  ['corruptionPrismatique', 'Corruption prismatique', '#ba82dd'],
 ].map(([key, label, color]) => [key, {
   key, label, color, src: `./media/assets/statuts/statut-${artworkNames[key] || key}.jpg`,
 }]));

@@ -1,5 +1,41 @@
 // Deterministic damage arithmetic. Inputs are resolved stats, nature rules and explicit rolls.
 // This module neither reads entities nor triggers presentation or random draws.
+import { balanceData } from '../data/balanceData.js';
+
+export function piercingResistanceMultiplier(physicalResistance, magicalResistance) {
+  const delta = Math.max(0, Number(physicalResistance) || 0) - Math.max(0, Number(magicalResistance) || 0);
+  const { constant, increase, decrease } = balanceData.resistance.piercing;
+  return 1 + (delta >= 0 ? increase : decrease) * delta / (constant + Math.abs(delta));
+}
+
+// C is already reduced by the victim's critical resistance. All amounts are raw:
+// their respective impact/tick still goes through armor and ordinary defenses once.
+export function criticalNaturePlan(nature, damage, bonusPercent, survivingSources = null) {
+  const bonus = Math.max(0, Number(bonusPercent) || 0);
+  const extra = Math.max(0, Number(damage) || 0) * bonus / 100;
+  const plan = { bonus, extra, immediate: { physical: 0, magical: 0, piercingDamage: 0, hybridalDamage: 0 },
+    burn: 0, burnSeconds: 0, lifesteal: 0, precision: 0, explosion: 0, corruption: 0, stacks: Math.round(bonus / 10) };
+  const { key, profile } = nature;
+  const red = key === 'hybrid' ? .5 : (profile.red || 0) / (profile.total || 1);
+  const blue = key === 'hybrid' ? .5 : (profile.blue || 0) / (profile.total || 1);
+  if (key === 'prism') { plan.corruption = extra; return plan; }
+  if (key === 'none') { plan.immediate.physical = extra; return plan; }
+  plan.immediate.physical = extra * red;
+  plan.immediate.piercingDamage = extra * (profile.yellow || 0) / (profile.total || 1);
+  plan.burn = extra * blue;
+  // Flight remnants and partial dodges already removed unavailable components.
+  // Never recreate their physical/piercing supplement or dissipated magic.
+  if (survivingSources) {
+    plan.immediate.physical = ((survivingSources.physical || 0) + (survivingSources.hybridalDamage || 0) / 2) * bonus / 100;
+    plan.immediate.piercingDamage = (survivingSources.piercingDamage || 0) * bonus / 100;
+    plan.burn = ((survivingSources.magical || 0) + (survivingSources.hybridalDamage || 0) / 2) * bonus / 100;
+  }
+  plan.burnSeconds = bonus / 10 * blue;
+  plan.lifesteal = bonus / 10 * red;
+  if (key === 'red') plan.precision = bonus / 10;
+  if (key === 'blue') plan.explosion = extra;
+  return plan;
+}
 export const DAMAGE_SOURCE_KEYS = Object.freeze(["piercingDamage", "physical", "magical", "hybridalDamage"]);
 
 export function splitDamageByNature(nature, amount) {

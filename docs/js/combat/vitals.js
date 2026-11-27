@@ -10,7 +10,7 @@ import {
 
 import { calculateHpDamage, finalizeHpDamage, calculateHpHealing, calculateFullHpRestoration,
   calculateDamageAccounting, calculateArmorBypass, calculateArmorGate, calculateResilienceSources,
-  calculateEsoterismSources, calculateFragilitySources, calculateDefensiveHpTotal } from "./vitalRules.js";
+  calculateEsoterismSources, calculateFragilitySources, calculateDefensiveHpTotal, calculateImpactDefenseInput } from "./vitalRules.js";
 import { applyHpChange, applyArmorDamage, applySupportHealing, recordDamageResolution } from "./vitalApplication.js";
 import { effectProvenance } from './effectRules.js';
 import { evaluateAttackEffect } from './effectParameters.js';
@@ -33,12 +33,12 @@ import {
   createAttackStatView, toNumber, attemptAttackerDamages, attemptIndestructibility,
   resolveEsoterismProtection, attemptAstrality, attemptBloodFuryExec, calculateBloodFuryTargetThreshold,
   calculateBloodFuryExecutionPercent, calculateBloodThirstyPercent, attemptCriticalHit, attemptResilience, attemptAlterationResistance,
-  isAlterationEffect, isHindranceEffect, attemptResilienceCritReduction, prepareResilienceEffect,
+  isAlterationEffect, isHindranceEffect, prepareResilienceEffect,
   calculateExtraLifeResurrect, attemptTranscendenceConsoProtection, calculateRangeRatio, caluclateIndestructibilityReductionTotal,
   calculateMysticismTotalDamageBonus, calculateOccultismShadowFragilityPercent, calculateResilienceCritTotalBonus,
-  calculateResilienceAlterationTotalBonus
+  calculateResilienceAlterationTotalBonus, rollAttackCritical
 } from "./statistics.js";
-import { reduceCriticalSupplement } from "./damageRules.js";
+import { criticalNaturePlan, DAMAGE_SOURCE_KEYS } from "./damageRules.js";
 import { checkGameOver, OrderEntity} from "../app/state.js";
 import {
   entites,
@@ -65,8 +65,8 @@ import {
   rez,
   lifesteal,
   LifestealBloodFury,
-  applyAttackNatureEffect,
-  clearCombatEffects, grab, lourdeur, gigantisme, statModifier, immobilisation, stun, silence, interruption, bafouillage, lenteur, folie, confusion, charme, insolence, effroi, sommeil, wakeFromDamage,
+  applyAttackNatureEffect, applyCriticalNatureEffects, prepareCriticalImpact, applySpectralRecoil,
+  clearCombatEffects, exaust, dephasage, corruptionPrismatique, grab, lourdeur, gigantisme, statModifier, immobilisation, stun, silence, interruption, bafouillage, lenteur, folie, confusion, charme, insolence, effroi, sommeil, wakeFromDamage,
   withSleepImpact, deferSleepImpactEffect as deferCombatEffect,
 } from "./effects.js";
 import { summonJarret, summonProfanation } from "./summons.js";
@@ -135,7 +135,7 @@ function restoreAdminInvincibleEntity(entite) {
   const armorMax = entite.stats?.armor?.max ?? 0;
   saveEntityHPToStorage(entite);
   updateEntityStatusInStorage(entite);
-  updateHealthBar(maxHP, maxHP, armorCur, armorMax, entite.id, 0);
+  updateHealthBar(maxHP, maxHP, armorCur, armorMax, entite.id, entite.stats.HP.uncorruptedMax || 0);
   updateHPCounters(entite.id, maxHP, maxHP);
   updateBonusLifeCounters(entite);
 }
@@ -253,7 +253,7 @@ if (!entite.hasDeathBeenLogged) {
     const armorCur = entite.stats?.armor?.current ?? 0;
     const armorMax = entite.stats?.armor?.max ?? 0;
 
-    updateHealthBar(0, entite.stats.HP.max ?? 0, armorCur, armorMax, entite.id, 0);
+    updateHealthBar(0, entite.stats.HP.max ?? 0, armorCur, armorMax, entite.id, entite.stats.HP.uncorruptedMax || 0);
     updateHPCounters(entite.id, 0, entite.stats.HP.max ?? 0);
     updateBonusLifeCounters(entite);
 
@@ -491,7 +491,7 @@ export function attemptExtraLife(entite, {
   const armorCur = entite.stats?.armor?.current ?? 0;
   const armorMax = entite.stats?.armor?.max ?? 0;
 
-  updateHealthBar(entite.stats.HP.current, entite.stats.HP.max, armorCur, armorMax, entite.id, 0);
+  updateHealthBar(entite.stats.HP.current, entite.stats.HP.max, armorCur, armorMax, entite.id, entite.stats.HP.uncorruptedMax || 0);
   updateHPCounters(entite.id, entite.stats.HP.current, entite.stats.HP.max);
   updateBonusLifeCounters(entite);
 
@@ -582,7 +582,7 @@ export async function runPhaseTimer(attacker, phase, duration, { canContinue = n
   const dur = saved?.duration ?? Math.max(1, Number(duration) || 1);
   let endTime = saved?.endTime ?? combatNow() + dur;
   let lastTick = saved?.lastTick ?? combatNow();
-  const state = attacker._phaseTimer = { phase, duration: dur, endTime, lastTick, nextAt: saved?.nextAt };
+  const state = attacker._phaseTimer = { phase, duration: dur, endTime, lastTick, nextAt: saved?.nextAt, recoils: saved?.recoils || [] };
   const interrupted = () => attacker._phaseTimer !== state || (canContinue && !canContinue()) || attacker.isDEAD
     || attacker.statut?.includes('dead') || Number(attacker.stats?.HP?.current) <= 0 || attacker.battleStopped;
   if (interrupted()) return false;
@@ -602,7 +602,14 @@ export async function runPhaseTimer(attacker, phase, duration, { canContinue = n
   while (true) {
     if (interrupted()) return false;
     const now = combatNow();
-    endTime += now - lastTick - elapsed(attacker, lastTick, now);
+    let cursor = lastTick;
+    for (const recoil of state.recoils.splice(0)) {
+      const at = Math.max(cursor, Math.min(now, recoil.at));
+      endTime += at - cursor - elapsed(attacker, cursor, at);
+      endTime = Math.min(at + dur, endTime + dur * recoil.percent / 100);
+      cursor = at;
+    }
+    endTime += now - cursor - elapsed(attacker, cursor, now);
     state.endTime = endTime; state.lastTick = lastTick = now;
     if (now >= endTime && !blocked(attacker, now)) break;
 
@@ -765,38 +772,20 @@ export function estimateCancelledAttackHp(attacker, target, attack, input, {
   const flags = getAttackResolutionFlags(attack);
   let sources = Object.fromEntries(['physical', 'magical', 'piercingDamage', 'hybridalDamage']
     .map(key => [key, Math.max(0, Math.floor(Number(input?.[key]) || 0))]));
-  const baseTotal = sumSources(sources);
-  const bypass = sources.piercingDamage > 0 && !sources.physical && !sources.magical && !sources.hybridalDamage
-    && flags.canBypassArmorGate ? sources.piercingDamage * flags.armorBypassPercent / 100 : 0;
-  const mysticism = applyMysticismBonusToSources(sources, attacker, attack);
-  if (mysticism.applied) sources = mysticism.sources;
-  const extra = Math.max(0, sumSources(sources) - baseTotal);
-  const armorAfter = Math.max(0, armorBefore - (baseTotal - bypass));
-  let remaining = Math.max(0, baseTotal - bypass - armorBefore)
-    + (bypass > 0 ? extra : Math.max(0, extra - armorAfter)) + executionDamage;
-  sources.physical += executionDamage;
-  sources.piercingDamage = Math.max(0, sources.piercingDamage - bypass);
-  const rawTotal = sumSources(sources);
-  const ratio = rawTotal > 0 ? Math.max(0, Math.min(1, remaining / rawTotal)) : 0;
-  if (ratio < 1) sources = Object.fromEntries(Object.entries(sources).map(([key, value]) => [key, Math.round(value * ratio)]));
-  sources.piercingDamage += bypass;
-  const rangeReduction = flags.applyRangeRatio ? Math.max(0, calculateRangeRatio(attacker, attack)) : 0;
-  if (rangeReduction > 0) {
-    const factor = 1 - rangeReduction / 100;
-    if (flags.applyRangeRatioToPiercing) sources.piercingDamage = Math.round(sources.piercingDamage * factor);
-    if (flags.applyRangeRatioToPhysical) sources.physical = Math.round(sources.physical * factor);
-    if (flags.applyRangeRatioToHybridPhysicalHalf) {
-      sources.physical += Math.round(sources.hybridalDamage / 2 * factor);
-      sources.magical += sources.hybridalDamage / 2;
-      sources.hybridalDamage = 0;
-    }
+  sources = applyMysticismBonusToSources(sources, attacker, attack).sources;
+  if (attack.criticalRoll?.isCritical) {
+    const plan = criticalNaturePlan(getAttackNatureRules(attack), sumSources(sources), attack.criticalRoll.bonus, sources);
+    sources = Object.fromEntries(DAMAGE_SOURCE_KEYS.map(key => [key, sources[key] + plan.immediate[key]]));
   }
+  const rangeReduction = flags.applyRangeRatio ? Math.max(0, calculateRangeRatio(attacker, attack)) : 0;
+  const impact = calculateImpactDefenseInput(sources, flags, armorBefore, executionDamage, rangeReduction);
+  sources = impact.sources;
   const invisible = target.flags?.occultismInvisible || target.isInvisible || target.invisible;
   const damage = calculateDefensiveHpOutcome(attacker, target, sources, {
     inert: getAttackNatureRules(attack).isInert,
     resilience: normArr(attack.type).includes('alteration') ? calculateResilienceAlterationTotalBonus(target) : 0,
     occultismFragility: invisible ? calculateOccultismShadowFragilityPercent(target) : 0,
-    indestructibility: (bypass > 0 ? armorAfter : armorAfter - extra) <= 0 ? caluclateIndestructibilityReductionTotal(target) : 0,
+    indestructibility: armorBefore - impact.absorbed <= 0 ? caluclateIndestructibilityReductionTotal(target) : 0,
   });
   return Math.min(Math.max(0, Number(target.stats?.HP?.current) || 0), damage);
 }
@@ -1043,53 +1032,30 @@ if (flags.canBloodFuryExec) {
 if (hasBloodCrazy) {
   consumeBloodCrazy(attacker);
 }
-  const readIncomingSourcesForArmorGate = () => {
-    if (currentAttack?.forceDamageSources) {
-      const f = currentAttack.forceDamageSources;
-      return {
-        piercingDamage: Math.max(0, Math.floor(f.piercingDamage || 0)),
-        physical: Math.max(0, Math.floor(f.physical || 0)),
-        magical: Math.max(0, Math.floor(f.magical || 0)),
-        hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
-      };
-    }
-
-    if (
-      totalDamageSources &&
-      typeof totalDamageSources === "object" &&
-      (
-        Number(totalDamageSources.piercingDamage || 0) > 0 ||
-        Number(totalDamageSources.physical || 0) > 0 ||
-        Number(totalDamageSources.magical || 0) > 0 ||
-        Number(totalDamageSources.hybridalDamage || 0) > 0
-      )
-    ) {
-      return {
-        piercingDamage: Math.max(0, Math.floor(totalDamageSources.piercingDamage || 0)),
-        physical: Math.max(0, Math.floor(totalDamageSources.physical || 0)),
-        magical: Math.max(0, Math.floor(totalDamageSources.magical || 0)),
-        hybridalDamage: Math.max(0, Math.floor(totalDamageSources.hybridalDamage || 0)),
-      };
-    }
-
-    if (
-      !flags.hasPhysical &&
-      !flags.hasMagical &&
-      !flags.hasHybridal &&
-      (flags.hasPiercing || Number(getSafe(attacker, "piercingDamage", 0)) > 0)
-    ) {
-      return {
-        piercingDamage: Math.max(0, Math.floor(totalDamage || 0)),
-        physical: 0,
-        magical: 0,
-        hybridalDamage: 0,
-      };
-    }
-
-    return { piercingDamage: 0, physical: 0, magical: 0, hybridalDamage: 0 };
-  };
-
-  const incomingArmorSources = readIncomingSourcesForArmorGate();
+  const supplied = currentAttack?.forceDamageSources || totalDamageSources;
+  let normalSources = DAMAGE_SOURCE_KEYS.some(key => Number(supplied?.[key]) > 0)
+    ? Object.fromEntries(DAMAGE_SOURCE_KEYS.map(key => [key, Math.max(0, Number(supplied[key]) || 0)]))
+    : attemptAttackerDamages(attacker, attackDetail).totalDamageSources;
+  const mysticismBonusResult = applyMysticismBonusToSources(normalSources, attacker, currentAttack);
+  normalSources = mysticismBonusResult.sources;
+  const critRoll = currentAttack?.criticalRoll || rollAttackCritical(attacker, target, attackDetail);
+  const criticalPlan = critRoll.isCritical
+    ? criticalNaturePlan(getAttackNatureRules(attackDetail), sumSources(normalSources), critRoll.bonus, normalSources) : null;
+  const incomingArmorSources = Object.fromEntries(DAMAGE_SOURCE_KEYS.map(key =>
+    [key, (normalSources[key] || 0) + (criticalPlan?.immediate[key] || 0)]));
+  totalDamage = sumSources(incomingArmorSources);
+  if (critRoll.isCritical) {
+    popupType = 'critical';
+    finalLog.attackModifiers.critical = true;
+    attackDetail = { ...attackDetail, criticalProperties: criticalPlan,
+      effets: [...new Set([...(attackDetail.effets || []), 'criticalHit'])] };
+    if (critRoll.reduction > 0) recordEntityCombatProc(target, 'resilienceCrit');
+  }
+  finalLog.critical = { attempted: flags.canCrit, isCritical: critRoll.isCritical,
+    chance: critRoll.critTotalChance, bonusPercent: critRoll.bonus, rawBonusPercent: critRoll.critDamageBonus,
+    before: sumSources(normalSources), afterCrit: totalDamage, properties: criticalPlan };
+  // Capture adjacency before damage/death can release the victim's footprint.
+  const criticalEffects = criticalPlan ? prepareCriticalImpact(target, attacker, attackDetail, criticalPlan) : null;
 
   const purePiercingArmorBypass = calculateArmorBypass(incomingArmorSources, flags);
   let remainingDamage = Math.max(0, totalDamage - purePiercingArmorBypass);
@@ -1140,8 +1106,8 @@ if (hasBloodCrazy) {
     if (isIndestructible) {
 		finalLog.attackModifiers.indestructible = true;
       recordEntityCombatProc(target, 'indestructible');
-      recordEntityDefenseHp(target, { indestructible: estimateCancelledAttackHp(attacker, target, attackDetail,
-        incomingArmorSources, { armorBefore: armorBeforeGlobal, executionDamage: totalExecutionDamage }) });
+      recordEntityDefenseHp(target, { indestructible: estimateCancelledAttackHp(attacker, target,
+        { ...attackDetail, isLaunchedUnderMysticism: false, criticalRoll: null }, incomingArmorSources, { armorBefore: armorBeforeGlobal, executionDamage: totalExecutionDamage }) });
       finalLog.indestructible.attempted = true;
       finalLog.indestructible.triggered = true;
       finalLog.indestructible.note = "Dégâts annulés (altérations/effets appliqués).";
@@ -1176,6 +1142,9 @@ if (hasBloodCrazy) {
           summonOrigin: attackDetail.summonStatsOrigin,
           armorDamage: armorDamageApplied,
           armorSources: incomingArmorSources,
+          critical: critRoll.isCritical,
+          criticalBonusDamage: criticalPlan ? Math.max(0, armorDamageApplied - Math.min(armorBeforeGlobal,
+            sumSources(normalSources) - calculateArmorBypass(normalSources, flags))) : 0,
           range: combatRangeFromFlags(flags),
           ambidextry: attackDetail.ambidextryHitIndex === 2,
           hypercognition: attackDetail.essenceSlots?.some(slot => slot.active !== false && slot.color === 'blue' && slot.hyperco) === true,
@@ -1190,177 +1159,19 @@ if (hasBloodCrazy) {
       const logImpact = () => logFinalDamageResolution(finalLog);
   if (!deferCombatEffect(logImpact)) logImpact();
       applyAttackNatureEffect(target, attacker, attackDetail);
-      return { hit: true, critical: false };
+      if (criticalEffects) applyCriticalNatureEffects(target, attacker, attackDetail, criticalEffects, 0, finalLog.input.hpMax);
+      return { hit: true, critical: critRoll.isCritical };
     }
   }
 
-  let sources;
-  let rawTotal;
-
-  const hasProvidedSources =
-    totalDamageSources &&
-    typeof totalDamageSources === "object" &&
-    (
-      Number(totalDamageSources.piercingDamage || 0) > 0 ||
-      Number(totalDamageSources.physical || 0) > 0 ||
-      Number(totalDamageSources.magical || 0) > 0 ||
-      Number(totalDamageSources.hybridalDamage || 0) > 0
-    );
-
-  if (currentAttack?.isAmbidextry) {
-    if (currentAttack?.forceDamageSources) {
-      const f = currentAttack.forceDamageSources;
-      sources = {
-        piercingDamage: Math.max(0, Math.floor(f.piercingDamage || 0)),
-        physical: Math.max(0, Math.floor(f.physical || 0)),
-        magical: Math.max(0, Math.floor(f.magical || 0)),
-        hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
-      };
-    } else {
-      sources = {
-        piercingDamage: 0,
-        physical: Math.max(0, Math.floor(totalDamage || 0)),
-        magical: 0,
-        hybridalDamage: 0,
-      };
-    }
-
-    rawTotal =
-      (sources.piercingDamage || 0) +
-      (sources.physical || 0) +
-      (sources.magical || 0) +
-      (sources.hybridalDamage || 0);
-
-    console.log(`🌀 Ambidextrie : sources forcées`, sources, `total=${rawTotal}`);
-  } else if (currentAttack?.forceDamageSources) {
-    const f = currentAttack.forceDamageSources;
-    sources = {
-      piercingDamage: Math.max(0, Math.floor(f.piercingDamage || 0)),
-      physical: Math.max(0, Math.floor(f.physical || 0)),
-      magical: Math.max(0, Math.floor(f.magical || 0)),
-      hybridalDamage: Math.max(0, Math.floor(f.hybridalDamage || 0)),
-    };
-
-    rawTotal =
-      (sources.piercingDamage || 0) +
-      (sources.physical || 0) +
-      (sources.magical || 0) +
-      (sources.hybridalDamage || 0);
-
-    console.log(`🧪 ForceDamageSources → total=${rawTotal}`, sources);
-  } else if (hasProvidedSources) {
-    sources = {
-      piercingDamage: Math.max(0, Math.floor(totalDamageSources.piercingDamage || 0)),
-      physical: Math.max(0, Math.floor(totalDamageSources.physical || 0)),
-      magical: Math.max(0, Math.floor(totalDamageSources.magical || 0)),
-      hybridalDamage: Math.max(0, Math.floor(totalDamageSources.hybridalDamage || 0)),
-    };
-
-    rawTotal =
-      (sources.piercingDamage || 0) +
-      (sources.physical || 0) +
-      (sources.magical || 0) +
-      (sources.hybridalDamage || 0);
-  } else {
-    ({ totalDamageSources: sources, totalDamage: rawTotal } = attemptAttackerDamages(attacker, attackDetail));
-  }
-
-finalLog.sources.base = snapSources(sources);
-finalLog.totals.rawTotalBase = rawTotal;
-finalLog.totals.sumSourcesBase = sumSources(sources);
-
-const mysticismBonusResult = applyMysticismBonusToSources(
-  sources,
-  attacker,
-  currentAttack
-);
-
-if (mysticismBonusResult.applied) {
-	finalLog.attackModifiers.mysticism = true;
-  sources = mysticismBonusResult.sources;
-
-  rawTotal =
-    (sources.piercingDamage || 0) +
-    (sources.physical || 0) +
-    (sources.magical || 0) +
-    (sources.hybridalDamage || 0);
-
-  const rawTotalBeforeMysticism = finalLog.totals.rawTotalBase || 0;
-  const extraMysticismDamage = Math.max(0, rawTotal - rawTotalBeforeMysticism);
-
-  if (
-    extraMysticismDamage > 0 &&
-    purePiercingArmorBypass <= 0 &&
-    target.stats?.armor?.current > 0
-  ) {
-    const armorBeforeMysticismExtra = Number(target.stats.armor.current) || 0;
-    const armorConsumption = applyArmorDamage(target, extraMysticismDamage);
-    const extraAbsorbedByArmor = armorConsumption.absorbed;
-
-    absorbedByArmor += extraAbsorbedByArmor;
-    remainingDamage += armorConsumption.remainingDamage;
-
-    finalLog.armor.mysticismExtra = {
-      extraMysticismDamage,
-      ignoredArmor: false,
-      armorBefore: armorBeforeMysticismExtra,
-      absorbedByArmor: extraAbsorbedByArmor,
-      armorAfter: target.stats.armor?.current || 0,
-      remainingDamageAfterExtra: remainingDamage,
-      layers: armorConsumption.layers,
-      stuffDamage: armorConsumption.stuffDamage,
-    };
-  } else {
-    remainingDamage += extraMysticismDamage;
-
-    finalLog.armor.mysticismExtra = {
-      extraMysticismDamage,
-      ignoredArmor: purePiercingArmorBypass > 0,
-      absorbedByArmor: 0,
-      armorAfter: target.stats?.armor?.current || 0,
-      remainingDamageAfterExtra: remainingDamage,
-    };
-  }
-  finalLog.attackModifiers.armorAbsorbed = absorbedByArmor;
-
-  finalLog.mysticism = {
-    attempted: true,
-    applied: true,
-    bonusPercent: mysticismBonusResult.bonusPercent,
-    bonusSources: mysticismBonusResult.bonusSources,
-    after: snapSources(sources),
-  };
-
-  finalLog.sources.afterMysticism = snapSources(sources);
-  finalLog.totals.rawTotalAfterMysticism = rawTotal;
-  finalLog.totals.sumSourcesAfterMysticism = sumSources(sources);
-  finalLog.totals.extraMysticismDamage = extraMysticismDamage;
-  finalLog.totals.remainingDamageAfterMysticism = remainingDamage;
-
-  console.log(
-    `🔮 Mysticisme dégâts : +${mysticismBonusResult.bonusPercent}%`,
-    {
-      bonusSources: mysticismBonusResult.bonusSources,
-      afterMysticism: finalLog.sources.afterMysticism,
-      rawTotalAfterMysticism: rawTotal,
-      extraMysticismDamage,
-      armorMysticismExtra: finalLog.armor.mysticismExtra,
-      remainingDamageAfterMysticism: remainingDamage,
-    }
-  );
-} else {
-  finalLog.mysticism = {
-    attempted: !!currentAttack?.isLaunchedUnderMysticism,
-    applied: false,
-    bonusPercent: mysticismBonusResult.bonusPercent || 0,
-  };
-
-  finalLog.sources.afterMysticism = snapSources(sources);
-  finalLog.totals.rawTotalAfterMysticism = rawTotal;
-  finalLog.totals.sumSourcesAfterMysticism = sumSources(sources);
-  finalLog.totals.extraMysticismDamage = 0;
-  finalLog.totals.remainingDamageAfterMysticism = remainingDamage;
-}
+  let sources = { ...incomingArmorSources };
+  let rawTotal = sumSources(sources);
+  finalLog.sources.base = { ...normalSources };
+  finalLog.sources.afterMysticism = { ...normalSources };
+  finalLog.totals.rawTotalBase = sumSources(normalSources);
+  finalLog.totals.rawTotalAfterMysticism = sumSources(normalSources);
+  finalLog.mysticism = { applied: mysticismBonusResult.applied, bonusPercent: mysticismBonusResult.bonusPercent };
+  finalLog.attackModifiers.mysticism = mysticismBonusResult.applied;
 
 if (totalExecutionDamage > 0) {
   finalLog.attackModifiers.execution = true;
@@ -1463,8 +1274,8 @@ if (totalExecutionDamage > 0) {
       recordEntityCombatProc(target, 'resilience');
       const carry = attackDetail.alterationRounding;
       finalLog.resilience.carryBefore = carry ? { ...carry } : undefined;
-      const beforeResilience = snapSources(sources);
-      const resilience = calculateResilienceSources(beforeResilience, percent, carry);
+      const beforeResilience = { ...sources };
+      const resilience = calculateResilienceSources(beforeResilience, percent, carry, { precise: attackDetail.criticalBurn === true });
       const factor = resilience.factor;
       sources = resilience.sources;
       if (carry) Object.assign(carry, resilience.carry);
@@ -1495,7 +1306,7 @@ if (totalExecutionDamage > 0) {
     reducedMagicalDamage,
     reducedHybridalDamage,
     details: resistanceDetails,
-  } = calculateResistances(target, sources, attacker, { inert: getAttackNatureRules(attackDetail).isInert });
+  } = calculateResistances(target, sources, attacker, { inert: getAttackNatureRules(attackDetail).isInert, precise: attackDetail.criticalBurn === true });
   if (String(attacker.id) !== String(target.id)) recordInertResistance(attacker, resistanceDetails.inert);
 
   let hybridPhysicalShare = Math.max(0, Math.min(1,
@@ -1603,45 +1414,16 @@ if (totalExecutionDamage > 0) {
     finalLog.occultismFragility.percent = occultismFragilityPercent;
     finalLog.sources.afterOccultismFragility = { ...totalDamageSourcesReduced };
   }
-  const damageBeforeCritical = totalReducedDamage;
-  if (flags.canCrit) {
-    finalLog.critical.attempted = true;
-
-    const critResult = attemptCriticalHit(attacker, target, totalReducedDamage);
-    finalLog.critical.isCritical = !!critResult.isCritical;
-    finalLog.critical.chance = critResult.critTotalChance;
-    finalLog.critical.bonusPercent = critResult.critDamageBonus;
-    finalLog.critical.before = totalReducedDamage;
-
-    if (critResult.isCritical) {
-		 finalLog.attackModifiers.critical = true;
-      popupType = "critical";
-      attackDetail = { ...attackDetail, effets: [...new Set([...(attackDetail.effets || []), 'criticalHit'])] };
-
-      totalReducedDamage = critResult.finalDamage;
-      finalLog.critical.afterCrit = totalReducedDamage;
-
-      const beforeResCrit = totalReducedDamage;
-      totalReducedDamage = attemptResilienceCritReduction(attacker, target, totalReducedDamage, damageBeforeCritical);
-      finalLog.critical.afterResilienceCritReduction = totalReducedDamage;
-      finalLog.critical.resilienceCritReductionDelta = beforeResCrit - totalReducedDamage;
-      if (beforeResCrit > totalReducedDamage) recordEntityCombatProc(target, 'resilienceCrit');
-    } else {
-      finalLog.critical.afterCrit = totalReducedDamage;
-      finalLog.critical.afterResilienceCritReduction = totalReducedDamage;
-      finalLog.critical.resilienceCritReductionDelta = 0;
-    }
-  } else {
-    finalLog.critical.attempted = false;
-    finalLog.critical.skippedByAttackRules = true;
-  }
-
   const indReduc =
     (target.stats?.armor?.current || 0) <= 0
       ? (Number(caluclateIndestructibilityReductionTotal(target)) || 0)
       : 0;
 
-  const hpChange = calculateHpDamage(hpBefore, totalReducedDamage, indReduc);
+  const retained = Math.max(0, 1 - indReduc / 100);
+  const criticalCarry = attackDetail.criticalRounding;
+  const exactHpDamage = totalReducedDamage * retained + (criticalCarry?.hp || 0);
+  const hpChange = calculateHpDamage(hpBefore, criticalCarry ? exactHpDamage : totalReducedDamage, criticalCarry ? 0 : indReduc);
+  if (criticalCarry) criticalCarry.hp = exactHpDamage - hpChange.finalDamage;
   const { pipelineOut, afterInd, finalDamage: finalDamagePreAstrality } = hpChange;
   applyHpChange(target, hpChange);
 
@@ -1669,10 +1451,8 @@ if (totalExecutionDamage > 0) {
     esoterism: finalLog.esoterism.applied ? finalLog.esoterism.reductionPercent : 0,
     esoterismPiercing: finalLog.esoterism.applied ? finalLog.esoterism.piercingReductionPercent : 0,
     occultismFragility: finalLog.occultismFragility.applied ? finalLog.occultismFragility.percent : 0,
-    critical: finalLog.critical.isCritical,
-    criticalBonus: finalLog.critical.bonusPercent,
-    resilienceCrit: finalLog.critical.isCritical
-      ? calculateResilienceCritTotalBonus(target) : 0,
+    critical: false,
+    resilienceCrit: 0,
     indestructibility: indReduc,
   };
   const defenseContributions = {};
@@ -1684,11 +1464,26 @@ if (totalExecutionDamage > 0) {
     defenseContributions[key] = Math.max(0, key === 'occultismFragility' ? damageApplied - without : without - damageApplied);
   }
   if (astralityTriggered) defenseContributions.astrality = Math.max(0, finalDamagePreAstrality - 1);
+  if (criticalPlan && critRoll.reduction > 0) {
+    const unreduced = criticalNaturePlan(getAttackNatureRules(attackDetail), sumSources(normalSources), critRoll.critDamageBonus, normalSources);
+    const input = Object.fromEntries(DAMAGE_SOURCE_KEYS.map(key => [key, (normalSources[key] || 0) + unreduced.immediate[key]]));
+    const without = calculateImpactDefenseInput(input, flags, armorBeforeGlobal, totalExecutionDamage, finalLog.rangeRatio.rrPercent || 0);
+    defenseContributions.resilienceCrit = Math.max(0, Math.min(hpCap,
+      calculateDefensiveHpOutcome(attacker, target, without.sources, defenseModifiers)) - damageApplied);
+  }
   if (Object.keys(defenseContributions).length) recordEntityDefenseHp(target, defenseContributions);
+  const hasImmediateCritical = criticalPlan && sumSources(criticalPlan.immediate) > 0;
+  const normalDefense = hasImmediateCritical ? calculateImpactDefenseInput(normalSources, flags, armorBeforeGlobal,
+    totalExecutionDamage, finalLog.rangeRatio.rrPercent || 0) : null;
+  const damageBeforeCritical = hasImmediateCritical
+    ? calculateDefensiveHpOutcome(attacker, target, normalDefense.sources, { ...defenseModifiers, indestructibility: 0 })
+    : totalReducedDamage;
   const accounting = calculateDamageAccounting({ hpBefore, hpAfter, armorBefore: armorBeforeGlobal,
     armorAfter: target.stats?.armor?.current, finalDamage: finalDamagePreAstrality, damageBeforeCritical,
     indestructibility: indReduc, critical: finalLog.critical.isCritical, astrality: astralityTriggered });
-  const { criticalBonusCredited, armorDamageApplied, damageCredited, overkillDamage } = accounting;
+  const { armorDamageApplied, damageCredited, overkillDamage } = accounting;
+  const criticalBonusCredited = attackDetail.criticalBurn ? damageCredited
+    : accounting.criticalBonusCredited + (hasImmediateCritical ? Math.max(0, armorDamageApplied - normalDefense.absorbed) : 0);
   recordEntityDamageReceived(target, damageApplied, armorDamageApplied);
 
 if (
@@ -1754,8 +1549,8 @@ if (!deferCombatEffect(applyExecutionHealing)) applyExecutionHealing();
 finalLog.attackModifiers.astrality = astralityTriggered;
 
 const applyImpactLeech = () => {
-if (flags.canBloodThirsty) {
-  const bloodThirstyPoints = calculateBloodThirstyPercent(attacker);
+if (flags.canBloodThirsty && !attacker.isDEAD) {
+  const bloodThirstyPoints = calculateBloodThirstyPercent(attacker) + (criticalPlan?.lifesteal || attackDetail.criticalLifesteal || 0);
 
   if (bloodThirstyPoints > 0 && damageApplied > 0) {
     const bloodThirstyPercent = bloodThirstyPoints;
@@ -1882,7 +1677,11 @@ updateTotalDamageCounter(`TotalDamages_${attacker.id}`, attacker.totalDamage);
   if (target.isDEAD) {
     console.log(`${target.name} est mort suite aux dégâts infligés.`);
   }
-  const applyNature = () => applyAttackNatureEffect(target, attacker, attackDetail);
+  const applyNature = () => {
+    applyAttackNatureEffect(target, attacker, attackDetail);
+    if (criticalEffects) applyCriticalNatureEffects(target, attacker, attackDetail, criticalEffects, damageApplied, hpBefore > 0 ? finalLog.input.hpMax : 0);
+    else if (attackDetail.spectralBurn) applySpectralRecoil(target, attacker, damageApplied, finalLog.input.hpMax);
+  };
   if (!deferCombatEffect(applyNature)) applyNature();
   return { hit: true, critical: finalLog.critical.isCritical === true };
 }
@@ -1957,7 +1756,7 @@ export function getAttackEffectHandler(effectName, { self = false } = {}) {
   if (self) return effectName === 'lifesteal' ? lifesteal : null;
   if (/^(bonus|malus)-/.test(effectName)) return statModifier;
   if (effectName === 'gigantisme') return gigantisme;
-  const handlers = { poison, brulure, heal, rez, summonJarret, summonProfanation, grab, lourdeur, immobilisation, stun, silence, interruption, bafouillage, lenteur, folie, confusion, charme, insolence, effroi, sommeil };
+  const handlers = { poison, brulure, exaust, dephasage, corruptionPrismatique, heal, rez, summonJarret, summonProfanation, grab, lourdeur, immobilisation, stun, silence, interruption, bafouillage, lenteur, folie, confusion, charme, insolence, effroi, sommeil };
   return Object.hasOwn(handlers, effectName) ? handlers[effectName] : null;
 }
 

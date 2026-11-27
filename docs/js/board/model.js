@@ -19,7 +19,18 @@ export function createBoardGeometry(input) {
     const members = SHAPES[size].map(([q, r]) => byAxial.get(key(cell.q + q, cell.r + r)));
     footprints.set(`${cell.id}:${size}`, size === 1 ? [cell.id] : members.every(Boolean) ? members : []);
   }
-  return { cells, byId, footprints };
+  const neighbours = new Map(cells.map(cell => [cell.id, [[1,0],[-1,0],[0,1],[0,-1],[1,-1],[-1,1]]
+    .map(([q,r]) => byAxial.get(key(cell.q+q, cell.r+r))).filter(Boolean)]));
+  return { cells, byId, footprints, neighbours };
+}
+
+export function adjacentBoardOccupants(state, id) {
+  const record = state?.occupants.get(String(id));
+  const result = new Set();
+  for (const cell of record?.members || []) for (const adjacent of state.geometry.neighbours.get(cell) || []) {
+    for (const other of state.byCell.get(adjacent) || []) if (other !== record.id) result.add(other);
+  }
+  return [...result];
 }
 
 export function footprintCells(geometry, anchor, size = 1) {

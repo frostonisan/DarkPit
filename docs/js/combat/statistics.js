@@ -328,10 +328,10 @@ export function calculateTotalDodgeBonus(entite) {
   return calculateDodgePercent(dodgePoints);
 }
 
-export function attemptDodge(attacker, target, { partial = false } = {}) {
+export function attemptDodge(attacker, target, { partial = false, precisionBonus = 0 } = {}) {
   if (!canEntityProc(target)) return false;
   const dodgeStat = Number(getSafe(target, "dodge")) || 0;
-  const precisionStat = Number(getSafe(attacker, "precision")) || 0;
+  const precisionStat = (Number(getSafe(attacker, "precision")) || 0) + precisionBonus;
   const boostedDodgeFlat = Number(getEntityBattleBoostValue(target, "dodge", "flat")) || 0;
   const boostedDodgePercent = Number(getEntityBattleBoostValue(target, "dodge", "percent")) || 0;
 
@@ -648,13 +648,13 @@ export function calculateAmbidextryRatioBonus(entity) { return ambidextryResult(
 export function calculateAmbidextryAgiRatioBonus(entity) { return ambidextryResult(entity, 'damage').attribute.value; }
 export function calculateAmbidextryDamageBonus(entity) { return ambidextryResult(entity, 'damage').value; }
 
-export function calculateInvisibleTargetAvoidChance(attacker) {
-  const precision = calculatePrecisionPercent(Number(getSafe(attacker, 'precision', 0)) || 0);
+export function calculateInvisibleTargetAvoidChance(attacker, precisionBonus = 0) {
+  const precision = calculatePrecisionPercent((Number(getSafe(attacker, 'precision', 0)) || 0) + precisionBonus);
   return balanceData.occultism.forcedTarget.avoidChancePercent * (1 - precision / 100);
 }
 
-export function attemptInvisibleTargetAccuracy(attacker, target) {
-  const avoidChance = calculateInvisibleTargetAvoidChance(attacker);
+export function attemptInvisibleTargetAccuracy(attacker, target, precisionBonus = 0) {
+  const avoidChance = calculateInvisibleTargetAvoidChance(attacker, precisionBonus);
   const roll = Math.random() * 100;
   const success = roll >= avoidChance;
   attacker.lastInvisibleAccuracy = { avoidChance, hitChance: 100 - avoidChance, roll, success, targetId: target?.id };
@@ -750,6 +750,15 @@ reportCriticalRoll(attacker, { critTotalChance, randomRoll, isCritical, occultis
       critAgiRatioBonus,
     }
   };
+}
+
+// One decision per impact, shared with accuracy and damage. No source stat mutation.
+export function rollAttackCritical(attacker, target, attack) {
+  if (!getAttackResolutionFlags(attack).canCrit) return { isCritical: false, bonus: 0, precision: 0 };
+  const roll = attemptCriticalHit(attacker, target, 0);
+  const reduction = Math.max(0, Math.min(100, calculateResilienceCritTotalBonus(target)));
+  const bonus = roll.isCritical ? Math.max(0, roll.critDamageBonus) * (1 - reduction / 100) : 0;
+  return { ...roll, bonus, reduction, precision: getAttackNatureRules(attack).key === 'red' ? bonus / 10 : 0 };
 }
 
 // =========================
