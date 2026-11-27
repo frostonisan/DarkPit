@@ -833,6 +833,9 @@ const pinnedUmbraHelpers = [];
 
 const umbraDetailHelpers = [];
 const DETAIL_ANCHOR_SELECTOR = '[data-helper-entry], [data-helper-value], [data-helper-stat-value], [data-helper-ratio], [data-umbra-calculation], [data-autonomous-calculation], [data-helper-picto-stat], [data-helper-source]';
+const DETAIL_ANCHOR_ATTRIBUTES = ['data-helper-ratio', 'data-ratio-stat', 'data-helper-source', 'data-autonomous-calculation',
+  'data-umbra-calculation', 'data-umbra-part', 'data-umbra-summary', 'data-helper-picto-stat',
+  'data-helper-entry', 'data-helper-value', 'data-helper-stat-value'];
 
 let umbraRefreshFrame = 0;
 
@@ -895,9 +898,7 @@ function updateHelperContent(helper, html) {
   if (helper._helperRenderedHTML !== html) {
     const bindings = children.map(detail => {
       const anchor = detail._sourceAnchor;
-      const attributes = ['data-helper-ratio', 'data-ratio-stat', 'data-helper-source', 'data-autonomous-calculation',
-        'data-umbra-calculation', 'data-umbra-part', 'data-umbra-summary', 'data-helper-picto-stat',
-        'data-helper-entry', 'data-helper-value', 'data-helper-stat-value']
+      const attributes = DETAIL_ANCHOR_ATTRIBUTES
         .filter(key => anchor?.hasAttribute(key)).map(key => [key, anchor.getAttribute(key)]);
       const matches = node => attributes.length && attributes.every(([key, value]) => node.getAttribute(key) === value);
       return { detail, matches, index: [...helper.querySelectorAll(DETAIL_ANCHOR_SELECTOR)].filter(matches).indexOf(anchor),
@@ -1065,13 +1066,7 @@ function helperAttributeForStat(key) {
   return { force: 'strength', intelligence: 'intelligence', agilite: 'agility' }[attribute];
 }
 
-function showUmbraDetail(target, { refresh = false } = {}) {
-  if (target.closest('[data-umbra-info-toggle], [data-umbra-detail-toggle]')) return;
-  const anchor = target.closest(DETAIL_ANCHOR_SELECTOR);
-  const parent = anchor?.closest('.stat-hover[data-umbra-pinned="true"]');
-  if (!parent) return;
-  // Read again at hover time so an input changed without a DOM update cannot leave stale ratios.
-  const entity = getBoundHelperEntity(parent._helperHost) || findEntityById(ArmyACache.get(), parent.dataset.entityId);
+function buildUmbraDetail(anchor, parent, entity) {
   let html;
   let header;
   let footer = '';
@@ -1210,26 +1205,81 @@ function showUmbraDetail(target, { refresh = false } = {}) {
     ? `stat-hover${definition.nature === 'umbra' && definition.attribut ? ` ${definition.attribut}` : ''}`
     : [...parent.classList].filter(name => name !== 'umbra-helper-card').join(' ');
   const detailHTML = buildStatHoverCard({ umbraHTML: header, helperHTML: html, ambianceHTML: footer });
-  const existing = umbraDetailHelpers.find(detail => detail.isConnected && detail._parentHelper === parent && detail._sourceAnchor === anchor);
-  if (!refresh) for (const open of [...umbraDetailHelpers]) {
-    if (open !== existing && open.dataset.umbraPinned !== 'true') closeUmbraDetail(open);
+  return { html: detailHTML, className: detailClass, calculated: detailCalculated,
+    attribute: helperAttributeForStat(separatorStat || definition?.key)
+      || parent.dataset.helperAttribute || helperAttributeForStat(parent.dataset.stat),
+    subject: definition?.key, stat: definition?.key || parent.dataset.stat };
+}
+
+function detailAnchorRoute(anchor, parent) {
+  const attributes = DETAIL_ANCHOR_ATTRIBUTES.filter(key => anchor.hasAttribute(key))
+    .map(key => [key, anchor.getAttribute(key)]);
+  const matches = node => attributes.every(([key, value]) => node.getAttribute(key) === value);
+  return { attributes, index: [...parent.querySelectorAll(DETAIL_ANCHOR_SELECTOR)].filter(matches).indexOf(anchor),
+    contextStat: parent.dataset.stat };
+}
+
+function readDetailRoute(root, anchor, route, entity) {
+  let view = buildUmbraDetail(anchor, root, entity);
+  for (const step of route) {
+    if (!view) return null;
+    // Rebuild context only when opening or refreshing. These temporary nodes
+    // never enter the DOM; no hidden helper chain or stale stat snapshot remains.
+    const context = document.createElement('div');
+    context.className = view.className;
+    context.dataset.umbraDetail = '';
+    context.dataset.stat = view.stat;
+    if (view.attribute) context.dataset.helperAttribute = view.attribute;
+    context._detailCalculated = view.calculated;
+    context.innerHTML = view.html;
+    activateHelperPictograms(context);
+    const next = [...context.querySelectorAll(DETAIL_ANCHOR_SELECTOR)]
+      .filter(node => step.attributes.every(([key, value]) => node.getAttribute(key) === value))[step.index];
+    if (!next) return null;
+    view = buildUmbraDetail(next, context, entity);
   }
+  return view;
+}
+
+function showUmbraDetail(target, { refresh = false } = {}) {
+  if (target.closest('[data-umbra-info-toggle], [data-umbra-detail-toggle]')) return;
+  const requestedAnchor = target.closest(DETAIL_ANCHOR_SELECTOR);
+  const owner = requestedAnchor?.closest('.stat-hover[data-umbra-pinned="true"]');
+  if (!owner) return;
+  const nested = owner.hasAttribute('data-umbra-detail');
+  const parent = nested ? owner._parentHelper : owner;
+  const anchor = nested ? owner._sourceAnchor : requestedAnchor;
+  const existing = umbraDetailHelpers.find(detail => detail.isConnected
+    && detail._parentHelper === parent && detail._sourceAnchor === anchor);
+  let route = refresh ? existing?._detailRoute || [] : [];
+  if (nested) {
+    route = [...(owner._detailRoute || [])];
+    const step = detailAnchorRoute(requestedAnchor, owner);
+    // Revisiting a link truncates the route, so cyclic descriptions cannot
+    // accumulate history. Only distinct links of the current card are retained.
+    const previous = route.findIndex(entry => JSON.stringify(entry) === JSON.stringify(step));
+    route = previous < 0 ? [...route, step] : route.slice(0, previous + 1);
+  }
+  const entity = getBoundHelperEntity(parent._helperHost) || findEntityById(ArmyACache.get(), parent.dataset.entityId);
+  const view = readDetailRoute(parent, anchor, route, entity);
+  if (!view) { if (refresh && existing) closeUmbraDetail(existing); return; }
+  for (const open of [...umbraDetailHelpers]) if (open !== existing) closeUmbraDetail(open);
   const detail = existing || document.createElement('div');
-  detail.className = detailClass;
+  detail.className = view.className;
   detail.setAttribute('data-umbra-detail', '');
-  const attribute = helperAttributeForStat(separatorStat || definition?.key)
-    || parent.dataset.helperAttribute || helperAttributeForStat(parent.dataset.stat);
-  if (attribute) detail.dataset.helperAttribute = attribute;
+  if (view.attribute) detail.dataset.helperAttribute = view.attribute;
   else delete detail.dataset.helperAttribute;
-  if (definition) detail.dataset.helperPictoSubject = definition.key;
-  detail.dataset.stat = definition?.key || parent.dataset.stat;
+  if (view.subject) detail.dataset.helperPictoSubject = view.subject;
+  else delete detail.dataset.helperPictoSubject;
+  detail.dataset.stat = view.stat;
   detail.dataset.entityId = parent.dataset.entityId || '';
   detail._helperHost = parent._helperHost;
-  detail._detailCalculated = detailCalculated;
+  detail._detailCalculated = view.calculated;
+  detail._detailRoute = route;
   detail.setAttribute('role', 'tooltip');
   detail._parentHelper = parent;
   detail._sourceAnchor = anchor;
-  updateHelperContent(detail, detailHTML);
+  updateHelperContent(detail, view.html);
   applyUmbraCalculationVisibility(detail);
   if (!existing) {
     Object.assign(detail.style, { position: 'fixed', visibility: 'hidden', pointerEvents: 'none', opacity: '0',
@@ -1255,7 +1305,7 @@ function togglePinnedUmbraDetail(target) {
   if (!detail) return false;
   detail.dataset.umbraPinned = 'true';
   detail.style.pointerEvents = 'auto';
-  anchor.setAttribute('aria-expanded', 'true');
+  detail._sourceAnchor.setAttribute('aria-expanded', 'true');
   return true;
 }
 
@@ -1471,13 +1521,15 @@ export function initializeStatHelpers() {
 
   for (const name of ['mouseover', 'focusin']) document.addEventListener(name, event => {
     if (name === 'mouseover' && umbraCalculationHoverSuspended) return;
-    if (event.target instanceof Element) showUmbraDetail(event.target);
+    // A deeper link replaces this panel on click/keyboard activation, not while
+    // the pointer is travelling across its text or the user is moving focus.
+    if (event.target instanceof Element && !event.target.closest('[data-umbra-detail]')) showUmbraDetail(event.target);
   });
 
   document.addEventListener('pointermove', event => {
     if (!umbraCalculationHoverSuspended) return;
     umbraCalculationHoverSuspended = false;
-    if (event.target instanceof Element) showUmbraDetail(event.target);
+    if (event.target instanceof Element && !event.target.closest('[data-umbra-detail]')) showUmbraDetail(event.target);
   });
 
   for (const name of ['mouseout', 'focusout']) document.addEventListener(name, event => {

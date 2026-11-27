@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.1-dev — 27 novembre 2026
+## Version actuelle : 0.93.2-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,13 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Un seul sous-helper par carte — 0.93.2-dev — 27 novembre 2026
+
+Ouvrir un sous-helper ferme le précédent, même s’il était épinglé. Un lien vers
+un détail plus précis remplace le contenu du panneau, en conservant la carte
+principale ouverte. Les valeurs restent actualisées et les commandes au clavier
+ainsi que la fermeture au clic extérieur restent disponibles.
 
 ### Natures combinées dans l’admin — 0.93.1-dev — 27 novembre 2026
 

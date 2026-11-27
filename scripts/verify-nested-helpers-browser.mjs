@@ -57,7 +57,7 @@ try {
   });
   const root = page.locator('[data-umbra-pinned="true"]:not([data-umbra-detail])');
   const detail = key => page.locator(`[data-umbra-detail][data-helper-picto-subject="${key}"]`);
-  const link = (card, key) => card.locator(`.picto-stat[data-helper-picto-stat="${key}"]`).first();
+  const link = (card, key) => card.locator(`[data-helper-entry="${key}UmbraGrant"], .picto-stat[data-helper-picto-stat="${key}"]`).first();
   await page.evaluate(() => { audit.mode('Stats'); audit.open('resilience'); });
   const resistanceLink = link(root, 'hindranceResistance');
   await resistanceLink.hover();
@@ -71,66 +71,61 @@ try {
   await page.mouse.move(2, 2);
   assert.equal(await resistance.getAttribute('data-umbra-pinned'), 'true');
   assert.equal(await resistance.evaluate(node => getComputedStyle(node).pointerEvents), 'auto');
-  await link(resistance, 'entrave').hover();
+  await link(resistance, 'entrave').click();
   const entrave = detail('entrave');
   await entrave.waitFor({ state: 'visible' });
   assert.equal(await entrave.locator('.umbra-description').innerText(), 'Type de malus : Entrave');
   assert.match(await entrave.locator('.stat-hover-body').innerText(), /mouvement forcé, paralysie partielle ou totale/);
-  assert.equal(await resistance.count(), 1);
-  checks.push('Pinned Résilience → pinned Résistance aux entraves X → Entrave');
-  await link(resistance, 'entrave').click();
-  await page.mouse.move(2, 2);
+  assert.equal(await resistance.count(), 0);
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1);
+  assert.equal(await root.count(), 1);
   assert.equal(await entrave.getAttribute('data-umbra-pinned'), 'true');
+  checks.push('A deeper description replaces its parent detail and keeps the main card');
 
-  // Refresh the root with a new entity value while retaining the whole chain.
-  const beforeNodes = await page.evaluate(() => {
+  await page.evaluate(async () => {
     window.nestedAuditNodes = [...document.querySelectorAll('[data-umbra-detail]')];
     audit.entity.baseStats.resilience += 3;
-    return document.querySelectorAll('[data-umbra-detail]').length;
-  });
-  await page.evaluate(async () => {
-    const E = await import("/js/entities/runtime.js");
+    const E = await import('/js/entities/runtime.js');
     E.recomputeEntityStats(audit.entity, { equippedItems: [], persistEquipment: false, skipReverseArchetype: true });
     window.dispatchEvent(new CustomEvent('entityCombatStatsChanged', { detail: { entity: audit.entity } }));
   });
-  await page.waitForFunction(() => document.querySelector('[data-umbra-pinned="true"]:not([data-umbra-detail]) .short-descri')?.textContent.includes('+13'));
-  assert.equal(await page.locator('[data-umbra-detail]').count(), beforeNodes);
+  await page.waitForFunction(() => document.querySelector('[data-umbra-pinned="true"]:not([data-umbra-detail]) [data-helper-source="umbra-grant"]')?.textContent.replace(/\s/g, '').includes('+13'));
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1);
+  assert.equal(await entrave.count(), 1);
   assert.equal(await page.evaluate(() => nestedAuditNodes.every(node => node.isConnected && node.dataset.umbraPinned === 'true' && node._sourceAnchor.isConnected)), true);
-  checks.push('Live values refresh without closing or recreating the pinned chain');
+  checks.push('Live refresh keeps the single detail and rebinds its source on the main card');
   await page.waitForFunction(() => [...document.querySelectorAll('[data-umbra-detail]')].every(node => getComputedStyle(node).opacity === '1'));
-  await page.screenshot({ path: resolve(output, 'resilience-entrave-chain.png') });
+  await page.screenshot({ path: resolve(output, 'resilience-single-detail.png') });
 
   await page.keyboard.press('Escape');
-  assert.equal(await entrave.count(), 0);
-  assert.equal(await resistance.count(), 1);
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 0);
   assert.equal(await root.count(), 1);
-  checks.push('Escape closes the deepest helper and keeps its parents');
-  await link(resistance, 'entrave').click();
+  checks.push('Escape closes the detail without closing the main card');
+  await resistanceLink.click();
   await resistanceLink.click();
   assert.equal(await page.locator('[data-umbra-detail]').count(), 0);
   assert.equal(await root.count(), 1);
-  checks.push('Clicking a pinned source again closes it and its descendants');
+  checks.push('Clicking the pinned source again closes its detail');
 
   await resistanceLink.click();
-  await link(resistance, 'entrave').click();
-  await resistance.locator('.umbra-description').click();
-  assert.equal(await entrave.count(), 0);
-  assert.equal(await resistance.getAttribute('data-umbra-pinned'), 'true');
-  assert.equal(await root.count(), 1);
   await link(resistance, 'entrave').click();
   await root.locator('.umbra-description').click();
   assert.equal(await page.locator('[data-umbra-detail]').count(), 0);
   assert.equal(await root.count(), 1);
-  checks.push('Clicking parent text closes its descendants, retaining the clicked parent');
+  checks.push('Clicking the main card background closes its current detail');
 
-  // Lock two sibling descriptions, without the second replacing the first.
   await resistanceLink.click();
   const alterationLink = link(root, 'alterationResistance');
   await alterationLink.click();
-  assert.equal(await page.locator('[data-umbra-detail][data-umbra-pinned="true"]').count(), 2);
+  assert.equal(await resistance.count(), 0);
+  assert.equal(await resistanceLink.getAttribute('aria-expanded'), null);
+  assert.equal(await page.locator('[data-umbra-detail][data-umbra-pinned="true"]').count(), 1);
   const alteration = detail('alterationResistance');
   await link(alteration, 'alteration').focus();
+  assert.equal(await alteration.count(), 1, 'Focusing an inner link keeps it available for activation');
   await page.keyboard.press('Enter');
+  assert.equal(await alteration.count(), 0);
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1);
   assert.equal(await detail('alteration').getAttribute('data-umbra-pinned'), 'true');
   for (const section of ['.umbra-description', '.stat-hover-body']) {
     const concept = detail('alteration').locator(section);
@@ -138,29 +133,65 @@ try {
     assert.equal(await concept.locator('.picto-stat.alteration').evaluate(node => getComputedStyle(node).color), 'rgb(154, 70, 255)');
     assert.equal(await concept.locator('[data-helper-effect="alteration"]').evaluate(node => getComputedStyle(node).color), 'rgb(156, 69, 69)');
   }
-  checks.push('Altération keeps its purple pictogram with malus-colored text in the heading and description');
+  checks.push('Opening a sibling or activating an inner keyboard link replaces the previous detail');
+  checks.push('Altération keeps its purple pictogram and malus-colored text');
   await page.waitForFunction(() => [...document.querySelectorAll('[data-umbra-detail]')].every(node => getComputedStyle(node).opacity === '1'));
   await page.screenshot({ path: resolve(output, 'alteration-colored-helper.png') });
   await page.mouse.move(2, 2);
-  await link(alteration, 'alteration').focus();
+  await alterationLink.focus();
   await page.keyboard.press('Space');
-  assert.equal(await detail('alteration').count(), 0);
-  checks.push('Multiple pinned siblings and keyboard pin/unpin work');
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 0);
+  checks.push('Space toggles the current pinned detail from its main source');
+  await resistanceLink.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1);
+  await alterationLink.hover();
+  assert.equal(await resistance.count(), 0);
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1, 'Hovering another source also replaces a pinned detail');
+  await alterationLink.click();
 
   await page.setViewportSize({ width: 390, height: 700 });
+  assert.equal(await page.locator('[data-umbra-detail]').count(), 1);
   for (const bounds of await page.locator('[data-umbra-detail]').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().toJSON()))) {
     assert.ok(bounds.x >= 0 && bounds.right <= 390 && bounds.y >= 0 && bounds.bottom <= 700);
   }
+  await page.screenshot({ path: resolve(output, 'single-detail-mobile.png') });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.mouse.click(1435, 995);
   assert.equal(await page.locator('[data-umbra-pinned], [data-umbra-detail]').count(), 0);
-  checks.push('Responsive bounds and outside-click cleanup include every level');
+  checks.push('The single detail stays in bounds on mobile and closes on outside click');
+
+  // Navigate from a ratio to its source statistic, then change that source.
+  await page.evaluate(() => audit.open('resilience'));
+  await root.locator('[data-umbra-info-toggle]').click();
+  const ratio = root.locator('[data-helper-ratio][data-ratio-stat="strength"]').first();
+  await ratio.locator('.helper-figure > span:not(.picto-stat)').click();
+  const details = page.locator('[data-umbra-detail]');
+  await details.locator('[data-helper-stat-value="strength"]').first().click();
+  assert.equal(await details.count(), 1);
+  assert.equal(await details.getAttribute('data-helper-picto-subject'), 'strength');
+  const total = details.locator('.helper-score-total .helper-figure');
+  const before = Number((await total.innerText()).replace(/[^\d.]/g, ''));
+  await page.evaluate(async () => {
+    audit.entity.baseStats.strength += 10;
+    const E = await import('/js/entities/runtime.js');
+    E.recomputeEntityStats(audit.entity, { equippedItems: [], persistEquipment: false, skipReverseArchetype: true });
+    window.dispatchEvent(new CustomEvent('entityCombatStatsChanged', { detail: { entity: audit.entity } }));
+  });
+  await page.waitForFunction(before => {
+    const text = document.querySelector('[data-umbra-detail] .helper-score-total .helper-figure')?.textContent || '';
+    return Number(text.replace(/[^\d.]/g, '')) > before;
+  }, before);
+  assert.equal(Number((await total.innerText()).replace(/[^\d.]/g, '')), before + 10);
+  assert.equal(await details.count(), 1);
+  assert.equal(await details.getAttribute('data-helper-picto-subject'), 'strength');
+  checks.push('A statistic replaces its ratio and follows live source values without reopening older details');
 
   await page.evaluate(() => audit.open('resilience'));
   await link(root, 'hindranceResistance').click();
   await page.evaluate(() => audit.mode('Level up'));
   await page.waitForFunction(() => !document.querySelector('[data-umbra-pinned], [data-umbra-detail]'));
-  checks.push('Leaving the Codex section closes the complete helper chain');
+  checks.push('Leaving the Codex section closes the main card and its detail');
   assert.deepEqual(errors, []);
   await writeFile(resolve(output, 'checks.json'), JSON.stringify(checks, null, 2));
   console.log('PASS:\n' + checks.join('\n'));

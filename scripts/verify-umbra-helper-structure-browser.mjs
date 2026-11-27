@@ -369,10 +369,10 @@ try {
         assert.match(await details.last().innerText(), /Ratio|ratio/);
         await checkSubhelperPosition(details.last(), 'Ratio subhelper');
         await details.last().locator('[data-helper-stat-value]').first().click();
-        assert.equal(await details.count(), 2, 'A ratio can open its statistic subhelper: ' + JSON.stringify(errors));
-        assert.equal((await checkSubhelperPosition(details.last(), 'Nested statistic subhelper')).nested, true);
+        assert.equal(await details.count(), 1, 'The statistic replaces its ratio subhelper: ' + JSON.stringify(errors));
+        assert.equal((await checkSubhelperPosition(details.last(), 'Replacement statistic subhelper')).nested, false);
         await page.keyboard.press('Escape');
-        assert.equal(await details.count(), 1, 'Escape closes the deepest helper first');
+        assert.equal(await details.count(), 0, 'Escape closes the only detail and keeps the card');
         await toggle.click();
         assert.equal(await details.count(), 0, 'Collapsing calculations closes their pinned subhelpers');
         await toggle.click();
