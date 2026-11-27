@@ -130,8 +130,10 @@ try{
       setStat(target,'magicalResistance',100);const beforeMag=target.stats.HP.current;await advance(1000);
       const magicLoss=beforeMag-target.stats.HP.current;ok(magicLoss<10,'Magic resistance also mitigates the tick');
       has(poisonHelper,`${magicLoss} HP · 0 armure`,'Last tick includes all actual protections');
-      setStat(target,'alterationResistance',75);await advance(250);has(poisonHelper,'5 dégâts/s','Current DoT resistance updates while open');
-      poisonAttack.effectOverrides.poison.effectDot=800;await advance(250);has(poisonHelper,'5 dégâts/s','Admin changes do not rewrite the running DoT snapshot');
+      setStat(target,'alterationResistance',75);await advance(250);
+      eq(D.calculateResilienceAlterationTotalBonus(target),50,'Current DoT resistance respects the shared 50 percent limit');
+      has(poisonHelper,'10 dégâts/s','Current DoT helper uses effective resistance');
+      poisonAttack.effectOverrides.poison.effectDot=800;await advance(250);has(poisonHelper,'10 dégâts/s','Admin changes do not rewrite the running DoT snapshot');
       const snap=C.captureCombatState();C.freezeCombatClock();const time=C.clockNow();C.restoreCombatClock(time);
       await C.restoreCombatState({alterations:snap.alterations},{entities:E.entites});
       const restored=hover(badge(target,'poison'));has(restored,'Dernière fin : 5,5 s','Restoring retains the exact remaining duration');
@@ -161,7 +163,7 @@ try{
       const natureNode=document.querySelector(`[data-helper-key="${natureTarget.id}-effect-dissolution"]`),natureHelper=hover(natureNode);
       has(natureHelper,'Effet : Dissolution','Nature effect title');has(natureHelper,'Durée restante : 8,0 s','Nature effect helper exposes its real expiry');
       await advance(1000);has(natureHelper,'Durée restante : 7,0 s','Nature helper counts down while open');
-      Fx.applyAttackNatureEffect(natureTarget,source,natureAttack);has(natureHelper,'2/5 cumuls','Nature helper updates stacks live');has(natureHelper,'Durée restante : 8,0 s','Nature effect refreshes expiry');
+      Fx.applyAttackNatureEffect(natureTarget,source,natureAttack);has(natureHelper,'2/10 cumuls','Nature helper updates stacks live');has(natureHelper,'Durée restante : 8,0 s','Nature effect refreshes expiry');
       const readBefore=JSON.stringify(C.captureCombatState().alterations);let rolls=0;Math.random=()=>{rolls++;return .9;};
       for(let i=0;i<3;i++)natureNode.dispatchEvent(new MouseEvent('mouseover',{bubbles:true}));
       eq(rolls,0,'Hover makes no resistance rolls');ok(readBefore===JSON.stringify(C.captureCombatState().alterations),'Hover does not change applied effects');

@@ -92,6 +92,63 @@ try{
       };
       window.__damageRules=await import('/js/combat/damageRules.js');
       const DR=window.__damageRules;
+      // Exercise the real critical roll and impact pipeline for every nature,
+      // both with and without critical resistance. Expected shares are explicit.
+      const natureCases=[
+        {name:'physical',colors:['red'],immediate:1,burn:0,red:1},
+        {name:'magic',colors:['blue'],immediate:0,burn:1,red:0},
+        {name:'piercing',colors:['yellow'],immediate:1,burn:0,red:0},
+        {name:'hybrid',colors:['red','red','red','blue'],immediate:.5,burn:.5,red:.5},
+        {name:'kinetic',colors:['red','red','red','yellow'],immediate:1,burn:0,red:.75,signature:'rupture'},
+        {name:'spectral',colors:['blue','blue','blue','yellow'],immediate:.25,burn:.75,red:0,signature:'dissolution'},
+        {name:'prismatic',colors:['red','blue','yellow'],immediate:0,burn:0,red:0,prism:true},
+        {name:'inert',colors:[],immediate:1,burn:0,red:0},
+      ];
+      for(const row of natureCases)for(const resistance of [0,50]){
+        const attacker=actor('A',{criticalChance:99,criticalDamage:10}),victim=actor('B',{criticalResistance:resistance});
+        attacker.stats.HP.current=100;
+        const def={functionName:`matrix-${row.name}`,displayName:row.name,combatFunction:'Attaquant',attackRange:['melee'],
+          attackTarget:['enemy'],deadTarget:['no'],effets:[],selfEffects:[],executionTime:0,
+          essenceSlots:row.colors.map(color=>({color,active:true}))};
+        // Prism's ordinary three-way hit rounds to 399, then its existing
+        // 1.5% convergence signature deals 15. Neither is a critical supplement.
+        const bonus=resistance?30:60,extra=400*bonus/100,instant=(row.prism?414:400)+extra*row.immediate;
+        const sources=DR.splitDamageByNature(R.getAttackNatureRules(def),400);
+        Math.random=()=>0;
+        const flight=F.resolveAttackImpact(F.createAttackFlight(attacker,victim,def,sources));
+        await advance(0);eq(await flight==='hit',true,`${row.name}/${resistance}: real critical impact`);
+        Math.random=()=>.5;
+        eq(victim.stats.HP.current,1000-instant,`${row.name}/${resistance}: immediate damage`);
+        eq(victim.stats.HP.max,row.prism?1000-extra:1000,`${row.name}/${resistance}: max HP loss only for prism`);
+        const burning=Fx.getActiveEffectStates(victim).find(state=>state.criticalBurn);
+        eq(Boolean(burning),row.burn>0,`${row.name}/${resistance}: correct burn eligibility`);
+        if(burning){
+          eq(Object.values(burning.sources).reduce((sum,s)=>sum+s.remaining,0),extra*row.burn,`${row.name}/${resistance}: raw burn share`);
+          eq(burning.expiresAt-C.clockNow(),bonus/10*row.burn*1000,`${row.name}/${resistance}: burn duration after resistance`);
+        }
+        eq(attacker.stats.HP.current,100+Math.round(instant*bonus/1000*row.red),`${row.name}/${resistance}: actual impact life steal`);
+        if(row.signature){
+          const state=C.captureCombatState()['nature-effects'].find(entry=>entry.entity===victim.id).effects.find(effect=>effect.key===row.signature);
+          eq(state.amounts.length,Math.round(bonus/10),`${row.name}/${resistance}: charges use reduced bonus`);
+        }
+        if(burning){
+          await advance(bonus/10*row.burn*1000);
+          eq(victim.stats.HP.current,1000-instant-extra*row.burn,`${row.name}/${resistance}: full damage including final partial tick`);
+          ok(!Fx.getActiveEffectStates(victim).some(state=>state.criticalBurn),`${row.name}/${resistance}: burn cleans up`);
+        }
+        Fx.clearCombatEffects(victim);
+      }
+      // Piercing exploits physical resistance and suffers magical resistance;
+      // inert critical damage is reduced by both defenses, including its bonus.
+      for(const [physicalResistance,magicalResistance,multiplier]of [[200,0,1.8],[0,200,.4],[100,100,1]]){
+        const attacker=actor('A'),victim=actor('B',{physicalResistance,magicalResistance});
+        hit(attacker,victim,['yellow'],100,50);
+        eq(victim.stats.HP.current,1000-Math.round(150*multiplier),'Pure piercing critical uses the resistance differential');
+      }
+      const inertSource=actor('A'),inertTarget=actor('B',{physicalResistance:50,magicalResistance:50});
+      const inertReduction=E.calculateResistances(inertTarget,{physical:150},inertSource,{inert:true}).reducedPhysicalDamage;
+      hit(inertSource,inertTarget,[],100,50);
+      eq(inertTarget.stats.HP.current,1000-inertReduction,'Inert critical supplement passes through both resistances');
       const source=actor('A',{criticalChance:99});source.stats.HP.current=500;
       const plain=actor('B',{armor:120});
       hit(source,plain,['red']);
@@ -168,6 +225,13 @@ try{
       await advance(1000);eq(spectral._combatAction.preparationRecoils.length,2,'Spectral burn tick also applies recoil');
       eq(spectral._combatAction.preparationRecoils[1].percent,1,'Each recoil uses its own HP damage');
       delete spectral._combatAction;
+      const spectralResilient=actor('B',{magicalResistance:100,alterationResistance:50});
+      hit(source,spectralResilient,['blue','yellow'],10,55);
+      hit(source,spectralResilient,['blue','yellow'],10,55);
+      const dissolved=C.captureCombatState()['nature-effects'].find(entry=>entry.entity===spectralResilient.id).effects.find(effect=>effect.key==='dissolution');
+      eq(dissolved.amounts.length,10,'Dissolution critical charges cap at ten');
+      ok(dissolved.amounts.every(amount=>amount===2.5),'Resilience attenuates every Dissolution charge without removing charges');
+      Fx.clearCombatEffects(spectralResilient);
       const turning=actor('B');const turnTask=A.runPhaseTimer(turning,'speedTimer',1000);
       await advance(500);Fx.applySpectralRecoil(turning,source,200,1000);await advance(50);
       ok(turning.speedTimer>=640&&turning.speedTimer<=660,'Recoil adds twenty percentage points to remaining turn time');
@@ -219,6 +283,33 @@ try{
       eq(friendly.stats.HP.current,1000,'Explosion hits allies of the victim, not allies of the caster');
       ok(queue.length>3,'The integration scenario really exercised recursive explosions');
       for(const victim of victims)Fx.clearCombatEffects(victim);
+      // Real explosion distribution over all six neighbours, then every outer
+      // neighbour of a six-cell entity. Secondary hits have no critical chance here.
+      const Board=await import('/js/board/model.js');
+      for(const size of [1,6]){
+        const grid=document.createElement('section');grid.className='hex-grid';document.body.append(grid);
+        const cells=[];
+        for(let row=0;row<6;row++)for(let col=0;col<10;col++){
+          const hex=document.createElement('div');hex.className='hex Neutral';
+          Object.assign(hex.dataset,{position:`aoe-${size}-${row}-${col}`,row,col});grid.append(hex);
+          cells.push({id:hex.dataset.position,row,col});
+        }
+        const geometry=Board.createBoardGeometry(cells),anchor=`aoe-${size}-2-3`;
+        const members=Board.footprintCells(geometry,anchor,size);
+        const outer=[...new Set(members.flatMap(cell=>geometry.neighbours.get(cell)).filter(cell=>!members.includes(cell)))];
+        const at=id=>grid.querySelector(`[data-position="${id}"]`);
+        const giant=actor('B',{},at(anchor));giant.sizeInCells=size;
+        const neighbours=outer.map(id=>actor('B',{},at(id))),caster=actor('A');
+        Move.invalidateFootprintGeometry(grid);Move.rebuildBoardOccupancy(grid);
+        eq(Move.getAdjacentEntities(giant).length,outer.length,'All footprint neighbours are resolved in combat');
+        ok(size===1?outer.length===6:outer.length>6,'Explosion fixture covers the complete perimeter');
+        hit(caster,giant,['blue'],120,50);
+        for(const neighbour of neighbours){
+          eq(neighbour.stats.HP.current,1000-Math.floor(60/outer.length),`Size ${size}: equal inward-rounded explosion share`);
+          ok(!Fx.getActiveEffectStates(neighbour).some(state=>state.criticalBurn),'A noncritical explosion cannot generate a burn');
+        }
+        Fx.clearCombatEffects(giant);grid.remove();
+      }
       const simultaneous=[actor('A'),actor('B')];
       for(const entity of simultaneous) entity.stats.HP={current:100,max:100};
       const simultaneousAt=Timeline.combatNow()+50;

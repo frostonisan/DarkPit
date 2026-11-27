@@ -90,13 +90,20 @@ try {
   });
   await page.waitForSelector(mode === 'range' ? '.projectile-parent' : 'canvas[id^=meleeClone_]');
   await page.waitForTimeout(150);
+  await page.evaluate(async () => {
+    const Fx = await import('/js/combat/effects.js');
+    Fx.applySpectralRecoil(E.entites[0], E.entites[1], 100, 1000);
+    Fx.brulure(E.entites[0], { criticalBurn: true, spectralBurn: true, effectDot: 50, effectDuration: 5 }, E.entites[1]);
+  });
   await page.keyboard.press('Space');
   await page.waitForFunction(() => document.querySelector('#combat-pause-control')?.textContent === 'Pause tactique · Espace pour reprendre' && !document.querySelector('#combat-pause-control').disabled);
   const read = () => page.evaluate(async () => {
     const { entites } = await import("/js/entities/runtime.js");
     const clock = await import("/js/combat/clock.js");
     return { paused: clock.isCombatPaused(), now: clock.clockNow(),
-      e: entites.map(e => ({ id:e.id,hp:e.stats.HP.current,turn:e.turnCount,prep:e.preparationTime,speed:e.speedTimer,action:e._combatAction,cooldowns:e.attackSelection?.readyAt })),
+      e: entites.map(e => ({ id:e.id,hp:e.stats.HP.current,turn:e.turnCount,prep:e.preparationTime,speed:e.speedTimer,action:e._combatAction,cooldowns:e.attackSelection?.readyAt,
+        phaseTimer:e._phaseTimer,executionRecoils:e.executionRecoils })),
+      spectralBurns:(await import('/js/combat/effects.js')).getActiveEffectStates().filter(state=>state.criticalBurn),
       projectiles:[...document.querySelectorAll('.projectile-parent')].map(el=>({id:el.id,transform:el.style.transform})),
       effects: [...document.querySelectorAll('.effect-vfx')].map(el=>el.id),
       melee: [...document.querySelectorAll('canvas[id^=meleeClone_]')].map(el=>({id:el.id, transform:getComputedStyle(el).transform,opacity:getComputedStyle(el).opacity})),
@@ -128,7 +135,10 @@ try {
   await page.waitForTimeout(2400);
   const after = await read();
   assert.ok(after.e.every((e,i)=>e.hp<before.e[i].hp),'both saved impacts apply after resume');
-  assert.ok(after.e.every((e,i)=>before.e[i].hp-e.hp<100),'no duplicate impact');
+  const burnRemaining = (snapshot,id) => snapshot.spectralBurns.filter(state=>String(state.target)===String(id))
+    .reduce((total,state)=>total+Object.values(state.sources).reduce((sum,source)=>sum+source.remaining,0),0);
+  assert.ok(after.e.every((e,i)=>before.e[i].hp-e.hp
+    -(burnRemaining(before,e.id)-burnRemaining(after,e.id))<100),'no duplicate impact after accounting for spectral burn');
   await page.evaluate(async () => (await import("/js/combat/pause.js")).pauseCombat());
   const pausedAgain = await read();
   await page.reload();
@@ -159,11 +169,19 @@ try {
       entityBattleBooste(E.entites[0],{stat:'strength',value:7,durationMs:1200,source:'pause-test'});
     });
     await page.waitForTimeout(90);
+    await page.evaluate(async () => {
+      const Fx = await import('/js/combat/effects.js');
+      Fx.applySpectralRecoil(E.entites[0], E.entites[1], 100, 1000);
+      Fx.brulure(E.entites[0], { criticalBurn: true, spectralBurn: true, effectDot: 50, effectDuration: 5 }, E.entites[1]);
+    });
     await page.evaluate(()=>P.pauseCombat());
     const read=()=>page.evaluate(async()=>{
       const { entites } = await import("/js/entities/runtime.js");
+      const Fx = await import('/js/combat/effects.js');
       return entites.map(e=>({hp:e.stats.HP.current,speed:e.speedTimer,prep:e.preparationTime,recovery:e.recoveryTime,turn:e.turnCount,
-        action:e._combatAction,boosts:Object.values(e.battleBoosts||{}).flat().map(b=>({id:b.id,value:b.value,expiresAt:b.expiresAt})),
+        action:e._combatAction,phaseTimer:e._phaseTimer,executionRecoils:e.executionRecoils,
+        spectralBurns:Fx.getActiveEffectStates(e).filter(state=>state.criticalBurn),
+        boosts:Object.values(e.battleBoosts||{}).flat().map(b=>({id:b.id,value:b.value,expiresAt:b.expiresAt})),
         filter:document.getElementById(`spriteCanvas_${e.id}`).style.filter,
         popup:document.getElementById(`PopUp_${e.id}`).textContent}));
     });
@@ -175,7 +193,7 @@ try {
     await page.waitForTimeout(2300);
     assert.ok((await read()).every(e=>!e.boosts.some(b=>b.value===7)),'restored boost expires');
     await page.evaluate(async()=>(await import("/js/app/state.js")).StopGame({preserveScene:true}));
-    await page.close();console.log('PASS phase: '+phase+' with popup, canvas tint and timed boost');
+    await page.close();console.log('PASS phase: '+phase+' with spectral recoil/burn, popup, canvas tint and timed boost');
   }
   }
   {
