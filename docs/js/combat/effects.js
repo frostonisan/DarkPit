@@ -18,6 +18,7 @@ import {
 import { buildSignatureStackHelper } from "../data/helpers.js";
 import { cachedResourceUrl, playCachedGif } from "../data/loaderList.js";
 import { setDisplayClass } from '../rendering/displayBatch.js';
+import { EFFECT_VISUALS } from '../data/effectVisuals.js';
 import { entites, removedEntities, getMovementWeightMalus, recomputeEntityStats } from "../entities/runtime.js";
 import { summons } from "../data/summons.js";
 import {
@@ -84,10 +85,17 @@ function effectSource(effect, attackerId) {
 function createDotHelper(key, target, state) {
   if (state.criticalBurn) {
     setEntityEffectView(target, key, {
-      kind: 'brulure', label: state.effect.effectDisplay, type: 'dot', endAt: () => state.expiresAt,
-      read: () => ({ ...effectSource(state.effect, state.attacker),
-        dps: calculateResilienceEffectIntensity(target, Object.values(state.sources).reduce((sum, source) => sum + source.remaining, 0)
-          / Math.max(.001, (state.expiresAt - state.accruedAt) / 1000)), interval: state.effect.effectTickInterval, lastTick: state.lastTick }),
+      kind: 'magicalBurn', label: state.effect.effectDisplay, type: 'dot', endAt: () => state.expiresAt,
+      count: () => Object.keys(state.sources).length,
+      read: () => {
+        const sources = Object.values(state.sources).map(source => ({
+          ...effectSource(source, source.attacker), remainingDamage: source.remaining,
+        }));
+        const remainingDamage = sources.reduce((sum, source) => sum + source.remainingDamage, 0);
+        return { sources, remainingDamage,
+          dps: calculateResilienceEffectIntensity(target, remainingDamage / Math.max(.001, (state.expiresAt - state.accruedAt) / 1000)),
+          interval: state.effect.effectTickInterval, lastTick: state.lastTick };
+      },
     });
     return;
   }
@@ -526,12 +534,28 @@ function applyNatureResistance(target, signature, count = 1) {
     let effects = natureEffects.get(target);
     if (!effects) natureEffects.set(target, effects = new Map());
     let effect = effects.get(signature.key);
-    if (!effect) {
+    if (effect && effect.expiresAt <= clockNow()) {
+        removeNatureCapacity(target, effect);
+        removeEntityEffectView(`${target.id}-nature-${signature.key}`);
+        effects.delete(signature.key); effect = null;
+    }
+    let entry = target.battleBoosts?.[signature.resistance]?.find(boost => boost.id === effect?.boost.id);
+    if (!entry) {
         const boost = entityBattleBooste(target, { stat: signature.resistance, value: 0,
             source: signature.label, durationMs: null });
-        effect = { boost, signature, amounts: [] };
+        effect = { boost, signature, amounts: effect?.amounts || [] };
         effects.set(signature.key, effect);
+        entry = target.battleBoosts?.[boost.stat]?.find(entry => entry.id === boost.id);
+        // A synchronous combat-ending listener can remove the newly created bonus.
+        if (!entry) {
+            effects.delete(signature.key);
+            if (!effects.size) natureEffects.delete(target);
+            return null;
+        }
     }
+    if (entry.timeout) clearTimeout(entry.timeout);
+    entry.timeout = null;
+    entry.attackNatureTemporary = true;
     // Mixed ranks keep their own strength; at the cap only a stronger stack replaces the weakest.
     for (let i = 0; i < Math.min(signature.cap, count); i++) {
       if (effect.amounts.length < signature.cap) effect.amounts.push(signature.amount);
@@ -541,8 +565,6 @@ function applyNatureResistance(target, signature, count = 1) {
       }
     }
     const value = signature.sign * effect.amounts.reduce((sum, amount) => sum + amount, 0);
-    const entry = target.battleBoosts[signature.resistance].find(boost => boost.id === effect.boost.id);
-    entry.attackNatureTemporary = true;
     entry.value = value;
     window.dispatchEvent(new CustomEvent('entityStatsGained', { detail: {
         entity: target, gains: [{ stat: signature.resistance, amount: confirmedGainValue() - valueBefore }],
@@ -903,7 +925,7 @@ export function brulure(target, effect, attacker, onEnd, saved = null) {
   effect = { ...defaultEffect('brulure', attacker), ...effect };
   effect = { ...effect, provenance: effect.provenance || effectProvenance(attacker, null, effect) };
   if (effect.criticalBurn || saved?.criticalBurn) {
-    effect.effectDisplay = 'Brûlure magique';
+    effect.effectDisplay = EFFECT_VISUALS.magicalBurn.label;
     const key = `${target.id}:critical-brulure`, now = clockNow();
     const state = saved || activeAlterations.get(key) || { kind: 'brulure', criticalBurn: true,
       target: target.id, attacker: attacker.id, sources: {}, nextTickAt: now + 1000 };
@@ -918,8 +940,8 @@ export function brulure(target, effect, attacker, onEnd, saved = null) {
       state.expiresAt = now + effect.effectDuration * 1000;
     }
     runDot(key, target, state, attacker, onEnd);
-    if (!saved) EffectMessage(target, 'Brûlure magique !', 'normal', {
-      effectKey: 'brulure', effectLabel: effect.effectDisplay, effectNature: 'magicalDamage',
+    if (!saved) EffectMessage(target, `${effect.effectDisplay} !`, 'normal', {
+      effectKey: 'magicalBurn',
       durationSeconds: (state.expiresAt - now) / 1000,
     });
     return true;

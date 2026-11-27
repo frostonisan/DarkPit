@@ -110,7 +110,7 @@ try{
       eq(Object.values(burn.sources)[0].remaining,50,'Pure magic burn stores the full raw bonus');
       const flame=document.getElementById(`brulureVFX_${blue.id}`);
       ok(flame?.matches('.burn.magical-burn.magicalDamage'),'Magic critical uses the filtered flame');
-      ok(document.querySelector(`#PopDow_${blue.id} [data-effect-key="brulure"]`)?.textContent==='Brûlure magique 5 scd !','Magic critical announces its burn and duration');
+      ok(document.querySelector(`#PopDow_${blue.id} [data-effect-key="magicalBurn"]`)?.textContent==='Brûlure magique 5 scd !','Magic critical announces its burn and duration');
       await advance(2000);eq(blue.stats.HP.current,880,'Burn ticks do not crit even with critical chance');
       hit(source,blue,['blue'],100,60);
       burn=Fx.getActiveEffectStates(blue).find(s=>s.criticalBurn);
@@ -231,6 +231,26 @@ try{
       await C.restoreCombatState(corruptSave,{entities:E.entites,removed:[]});
       eq(resilient.stats.HP.max,maxBefore,'Restore does not apply corruption a second time');
       Fx.clearCombatEffects(resilient);eq(resilient.stats.HP.max,1000,'Cleanup restores maximum capacity');
+      Fx.clearCombatEffects();
+      for (const colors of [['red','yellow'],['blue','yellow']]) {
+        const target=actor('B',{physicalResistance:100,magicalResistance:100});
+        const attack={combatFunction:'Attaquant',essenceSlots:colors.map(color=>({color,active:true}))};
+        const signature=R.getAttackNatureRules(attack).signature;
+        Fx.applyAttackNatureEffect(target,source,attack);
+        const snapshot=C.captureCombatState();
+        await C.restoreCombatState(snapshot,{entities:E.entites,removed:[]});
+        await advance(signature.durationMs/2);
+        eq(Fx.applyAttackNatureEffect(target,source,attack).stacks,2,'A restored nature effect accepts a refreshed stack');
+        await advance(signature.durationMs/2+1);
+        eq(Fx.applyAttackNatureEffect(target,source,attack).stacks,3,'The old restored deadline cannot remove a refreshed nature boost');
+        eq(target.battleBoosts[signature.resistance].length,1,'Refreshed nature uses one live resistance boost');
+        target.battleBoosts[signature.resistance][0].remove();
+        eq(Fx.applyAttackNatureEffect(target,source,attack).stacks,4,'A missing boost is rebound without losing active charges');
+        await advance(signature.durationMs+1);
+        eq(Fx.applyAttackNatureEffect(target,source,attack).stacks,1,'Expired nature charges restart at one');
+        Fx.clearCombatEffects(target);
+        ok(!target.battleBoosts[signature.resistance],'Nature cleanup removes the rebound boost');
+      }
       const caster=actor('A'),victim=actor('B');
       const cast=spell('silence-cooldown',{preparationTime:5000,cooldown:8000});
       const casting=F.executeAttack(caster,victim,cast);await advance(2000);

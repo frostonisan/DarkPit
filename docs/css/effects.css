@@ -458,9 +458,11 @@ animation:
 .effect-vfx.transcendence{height: 80px;filter: drop-shadow(0px 0 8px #fff);top:-20px;}
 .effect-vfx.poison{height: 22px;filter: drop-shadow(0px 0 8px #00FF10DB);}
 .effect-vfx.burn{height: 28px;filter:drop-shadow(0px 0 8px #FF2400);}
+.magical-burn-icon, .effect-vfx.burn.magical-burn { --magical-burn-tint: hue-rotate(220deg) saturate(1.6); }
+.magical-burn-icon { filter: var(--magical-burn-tint); }
 .effect-vfx.burn.magical-burn {
-  height: 20px; opacity: .6;
-  filter: hue-rotate(220deg) saturate(1.6) drop-shadow(0 0 5px var(--stat-color));
+  height: 20px; opacity: .85;
+  filter: var(--magical-burn-tint) drop-shadow(0 0 5px var(--stat-color));
 }
 .effect-vfx.stun { width: 60px; height: auto; top: 0; transform: translate(-50%, -75%); pointer-events: none; }
 .effect-vfx{margin: auto; position: absolute; top: 50%; left: 50%; transform: translate(-50%, 50%);}

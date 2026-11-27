@@ -662,7 +662,7 @@ function statEffectDescription(stat, name, state = 'normal', description = '') {
 function statHelperHeader(host, statKey, calculated, entity) {
   if (host.dataset.activeEffect) {
     const visual = EFFECT_VISUALS[host.dataset.entityEffect];
-    const icon = visual ? `<img class="effect-helper-icon" src="${escape(cachedResourceUrl(visual.src))}" alt="" draggable="false">` : '';
+    const icon = visual ? `<img class="effect-helper-icon ${escape(visual.iconClass || '')}" src="${escape(cachedResourceUrl(visual.src))}" alt="" draggable="false">` : '';
     return `${icon}Effet : ${escape(host.dataset.activeEffect)}`;
   }
   const catalogDefinition = stats.find(stat => normalizeStatKey(stat.key) === normalizeStatKey(statKey));

@@ -85,7 +85,7 @@ try {
     const dot = (duration, damage) => ({ effectDuration: duration, effectDot: damage, effectPhysicalRatio: 0, effectMagicalRatio: 0 });
     try {
       const resources = Loader.collectLevelResources();
-      ok(visuals.length === 21 && decoded.every(Boolean), 'All 21 current effects have decodable individual artwork');
+      ok(visuals.length === 22 && decoded.every(Boolean), 'All 22 effects and visual variants have decodable artwork');
       ok(visuals.every(visual => resources.has(Loader.resourceKey(visual.src))), 'Every status image is preloaded with the level');
       ok(visuals.every(visual => /\/statuts\/statut-[\w-]+\.jpg$/.test(visual.src)), 'Only statut- artwork is used');
       for (const visual of visuals) {
@@ -99,6 +99,25 @@ try {
       Display.setEntityEffectView(b, 'artwork-fallback', { kind: 'astrality', label: 'Astralité', stat: 'astrality', endAt: () => Clock.clockNow() + 10000, read: () => ({ html: 'Aperçu' }) });
       ok(badge(b, 'astrality').querySelector('.entity-effect-icon.picto-stat.astrality'), 'Effects without statut- artwork keep their statistic pictogram');
       Display.removeEntityEffectView('artwork-fallback');
+      Fx.brulure(b, { criticalBurn: true, effectDuration: 6, effectDot: 60 }, a);
+      const magicalBadge = badge(b, 'magicalBurn'), magicalHelper = hover(magicalBadge);
+      ok(magicalHelper.textContent.includes('Dégâts restants avant protections : 60')
+        && !/NaN|undefined|Feu commun|Prochaine baisse/.test(magicalHelper.textContent), 'Magical burn describes its finite damage reserve without ordinary fire fields');
+      const magicalPopup = document.querySelector(`#PopDow_${b.id} [data-effect-key="magicalBurn"] .combat-popup-status-icon`);
+      for (const [name, icon] of [['badge', magicalBadge.querySelector('img')], ['helper', magicalHelper.querySelector('.effect-helper-icon')], ['popup', magicalPopup]]) {
+        ok(icon && getComputedStyle(icon).filter.includes('hue-rotate'), `Magical burn ${name} uses the blue filter`);
+      }
+      ok(getComputedStyle(document.getElementById(`brulureVFX_${b.id}`)).opacity === '0.85', 'Magical flames are more opaque');
+      apply(b, 'brulure', a, 'Flamme', { effectDot: 10 });
+      ok(badge(b, 'brulure') && badge(b, 'magicalBurn'), 'Ordinary and magical burn helpers remain distinct');
+      ok(!getComputedStyle(badge(b, 'brulure').querySelector('img')).filter.includes('hue-rotate'), 'Ordinary fire retains its original icon');
+      hover(magicalBadge);
+      await advance(1000);
+      ok(magicalHelper.textContent.includes('Dégâts restants avant protections : 50') && !/NaN|undefined/.test(magicalHelper.textContent), 'Open magical helper follows the remaining damage after ticks');
+      const magicSnapshot = Clock.captureCombatState();
+      await Clock.restoreCombatState({ alterations: magicSnapshot.alterations }, { entities: E.entites, removed: [] });
+      ok(badge(b, 'magicalBurn') && !/NaN|undefined/.test(hover(badge(b, 'magicalBurn')).textContent), 'Restoration rebuilds the correct magical burn helper');
+      Fx.clearCombatEffects();
       apply(a, 'silence', b, 'Mutisme', { effectDuration: 4 });
       apply(b, 'silence', a, 'Mutisme', { effectDuration: 4 });
       apply(b, 'poison', a, 'Venin bref', dot(4, 80));
@@ -162,8 +181,8 @@ try {
       document.querySelectorAll('.entitylootContainer,.worldmap,.worldmap-container').forEach(node => node.remove());
       const scene = document.createElement('section');
       scene.style.cssText = 'position:fixed;left:0;top:0;width:1536px;height:676px;background:url(/media/decors/marecage/ground.jpg) center/cover;z-index:10';
-      scene.append(grid); document.body.append(scene);
-      document.querySelector('.Game-helper')?.style.setProperty('z-index', '1000000');
+      // Keep the preview in the same responsive stacking context as the real helpers.
+      scene.append(grid); document.getElementById('game-shell').append(scene);
       window.__effectPreview = { a: a.id, b: b.id };
       return checks;
     } finally { Math.random = nativeRandom; Date.now = nativeDate; delete window.__effectTimers; }
@@ -176,6 +195,17 @@ try {
   await page.locator('#effectsContainer_999921 [data-dot-effect="brulure"]').hover();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: resolve(output, 'brulure-feu-commun.png') });
+  await page.evaluate(async () => {
+    const E = await import('/js/entities/runtime.js'), Fx = await import('/js/combat/effects.js');
+    const target = E.entites.find(entity => entity.id === window.__effectPreview.b);
+    const source = E.entites.find(entity => entity.id === window.__effectPreview.a);
+    Fx.brulure(target, { criticalBurn: true, effectDuration: 6, effectDot: 60 }, source);
+    (await import('/js/rendering/displayBatch.js')).flushCombatDisplay();
+  });
+  await page.locator('#effectsContainer_999921 [data-dot-effect="magicalBurn"]').hover();
+  await page.waitForFunction(() => [...document.querySelectorAll('.active-effect-hover')]
+    .some(node => Number(getComputedStyle(node).opacity) >= .99));
+  await page.locator('.active-effect-hover').screenshot({ path: resolve(output, 'brulure-magique-helper.png') });
   assert.deepEqual(errors, []);
   const visuals = await page.evaluate(async () => Object.values((await import('/js/data/effectVisuals.js')).EFFECT_VISUALS));
   const art = await browser.newPage({ viewport: { width: 1560, height: 1420 }, deviceScaleFactor: 1 });

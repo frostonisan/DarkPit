@@ -260,10 +260,12 @@ export function showEffectPopup(host, content) {
 export function formatEffectPopup(node, { effectKey, effectLabel, effectNature, durationSeconds, effectValue, effectUnit = '' }) {
   const visual = EFFECT_VISUALS[effectKey];
   if (!visual) return false;
+  effectNature ||= visual.nature;
   if (effectNature) node.classList.add(effectNature);
   node.style.color = effectNature ? 'var(--stat-color)' : visual.color;
   node.dataset.effectKey = effectKey;
   const icon = document.createElement('img'); icon.className = 'combat-popup-status-icon'; icon.src = visual.src; icon.alt = '';
+  if (visual.iconClass) icon.classList.add(visual.iconClass);
   const text = document.createElement('span');
   const seconds = Number.isFinite(durationSeconds) && durationSeconds >= 0 ? Math.round(durationSeconds * 10) / 10 : null;
   const value = seconds !== null ? ` ${String(seconds).replace('.', ',')} scd`

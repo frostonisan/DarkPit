@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.2.1-dev — 27 novembre 2026
+## Version actuelle : 0.93.3-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,18 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Brûlure magique et renouvellement des résistances — 0.93.3-dev — 27 novembre 2026
+
+Les flammes magiques passent à 85 % d’opacité. Leur pictogramme est filtré en bleu
+sur le statut, le helper et le popup. Le helper distingue la réserve de dégâts de
+la brûlure magique du feu ordinaire : durée, dégâts restants et dernier tick sont
+affichés sans champs de décroissance inapplicables ni valeurs indéfinies.
+
+Après restauration d’un combat, un ancien délai ne peut plus supprimer le bonus
+de résistance d’une Rupture ou Dissolution renouvelée. Si ce bonus manque alors
+que l’effet est encore actif, il est recréé en conservant ses charges. Les effets
+expirés repartent avec de nouvelles charges ; leur nettoyage reste centralisé.
 
 ### Brûlure magique et popups d’impact — 0.93.2.1-dev — 27 novembre 2026
 

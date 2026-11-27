@@ -16,3 +16,8 @@ export const EFFECT_VISUALS = Object.fromEntries([
 ].map(([key, label, color]) => [key, {
   key, label, color, src: `./media/assets/statuts/statut-${artworkNames[key] || key}.jpg`,
 }]));
+
+EFFECT_VISUALS.magicalBurn = { ...EFFECT_VISUALS.brulure,
+  key: 'magicalBurn', label: 'Brûlure magique', nature: 'magicalDamage',
+  color: 'var(--stat-color)', iconClass: 'magical-burn-icon',
+};

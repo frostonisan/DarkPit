@@ -351,7 +351,7 @@ try {
     FX.clearCombatEffects(); Popups.clearCombatPopups();
     FX.brulure(target, { criticalBurn: true, effectDuration: 3, effectDot: 30 }, attacker);
     const magicalFire = document.getElementById(`brulureVFX_${target.id}`);
-    ok(magicalFire?.matches('.burn.magical-burn.magicalDamage') && getComputedStyle(magicalFire).opacity === '0.6', 'Magical burn reuses one smaller translucent flame');
+    ok(magicalFire?.matches('.burn.magical-burn.magicalDamage') && getComputedStyle(magicalFire).opacity === '0.85', 'Magical burn reuses one smaller flame at 85 percent opacity');
     const message = document.querySelector(`#PopDow_${target.id} .combat-popup-front .BattleText`);
     ok(message?.textContent === 'Brûlure magique 3 scd !' && message.classList.contains('magicalDamage'), 'Magical burn popup uses its explicit label and magic damage color');
     FX.clearCombatEffects(); Popups.clearCombatPopups();

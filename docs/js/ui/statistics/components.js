@@ -1258,13 +1258,23 @@ function helperHtml(group, now) {
   const sorted = group.entries.slice().sort((a,b) => a.endAt() - b.endAt() || a.key.localeCompare(b.key));
   const read = sorted.map(entry => ({ ...entry.read(), remaining: Math.max(0, entry.endAt() - now) / 1000 }));
   const remaining = Math.max(...read.map(source => source.remaining));
-  if (group.kind === 'poison') {
+  if (group.kind === 'poison' && sorted[0].type === 'dot') {
     return `<div class="effect-source-heading">${read.length} source${read.length > 1 ? 's' : ''} active${read.length > 1 ? 's' : ''} · Dernière fin : <strong>${duration(remaining)}</strong></div>`
       + `<table class="effect-source-table"><thead><tr><th>Source</th><th>Reste</th><th>Dernier tick subi</th></tr></thead><tbody>`
       + read.map(source => `<tr><td><div class="effect-source-name">${sourceMarkup(source)}</div><small>${fmt(source.dps)} dégâts/s après Résistance aux altérations · tick de ${fmt(source.interval)} s</small></td><td>${duration(source.remaining)}</td><td>${actualTick(source.lastTick)}</td></tr>`).join('')
       + `</tbody></table><div class="effect-helper-note">Chaque source conserve sa durée et sa cadence. Les dégâts subis distinguent HP et armure.</div>`;
   }
-  if (group.kind === 'brulure') {
+  if (group.kind === 'magicalBurn' && sorted[0].type === 'dot') {
+    const fire = read[0];
+    return `<div>Durée restante : <strong>${duration(remaining)}</strong></div>`
+      + `<div>Dégâts restants avant protections : <strong>${fmt(fire.remainingDamage)}</strong></div>`
+      + `<div>${fmt(fire.dps)} dégâts/s après Résistance aux altérations · tick de ${fmt(fire.interval)} s</div>`
+      + `<div class="effect-last-tick">Dernier tick subi : <strong>${actualTick(fire.lastTick)}</strong></div>`
+      + `<table class="effect-source-table"><thead><tr><th>Source</th><th>Dégâts restants</th></tr></thead><tbody>`
+      + fire.sources.map(source => `<tr><td><div class="effect-source-name">${sourceMarkup(source)}</div></td><td>${fmt(source.remainingDamage)}</td></tr>`).join('')
+      + `</tbody></table><div class="effect-helper-note">Un nouvel apport s’ajoute aux dégâts restants et renouvelle la durée.</div>`;
+  }
+  if (group.kind === 'brulure' && sorted[0].type === 'dot') {
     const fire = read[0], sources = fire.sources || [];
     return `<div class="effect-source-heading">Feu commun · ${fire.count} apports · ${new Set(sources.map(source => source.attacker)).size} lanceur(s)</div>`
       + `<div class="effect-last-tick">Dernier tick subi : <strong>${actualTick(fire.lastTick)}</strong></div>`
@@ -1291,8 +1301,9 @@ function makeRow(column, group) {
   row.dataset.helperClass = 'active-effect-hover entity-effect-hover';
   row.tabIndex = 0; row.setAttribute('role', 'button');
   const visual = EFFECT_VISUALS[group.kind];
+  if (visual?.nature) row.classList.add(visual.nature);
   const icon = visual
-    ? `<img class="entity-effect-icon" src="${escape(cachedResourceUrl(visual.src))}" alt="" draggable="false">`
+    ? `<img class="entity-effect-icon ${escape(visual.iconClass || '')}" src="${escape(cachedResourceUrl(visual.src))}" alt="" draggable="false">`
     : '<span class="entity-effect-icon" aria-hidden="true"></span>';
   row.innerHTML = `${icon}<span class="entity-effect-count" aria-hidden="true"></span><small class="entity-effect-time"></small>`;
   if (!EFFECT_VISUALS[group.kind]) row.querySelector('.entity-effect-icon').classList.add('picto-stat', group.entries[0].stat || 'neutral');

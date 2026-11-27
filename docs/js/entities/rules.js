@@ -986,7 +986,9 @@ registerCombatState('boosts', () => true, (_, { entities }) => {
             getSafe(confirmed, 'robustness', 0), getSafe(confirmed, 'strength', 0), globalThis.umbraProgression.getUmbraThreshold(confirmed)));
         }
       };
-      boost.timeout = boost.expiresAt === null ? null : setTimeout(boost.remove, Math.max(0, boost.expiresAt - clockNow()));
+      // Nature stacks own a renewable shared deadline in effects.js.
+      boost.timeout = boost.expiresAt === null || boost.attackNatureTemporary ? null
+        : setTimeout(boost.remove, Math.max(0, boost.expiresAt - clockNow()));
     }
   }
 });
