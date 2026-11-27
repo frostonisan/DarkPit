@@ -5,6 +5,7 @@ import {installEntityTestEnvironment} from './entity-test-environment.mjs';
 await installEntityTestEnvironment();
 const E = await import("../docs/js/entities/runtime.js"),D = await import("../docs/js/combat/statistics.js"), _D = await import("../docs/js/ui/statistics/details.js"), _D2 = await import("../docs/js/combat/damageRules.js");
 const S = await import("../docs/js/entities/statSystem.js"),Items=await import('../docs/js/items/permanentItems.js');
+const Helpers=await import('../docs/js/data/helpers.js');
 const P=globalThis.umbraProgression;
 let checks=0;
 const ok=(value,label)=>{assert.ok(value,label);checks++;};
@@ -17,15 +18,28 @@ const entity=(baseStats={},seuilUmbra=150)=>{
 const keys=['criticalResistance','alterationResistance','hindranceResistance','resilienceTotal'];
 const calculators=[D.calculateResilienceCritTotalBonus,D.calculateResilienceAlterationTotalBonus,D.calculateHindranceResistance,D.calculateResilienceTotalCancelBonus];
 for(const key of keys){
-  eq(P.resilience[key].constant,key==='resilienceTotal'?25:98,`${key}: conversion spread`);
-  eq(P.resilience[key].maxPercent,99,`${key}: same final limit`);
+  eq(P.resilience[key].constant,98,`${key}: shared conversion spread`);
+  eq(P.resilience[key].maxPercent,key==='resilienceTotal'?25:50,`${key}: final effect limit`);
 }
 // Equal inputs produce equal percentages for all three ordinary resistances.
-for(const [key,expected] of [['criticalResistance',53.29355325862682],['alterationResistance',53.29355325862682],['hindranceResistance',53.29355325862682],['resilienceTotal',42.80696975684875]]){
+for(const [key,expected] of [['criticalResistance',26.915935989205465],['alterationResistance',26.915935989205465],['hindranceResistance',26.915935989205465],['resilienceTotal',4.06780980420414]]){
   const value=key==='resilienceTotal'?P.resilienceCancelDetails(50,50).percent:P.resilienceDetails(key,50,50).value;
   eq(value,expected,`${key}: 50 Resilience and 50 relevant attribute`);
 }
-eq(entity({resilience:100,strength:50}).stats.resilienceTotal,59.76984083637895,'Selected curve: 100 Resilience / 50 Force');
+eq(entity({resilience:100,strength:50}).stats.resilienceTotal,6.997104067358739,'Selected curve: 100 Resilience / 50 Force');
+const pig=entity({resilience:50,strength:1,intelligence:5,agility:3});
+for(const [i,expected] of [21.94968343325391,22.29502352923642,22.118881256740856,2.8663765808956194].entries()) {
+  eq(calculators[i](pig),expected,`${keys[i]}: pig reference`);
+}
+eq(100*(1-(1-pig.stats.resilienceTotal/100)*(1-pig.stats.hindranceResistance/100)),24.351247405337148,'Pig combined entrave cancellation');
+const pigHelper=_D.calculateStatsDisplay('resilience',pig);
+for(const key of keys) {
+  const cap=P.resilience[key].maxPercent;
+  const entry=pigHelper.umbraPresentation.entries.find(entry=>entry.stat===key);
+  ok(Helpers.buildUmbraEntryExplanation(entry,pigHelper).includes(`data-resilience-limit="${cap}"`),`${key}: Umbra detail shows shared cap`);
+  ok(Helpers.buildPlayerStatHelper(key,_D.calculateStatsDisplay(key,pig)).includes(`data-resilience-limit="${cap}"`),`${key}: statistic helper shows shared cap`);
+  ok(_D.calculateStatsDisplay(key,pig).helpContent.includes(`data-resilience-limit="${cap}"`),`${key}: complete statistic helper shows shared cap`);
+}
 const empty=entity({strength:150,intelligence:150,agility:150});
 for(const [i,key] of keys.entries())eq(calculators[i](empty),0,`${key}: attributes alone grant no protection`);
 eq(D.calculateResilienceAlterationBonus(empty),0,'No minimum 3%');
@@ -38,7 +52,7 @@ for(const threshold of [150,300])for(const resilience of [0,1,10,149,150,151,299
     eq(e.stats[key],expected,`${key}: shared curve`);eq(calculators[i](e),expected,`${key}: combat agrees`);
     const row=S.calculateStatSources(E.getStatSystemInputs(e),key),model=S.buildStatSystemModel(row,e);
     eq(model.contributions.reduce((sum,p)=>sum+p.value,0),expected,`${key}: contribution totals`);
-    ok(expected>=0&&expected<99,`${key}: finite result below asymptote`);
+    ok(expected>=0&&expected<P.resilience[key].maxPercent,`${key}: finite result below asymptote`);
   }
   const before=JSON.stringify(e),helper=_D.calculateStatsDisplay('resilience',e);
   ok(helper.helpContent.includes('data-umbra-passive="resilienceTotal"'),'Exclusive passive card');
@@ -51,9 +65,9 @@ for(const key of keys){
   eq(entity({[key]:20,strength:150,intelligence:150,agility:150}).stats[key],20,`${key}: flat has no ratio`);
   for(const points of [1e3,1e9,1e100,Number.MAX_VALUE]){
     const value=key==='resilienceTotal'?P.resilienceCancelDetails(points,points).percent:P.resilienceDetails(key,points,points).value;
-    ok(Number.isFinite(value)&&value<99,`${key}: asymptote at huge scores`);
+    ok(Number.isFinite(value)&&value<P.resilience[key].maxPercent,`${key}: asymptote at huge scores`);
   }
-  eq(entity({[key]:1000}).stats[key],99,`${key}: manual gains share final cap`);
+  eq(entity({[key]:1000}).stats[key],P.resilience[key].maxPercent,`${key}: manual gains share final cap`);
   const e=entity({resilience:50,strength:50,intelligence:50,agility:50,[key]:7});
   const old=e.stats[key];delete e.baseStats.resilience;
   E.recomputeEntityStats(e,{equippedItems:[],persistEquipment:false});
@@ -68,7 +82,7 @@ for(const key of keys.slice(0,3)){
   ok(P.resilienceDetails(key,50,100).attributeRatio>fixedRatio,'X progressive attribute');
   eq(P.resilienceDetails(key,50,100,5).value,P.resilienceDetails(key,50,100).value+5,'Direct % remains direct');
 }
-eq(D.attemptResilienceCritReduction(null,entity({criticalResistance:60}),150,100),120,'100 + 50 × 40% = 120');
+eq(D.attemptResilienceCritReduction(null,entity({criticalResistance:60}),150,100),125,'Resistance caps at 50% and preserves base critical damage');
 eq(D.attemptResilienceCritReduction(null,empty,150,100),150,'No free critical reduction');
 for(const base of [0,1,10,100,1000])for(const bonus of [0,1,50,500])for(const reduction of [0,20,60,99,100]){
   const value=_D2.reduceCriticalSupplement(base+bonus,base,reduction);
@@ -91,6 +105,12 @@ eq(preparedDot.effectDot,100,'DoT damage mitigated once in damage engine');
 eq(D.getAlterationTiming(protection,preparedDot).duration,5,'DoT keeps cadence and duration');
 eq(D.getAlterationTiming(protection,preparedDot).baseDuration,5,'Base DoT timing retained');
 const guarded=entity({resilienceTotal:50,hindranceResistance:50});
+let canceledAtCap=0;
+for(const first of [.125,.375,.625,.875])for(const second of [.25,.75]){
+  const rolls=[first,second];let index=0;
+  canceledAtCap+=Number(D.rollAlterationResistance(guarded,immobilisation,()=>rolls[index++]).canceled);
+}
+eq(canceledAtCap/8,.625,'Priority protections cap at 62.5% combined, including autonomous gains');
 for(const effect of [immobilisation,{type:'entrave',forcedMovement:true},{type:['entrave'],effectName:'weight'}]){
   for(const [rolls,kind,count] of [[[.1],'resilienceCancel',1],[[.7,.1],'hindranceResistance',2],[[.7,.7],null,2]]){
     let calls=0;const result=D.rollAlterationResistance(guarded,effect,()=>rolls[calls++]);

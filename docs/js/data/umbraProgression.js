@@ -34,13 +34,13 @@
   };
   // The three resistances share the same curve and base ratios; only their
   // supporting attribute differs. Exclusive cancellation has its own ratio.
-  const resilienceCurve = { constant: 98, maxPercent: 99 };
+  const resilienceCurve = { constant: 98, maxPercent: 50 };
   const resilience = {
     criticalResistance: { ...resilienceCurve, attribute: 'strength', ratios: { source: 1, attribute: 0.5 } },
     alterationResistance: { ...resilienceCurve, attribute: 'intelligence', ratios: { source: 1, attribute: 0.5 } },
     hindranceResistance: { ...resilienceCurve, attribute: 'agility', ratios: { source: 1, attribute: 0.5 } },
-    // Exclusive cancellation has its own spread and requires Resilience.
-    resilienceTotal: { ...resilienceCurve, constant: 25, attribute: 'strength', sourceRatio: 0.25, attributeInfluence: 1 },
+    // Exclusive cancellation shares the spread, with a lower ceiling and its own ratio.
+    resilienceTotal: { ...resilienceCurve, maxPercent: 25, attribute: 'strength', sourceRatio: 0.25, attributeInfluence: 1 },
   };
   const equilibre = {
     equilibreAggroBonus: { constant: 98, maxPercent: 99, attribute: 'strength', ratios: { source: 1, attribute: 0.5 } },

@@ -413,19 +413,19 @@ export const STAT_HELPER_DESCRIPTIONS = {
   esoterismCooldown: 'Délai après une protection réussie avant de pouvoir déclencher à nouveau Ésotérisme. L’Intelligence réduit ce délai, partagé par les dégâts magiques et perçants. Une tentative échouée ne déclenche aucun cooldown.',
   indestructibilityCooldown: 'Délai après une annulation réussie avant de pouvoir déclencher à nouveau Indestructibilité totale. La Force réduit ce délai. Peau indestructible et la régénération restent actives.',
   "vitality": `Augmente les ${helperEffectTitle('HP', 'HP max')}.`,
-  "resilience": `Atténue le supplément des coups critiques et les altérations subies.`,
-  "criticalResistance": `Réduit le bonus de dégâts des ${helperEffectTitle('criticalChance', 'coups critiques')}.`,
-  "criticalResistancePlus": `Réduit le bonus de dégâts des ${helperEffectTitle('criticalChance', 'coups critiques')}.`,
-  "criticalResistanceX": `Réduit le bonus de dégâts des ${helperEffectTitle('criticalChance', 'coups critiques')}.`,
+  "resilience": `Atténue le supplément des coups critiques et les altérations subies. Permet aussi d’annuler les altérations et les entraves.`,
+  "criticalResistance": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
+  "criticalResistancePlus": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
+  "criticalResistanceX": `Réduit le supplément des ${helperEffectTitle('criticalChance', 'coups critiques')}. Le coup reste critique et conserve ses dégâts de base.`,
   "alteration": `Les ${helperEffectTitle('alteration', 'altérations d’état')} sont des malus qui entraînent une instabilité chez la cible et restent sur elle pendant une certaine durée du combat. Elles peuvent l’empêcher de lancer des sorts, ralentir sa vitesse d’incantation, lui infliger des dégâts sur la durée, etc.`,
   "entrave": `Les ${helperEffectTitle('entrave', 'entraves')} sont des malus qui entraînent des répercussions négatives sur le positionnement de l’entité : mouvement forcé, paralysie partielle ou totale, etc.`,
-  "alterationResistance": `Atténue les ${helperEffectTitle('alteration', 'altérations d’état')}.`,
-  "alterationResistancePlus": `Atténue les ${helperEffectTitle('alteration', 'altérations d’état')}.`,
-  "alterationResistanceX": `Atténue les ${helperEffectTitle('alteration', 'altérations d’état')}.`,
-  "hindranceResistance": `Permet de résister aux ${helperEffectTitle('entrave', 'entraves')}.`,
-  "hindranceResistancePlus": `Permet de résister aux ${helperEffectTitle('entrave', 'entraves')}.`,
-  "hindranceResistanceX": `Permet de résister aux ${helperEffectTitle('entrave', 'entraves')}.`,
-  "resilienceTotal": `Permet d’annuler les ${helperEffectTitle('alteration', 'altérations d’état')} et les ${helperEffectTitle('entrave', 'entraves')}.`,
+  "alterationResistance": `Atténue les dégâts, l’intensité ou la durée des ${helperEffectTitle('alteration', 'altérations d’état')}, selon leur règle.`,
+  "alterationResistancePlus": `Atténue les dégâts, l’intensité ou la durée des ${helperEffectTitle('alteration', 'altérations d’état')}, selon leur règle.`,
+  "alterationResistanceX": `Atténue les dégâts, l’intensité ou la durée des ${helperEffectTitle('alteration', 'altérations d’état')}, selon leur règle.`,
+  "hindranceResistance": `Chance d’annuler les ${helperEffectTitle('entrave', 'entraves')} après l’échec du jet de Résilience totale.`,
+  "hindranceResistancePlus": `Chance d’annuler les ${helperEffectTitle('entrave', 'entraves')} après l’échec du jet de Résilience totale.`,
+  "hindranceResistanceX": `Chance d’annuler les ${helperEffectTitle('entrave', 'entraves')} après l’échec du jet de Résilience totale.`,
+  "resilienceTotal": `Premier jet pour annuler entièrement une ${helperEffectTitle('alteration', 'altération d’état')} ou une ${helperEffectTitle('entrave', 'entrave')} à son application.`,
   "weaponMastery": `La ${helperEffectTitle('weaponMastery', "Maîtrise d'arme")} représente l'art de choisir, porter et exploiter l'équipement de guerre.`,
   "hypercognition": `L'${helperEffectTitle('hypercognition', 'hypercognition')} transforme l'entité en réacteur magique.`,
   "cognitiveExplosion": "Ce bonus s'ajoute aux dégâts de l'attaque sans en changer la nature.",
@@ -557,6 +557,12 @@ export function buildPlayerStatDescription(stat, fallback = '') {
     || STAT_HELPER_DESCRIPTIONS[stat] || escapeEssenceHTML(fallback);
 }
 
+function resilienceLimitHelper(stat) {
+  if (!['criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal'].includes(stat)) return '';
+  const maximum = getStatEffectMaximum(stat);
+  return `<p class="helper-calculation-note" data-resilience-limit="${maximum}">Limite de l’effet, toutes sources comprises : ${helperFigure(stat, maximum, ' %', { icon: null })}.</p>`;
+}
+
 // These sentences consume calculated results; no combat formula is evaluated here.
 function buildResurrectionHealingHelper(result) {
   const labels = { extraLife: 'Vie supplémentaire', fadedLife: 'Vie fanée', eternalLife: 'Vie éternelle' };
@@ -587,7 +593,7 @@ export function buildPlayerStatHelper(stat, result, fallback = '', { includeDesc
   } else if (typeof result.displayValue === 'number') {
     effect = `Valeur actuelle : ${figure(stat, result.displayValue)}.`;
   }
-  return `${includeDescription ? `<div class="helper-player-description">${description}</div>` : ''}${effect ? `<p class="helper-player-value">${effect}</p>` : ''}`;
+  return `${includeDescription ? `<div class="helper-player-description">${description}</div>` : ''}${effect ? `<p class="helper-player-value">${effect}</p>` : ''}${resilienceLimitHelper(stat)}`;
 }
 
 // Follow the existing calculation's sources, including nested contributions and
@@ -691,10 +697,10 @@ export function buildUmbraEntryExplanation(entry, result, { admin = false } = {}
     const icon = `<span class="picto-stat ${escapeEssenceAttribute(entry.icon || entry.stat)}" data-helper-picto-stat="${escapeEssenceAttribute(entry.stat)}" data-helper-stat-state="${escapeEssenceAttribute(entry.state || 'normal')}" tabindex="0" aria-label="${escapeEssenceAttribute(entry.name)}"></span>`;
     const effectiveResult = effectiveness ? `<div class="helper-total-effect"><span class="helper-total-effect-label">${effectiveness.name}</span>${helperFigure(entry.stat, effectiveness.value, ' %', { icon: null, maximum: getStatEffectMaximum(system.resistancePoints ? 'resistanceReduction' : system.dodgePoints ? 'dodgeChance' : 'precisionChance') })}</div>` : '';
     const sourceLabel = entry.component === 'flat' ? 'Bonus direct de l’Umbra' : entry.component === 'reinforcement' ? 'Renforcement de l’Umbra' : 'Total Umbra';
-    return `<div class="helper-umbra-grant"><div class="helper-umbra-total helper-player-value"><span>${sourceLabel} :</span><strong class="helper-umbra-amount">${helperFigure(entry.stat, entry.value, entry.unit, { ...appearance, signed: true })}${icon}</strong></div>${breakdown}<div class="separation-line" aria-hidden="true"></div>${entityTotal}${effectiveResult}${healing}</div>${technicalSection}`;
+    return `<div class="helper-umbra-grant"><div class="helper-umbra-total helper-player-value"><span>${sourceLabel} :</span><strong class="helper-umbra-amount">${helperFigure(entry.stat, entry.value, entry.unit, { ...appearance, signed: true })}${icon}</strong></div>${breakdown}<div class="separation-line" aria-hidden="true"></div>${entityTotal}${effectiveResult}${healing}${resilienceLimitHelper(entry.stat)}</div>${technicalSection}`;
   }
   const composition = !admin && model?.contributions ? buildAutonomousCalculationHelper(model, '', entry.name) : '';
-  return `${composition}${value ? `<p class="helper-player-value">${value}</p>` : ''}${entityTotal}${effect}${healing}${technicalSection}`;
+  return `${composition}${value ? `<p class="helper-player-value">${value}</p>` : ''}${entityTotal}${effect}${healing}${resilienceLimitHelper(entry.stat)}${technicalSection}`;
 }
 
 export function buildTechnicalStatCalculation(model) {
@@ -976,7 +982,7 @@ const statEffects = {
   indestructibilityReductionTotal: `• ${effectTitle('indestructibility', 'Peau indestructible', { icon: 'indestructibleSkin' })} : l'entité subit ${umbra('indestructibilityReductionTotal', percent('indestructibility', result.indestructibilityReductionTotal, [percentPart('indestructibility', result.indestructibilityReduction), active('indestructibility') ? percentPart('strength', result.indestructibilityStrengthReduction) : ''], { icon: 'indestructibleSkin' }), { icon: 'indestructibleSkin' })} de dégâts en moins.`,
   resilienceCritTotalBonus: `• Le supplément de dégâts des ${effectTitle('criticalPower', 'coups critiques')} subis par l'entité est réduit de ${umbra('resilienceCritTotalBonus', percent('resilience', result.resilienceCritTotalBonus, [percentPart('resilience', result.resilienceCritBonus), percentPart('strength', result.resiStrengthCritBonus)]))}.`,
   resilienceAlteTotalBonus: `• Les ${effectTitle('alteration', "altérations d'état")} subies par l'entité ont leurs effets réduits de ${umbra('resilienceAlteTotalBonus', percent('resilience', result.resilienceAlteTotalBonus, [percentPart('resilience', result.resilienceAlteBonus), percentPart('intelligence', result.resiIntelCritBonus)]))}.`,
-  resilienceTotalCancelBonus: `• ${effectTitle('resilience', 'Résilience totale', { icon: 'resilienceTotal' })} : les ${effectTitle('alteration', "altérations d'état")} subies par l'entité ont ${umbra('resilienceTotalCancelBonus', percent('resilience', result.resilienceTotalCancelBonus, [percentPart('resilience', result.resilienceCancelBonus), active('resilience') ? percentPart('strength', result.resiStrengthCancelBonus) : '']), { icon: 'resilienceTotal' })} de chance d'échouer totalement.`,
+  resilienceTotalCancelBonus: `• ${effectTitle('resilience', 'Résilience totale', { icon: 'resilienceTotal' })} : les ${effectTitle('alteration', "altérations d'état")} et ${effectTitle('entrave', 'entraves')} subies par l'entité ont ${umbra('resilienceTotalCancelBonus', percent('resilience', result.resilienceTotalCancelBonus, [percentPart('resilience', result.resilienceCancelBonus), active('resilience') ? percentPart('strength', result.resiStrengthCancelBonus) : '']), { icon: 'resilienceTotal' })} de chance d'échouer totalement.`,
   ambidextryTotalChance: `• ${effectTitle('ambidextry', 'Chance de deuxième coup', { icon: 'ambidextryChance' })} : l'entité a ${umbra('ambidextryTotalChance', percent('ambidextry', result.ambidextryTotalChance, [percentPart('ambidextry', result.ambidextryProcBonus), percentPart('agility', result.ambidextryAgiChance)], { icon: 'ambidextryChance' }), { icon: 'ambidextryChance' })} de chance de réaliser un deuxième coup lors de son attaque.`,
   ambidextryDamageBonus: `• ${effectTitle('ambidextry', 'Dégâts du deuxième coup', { icon: 'dominantArm' })} : le premier coup fait ${figure('neutral', 100, ' %')} des dégâts ; le deuxième fait ${umbra('ambidextryDamageBonus', percent('ambidextry', result.ambidextryDamageBonus, [constant(ambidextrySecondHitBaseDamagePercent, ' %'), percentPart('ambidextry', result.ambidextryRatioBonus), percentPart('agility', result.ambidextryAgiRatioBonus)], { icon: 'dominantArm' }), { icon: 'dominantArm' })} du premier.<br>Les effets du premier coup peuvent également être réappliqués.`,
   mysticismProcChance: `• ${effectTitle('mysticism', 'Trance mystique', { icon: 'mysticTrance' })} : l'entité a ${umbra('mysticismProcChance', percent('mysticism', result.mysticismProcChance, [constant(result.mysticismBaseProcChance, ' %'), percentPart('intelligence', result.mysticismIntelProcChance)], { icon: 'mysticTrance' }), { icon: 'mysticTrance' })} de chance d'entrer en transe.`,
@@ -1002,7 +1008,7 @@ output.statEffectHelpers = {
   indestructibilityReductionTotal: `Lorsque l’armure est épuisée, l’entité réduit les dégâts subis sur ses HP de ${umbra('indestructibilityReductionTotal', '', { icon: 'indestructibleSkin' })}.`,
   resilienceCritTotalBonus: `Le supplément de dégâts des coups critiques subis est réduit de ${umbra('resilienceCritTotalBonus', '')}.`,
   resilienceAlteTotalBonus: `Les ${effectTitle('alteration', "altérations d'état")} subies par l'entité sont ${umbra('resilienceAlteTotalBonus', '')} moins efficaces.`,
-  resilienceTotalCancelBonus: `Les ${effectTitle('alteration', "altérations d'état")} subies par l'entité ont ${umbra('resilienceTotalCancelBonus', '', { icon: 'resilienceTotal' })} de chance d'échouer totalement.`,
+  resilienceTotalCancelBonus: `Les ${effectTitle('alteration', "altérations d'état")} et ${effectTitle('entrave', 'entraves')} subies par l'entité ont ${umbra('resilienceTotalCancelBonus', '', { icon: 'resilienceTotal' })} de chance d'échouer totalement.`,
   occultismInvisibilityChance: `L'entité a ${umbra('occultismInvisibilityChance', '')} de chance de devenir invisible.`,
   occultismTargetableChance: `L'entité n'a que ${umbra('occultismTargetableChance', '')} de chance d'être prise pour cible quand elle est invisible.`,
   occultismCritChanceBonus: `L'attaque qui se prépare pendant l'invisibilité aura ${umbra('occultismCritChanceBonus', '', { signed: true })} de chance de coup critique supplémentaire.`,
@@ -1065,7 +1071,7 @@ const overloadChance = percent('brokenSpell', result.brokenSpellChanceTotal, pro
 const helpContent = {
   solarArmor: STAT_HELPER_DESCRIPTIONS.solarArmor,
   criticalResistance: `${STAT_HELPER_DESCRIPTIONS.criticalResistance}<br><br>L’entité réduit ce supplément de ${autonomous(percent('criticalResistance', result.statSystem?.value ?? result.resilienceCritTotalBonus ?? safe('criticalResistance', 0)))}.`,
-  alterationResistance: `${STAT_HELPER_DESCRIPTIONS.alterationResistance}<br><br>L’entité réduit de ${autonomous(percent('alterationResistance', result.statSystem?.value ?? result.resilienceAlteTotalBonus ?? safe('alterationResistance', 0)))} leurs dégâts, ou leur durée si elles n’infligent pas de dégâts.`,
+  alterationResistance: `${STAT_HELPER_DESCRIPTIONS.alterationResistance}<br><br>L’entité les atténue de ${autonomous(percent('alterationResistance', result.statSystem?.value ?? result.resilienceAlteTotalBonus ?? safe('alterationResistance', 0)))}. La brûlure perd des dégâts. Rupture et Dissolution perdent de l’intensité par charge, sans supprimer de charges. Corruption prismatique retire moins de HP maximum. Déphasage applique moins de recul. Les contrôles d’altération qui agissent sur la durée sont raccourcis.`,
   resilienceTotal: `${STAT_HELPER_DESCRIPTIONS.resilienceTotal}<br><br>L’entité a ${autonomous(percent('resilienceTotal', result.statSystem?.value ?? result.resilienceTotalCancelBonus ?? safe('resilienceTotal', 0)))} de chance d’annuler totalement une altération ou une entrave.`,
   equilibreAggroReduction: `${STAT_HELPER_DESCRIPTIONS.equilibreAggroReduction}<br><br>Réduction d’aggro : ${autonomous(percent('equilibreAggroReduction', result.statSystem?.value ?? safe('equilibreAggroReduction', 0)))}.`,
   equilibreAggroBonus: `${STAT_HELPER_DESCRIPTIONS.equilibreAggroBonus}<br><br>Bonus d’aggro : ${autonomous(percent('equilibreAggroBonus', result.statSystem?.value ?? safe('equilibreAggroBonus', 0)))}.`,
@@ -1229,8 +1235,8 @@ const umbraAbilities = {
   ],
   resilience: [
     ['resilienceCritTotalBonus', 'Résistance aux critiques', STAT_HELPER_DESCRIPTIONS.criticalResistance, 'criticalResistance'],
-    ['resilienceAlteTotalBonus', 'Résistance aux altérations', "Réduit les effets des altérations d’état subies."],
-    ['resilienceTotalCancelBonus', 'Résilience totale', "Chance de faire échouer totalement une altération d’état.", null, 'resilienceTotal'],
+    ['resilienceAlteTotalBonus', 'Résistance aux altérations', STAT_HELPER_DESCRIPTIONS.alterationResistance],
+    ['resilienceTotalCancelBonus', 'Résilience totale', STAT_HELPER_DESCRIPTIONS.resilienceTotal, null, 'resilienceTotal'],
   ],
   criticalPower: [
     ['critTotalChance', 'Chance de critique', "Chance de réaliser un coup critique avec les attaques qui le permettent.", 'criticalChance'],
@@ -1468,6 +1474,7 @@ function structuredUmbraHelper() {
         output.helpContent = "";
     }
 const simpleResistanceHelper = ['criticalResistance', 'alterationResistance', 'hindranceResistance', 'resilienceTotal', 'equilibreAggroBonus', 'equilibreAggroReduction', 'equilibreInvisibleDetection', 'equilibreBalancedAttackChance', 'controlledSpeed', 'velocity'].includes(canonicalHelpKey);
+if (!isUmbraHelper) output.helpContent += resilienceLimitHelper(canonicalHelpKey);
 if (!simpleResistanceHelper
     && (GENERATED_STAT_HELPERS[canonicalHelpKey] || canonicalHelpKey === 'bullsEye') && result.statSystem) {
   if (result.statSystem.state !== 'normal') output.helpContent += `<br><br>${helperStatIntroduction(canonicalHelpKey, { state: result.statSystem.state })}`;

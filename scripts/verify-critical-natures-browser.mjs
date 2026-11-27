@@ -154,8 +154,10 @@ try{
       kinetic.stats.shift.current=-2;Fx.exaust(kinetic);
       eq(kinetic.stats.shift.current,-2,'Ignored Exaust cannot repay existing movement debt');
       const guarded=actor('B',{hindranceResistance:99});
-      guarded.stats.shift={current:2,max:5};hit(source,guarded,['red','yellow'],10,50);
+      guarded.stats.shift={current:2,max:5};Math.random=()=>.49;hit(source,guarded,['red','yellow'],10,50);Math.random=()=>.5;
       eq(guarded.stats.shift.current,2,'Hindrance protection cancels Exaust');
+      hit(source,guarded,['red','yellow'],10,50);
+      eq(guarded.stats.shift.current,1,'Exaust passes at the 50 percent resistance boundary');
       const spectral=actor('B');
       spectral._combatAction={stage:'preparation',attack:{},preparation:{progress:500,lastTick:C.clockNow()}};
       hit(source,spectral,['blue','blue','blue','yellow'],100,60);

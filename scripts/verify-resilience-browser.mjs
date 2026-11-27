@@ -52,11 +52,11 @@ try{
       const strike={functionName:'resilienceImpact',displayName:'Impact Résilience',combatFunction:'Attaquant',attackRange:['melee'],
         attackTarget:['enemy'],deadTarget:['no'],effets:[],selfEffects:[],executionTime:0,attacknature:[],
         essenceSlots:[{slotId:'impact-yellow',kind:'open',color:'yellow',essenceSource:'test'}]};
-      for(const [criticalChance,resistance,expected]of [[99,60,120],[99,0,150],[0,60,100],[99,99,101]]){
+      for(const [criticalChance,resistance,expected]of [[99,60,125],[99,0,150],[0,60,100],[99,99,125]]){
         const attacker=actor('A',{criticalChance}),victim=actor('B',{criticalResistance:resistance});
         ok(await F.resolveAttackImpact(F.createAttackFlight(attacker,victim,strike,{piercingDamage:100}))==='hit','Actual impact resolves');
         eq(1000-victim.stats.HP.current,expected,'Real critical mitigation preserves normal damage');
-        eq(A.calculateDefensiveHpOutcome(attacker,victim,{piercingDamage:100},{critical:criticalChance>0,criticalBonus:50,resilienceCrit:resistance}),expected,'Combat replay agrees');
+        eq(A.calculateDefensiveHpOutcome(attacker,victim,{piercingDamage:100},{critical:criticalChance>0,criticalBonus:50,resilienceCrit:_D.calculateResilienceCritTotalBonus(victim)}),expected,'Combat replay agrees with effective resistance');
       }
       // Cancellation is rolled once at application, not on each tick.
       const attacker=actor('A'),cancelled=actor('B',{resilience:50,strength:150});
@@ -144,7 +144,7 @@ try{
             await advance(6000);eq(1000-target.stats.HP.current,expected*(name==='brulure'?7:1),`${name}: no redistributed or late damage`);
           }
         }
-        for(const [intensity,duration,expected] of [[0,0,35],[20,0,28],[50,0,18],[75,0,9],[0,50,35]]){
+        for(const [intensity,duration,expected] of [[0,0,35],[20,0,28],[50,0,18],[75,0,18],[0,50,35]]){
           const target=actor('B',{alterationResistance:intensity,hindranceResistance:duration});
           A.applyEffect(target,'brulure',attacker);
           await advance(15001);
@@ -271,7 +271,15 @@ try{
     const detail=page.locator('[data-umbra-detail]');await detail.waitFor({state:'visible'});
     assert.equal(await detail.evaluate(el=>el.classList.contains('umbra-helper-card')),false,'Nested helper keeps its plain style');
     assert.match(await detail.innerText(),/Total de l’entité/);assert.doesNotMatch(await detail.innerText(),/malus à distance|Vision/);
+    assert.equal(await detail.locator('[data-resilience-limit]').getAttribute('data-resilience-limit'),'25','Passive detail uses the current shared cap');
     await page.keyboard.press('Escape');
+    for(const key of ['criticalResistance','alterationResistance','hindranceResistance']){
+      await card.locator('.stat-hover-body').evaluate(body=>{body.scrollTop=0;});
+      await card.locator(`[data-helper-value="${key}UmbraGrant"]`).first().focus();
+      const detail=page.locator('[data-umbra-detail]');await detail.waitFor({state:'visible'});
+      assert.equal(await detail.locator('[data-resilience-limit]').getAttribute('data-resilience-limit'),'50',`${key}: detail shares the resistance cap`);
+      await page.keyboard.press('Escape');
+    }
   }
   await page.goto(origin+'/index-14.html');
   await page.locator('[data-mode="maj"]').first().click();
@@ -281,8 +289,11 @@ try{
   for(const key of ['criticalResistance','alterationResistance','hindranceResistance','resilienceTotal']){
     await page.locator('[data-ui="curve-effect"]').first().selectOption(key);
     assert.doesNotMatch(await page.locator('[data-ratio="umbra-resilience"]').first().innerText(),/NaN|undefined|Vision|Puissance critique/);
-    await page.selectOption('#conversion-stat',key);await page.fill('#conversion-points','150');await page.fill('#conversion-percent','50');
-    assert.equal(await page.locator('#conversion-percent').inputValue(),'50');
+    const maximum=key==='resilienceTotal'?25:50;
+    await page.selectOption('#conversion-stat',key);await page.fill('#conversion-points','150');
+    assert.equal(Number(await page.locator('#conversion-limit').inputValue()),maximum,'Index 14 uses the shared effect ceiling');
+    await page.fill('#conversion-percent','20');
+    assert.equal(await page.locator('#conversion-percent').inputValue(),'20');
     assert.match(await page.locator('#conversion-result').innerText(),/Résilience/);
     if(key==='resilienceTotal')assert.match(await page.locator('#conversion-agility-field').innerText(),/Force/);
     if(key==='hindranceResistance')assert.match(await page.locator('#conversion-agility-field').innerText(),/Agilité/);

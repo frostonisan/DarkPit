@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.4-dev — 27 novembre 2026
+## Version actuelle : 0.93.5-dev — 27 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,22 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Résilience : progression et protections — 0.93.5-dev — 27 novembre 2026
+
+Les résistances aux critiques, aux altérations et aux entraves partagent une
+conversion à constante 98 et un plafond de 50 %, renforcées respectivement par
+Force, Intelligence et Agilité. Résilience totale utilise la même constante,
+son coefficient de 0,25 et le ratio de Force, avec un plafond de 25 %.
+Les points, leurs limites propres et les ratios progressifs communs restent
+la source du calcul. Les bonus autonomes partagent les plafonds de chaque effet.
+
+Les jets d’annulation restent successifs : Résilience totale, puis résistance aux
+entraves si nécessaire. Leur probabilité combinée ne dépasse pas 62,5 %. Le porc
+à 50 Résilience, 1 Force et 3 Agilité passe ainsi de 62,53 % à 24,35 % d’annulation.
+Les critiques conservent leurs dégâts de base ; les règles d’atténuation propres
+aux altérations restent appliquées. Les helpers précisent ces rôles et affichent
+les limites dans les détails ; le laboratoire Umbra utilise les mêmes réglages.
 
 ### Reprise du combat après un événement — 0.93.4-dev — 27 novembre 2026
 

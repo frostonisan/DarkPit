@@ -163,9 +163,10 @@ try{
         ok(result==='alteration_canceled',name+': total resilience cancels');eq(calls,1,name+': no later resistance roll after cancellation');
         ok(!Control.getControlState(resistant,name),name+': no effect state on cancellation');
       }
-      Math.random=()=>.5;
+      Math.random=()=>.49;
       for(const name of ['confusion','effroi','sommeil']){
         const resistant=actor('B',{hindranceResistance:100});
+        eq(D.calculateHindranceResistance(resistant),50,name+': autonomous resistance respects the shared cap');
         ok(A.applyEffect(resistant,name,source)==='alteration_canceled',name+': hindrance cancellation after total resilience failure');
       }
       Math.random=()=>.999999;
