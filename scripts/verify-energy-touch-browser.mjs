@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { createProjectileFixture } from './projectile-test-fixture.mjs';
 
-const output = resolve('outputs/projectiles-touch-20261124/functional');
+const output = resolve(process.env.ENERGY_TOUCH_OUTPUT || 'outputs/projectiles-touch-20261124/functional');
 const fixture = await createProjectileFixture(output), report = [];
 try {
   for (const count of [10, 40, 80]) {
@@ -103,19 +103,29 @@ try {
       window.touchState=()=>({position:actor.position,shift:actor.stats.shift.current,stored:S.loadFromLocalStorage('selectedArmyA')[0].position,
         preview:document.querySelectorAll('.touch-entity-drag-preview').length,active:document.body.classList.contains('drag-drop-active'),
         dragged:document.querySelectorAll('.dragged').length,hovered:document.querySelectorAll('.hex.hovered').length});
+      // Observe the result during pointerdown itself, before any hold timer could run.
+      document.addEventListener('pointerdown',event=>{
+        if(event.pointerType==='touch'&&event.isPrimary)window.touchContactState=touchState();
+      },true);
     });
     const cdp=await context.newCDPSession(page);
     const center=async selector=>{const b=await page.locator(selector).boundingBox();assert.ok(b);return {x:b.x+b.width/2,y:b.y+b.height/2};};
-    const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1}]:[]});
+    const touch=(type,p)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:p?[{...p,id:1,force:.05}]:[]});
     const sprite='#DragSprite_998501';
     const before=await page.evaluate(()=>touchState());
-    await touch('touchStart',await center(sprite));await touch('touchEnd');
+    const tapOrigin=await center(sprite);
+    await touch('touchStart',tapOrigin);
+    const contact=await page.evaluate(()=>touchContactState);
+    assert.equal(contact.active,true,'A light contact starts dragging synchronously, without a hold');
+    assert.equal(contact.preview,1,'The drag preview is available on first contact');
+    await touch('touchMove',{x:tapOrigin.x+2,y:tapOrigin.y});
+    await touch('touchEnd');
     await page.waitForTimeout(400);
-    assert.deepEqual(await page.evaluate(()=>touchState()),before,'A short tap cannot move or spend a charge');
+    assert.deepEqual(await page.evaluate(()=>touchState()),before,'A short tap with slight finger jitter cannot move or spend a charge');
     assert.equal(await page.evaluate(()=>tapClicks),1,'A short touch still produces the normal entity click');
     const drag=async(destination,ending='touchEnd')=>{
       await touch('touchStart',await center(sprite));
-      await page.waitForFunction(()=>document.querySelector('.touch-entity-drag-preview'));
+      assert.equal(await page.evaluate(()=>touchContactState.preview),1,'Every new contact is ready to drag without a second press');
       await touch('touchMove',destination);
       await touch(ending);
       await page.waitForFunction(()=>!document.body.classList.contains('drag-drop-active')&&!document.querySelector('.touch-entity-drag-preview'));
@@ -134,21 +144,27 @@ try {
     assert.deepEqual(await page.evaluate(()=>touchState()),moved,'Dropping outside the board cannot move');
     const origin=await center(sprite);
     await touch('touchStart',origin);
-    await page.waitForFunction(()=>document.querySelector('.touch-entity-drag-preview'));
+    assert.equal(await page.evaluate(()=>touchContactState.preview),1);
     await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...origin,id:1},{x:origin.x+25,y:origin.y+25,id:2}]});
     await touch('touchEnd');
     assert.deepEqual(await page.evaluate(()=>touchState()),moved,'A second finger cancels, without dropping');
     await page.evaluate(()=>clock.freezeCombatClock());
     await drag(await center('.hex[data-position="hex_1"]'));
-    state=await page.evaluate(()=>touchState());assert.equal(state.position,'hex_1','Touch holds work while combat time is frozen');
+    state=await page.evaluate(()=>touchState());assert.equal(state.position,'hex_1','Immediate touch dragging works while combat time is frozen');
     assert.ok(state.shift<moved.shift);
+    await page.evaluate(()=>clock.setCombatInteractionBlocked(true));
+    await touch('touchStart',await center(sprite));
+    assert.equal(await page.evaluate(()=>touchState().active),false,'Blocked combat interactions still reject contact');
+    await touch('touchMove',await center('.hex[data-position="hex_2"]'));await touch('touchEnd');
+    assert.deepEqual(await page.evaluate(()=>touchState()),state,'Blocked contact cannot move or spend a charge');
+    await page.evaluate(()=>clock.setCombatInteractionBlocked(false));
     await page.evaluate(()=>{clock.resumeCombatClock();touchActor.stats.shift.current=0;});
     await drag(await center('.hex[data-position="hex_2"]'));
     assert.equal(await page.evaluate(()=>touchActor.position),'hex_1','No movement without a charge');
     await page.screenshot({path:resolve(output,`touch-${viewport.width}.png`)});
     assert.deepEqual(errors,[]);
     report.push({viewport,moved,state});await context.close();
-    console.log('PASS touch',viewport.width,'native touch, hold, movement cost, save, enemy rejection, cancel and pause');
+    console.log('PASS touch',viewport.width,'light immediate contact, quick slide, tap/jitter, movement cost, save, enemy rejection, cancel, pause and blocked input');
   }
   await writeFile(resolve(output,'report.json'),JSON.stringify(report,null,2));
 }finally{await fixture.close();}

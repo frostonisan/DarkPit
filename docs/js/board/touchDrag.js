@@ -3,8 +3,7 @@ import { isAdminMode } from '../storage/gameStorage.js';
 import { isCombatInteractionBlocked } from '../combat/clock.js';
 import { endDragHelperCleanup } from '../ui/drag.js';
 
-const HOLD_MS = 300;
-const MOVE_TOLERANCE = 12;
+const DRAG_DISTANCE = 4;
 let gesture = null;
 let suppressClickUntil = 0;
 let bound = false;
@@ -70,17 +69,16 @@ function paintDrag(current) {
 function finishGesture(drop = false) {
   const current = gesture;
   if (!current) return;
-  window.clearTimeout(current.timer);
   if (current.frame !== null) window.cancelAnimationFrame(current.frame);
   try {
     if (current.active) {
       // Resolve the final finger position even if RAF has not painted it yet.
-      if (drop && current.box.isConnected && canDrag(current.box, current.sprite)) {
+      if (drop && current.moved && current.box.isConnected && canDrag(current.box, current.sprite)) {
         paintDrag(current);
         if (current.hovered && gesture === current) sendDrag('drop', current.hovered, current);
       }
       sendDrag('dragend', current.sprite.isConnected ? current.sprite : current.origin, current);
-      suppressClickUntil = Date.now() + 600;
+      if (current.moved || !drop) suppressClickUntil = Date.now() + 600;
     }
   } finally {
     gesture = null;
@@ -102,36 +100,32 @@ export function bindTouchEntityDrag() {
     const box = event.target.closest('#hexGrid [id^="Box_Entite_"]');
     const sprite = box?.querySelector('.sprite');
     if (!box || !sprite || !canDrag(box, sprite)) return;
-    // Own only eligible touch holds. A quick tap still reaches the click UI.
+    // Pick up on contact; releasing without a slide still reaches the click UI.
     event.stopPropagation();
     const current = { box, sprite, origin: box.closest('.hex'), pointerId: event.pointerId,
       startX: event.clientX, startY: event.clientY, x: event.clientX, y: event.clientY,
-      active: false, frame: null, hovered: null, transfer: transferFor(box) };
+      active: false, moved: false, frame: null, hovered: null, transfer: transferFor(box) };
     gesture = current;
     try { sprite.setPointerCapture(event.pointerId); } catch { /* Detached/test pointer. */ }
-    current.timer = window.setTimeout(() => {
-      if (gesture !== current || !box.isConnected || !canDrag(box, sprite)) { cancelTouchEntityDrag(); return; }
-      current.active = true;
-      if (!sendDrag('dragstart', sprite, current)) { cancelTouchEntityDrag(); return; }
-      createPreview(current);
-      paintDrag(current);
-    }, HOLD_MS);
+    current.active = true;
+    if (!sendDrag('dragstart', sprite, current)) { cancelTouchEntityDrag(); return; }
+    createPreview(current);
+    paintDrag(current);
   }, true);
 
   document.addEventListener('pointermove', event => {
     const current = gesture;
     if (!current || event.pointerId !== current.pointerId) return;
     current.x = event.clientX; current.y = event.clientY;
-    if (!current.active) {
-      if (Math.hypot(current.x - current.startX, current.y - current.startY) > MOVE_TOLERANCE) cancelTouchEntityDrag();
-      return;
-    }
+    current.moved ||= Math.hypot(current.x - current.startX, current.y - current.startY) >= DRAG_DISTANCE;
+    if (!current.moved) return;
     event.preventDefault();
     if (current.frame === null) current.frame = window.requestAnimationFrame(() => paintDrag(current));
   }, { capture: true, passive: false });
   document.addEventListener('pointerup', event => {
     if (event.pointerId !== gesture?.pointerId) return;
     gesture.x = event.clientX; gesture.y = event.clientY;
+    gesture.moved ||= Math.hypot(gesture.x - gesture.startX, gesture.y - gesture.startY) >= DRAG_DISTANCE;
     finishGesture(true);
   }, true);
   for (const type of ['pointercancel', 'lostpointercapture']) {
