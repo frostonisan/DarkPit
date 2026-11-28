@@ -43,17 +43,26 @@
 .entity-effect-column[data-side="B"] { right: auto; left: calc(100% + 5px); align-items: flex-start; }
 
 .entity-effect-column .entity-effect-row {
-  position: relative; display: flex; flex: none; gap: 4px; height: 32px; min-width: 128px;
-  box-sizing: border-box; padding: 0 24px 0 10px; border: 0; border-radius: 0;
-  background: url('../media/assets/misc/battle-card-malus.png') center / 100% 100% no-repeat;
+  --effect-card-image: url('../media/assets/misc/battle-card-malus.png');
+  position: relative; z-index: 0; display: flex; flex: none; gap: 3px; height: 30px; min-width: 100px;
+  box-sizing: border-box; padding: 0 30px 0 8px; border: 0; border-radius: 0; background: transparent;
   color: var(--effect-color); cursor: help; line-height: 1; white-space: nowrap;
 }
+
+.entity-effect-column .entity-effect-row::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: var(--effect-card-image) center / 100% 100% no-repeat;
+}
+
+/* Mirror the artwork toward the entity, leaving the icon and timer readable. */
+.entity-effect-column[data-side="B"] .entity-effect-row { padding: 0 8px 0 30px; }
+.entity-effect-column[data-side="B"] .entity-effect-row::before { transform: scaleX(-1); }
 
 /* Beneficial effect identities are supplied by the combat engine. */
 .entity-effect-column .entity-effect-row:is([data-entity-effect^="bonus-"],
   [data-entity-effect="consolidation"], [data-entity-effect="cohesion"],
   [data-entity-effect="astralBody"], [data-entity-effect="astralReturn"]) {
-  background-image: url('../media/assets/misc/battle-card-bonus.png');
+  --effect-card-image: url('../media/assets/misc/battle-card-bonus.png');
 }
 
 .entity-effect-row:focus-visible, .entity-effect-row:hover { outline: 1px solid var(--effect-color); outline-offset: 1px; }

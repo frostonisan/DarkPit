@@ -286,7 +286,7 @@ animation:
   margin: 0; transform: none; pointer-events: none;
 }
 .combat-popup-damages { z-index: 2; }
-.combat-popup-status { left: 94px; bottom: -10px; z-index: 2; }
+.combat-popup-status { --status-popup-x: 60px; --status-popup-drop: 38px; left: var(--status-popup-x); bottom: calc(-1 * var(--status-popup-drop)); z-index: 2; }
 .combat-popup-lane, .combat-popup-history { position: absolute; left: 0; bottom: 0; width: 0; height: 0; }
 .combat-popup-lane[data-lane=center] { z-index: 3; }
 .combat-popup-lane[data-lane=left] { z-index: 2; transform: translate(-18px, -23px); }
@@ -303,6 +303,9 @@ animation:
 .combat-popup-flight[data-priority="3"] { --popup-critical-color: var(--color-bloodFury, #ff0006); }
 .combat-popup-status .combat-popup-life { padding-inline: 0; font: 800 13px/1.1 system-ui, sans-serif; transform-origin: left bottom; }
 .combat-popup-status .combat-popup-card { text-align: left; transform-origin: left bottom; }
+.entity-visual-calibrated.side-B .combat-popup-status { --status-popup-x: -60px; }
+.entity-visual-calibrated.side-B .combat-popup-status .combat-popup-card { left: auto; right: 0; text-align: right; transform-origin: right bottom; }
+.entity-visual-calibrated.side-B .combat-popup-status .combat-popup-life { transform-origin: right bottom; }
 .combat-popup-history-row { transition: transform 300ms cubic-bezier(.22,.61,.36,1), opacity 260ms ease-out; }
 .combat-popup-history-row .combat-popup-life { font: 700 14px/1 system-ui, sans-serif; }
 .combat-popup-life :is(.damage-popup, .BattleText) {
@@ -327,8 +330,8 @@ animation:
 .combat-popup-flight[data-priority="3"] .picto-stat { flex-basis: 34px; width: 34px; height: 34px; }
 .combat-popup-history-row .picto-stat { flex-basis: 14px; width: 14px; height: 14px; }
 .combat-popup-life .damage-popup--overkill .picto-stat.overkill {
-  flex-basis: 120px; width: 120px; height: 42px;
-  background-size: 128px;
+  flex-basis: 180px; width: 180px; height: 63px;
+  background-size: 192px;
   filter: drop-shadow(0 0 5px #bb000075);
 }
 .damage-popup--overkill .damage-popup-value { font-size: 0; }
@@ -410,7 +413,7 @@ animation:
   z-index: 220; isolation: isolate; line-height: 1.2;
 }
 .entity-visual-calibrated .combat-popup-status {
-  transform: scale(var(--entity-size-scale, 1)) translate(94px, calc(10px - var(--sprite-h) - var(--popup-headroom)));
+  transform: scale(var(--entity-size-scale, 1)) translate(var(--status-popup-x), calc(var(--status-popup-drop) - var(--sprite-h) - var(--popup-headroom)));
 }
 .entity-visual-calibrated .combat-popup-damages {
   transform: scale(var(--entity-size-scale, 1)) translateY(calc(-.5 * var(--sprite-h)));

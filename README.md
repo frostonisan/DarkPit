@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.6.4-dev — 28 novembre 2026
+## Version actuelle : 0.93.6.5-dev — 28 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,17 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Combat : cartes d’effets compactes et orientées — 0.93.6.5-dev — 28 novembre 2026
+
+Les cartes des bonus et malus utilisent les nouveaux sprites plus étroits.
+Leur taille minimale passe de 128 × 32 à 100 × 30 pixels, en conservant la taille
+des pictogrammes et du texte. Côté B, le fond est inversé pour orienter ses
+flèches vers l’entité ; le pictogramme et la durée restent dans leur sens de
+lecture habituel, avec les marges adaptées.
+
+Les noms d’effets apparaissent plus bas et plus près de l’entité, à droite pour
+le camp A et à gauche pour le camp B. Le visuel « Overkill » est agrandi de 50 %.
 
 ### Statuts : quatre illustrations dédiées — 0.93.6.4-dev — 28 novembre 2026
 
