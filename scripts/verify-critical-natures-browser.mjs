@@ -202,19 +202,27 @@ try{
       kinetic.stats.shift={current:2,max:5};
       hit(source,kinetic,['red','red','red','yellow'],100,55);
       eq(kinetic.stats.shift.current,1,'Exaust withdraws one current movement');
+      const movementPopups=entity=>[...document.querySelectorAll(`#effectsContainer_${entity.id} > .movement-loss-vfx`)];
+      eq(movementPopups(kinetic).length,1,'A critical movement loss appears in the GIF/VFX container');
+      ok(movementPopups(kinetic)[0].textContent==='−1'&&movementPopups(kinetic)[0].querySelector('.picto-stat.shift'),
+        'Movement loss shows minus one and the movement pictogram');
       const ns=C.captureCombatState()['nature-effects'].find(e=>e.entity===kinetic.id).effects.find(e=>e.key==='rupture');
       eq(ns.amounts.length,6,'Critical charges round to nearest');
       eq(ns.amounts[0],2.5,'Resilience reduces resistance loss, not charges');
       hit(source,kinetic,['red','red','red','yellow'],100,55);
+      eq(movementPopups(kinetic).length,2,'Two equal movement losses create two distinct visual events');
       eq(C.captureCombatState()['nature-effects'].find(e=>e.entity===kinetic.id).effects[0].amounts.length,10,'Rupture caps at ten charges');
       hit(source,kinetic,['red','yellow'],10,50);eq(kinetic.stats.shift.current,0,'Exaust at zero cannot create movement debt');
       kinetic.stats.shift.current=-2;Fx.exaust(kinetic);
       eq(kinetic.stats.shift.current,-2,'Ignored Exaust cannot repay existing movement debt');
+      eq(movementPopups(kinetic).length,2,'Zero charges and existing debt produce no false movement-loss popup');
       const guarded=actor('B',{hindranceResistance:99});
       guarded.stats.shift={current:2,max:5};Math.random=()=>.49;hit(source,guarded,['red','yellow'],10,50);Math.random=()=>.5;
       eq(guarded.stats.shift.current,2,'Hindrance protection cancels Exaust');
+      eq(movementPopups(guarded).length,0,'Resisted Exaust produces no movement-loss popup');
       hit(source,guarded,['red','yellow'],10,50);
       eq(guarded.stats.shift.current,1,'Exaust passes at the 50 percent resistance boundary');
+      eq(movementPopups(guarded).length,1,'Successful Exaust shows its actual movement loss');
       const spectral=actor('B');
       spectral._combatAction={stage:'preparation',attack:{},preparation:{progress:500,lastTick:C.clockNow()}};
       hit(source,spectral,['blue','blue','blue','yellow'],100,60);

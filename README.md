@@ -4,7 +4,7 @@ Jeu web statique en JavaScript, HTML et CSS. Le jeu est servi directement depuis
 `docs/`, sans compilation. Les dépendances npm servent uniquement aux contrôles
 et aux tests ; elles ne sont pas publiées avec le jeu.
 
-## Version actuelle : 0.93.7-dev — 28 novembre 2026
+## Version actuelle : 0.93.7.1-dev — 28 novembre 2026
 
 Le numéro de version est défini par `GAME_VERSION` dans `docs/js/debug/admin.js`.
 Le même module admin injecte le libellé dans le DOM en mode normal et admin,
@@ -12,6 +12,15 @@ en remplaçant l'ancien texte du HTML ou en créant le libellé s'il manque.
 Il suffit de publier le JavaScript actualisé pour changer la version affichée :
 aucune modification d'`index.html` n'est nécessaire. Le vérificateur du projet
 contrôle la cohérence avec les métadonnées npm et cette note de version.
+
+### Combat : perte de mouvement visible — 0.93.7.1-dev — 28 novembre 2026
+
+Lorsqu’Exaust retire un mouvement, notamment après une rupture critique cinétique,
+un « −1 » accompagné du pictogramme de déplacement jaune apparaît sur le corps de
+l’entité, dans la zone des VFX. Aucun indicateur de perte n’apparaît si l’entrave
+est résistée ou si la réserve ne permet pas de retirer un mouvement. Les pertes
+successives ont des popups distincts, limités à trois visibles par entité ; leur
+animation et leur expiration suivent la pause, le rechargement et la reprise.
 
 ### Mobile : déplacement au premier contact — 0.93.7-dev — 28 novembre 2026
 

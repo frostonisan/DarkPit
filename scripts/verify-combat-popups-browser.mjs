@@ -361,19 +361,37 @@ try {
     D.PopUpDamages(target, 12, [], '', {}, 'critical', 3, 'physicalDamage');
     ok(document.querySelector(`#PopUp_${target.id} .damage-popup-value`).textContent === '−15' && document.querySelector(`#PopDow_${target.id} .combat-popup-front .damage-popup--armor-destroyed`), 'HP plus armor damage retain their total and armor-break notice');
     Popups.clearCombatPopups();
+    target.stats.shift = { current: 10, max: 10 };
+    for (let i = 0; i < 10; i++) FX.exaust(target);
+    const losses = [...document.querySelectorAll(`#effectsContainer_${target.id} > .movement-loss-vfx`)];
+    ok(target.stats.shift.current === 0 && losses.length === Popups.POPUP_LIMITS.movementLoss,
+      'A burst preserves all ten actual movement losses with bounded VFX');
+    ok(new Set(losses.map(node => node.dataset.movementLossLane)).size === losses.length,
+      'Concurrent movement-loss popups use distinct positions');
+    ok(losses.every(node => getComputedStyle(node.firstElementChild).color === 'rgb(255, 230, 0)'
+      && getComputedStyle(node.querySelector('.picto-stat.shift')).color === 'rgb(255, 230, 0)'
+      && getComputedStyle(node.querySelector('.picto-stat.shift')).maskImage.includes('picto-shift.svg')),
+      'Movement losses use yellow text and the yellow movement pictogram');
+    Popups.clearCombatPopups();
+    ok(!document.querySelector('.movement-loss-vfx'), 'The shared popup cleanup also removes movement-loss VFX');
     return passed;
   });
   await page.evaluate(async () => {
+    Clock.freezeCombatClock();
     FX.brulure(E.entites[0], { criticalBurn: true, effectDuration: 10, effectDot: 30 }, E.entites[1]);
     for (const value of [18, 24, 32]) D.PopUpDamages(E.entites[0], value, [], '', {}, 'normal', 0, 'magicalDamage');
     U.EffectMessage(E.entites[1], 'OVERKILL !');
+    for (const entity of E.entites.slice(0, 2)) {
+      entity.stats.shift = { current: 2, max: 2 }; FX.exaust(entity);
+    }
     for (const node of document.querySelectorAll('.combat-popup-card')) {
       node.getAnimations({ subtree: true }).forEach(animation => { animation.pause(); animation.currentTime = node.dataset.latest === 'true' ? 40 : 350; });
     }
   });
   await page.screenshot({ path: resolve(output, 'magic-burn-and-centered-impacts.png'), fullPage: true });
   await page.locator('.combat-popup-flight:has(.damage-popup--overkill)').screenshot({ path: resolve(output, 'overkill-centered.png') });
-  await page.evaluate(() => { FX.clearCombatEffects(); Popups.clearCombatPopups(); });
+  await page.locator('.movement-loss-vfx').first().screenshot({ path: resolve(output, 'movement-loss.png') });
+  await page.evaluate(() => { FX.clearCombatEffects(); Popups.clearCombatPopups(); Clock.resumeCombatClock(); });
   await page.evaluate(async () => {
     // Expired cached cards must not enter the existing paused DOM snapshot.
     for (let i = 0; i < 3; i++) D.PopUpDamages(E.entites[0], 40 + i, [], '', {}, 'normal');
@@ -383,6 +401,7 @@ try {
     for (const entity of E.entites) {
       D.PopUpDamages(entity, 128, [], '', {}, 'critical', 0, 'magicalDamage');
       U.EffectMessage(entity, 'Stun !', 'normal', { effectKey: 'stun', durationSeconds: 3 });
+      entity.stats.shift = { current: 2, max: 2 }; FX.exaust(entity);
     }
     await new Promise(done => setTimeout(done, 180)); await P.pauseCombat();
   });

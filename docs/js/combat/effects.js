@@ -18,6 +18,7 @@ import {
 import { buildSignatureStackHelper } from "../data/helpers.js";
 import { cachedResourceUrl, playCachedGif } from "../data/loaderList.js";
 import { setDisplayClass } from '../rendering/displayBatch.js';
+import { showMovementLossPopup } from '../rendering/popups.js';
 import { EFFECT_VISUALS } from '../data/effectVisuals.js';
 import { entites, removedEntities, getMovementWeightMalus, recomputeEntityStats } from "../entities/runtime.js";
 import { summons } from "../data/summons.js";
@@ -662,7 +663,10 @@ export function exaust(target, effect, attacker, onEnd) {
   if (available >= 1) spendMovementCharges(target, 1);
   // Existing movement orders may carry debt. An ignored withdrawal must not repay it.
   saveEntityMovementState(target); updateMovementDisplay(target);
-  if (available >= 1) EffectMessage(target, 'Exaust !', 'normal', { effectKey: 'exaust' });
+  if (available >= 1) {
+    EffectMessage(target, 'Exaust !', 'normal', { effectKey: 'exaust' });
+    showMovementLossPopup(document.getElementById(`effectsContainer_${target.id}`), 1);
+  }
   return available >= 1;
 }
 exaust.tacticalConsequence = ['direct']; exaust.tacticalScope = 'attack';

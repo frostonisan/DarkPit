@@ -1,7 +1,7 @@
 import { clockNow, removeCombatVisualAfter, setTimeout, clearTimeout } from "../combat/clock.js";
 import { EFFECT_VISUALS } from "../data/effectVisuals.js";
 
-export const POPUP_LIMITS = Object.freeze({ damage: 8, history: 6, front: 3, outgoing: 3 });
+export const POPUP_LIMITS = Object.freeze({ damage: 8, history: 6, front: 3, outgoing: 3, movementLoss: 3 });
 const removals = new WeakMap();
 const animations = new WeakMap();
 const trajectories = new Map();
@@ -255,6 +255,31 @@ export function showEffectPopup(host, content) {
     { transform: 'translateY(-42px) scale(.96)', opacity: 0, offset: 1 }
   ], 1350);
   return content;
+}
+
+export function showMovementLossPopup(host, amount) {
+  if (!host || !(amount > 0)) return null;
+  // Keep distinct losses visible in the existing VFX layer, with bounded overlap.
+  const active = [...host.querySelectorAll(':scope > .movement-loss-vfx')];
+  while (active.length >= POPUP_LIMITS.movementLoss) removeCard(active.shift());
+  const lane = paths.find(path => !active.some(node => node.dataset.movementLossLane === path));
+  const line = document.createElement('div'); line.className = 'movement-loss-line';
+  const value = document.createElement('span'); value.textContent = `−${amount}`;
+  const icon = document.createElement('span'); icon.className = 'picto-stat shift'; icon.setAttribute('aria-hidden', 'true');
+  line.append(value, icon);
+  const { node, body } = makeCard(line, 'effect-vfx movement-loss-vfx');
+  node.setAttribute('aria-label', `${amount} déplacement${amount > 1 ? 's' : ''} perdu${amount > 1 ? 's' : ''}`);
+  node.dataset.movementLossLane = lane;
+  node.style.setProperty('--movement-loss-x', `${lane === 'left' ? -32 : lane === 'right' ? 32 : 0}px`);
+  host.append(node);
+  animateCard(node, body, [
+    { transform: 'translateY(6px) scale(.8)', opacity: 0, offset: 0 },
+    { transform: 'translateY(0) scale(1.15)', opacity: 1, offset: .1 },
+    { transform: 'translateY(-4px) scale(1)', opacity: 1, offset: .25 },
+    { transform: 'translateY(-18px) scale(1)', opacity: 1, offset: .7 },
+    { transform: 'translateY(-30px) scale(.9)', opacity: 0, offset: 1 },
+  ], 1100);
+  return node;
 }
 
 export function formatEffectPopup(node, { effectKey, effectLabel, effectNature, durationSeconds, effectValue, effectUnit = '' }) {

@@ -335,6 +335,20 @@ animation:
   filter: drop-shadow(0 0 5px #bb000075);
 }
 .damage-popup--overkill .damage-popup-value { font-size: 0; }
+.effect-vfx.movement-loss-vfx {
+  top: calc(50% - 36px); left: 50%; bottom: auto; margin: 0; z-index: 30; pointer-events: none;
+  transform: translate(calc(-50% + var(--movement-loss-x, 0px)), -50%);
+}
+.movement-loss-vfx .combat-popup-life {
+  padding: 0; font: 700 28px/1.1 Georgia, 'Times New Roman', serif; color: #ffe600;
+  -webkit-text-stroke: 1.5px #160e08; paint-order: stroke fill; text-shadow: 0 1px 2px #000;
+}
+.movement-loss-line { display: flex; align-items: center; justify-content: center; gap: 4px; white-space: nowrap; }
+.movement-loss-vfx .picto-stat.shift {
+  flex-basis: 28px; width: 28px; height: 28px; color: inherit; background: currentColor;
+  mask: url('../media/assets/ui/picto-shift.svg') center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px #000);
+}
 .combat-popup-status-icon { flex: 0 0 16px; width: 16px; height: 16px; object-fit: cover; border-radius: 2px; }
 .combat-popup-history-row .combat-popup-status-icon { flex-basis: 14px; width: 14px; height: 14px; }
 
