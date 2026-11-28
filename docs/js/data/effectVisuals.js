@@ -1,5 +1,8 @@
 // Artwork filenames are independent of the effect keys used by the combat engine.
-const artworkNames = { bafouillage: 'baffouillage', effroi: 'effroie', exaust: 'immobilisation', dephasage: 'baffouillage', corruptionPrismatique: 'dissolution' };
+const artworkNames = {
+  bafouillage: 'statut-baffouillage', effroi: 'statut-effroie', gigantisme: 'statut-gigantism',
+  dephasage: 'statuts-dephase', corruptionPrismatique: 'statuts-corruption-prismatic',
+};
 export const EFFECT_VISUALS = Object.fromEntries([
   ['poison', 'Poison', '#9be83c'], ['brulure', 'Brûlure', '#ffa735'],
   ['immobilisation', 'Immobilisation', '#86b9fa'], ['stun', 'Stun', '#ffdc63'],
@@ -13,8 +16,9 @@ export const EFFECT_VISUALS = Object.fromEntries([
   ['dissolution', 'Dissolution', '#b4ee43'],
   ['exaust', 'Exaust', '#efb45b'], ['dephasage', 'Déphasage', '#9595ff'],
   ['corruptionPrismatique', 'Corruption prismatique', '#ba82dd'],
+  ['gigantisme', 'Gigantisme', '#cd7f32'],
 ].map(([key, label, color]) => [key, {
-  key, label, color, src: `./media/assets/statuts/statut-${artworkNames[key] || key}.jpg`,
+  key, label, color, src: `./media/assets/statuts/${artworkNames[key] || `statut-${key}`}.jpg`,
 }]));
 
 EFFECT_VISUALS.magicalBurn = { ...EFFECT_VISUALS.brulure,

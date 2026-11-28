@@ -5,7 +5,7 @@ import { resolve, relative, extname, sep } from 'node:path';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const root = resolve('docs'), output = resolve('outputs/status-icons-integration');
+const root = resolve('docs'), output = resolve(process.env.ENTITY_EFFECT_OUTPUT || 'outputs/status-icons-integration');
 await mkdir(output, { recursive: true });
 const server = createServer(async (req, res) => {
   const file = resolve(root, '.' + decodeURIComponent(new URL(req.url, 'http://localhost').pathname));
@@ -85,9 +85,9 @@ try {
     const dot = (duration, damage) => ({ effectDuration: duration, effectDot: damage, effectPhysicalRatio: 0, effectMagicalRatio: 0 });
     try {
       const resources = Loader.collectLevelResources();
-      ok(visuals.length === 22 && decoded.every(Boolean), 'All 22 effects and visual variants have decodable artwork');
+      ok(visuals.length === 23 && decoded.every(Boolean), 'All 23 effects and visual variants have decodable artwork');
       ok(visuals.every(visual => resources.has(Loader.resourceKey(visual.src))), 'Every status image is preloaded with the level');
-      ok(visuals.every(visual => /\/statuts\/statut-[\w-]+\.jpg$/.test(visual.src)), 'Only statut- artwork is used');
+      ok(visuals.every(visual => /\/statuts\/statuts?-[\w-]+\.jpg$/.test(visual.src)), 'Only status artwork from the shared catalog is used');
       for (const visual of visuals) {
         const key = `artwork-${visual.key}`;
         Display.setEntityEffectView(b, key, { kind: visual.key, label: visual.label, type: 'control', endAt: () => Clock.clockNow() + 10000, read: () => ({ html: 'Aperçu' }) });

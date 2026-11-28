@@ -1,7 +1,7 @@
 {
   "name": "darkpit",
-  "version": "0.93.6-dev.3",
-  "gameVersion": "0.93.6.3-dev",
+  "version": "0.93.6-dev.4",
+  "gameVersion": "0.93.6.4-dev",
   "private": true,
   "description": "Local checks and browser tests for the static DarkPit game",
   "engines": {
